@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark-roast">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#1a1412">
+  <meta name="color-scheme" content="dark light">
+  <title>豆仓</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-mark" aria-hidden="true"><span></span></div>
+    <div class="brand-copy">
+      <h1>豆仓</h1>
+      <p id="recordCount">正在打开豆仓…</p>
+    </div>
+    <button class="icon-button" id="searchToggle" type="button" aria-label="搜索" aria-expanded="false">⌕</button>
+    <button class="icon-button" id="settingsOpen" type="button" aria-label="设置">•••</button>
+  </header>
+
+  <main>
+    <nav class="view-tabs" aria-label="首页视图">
+      <button class="active" data-view="beans" type="button">豆仓</button>
+      <button data-view="drinks" type="button">饮用</button>
+    </nav>
+    <section class="search-panel" id="searchPanel" hidden>
+      <label class="search-box">
+        <span aria-hidden="true">⌕</span>
+        <input id="searchInput" type="search" autocomplete="off" placeholder="搜索豆名、产地或风味">
+        <button id="searchClear" type="button" aria-label="清除搜索">×</button>
+      </label>
+    </section>
+    <div id="beansView">
+
+    <section class="overview" aria-label="豆仓概览">
+      <article class="stat stat-primary"><strong id="statTotal">0</strong><span>豆款</span></article>
+      <div class="stat-divider"></div>
+      <article class="stat"><strong id="statActive">0</strong><span>饮用中</span></article>
+      <article class="stat"><strong id="statRemaining">0g</strong><span>剩余总量</span></article>
+    </section>
+
+    <nav class="filter-row" id="statusFilters" aria-label="按状态筛选">
+      <button class="chip active" data-value="全部" type="button">全部</button>
+      <button class="chip" data-value="未开封" type="button">未开封</button>
+      <button class="chip" data-value="饮用中" type="button">饮用中</button>
+      <button class="chip" data-value="已喝完" type="button">已喝完</button>
+    </nav>
+
+    <section class="sort-row" aria-label="排序">
+      <span>排序</span>
+      <button class="sort-button active" data-sort="roastDate" type="button">烘焙日期</button>
+      <button class="sort-button" data-sort="name" type="button">名称</button>
+      <button class="sort-button" data-sort="remainingWeight" type="button">余量</button>
+      <button class="direction-button" id="sortDirection" type="button" aria-label="切换排序方向">↓</button>
+    </section>
+
+    <section class="bean-list" id="beanList" aria-live="polite"></section>
+    <section class="empty-state" id="emptyState" hidden>
+      <div class="empty-bag" aria-hidden="true"><span></span></div>
+      <h2>豆仓还是空的</h2>
+      <p>从右下角放入第一包咖啡豆吧。</p>
+    </section>
+    </div>
+    <section id="drinksView" hidden>
+      <section class="overview drink-overview" aria-label="饮用概览">
+        <article class="stat stat-primary"><strong id="drinkCups">0</strong><span>总杯数</span></article>
+        <div class="stat-divider"></div>
+        <article class="stat"><strong id="drinkGrams">0g</strong><span>累计用豆</span></article>
+        <article class="stat"><strong id="drinkAverage">—</strong><span>平均评分</span></article>
+      </section>
+      <section class="timeline" id="globalDrinkList" aria-live="polite"></section>
+      <section class="empty-state" id="drinkEmpty" hidden><div class="empty-bag" aria-hidden="true"><span></span></div><h2>还没有喝一杯</h2><p>回到豆仓，从任意卡片快速记录第一杯。</p></section>
+    </section>
+  </main>
+
+  <button class="scan-fab" id="scanBean" type="button" aria-label="拍照识别咖啡豆">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 5.5 10 3h4l1.5 2.5H19A2.5 2.5 0 0 1 21.5 8v9A2.5 2.5 0 0 1 19 19.5H5A2.5 2.5 0 0 1 2.5 17V8A2.5 2.5 0 0 1 5 5.5h3.5Z"/><circle cx="12" cy="12.5" r="4"/></svg>
+  </button>
+  <button class="fab" id="addBean" type="button" aria-label="新增咖啡豆">＋</button>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <dialog class="sheet detail-sheet" id="detailDialog">
+    <header class="sheet-header detail-header">
+      <div><p class="eyebrow">BEAN PROFILE</p><h2 id="detailTitle">咖啡豆详情</h2></div>
+      <div class="header-actions"><button class="icon-button edit-icon" id="detailEdit" type="button" aria-label="编辑咖啡豆"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 16.5-.8 4.3 4.3-.8L18.8 8.7l-3.5-3.5L4 16.5Z"/><path d="m13.8 6.7 3.5 3.5"/></svg></button><button class="icon-button" id="detailClose" type="button" aria-label="关闭">×</button></div>
+    </header>
+    <div class="bean-profile">
+      <section class="profile-hero"><div><div class="profile-status" id="detailStatus"></div><h3 id="detailName"></h3><p id="detailSubtitle"></p></div><button class="profile-drink" id="detailDrink" type="button" aria-label="快捷喝一杯"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h12v7a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5V8Z"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17M8 4c0 1 1 1 1 2M12 3c0 1 1 1 1 2"/></svg><span id="detailDrinkGrams">15g</span></button></section>
+      <section class="profile-facts" id="detailFacts"></section>
+      <section class="profile-images" id="detailImages" hidden></section>
+      <section class="profile-notes" id="detailNotesSection"><span>风味笔记</span><p id="detailNotes"></p></section>
+      <section class="bean-history profile-history"><div class="section-heading"><div><span>饮用时间线</span><small id="detailHistorySummary"></small></div></div><div class="timeline compact-timeline" id="detailDrinkHistory"></div></section>
+    </div>
+  </dialog>
+
+  <dialog class="sheet detail-sheet" id="drinkDetailDialog">
+    <header class="sheet-header detail-header">
+      <div><p class="eyebrow">BREW PROFILE</p><h2 id="drinkDetailTitle">饮用详情</h2></div>
+      <div class="header-actions"><button class="icon-button edit-icon" id="drinkDetailEdit" type="button" aria-label="编辑饮用记录"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 16.5-.8 4.3 4.3-.8L18.8 8.7l-3.5-3.5L4 16.5Z"/><path d="m13.8 6.7 3.5 3.5"/></svg></button><button class="icon-button" id="drinkDetailClose" type="button" aria-label="关闭">×</button></div>
+    </header>
+    <div class="drink-profile">
+      <section class="brew-hero"><div class="brew-cup" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 8h12v7a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5V8Z"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17M8 4c0 1 1 1 1 2M12 3c0 1 1 1 1 2"/></svg></div><div><h3 id="drinkDetailBean"></h3><p id="drinkDetailMeta"></p><div id="drinkDetailStars"></div></div></section>
+      <section class="profile-facts" id="drinkDetailFacts"></section>
+      <section class="profile-notes" id="drinkDetailNotesSection"><span>评价备注</span><p id="drinkDetailNotes"></p></section>
+      <section class="brew-dimensions" id="drinkDetailDimensions" hidden><div class="section-heading"><div><span>高级评价</span><small>本次风味感受</small></div></div><div id="drinkDetailDimensionList"></div></section>
+    </div>
+  </dialog>
+
+  <dialog class="sheet editor" id="editorDialog">
+    <form id="beanForm" method="dialog">
+      <header class="sheet-header">
+        <div><p class="eyebrow">COFFEE ENTRY</p><h2 id="editorTitle">新增咖啡豆</h2></div>
+        <button class="icon-button" id="editorClose" type="button" aria-label="关闭">×</button>
+      </header>
+      <div class="form-grid">
+        <aside class="scan-result full" id="scanResult" hidden></aside>
+        <input id="field-bagImagePath" name="bagImagePath" type="hidden">
+        <input id="field-labelImagePath" name="labelImagePath" type="hidden">
+        <label class="field full"><span>豆名 *</span><input id="field-name" name="name" type="text" required maxlength="120" placeholder="例如：花魁 7.0"></label>
+
+        <div class="field full smart-field" data-smart-field="roaster">
+          <div class="field-heading"><label for="field-roaster-select">烘焙商</label><button class="manage-button" data-manage="roaster" type="button">管理</button></div>
+          <select id="field-roaster-select" class="smart-select" data-field="roaster"><option value="">请选择或新建</option></select>
+          <input id="field-roaster" name="roaster" type="hidden">
+          <input id="field-roaster-custom" class="smart-input" data-field="roaster" type="text" maxlength="120" placeholder="输入新烘焙商" hidden>
+        </div>
+
+        <div class="field smart-field" data-smart-field="origin">
+          <div class="field-heading"><label for="field-origin-select">产地</label><button class="manage-button" data-manage="origin" type="button">管理</button></div>
+          <select id="field-origin-select" class="smart-select" data-field="origin"><option value="">请选择或新建</option></select>
+          <input id="field-origin" name="origin" type="hidden">
+          <input id="field-origin-custom" class="smart-input" data-field="origin" type="text" maxlength="120" placeholder="输入新产地" hidden>
+        </div>
+
+        <div class="field smart-field" data-smart-field="process">
+          <div class="field-heading"><label for="field-process-select">处理法</label><button class="manage-button" data-manage="process" type="button">管理</button></div>
+          <select id="field-process-select" class="smart-select" data-field="process"><option value="">请选择或新建</option></select>
+          <input id="field-process" name="process" type="hidden">
+          <input id="field-process-custom" class="smart-input" data-field="process" type="text" maxlength="120" placeholder="输入新处理法" hidden>
+        </div>
+
+        <label class="field"><span>烘焙度</span><select id="field-roastLevel" name="roastLevel"><option value="">未记录</option><option>浅烘</option><option>中浅烘</option><option>中烘</option><option>中深烘</option><option>深烘</option></select></label>
+        <label class="field"><span>状态</span><select id="field-status" name="status"><option>未开封</option><option>饮用中</option><option>已喝完</option></select></label>
+        <label class="field"><span>烘焙日期</span><input id="field-roastDate" name="roastDate" class="picker-control" data-picker-kind="date" type="text" readonly placeholder="选择日期"></label>
+        <label class="field"><span>开封日期</span><input id="field-openedDate" name="openedDate" class="picker-control" data-picker-kind="date" type="text" readonly placeholder="选择日期"></label>
+        <label class="field"><span>初始克重</span><div class="input-unit"><input id="field-initialWeight" name="initialWeight" type="number" min="0" step="1" inputmode="decimal"><em>g</em></div></label>
+        <label class="field"><span>剩余克重</span><div class="input-unit"><input id="field-remainingWeight" name="remainingWeight" type="number" min="0" step="1" inputmode="decimal"><em>g</em></div></label>
+        <label class="field"><span>价格</span><div class="input-unit currency"><em>¥</em><input id="field-price" name="price" type="number" min="0" step="0.01" inputmode="decimal"></div></label>
+        <label class="field favorite-field"><input id="field-favorite" name="favorite" type="checkbox"><span>加入收藏</span></label>
+        <section class="image-vault full" id="editorImageVault"></section>
+        <label class="field full"><span>风味笔记</span><textarea id="field-tastingNotes" name="tastingNotes" maxlength="4000" rows="4" placeholder="花香、柑橘、蜂蜜般的甜感…"></textarea></label>
+      </div>
+      <footer class="sheet-footer">
+        <button class="danger-button" id="deleteBean" type="button">删除</button>
+        <div><button class="secondary-button" id="editorCancel" type="button">取消</button><button class="primary-button" type="submit">保存</button></div>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog class="sheet" id="drinkDialog">
+    <form id="drinkForm" method="dialog">
+      <header class="sheet-header"><div><p class="eyebrow">BREW LOG</p><h2 id="drinkTitle">喝一杯</h2><p class="sheet-subtitle" id="drinkBeanMeta"></p></div><button class="icon-button" id="drinkClose" type="button" aria-label="关闭">×</button></header>
+      <div class="form-grid">
+        <input id="drink-id" name="id" type="hidden"><input id="drink-beanId" name="beanId" type="hidden">
+        <label class="field"><span>本次用豆 *</span><div class="input-unit"><input id="drink-grams" name="grams" type="number" min="0.1" step="0.1" inputmode="decimal" required><em>g</em></div></label>
+        <label class="field"><span>冲煮方式</span><select id="drink-method" name="brewMethod"></select><input class="sub-input" id="drink-method-custom" type="text" maxlength="80" placeholder="输入自定义方式" hidden></label>
+        <label class="field full"><span>饮用时间</span><input id="drink-time" name="consumedAt" class="picker-control" data-picker-kind="datetime" type="text" readonly required placeholder="选择日期与时间"></label>
+        <fieldset class="rating-field full"><legend>整体评分（可留空）</legend><div class="rating-row" id="overallRating" data-rating-name="overallRating"></div></fieldset>
+        <section class="advanced-ratings full" id="advancedRatingSection" hidden><div class="section-heading"><div><span>高级评价</span><small>笑脸越多越满意；苦涩感的哭脸越多越明显</small></div></div><div id="dimensionRatings"></div></section>
+        <label class="field full"><span>评价备注</span><textarea id="drink-notes" name="notes" maxlength="2000" rows="4" placeholder="这杯的香气、风味变化，或下次想调整的参数…"></textarea></label>
+      </div>
+      <footer class="sheet-footer"><button class="danger-button" id="deleteDrink" type="button">删除记录</button><div><button class="secondary-button" id="drinkCancel" type="button">取消</button><button class="primary-button" id="saveDrink" type="submit">保存并扣量</button></div></footer>
+    </form>
+  </dialog>
+
+  <dialog class="sheet compact picker-sheet" id="choiceDialog">
+    <header class="sheet-header"><div><p class="eyebrow">SELECT</p><h2 id="choiceTitle">选择</h2></div><button class="icon-button" id="choiceClose" type="button" aria-label="关闭">×</button></header>
+    <div class="choice-list" id="choiceList"></div>
+  </dialog>
+
+  <dialog class="sheet compact picker-sheet" id="datePickerDialog">
+    <header class="sheet-header"><div><p class="eyebrow">CALENDAR</p><h2 id="datePickerTitle">选择日期</h2></div><button class="icon-button" id="datePickerClose" type="button" aria-label="关闭">×</button></header>
+    <div class="calendar-wrap"><div class="calendar-nav"><button id="calendarPrev" type="button" aria-label="上个月">‹</button><strong id="calendarMonth"></strong><button id="calendarNext" type="button" aria-label="下个月">›</button></div><div class="calendar-week"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div><div class="calendar-days" id="calendarDays"></div><div class="calendar-time" id="calendarTime" hidden><label><span>小时</span><input id="calendarHour" type="number" min="0" max="23" inputmode="numeric"></label><b>:</b><label><span>分钟</span><input id="calendarMinute" type="number" min="0" max="59" step="1" inputmode="numeric"></label></div></div>
+    <footer class="sheet-footer"><button class="danger-button" id="datePickerClear" type="button">清除日期</button><div><button class="secondary-button" id="datePickerCancel" type="button">取消</button><button class="primary-button" id="datePickerConfirm" type="button">确定</button></div></footer>
+  </dialog>
+
+  <dialog class="sheet compact photo-source-sheet" id="photoSourceDialog">
+    <header class="sheet-header"><div><p class="eyebrow" id="photoSourceEyebrow">PHOTO</p><h2 id="photoSourceTitle">选择图片来源</h2></div><button class="icon-button" id="photoSourceClose" type="button" aria-label="关闭">×</button></header>
+    <p class="sheet-intro" id="photoSourceIntro">选择拍摄新照片，或从系统图片选择器读取已有照片。</p>
+    <div class="source-actions">
+      <button data-photo-source="camera" type="button"><span>拍摄</span><small>打开相机拍一张包装或标签</small></button>
+      <button data-photo-source="photos" type="button"><span>读取图片</span><small>从手机图片中选择一张</small></button>
+    </div>
+  </dialog>
+
+  <dialog class="sheet compact image-choice-sheet" id="scanImageDialog">
+    <header class="sheet-header"><div><p class="eyebrow">ARCHIVE PHOTO</p><h2>保存这张图片？</h2></div><button class="icon-button" id="scanImageClose" type="button" aria-label="关闭">×</button></header>
+    <div class="scan-image-body">
+      <img id="scanImagePreview" alt="待归档的咖啡包装图片">
+      <p>OCR 已完成。要把这张图留在豆仓里，作为咖啡袋或标签图片吗？</p>
+      <div class="scan-image-actions">
+        <button data-image-role="bag" type="button"><span>咖啡袋</span><small>包装正面、袋身信息</small></button>
+        <button data-image-role="label" type="button"><span>标签</span><small>贴纸、参数标签</small></button>
+      </div>
+    </div>
+    <footer class="sheet-footer"><button class="danger-button" id="scanImageSkip" type="button">不保存图片</button><span></span></footer>
+  </dialog>
+
+  <dialog class="sheet compact" id="smartManagerDialog">
+    <header class="sheet-header"><div><p class="eyebrow">SMART SELECT</p><h2 id="managerTitle">管理选项</h2></div><button class="icon-button" id="managerClose" type="button" aria-label="关闭">×</button></header>
+    <p class="sheet-intro">改名会同步更新所有记录；删除会清空使用该值的字段。</p>
+    <div class="manager-list" id="managerList"></div>
+  </dialog>
+
+  <dialog class="sheet compact" id="settingsDialog">
+    <header class="sheet-header"><div><p class="eyebrow">PREFERENCES</p><h2>设置</h2></div><button class="icon-button" id="settingsClose" type="button" aria-label="关闭">×</button></header>
+    <section class="settings-section"><h3>饮用偏好</h3><label class="settings-number"><span><b>快捷喝一杯</b><small>卡片按钮默认扣减的克数</small></span><span><input id="settingQuickGrams" type="number" min="1" max="100" step="0.1" inputmode="decimal"><em>g</em></span></label></section>
+    <section class="settings-section"><h3>价格显示</h3><label class="field"><span>单价计算单位</span><select id="settingPriceUnit"><option value="g">每克单价</option><option value="50g">每 50g 单价</option><option value="100g">每 100g 单价</option><option value="jin">每斤单价</option></select></label></section>
+    <section class="settings-section"><h3>评价维度</h3><label class="settings-toggle"><span><b>高级评价</b><small>在饮用弹窗显示多维评价</small></span><input id="settingAdvanced" type="checkbox"></label><div class="dimension-settings" id="dimensionSettings"></div></section>
+    <section class="settings-section"><h3>外观</h3><div class="theme-grid">
+      <button data-theme-value="dark-roast" type="button"><i class="theme-dark-roast"></i><span>深烘</span></button>
+      <button data-theme-value="frost" type="button"><i class="theme-frost"></i><span>霜白</span></button>
+      <button data-theme-value="obsidian" type="button"><i class="theme-obsidian"></i><span>黑曜</span></button>
+      <button data-theme-value="blaze" type="button"><i class="theme-blaze"></i><span>炽焰</span></button>
+    </div></section>
+    <section class="settings-section"><h3>数据</h3><button class="settings-action" id="exportData" type="button"><span><b>导出备份</b><small>生成 JSON 并打开系统分享</small></span><strong>↗</strong></button><button class="settings-action" id="importData" type="button"><span><b>恢复备份</b><small>验证后覆盖当前豆仓</small></span><strong>＋</strong></button><input id="webImportInput" type="file" accept="application/json,.json" hidden></section>
+    <section class="settings-section"><h3>关于</h3><button class="settings-action" id="aboutOpen" type="button"><span><b>关于豆仓</b><small>版本、最新功能与隐私说明</small></span><strong>›</strong></button></section>
+    <p class="settings-footnote">数据仅保存在这台设备。卸载应用前，请先导出备份。</p>
+  </dialog>
+
+  <dialog class="sheet compact" id="aboutDialog">
+    <header class="sheet-header"><div><p class="eyebrow">ABOUT</p><h2>关于豆仓</h2></div><button class="icon-button" id="aboutClose" type="button" aria-label="关闭">×</button></header>
+    <section class="about-hero"><div class="about-logo"><span></span></div><h3>豆仓</h3><p id="aboutVersion">版本 1.2.5</p></section>
+    <section class="about-copy"><h3>把每一包豆子，喝成有迹可循的日常。</h3><p>豆仓是一款为咖啡爱好者设计的离线豆单与饮用记录工具，从入仓、识别到每杯评价，都留在你自己的设备中。</p><h4>1.2.5 最新功能</h4><ul><li>烘焙度新增中深烘</li><li>优化表格式标签与 Origin 标签的离线 OCR 解析</li><li>饮用页搜索现在可搜索豆名、方式和备注</li></ul><div class="privacy-note"><b>离线与隐私</b><p>无需账号，不上传咖啡豆、照片或饮用记录。拍照识别和图片归档均在本机完成。</p></div></section>
+  </dialog>
+
+  <dialog class="sheet compact" id="migrationDialog">
+    <header class="sheet-header"><div><p class="eyebrow">DATA FOUND</p><h2>发现旧版数据</h2></div></header>
+    <p class="sheet-intro" id="migrationMessage">是否将旧版浏览器记录迁移到 SQLite？原数据不会被删除。</p>
+    <footer class="sheet-footer"><span></span><div><button class="secondary-button" id="migrationLater" type="button">以后再说</button><button class="primary-button" id="migrationNow" type="button">开始迁移</button></div></footer>
+  </dialog>
+
+  <script src="data-core.js"></script>
+  <script src="coffee-parser.js"></script>
+  <script src="repository.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

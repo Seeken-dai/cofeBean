@@ -1,0 +1,23 @@
+{
+  "appId": "com.coffeebean.vault",
+  "appName": "豆仓",
+  "webDir": "www",
+  "backgroundColor": "#1a1412",
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#1a1412"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1200,
+      "backgroundColor": "#1a1412",
+      "showSpinner": false,
+      "androidScaleType": "CENTER_CROP"
+    },
+    "StatusBar": {
+      "style": "LIGHT",
+      "backgroundColor": "#1a1412",
+      "overlaysWebView": false
+    }
+  }
+}
