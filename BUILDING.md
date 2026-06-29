@@ -71,4 +71,4 @@ node --check www/repository.js
 
 APK 可使用 Android Build Tools 的 `aapt2 dump badging`、`aapt2 dump permissions` 和 `apksigner verify --print-certs` 检查包信息、权限与签名。
 
-1.4.4 release 已验证 `versionName=1.4.4`、`versionCode=27`，权限仅包含 `android.permission.CAMERA` 和 Android 自动生成的应用内部动态接收器权限；未新增网络、相册或外部存储权限（分享卡片「保存」写入应用外部私有目录，无需存储权限）。签名证书 SHA-256 与 1.4.2/1.4.3 一致，可覆盖升级并保留数据库。
+1.4.5 release 已验证 `versionName=1.4.5`、`versionCode=28`，权限仅包含 `android.permission.CAMERA` 和 Android 自动生成的应用内部动态接收器权限；未新增网络、相册或外部存储权限（分享卡片「保存」写入应用外部目录，无需存储权限）。签名证书 SHA-256 与 1.4.2/1.4.3/1.4.4 一致，可覆盖升级并保留数据库。

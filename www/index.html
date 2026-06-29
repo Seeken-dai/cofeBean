@@ -176,7 +176,7 @@
       <section class="profile-facts" id="drinkDetailFacts"></section>
       <section class="brew-dimensions" id="drinkDetailDimensions" hidden><div class="section-heading"><div><span>高级评价</span><small>本次风味感受</small></div></div><div id="drinkDetailDimensionList"></div></section>
       <section class="profile-notes" id="drinkDetailNotesSection" hidden><span>评价备注</span><p id="drinkDetailNotes"></p></section>
-      <section class="brew-param-card" id="drinkDetailPlanSection" hidden><div class="section-heading"><div><span>冲煮参数</span><small id="drinkDetailPlanSource"></small></div></div><div id="drinkDetailPlan"></div></section>
+      <section class="brew-param-card" id="drinkDetailPlanSection" hidden><div class="section-heading"><div><span>冲煮参数</span><small id="drinkDetailPlanSource"></small></div><button class="manage-button" id="drinkSaveAsPlan" type="button" hidden>存为方案</button></div><div id="drinkDetailPlan"></div></section>
     </div>
   </dialog>
 
@@ -212,16 +212,16 @@
         <label class="field" hidden><span>液体量</span><div class="input-unit"><input id="plan-liquid" name="liquid" type="number" min="0" step="1" inputmode="decimal"><em>g</em></div></label>
         <input id="plan-ratio" name="ratio" type="hidden">
         <div class="field ratio-field"><span>粉水比</span><div class="ratio-control"><input id="plan-ratio-left" type="number" min="1" step="1" inputmode="numeric" value="1"><b>:</b><input id="plan-ratio-right" type="number" min="1" step="0.1" inputmode="decimal" placeholder="15"></div></div>
-        <label class="field method-field" data-methods="手冲 冷萃 冰滴 法压 摩卡壶 爱乐压 聪明杯 虹吸 自定义"><span>目标总水量</span><div class="input-unit"><input id="plan-totalWater" name="totalWater" type="number" min="0" step="1" inputmode="decimal"><em>g</em></div></label>
+        <label class="field method-field" data-methods="手冲 冷萃 冰滴 法压 摩卡壶 爱乐压 聪明杯 虹吸 自定义"><span>目标总水量</span><div class="input-unit"><input id="plan-totalWater" name="totalWater" type="number" min="0" step="0.1" inputmode="decimal"><em>g</em></div></label>
         <label class="field"><span>水温</span><div class="input-unit"><input id="plan-waterTemp" name="waterTemp" type="number" min="0" max="100" step="1" inputmode="numeric" placeholder="92"><em>°C</em></div></label>
-        <label class="field"><span>研磨设备</span><input id="plan-grinder" name="grinder" type="text" maxlength="120" placeholder="例如：C40"></label>
+        <div class="field"><span>研磨设备</span><select id="plan-grinder-select" class="smart-select"><option value="">请选择或新建</option></select><input id="plan-grinder" name="grinder" type="hidden"><input id="plan-grinder-custom" class="smart-input" type="text" maxlength="120" placeholder="例如：C40" hidden></div>
         <label class="field"><span>研磨刻度</span><input id="plan-grindSetting" name="grindSetting" type="text" maxlength="120" placeholder="例如：22 clicks"></label>
         <input id="plan-targetDuration" name="targetDuration" type="hidden">
         <div class="field method-field duration-field" data-methods="手冲 冰滴 爱乐压 聪明杯 虹吸 自定义" data-duration-target="plan-targetDuration"><span>目标总时长</span><div class="duration-control"><input data-duration-min type="number" min="0" max="999" inputmode="numeric" placeholder="3"><b>分</b><input data-duration-sec type="number" min="0" max="59" inputmode="numeric" placeholder="30"><b>秒</b></div></div>
         <input id="plan-steepTime" name="steepTime" type="hidden">
         <div class="field method-field duration-field" data-methods="冷萃 法压" data-duration-target="plan-steepTime"><span>浸泡时长</span><div class="duration-control"><input data-duration-hour type="number" min="0" max="72" inputmode="numeric" placeholder="12"><b>时</b><input data-duration-min type="number" min="0" max="59" inputmode="numeric" placeholder="0"><b>分</b></div></div>
         <label class="field method-field" data-methods="冷萃"><span>浸泡环境</span><select id="plan-steepEnvironment" name="steepEnvironment"><option value="">未记录</option><option>冷藏</option><option>常温</option></select></label>
-        <label class="field method-field" data-methods="意式"><span>咖啡机</span><input id="plan-coffeeMachine" name="coffeeMachine" type="text" maxlength="120"></label>
+        <div class="field method-field" data-methods="意式"><span>咖啡机</span><select id="plan-coffeeMachine-select" class="smart-select"><option value="">请选择或新建</option></select><input id="plan-coffeeMachine" name="coffeeMachine" type="hidden"><input id="plan-coffeeMachine-custom" class="smart-input" type="text" maxlength="120" placeholder="例如：半自动" hidden></div>
         <label class="field method-field" data-methods="意式"><span>粉碗</span><input id="plan-basket" name="basket" type="text" maxlength="80" placeholder="18g粉碗"></label>
         <label class="field method-field" data-methods="意式"><span>目标出液量</span><div class="input-unit"><input id="plan-targetYield" name="targetYield" type="number" min="0" step="0.1" inputmode="decimal"><em>g</em></div></label>
         <input id="plan-targetExtractionTime" name="targetExtractionTime" type="hidden">
@@ -312,7 +312,7 @@
             <label class="field" hidden><span>液体量</span><div class="input-unit"><input id="drink-param-liquid" type="number" min="0" step="1" inputmode="decimal"><em>g</em></div></label>
             <input id="drink-param-ratio" type="hidden">
             <div class="field ratio-field"><span>粉水比</span><div class="ratio-control"><input id="drink-ratio-left" type="number" min="1" step="1" inputmode="numeric" value="1"><b>:</b><input id="drink-ratio-right" type="number" min="1" step="0.1" inputmode="decimal" placeholder="15"></div></div>
-            <label class="field drink-param-field" data-methods="手冲 冷萃 冰滴 法压 摩卡壶 爱乐压 聪明杯 虹吸 自定义"><span>目标总水量</span><div class="input-unit"><input id="drink-param-totalWater" type="number" min="0" step="1" inputmode="decimal"><em>g</em></div></label>
+            <label class="field drink-param-field" data-methods="手冲 冷萃 冰滴 法压 摩卡壶 爱乐压 聪明杯 虹吸 自定义"><span>目标总水量</span><div class="input-unit"><input id="drink-param-totalWater" type="number" min="0" step="0.1" inputmode="decimal"><em>g</em></div></label>
             <label class="field"><span>水温</span><div class="input-unit"><input id="drink-param-waterTemp" type="number" min="0" max="100" step="1" inputmode="numeric" placeholder="92"><em>°C</em></div></label>
             <label class="field"><span>研磨设备</span><input id="drink-param-grinder" type="text" maxlength="120" placeholder="例如：C40"></label>
             <label class="field"><span>研磨刻度</span><input id="drink-param-grindSetting" type="text" maxlength="120"></label>
@@ -459,8 +459,8 @@
 
   <dialog class="sheet compact" id="aboutDialog">
     <header class="sheet-header"><div><p class="eyebrow">ABOUT</p><h2>关于豆仓</h2></div><button class="icon-button" id="aboutClose" type="button" aria-label="关闭">×</button></header>
-    <section class="about-hero"><div class="about-logo"><span></span></div><h3>豆仓</h3><p id="aboutVersion">版本 1.4.4</p></section>
-    <section class="about-copy"><h3>把每一包豆子，喝成有迹可循的日常。</h3><p>豆仓是一款为咖啡爱好者设计的离线豆单与饮用记录工具，从入仓、识别到每杯评价，都留在你自己的设备中。</p><h4>1.4.4 最新功能</h4><ul><li>分享前新增预览窗口，可先看效果再分享或保存到设备</li><li>冲煮辅助运行时保持屏幕常亮</li><li>首页返回增加退出确认</li><li>统一各详情页顶部操作按钮图标</li></ul><div class="privacy-note"><b>离线与隐私</b><p>无需账号，不上传咖啡豆、照片或饮用记录。拍照识别、咖啡日历、分享卡片和图片归档均在本机完成。</p></div></section>
+    <section class="about-hero"><div class="about-logo"><span></span></div><h3>豆仓</h3><p id="aboutVersion">版本 1.4.5</p></section>
+    <section class="about-copy"><h3>把每一包豆子，喝成有迹可循的日常。</h3><p>豆仓是一款为咖啡爱好者设计的离线豆单与饮用记录工具，从入仓、识别到每杯评价，都留在你自己的设备中。</p><h4>1.4.5 最新功能</h4><ul><li>饮用记录中的冲煮参数可另存为新方案</li><li>豆子和方案列表支持长按删除</li><li>冲煮方案编辑可快速选择或新建设备记录</li><li>优化全面屏状态栏适配和小数水量保存</li></ul><div class="privacy-note"><b>离线与隐私</b><p>无需账号，不上传咖啡豆、照片或饮用记录。拍照识别、咖啡日历、分享卡片和图片归档均在本机完成。</p></div></section>
   </dialog>
 
   <dialog class="sheet compact" id="migrationDialog">
@@ -472,7 +472,7 @@
   <dialog class="sheet compact" id="exitConfirmDialog">
     <header class="sheet-header"><div><p class="eyebrow">EXIT</p><h2>退出豆仓？</h2></div></header>
     <p class="sheet-intro">再次按返回键或点击“退出”即可关闭应用。</p>
-    <footer class="sheet-footer"><span></span><div><button class="secondary-button" id="exitCancel" type="button">取消</button><button class="primary-button" id="exitConfirm" type="button">退出</button></div></footer>
+    <footer class="sheet-footer"><span></span><div><button class="ghost-button" id="exitCancel" type="button">取消</button><button class="primary-button" id="exitConfirm" type="button">退出</button></div></footer>
   </dialog>
 
   <script src="data-core.js"></script>
