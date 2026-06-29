@@ -113,7 +113,7 @@ dialog::backdrop { background:rgb(8 5 4 / .72); backdrop-filter:blur(4px); }
 .sheet-header { position:sticky; top:0; z-index:3; display:flex; justify-content:space-between; align-items:center; gap:16px; padding:20px 20px 16px; border-bottom:1px solid color-mix(in srgb,var(--border) 70%,transparent); background:color-mix(in srgb,var(--surface) 94%,transparent); backdrop-filter:blur(14px); }
 .sheet-header h2 { margin:3px 0 0; font:700 23px "Vault Serif",serif; letter-spacing:.025em; }
 .sheet-subtitle { margin:5px 0 0; color:var(--faint); font-size:10px; }
-.header-actions { display:flex; align-items:center; gap:2px; }.edit-icon svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+.header-actions { display:flex; align-items:center; gap:2px; }.sheet-header .icon-button svg { width:21px; height:21px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
 .detail-sheet { width:min(100% - 20px,560px); }
 .bean-profile { padding:18px 18px calc(28px + env(safe-area-inset-bottom,0px)); }
 .profile-hero { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:18px; border:1px solid color-mix(in srgb,var(--border) 78%,transparent); border-radius:20px; background:linear-gradient(145deg,var(--surface-2),var(--surface)); }

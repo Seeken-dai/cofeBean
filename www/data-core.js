@@ -425,7 +425,7 @@
       schemaVersion: SCHEMA_VERSION,
       exportedAt: exportedAt || new Date().toISOString(),
       app: '豆仓',
-      appVersion: '1.4.3',
+      appVersion: '1.4.4',
       beans: beans.map((bean) => normalizeBean(bean, bean.updatedAt)),
       drinkLogs: (drinkLogs || []).map((log) => normalizeDrinkLog(log, log.updatedAt)),
       brewPlans: (brewPlans || []).map((plan) => normalizeBrewPlan(plan, plan.updatedAt)),

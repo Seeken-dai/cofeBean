@@ -1,6 +1,6 @@
 # 豆仓 Coffee Vault
 
-当前版本：1.4.3（Android versionCode 26）
+当前版本：1.4.4（Android versionCode 27）
 
 一个完全离线、面向 Android 的个人咖啡豆管理 App。数据保存在设备内的 SQLite 数据库中，不需要账号、网络、相册或存储权限；拍照识别功能仅申请相机权限。
 
@@ -8,7 +8,7 @@
 
 推荐安装正式签名版：
 
-- `dist/coffee-vault-1.4.3-release.apk`
+- `dist/coffee-vault-1.4.4-release.apk`
 
 把 APK 发送到 Android 手机，打开文件并按系统提示允许本次“安装未知应用”。已安装旧版时，只要继续使用同一份发布密钥并提高 `versionCode`，即可覆盖升级且保留数据库。
 
@@ -58,4 +58,4 @@
 - `resources/`、`assets/`：图标和启动画面源文件
 - `BUILDING.md`：构建、签名与版本升级说明
 
-当前包信息：`com.coffeebean.vault`，版本 `1.4.3`（versionCode `26`），最低 Android 7/API 24，目标 Android 16/API 36。
+当前包信息：`com.coffeebean.vault`，版本 `1.4.4`（versionCode `27`），最低 Android 7/API 24，目标 Android 16/API 36。

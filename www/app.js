@@ -12,10 +12,11 @@
   const PRICE_UNITS = { g: { label: '每克单价', grams: 1, suffix: '/ g' }, '50g': { label: '每 50g 单价', grams: 50, suffix: '/ 50g' }, '100g': { label: '每 100g 单价', grams: 100, suffix: '/ 100g' }, jin: { label: '每斤单价', grams: 500, suffix: '/ 斤' } };
   const MONTH_NAMES = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
   const themeColors = { 'dark-roast': '#1a1412', frost: '#f2f4f7', obsidian: '#0f1117', blaze: '#1a0d14' };
-  const state = { beans: [], drinkLogs: [], brewPlans: [], settings: BeanCore.normalizeSettings({}), view: 'beans', status: '全部', planMethod: '全部', query: '', sort: 'roastDate', direction: 'desc', editingId: null, editingDrinkId: null, viewingDrinkId: null, editingPlanId: null, viewingPlanId: null, managerField: null, choiceTarget: null, dateTarget: null, calendarDate: null, coffeeCalendarDate: new Date(), coffeeCalendarView: 'month', selectedCoffeeDay: BeanCore.dateKey(new Date()), activeDrinkStepIndex: -1, brewAssist: null, pendingImages: [], previewImage: null, shareBeanId: null, initialized: false, resuming: false };
+  const state = { beans: [], drinkLogs: [], brewPlans: [], settings: BeanCore.normalizeSettings({}), view: 'beans', status: '全部', planMethod: '全部', query: '', sort: 'roastDate', direction: 'desc', editingId: null, editingDrinkId: null, viewingDrinkId: null, editingPlanId: null, viewingPlanId: null, managerField: null, choiceTarget: null, dateTarget: null, calendarDate: null, coffeeCalendarDate: new Date(), coffeeCalendarView: 'month', selectedCoffeeDay: BeanCore.dateKey(new Date()), activeDrinkStepIndex: -1, brewAssist: null, pendingImages: [], previewImage: null, shareBeanId: null, shareCardPreview: null, initialized: false, resuming: false };
   let toastTimer = null;
   let assistTimer = null;
-  const els = { list: $('#beanList'), empty: $('#emptyState'), count: $('#recordCount'), searchPanel: $('#searchPanel'), search: $('#searchInput'), personal: $('#personalDialog'), backup: $('#dataBackupDialog'), calendar: $('#coffeeCalendarDialog'), detail: $('#detailDialog'), drinkDetail: $('#drinkDetailDialog'), planDetail: $('#planDetailDialog'), planEditor: $('#planEditorDialog'), editor: $('#editorDialog'), form: $('#beanForm'), planForm: $('#planForm'), drink: $('#drinkDialog'), drinkForm: $('#drinkForm'), brewAssist: $('#brewAssistDialog'), choice: $('#choiceDialog'), datePicker: $('#datePickerDialog'), photoSource: $('#photoSourceDialog'), scanImage: $('#scanImageDialog'), imagePreview: $('#imagePreviewDialog'), shareChoice: $('#shareImageChoiceDialog'), manager: $('#smartManagerDialog'), settings: $('#settingsDialog'), about: $('#aboutDialog'), migration: $('#migrationDialog'), toast: $('#toast'), scanResult: $('#scanResult') };
+  let wakeLock = null;
+  const els = { list: $('#beanList'), empty: $('#emptyState'), count: $('#recordCount'), searchPanel: $('#searchPanel'), search: $('#searchInput'), personal: $('#personalDialog'), backup: $('#dataBackupDialog'), calendar: $('#coffeeCalendarDialog'), detail: $('#detailDialog'), drinkDetail: $('#drinkDetailDialog'), planDetail: $('#planDetailDialog'), planEditor: $('#planEditorDialog'), editor: $('#editorDialog'), form: $('#beanForm'), planForm: $('#planForm'), drink: $('#drinkDialog'), drinkForm: $('#drinkForm'), brewAssist: $('#brewAssistDialog'), choice: $('#choiceDialog'), datePicker: $('#datePickerDialog'), photoSource: $('#photoSourceDialog'), scanImage: $('#scanImageDialog'), imagePreview: $('#imagePreviewDialog'), shareChoice: $('#shareImageChoiceDialog'), manager: $('#smartManagerDialog'), settings: $('#settingsDialog'), about: $('#aboutDialog'), migration: $('#migrationDialog'), exitConfirm: $('#exitConfirmDialog'), sharePreview: $('#sharePreviewDialog'), toast: $('#toast'), scanResult: $('#scanResult') };
 
   function capPlugin(name) { return window.Capacitor && window.Capacitor.Plugins ? window.Capacitor.Plugins[name] : null; }
   function toast(message) { clearTimeout(toastTimer); els.toast.textContent = message; els.toast.classList.add('show'); toastTimer = setTimeout(() => els.toast.classList.remove('show'), 2600); }
@@ -358,6 +359,18 @@
     stopAssistTimer();
     assistTimer = setInterval(renderAssist, 200);
   }
+  async function requestWakeLock() {
+    try {
+      if ('wakeLock' in navigator && navigator.wakeLock && !wakeLock) {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => { wakeLock = null; });
+      }
+    } catch (_) { wakeLock = null; }
+  }
+  async function releaseWakeLock() {
+    try { if (wakeLock) await wakeLock.release(); } catch (_) {}
+    wakeLock = null;
+  }
   function openBrewAssist(source, plan, beanName) {
     const normalized = BeanCore.normalizeBrewPlan(plan);
     const steps = BeanCore.prepareBrewAssistSteps(normalized.steps);
@@ -375,6 +388,7 @@
     renderAssist();
     startAssistTimer();
     setDialog(els.brewAssist, true);
+    requestWakeLock();
   }
   function openDrinkBrewAssist() {
     if (currentDrinkMethod() !== '手冲') return toast('第一版冲煮辅助仅支持手冲');
@@ -421,6 +435,7 @@
     if (!assist.completed) return showAssistComplete(assistElapsed());
     setDialog(els.brewAssist, false);
     stopAssistTimer();
+    releaseWakeLock();
     if (assist.source === 'drink') {
       $('#drink-param-targetDuration').value = durationText(assist.completedElapsed, 'minute');
       const durationField = $('[data-duration-target="drink-param-targetDuration"]', els.drinkForm);
@@ -437,6 +452,7 @@
     const assist = state.brewAssist;
     setDialog(els.brewAssist, false);
     stopAssistTimer();
+    releaseWakeLock();
     if (assist && assist.source === 'drink') setDialog(els.drink, true);
     if (assist && assist.source === 'plan') {
       const plan = state.brewPlans.find((item) => item.id === state.viewingPlanId);
@@ -885,10 +901,29 @@
   const SHARE_CARD_RENDERERS = { receipt: renderReceiptShareCard };
   async function renderShareCard(payload, style) { const renderer = SHARE_CARD_RENDERERS[style || payload.style] || SHARE_CARD_RENDERERS.receipt; return renderer({ ...payload, style: style || payload.style || 'receipt' }); }
   async function shareCanvas(payload) {
-    const canvas = await renderShareCard(payload, payload.style); const filename = shareFilename(payload); const share = capPlugin('Share'); const filesystem = capPlugin('Filesystem');
-    if (BeanRepository.isNative() && share && filesystem) { const data = canvas.toDataURL('image/png').split(',')[1]; const result = await filesystem.writeFile({ path: `share-cards/${filename}`, data, directory: 'CACHE', recursive: true }); await share.share({ title: payload.title, text: `${payload.title} · 豆仓`, files: [result.uri], dialogTitle: '分享豆仓卡片' }); }
-    else { const blob = await canvasToBlob(canvas); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = filename; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
-    toast('分享卡片已生成');
+    const canvas = await renderShareCard(payload, payload.style);
+    state.shareCardPreview = { canvas, payload };
+    $('#sharePreviewImage').src = canvas.toDataURL('image/png');
+    setDialog(els.sharePreview, true);
+  }
+  function closeSharePreview() { setDialog(els.sharePreview, false); state.shareCardPreview = null; }
+  async function confirmShareCard() {
+    const preview = state.shareCardPreview; if (!preview) return;
+    const { canvas, payload } = preview; const filename = shareFilename(payload); const share = capPlugin('Share'); const filesystem = capPlugin('Filesystem');
+    try {
+      if (BeanRepository.isNative() && share && filesystem) { const data = canvas.toDataURL('image/png').split(',')[1]; const result = await filesystem.writeFile({ path: `share-cards/${filename}`, data, directory: 'CACHE', recursive: true }); await share.share({ title: payload.title, text: `${payload.title} · 豆仓`, files: [result.uri], dialogTitle: '分享豆仓卡片' }); }
+      else { const blob = await canvasToBlob(canvas); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = filename; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
+      closeSharePreview(); toast('分享卡片已生成');
+    } catch (error) { console.error(error); toast('分享失败'); }
+  }
+  async function saveShareCard() {
+    const preview = state.shareCardPreview; if (!preview) return;
+    const { canvas, payload } = preview; const filename = shareFilename(payload); const filesystem = capPlugin('Filesystem');
+    try {
+      if (BeanRepository.isNative() && filesystem) { const data = canvas.toDataURL('image/png').split(',')[1]; await filesystem.writeFile({ path: `豆仓分享卡/${filename}`, data, directory: 'EXTERNAL', recursive: true }); toast('已保存到设备「豆仓分享卡」文件夹'); }
+      else { const blob = await canvasToBlob(canvas); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = filename; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); toast('图片已下载'); }
+      closeSharePreview();
+    } catch (error) { console.error(error); toast('保存失败'); }
   }
   async function shareBeanCard(options) { const bean = state.beans.find((item) => item.id === ((options && options.beanId) || state.editingId)); if (!bean) return; const payload = BeanCore.buildSharePayload('bean', bean, { priceUnit: state.settings.priceUnit, includeBag: Boolean(options && options.includeBag), style: 'receipt' }); await shareCanvas(payload); }
   function openBeanShareChoice() {
@@ -908,7 +943,8 @@
   async function offerMigration() { if (state.beans.length) return; const legacy = BeanRepository.legacyData(); if (!legacy) return; $('#migrationMessage').textContent = `发现 ${legacy.beans.length} 条旧版浏览器记录。是否迁移到 SQLite？原数据不会被删除。`; setDialog(els.migration, true); }
   async function migrateLegacy() { const legacy = BeanRepository.legacyData(); if (!legacy) return setDialog(els.migration, false); try { await BeanRepository.replaceAll(legacy.beans); await reload(); setDialog(els.migration, false); toast(`已迁移 ${legacy.beans.length} 条记录`); } catch (_) { toast('迁移失败，旧数据仍保持不变'); } }
 
-  function closeTopLayerOrExit() { if (els.choice.open) return els.choice.close(); if (els.datePicker.open) return els.datePicker.close(); if (els.photoSource.open) return els.photoSource.close(); if (els.scanImage.open) return els.scanImage.close(); if (els.imagePreview.open) return els.imagePreview.close(); if (els.shareChoice.open) return els.shareChoice.close(); if (els.brewAssist.open) return cancelBrewAssist(); if (els.drink.open) return els.drink.close(); if (els.planEditor.open) return els.planEditor.close(); if (els.backup.open) return els.backup.close(); if (els.calendar.open) return els.calendar.close(); if (els.drinkDetail.open) return els.drinkDetail.close(); if (els.planDetail.open) return els.planDetail.close(); if (els.about.open) return els.about.close(); if (els.manager.open) return els.manager.close(); if (els.settings.open) return els.settings.close(); if (els.personal.open) return els.personal.close(); if (els.editor.open) { clearPendingImages(true); return els.editor.close(); } if (els.detail.open) return els.detail.close(); if (els.migration.open) return els.migration.close(); const app = capPlugin('App'); if (app) app.exitApp(); }
+  function exitApp() { const app = capPlugin('App'); if (app) app.exitApp(); }
+  function closeTopLayerOrExit() { if (els.exitConfirm.open) return exitApp(); if (els.sharePreview.open) return closeSharePreview(); if (els.choice.open) return els.choice.close(); if (els.datePicker.open) return els.datePicker.close(); if (els.photoSource.open) return els.photoSource.close(); if (els.scanImage.open) return els.scanImage.close(); if (els.imagePreview.open) return els.imagePreview.close(); if (els.shareChoice.open) return els.shareChoice.close(); if (els.brewAssist.open) return cancelBrewAssist(); if (els.drink.open) return els.drink.close(); if (els.planEditor.open) return els.planEditor.close(); if (els.backup.open) return els.backup.close(); if (els.calendar.open) return els.calendar.close(); if (els.drinkDetail.open) return els.drinkDetail.close(); if (els.planDetail.open) return els.planDetail.close(); if (els.about.open) return els.about.close(); if (els.manager.open) return els.manager.close(); if (els.settings.open) return els.settings.close(); if (els.personal.open) return els.personal.close(); if (els.editor.open) { clearPendingImages(true); return els.editor.close(); } if (els.detail.open) return els.detail.close(); if (els.migration.open) return els.migration.close(); setDialog(els.exitConfirm, true); }
   function bindEvents() {
     $('#addBean').addEventListener('click', () => state.view === 'plans' ? openPlanEditor(null) : openEditor(null)); $('#scanBean').addEventListener('click', scanCoffeeLabel); $('#editorClose').addEventListener('click', () => { clearPendingImages(true); setDialog(els.editor, false); }); $('#editorCancel').addEventListener('click', () => { clearPendingImages(true); setDialog(els.editor, false); }); $('#deleteBean').addEventListener('click', removeCurrent); els.form.addEventListener('submit', saveForm); $('#editorImageVault').addEventListener('click', (event) => { const button = event.target.closest('[data-add-image-role]'); if (button) return addBeanImage(button.dataset.addImageRole); const card = event.target.closest('[data-preview-image]'); if (card) openImagePreview(card.dataset.previewImage, card.dataset.previewLabel); });
     els.list.addEventListener('click', (event) => { const quick = event.target.closest('[data-drink-id]'); if (quick) { event.stopPropagation(); return openDrinkDialog(state.beans.find((bean) => bean.id === quick.dataset.drinkId)); } const card = event.target.closest('.bean-card'); if (card) openDetail(state.beans.find((bean) => bean.id === card.dataset.id)); });
@@ -929,7 +965,10 @@
     $('#calendarClose').addEventListener('click', () => setDialog(els.calendar, false)); $('#calendarShare').addEventListener('click', shareCalendarCard); $$('[data-calendar-view]').forEach((button) => button.addEventListener('click', () => { state.coffeeCalendarView = button.dataset.calendarView; renderCoffeeCalendar(); })); $('#calendarPrevMonth').addEventListener('click', () => shiftCoffeeMonth(-1)); $('#calendarNextMonth').addEventListener('click', () => shiftCoffeeMonth(1)); $('#calendarPrevYear').addEventListener('click', () => shiftCoffeeYear(-1)); $('#calendarNextYear').addEventListener('click', () => shiftCoffeeYear(1)); els.calendar.addEventListener('click', (event) => { const day = event.target.closest('[data-calendar-day]'); if (day) { state.selectedCoffeeDay = day.dataset.calendarDay; state.coffeeCalendarDate = dateFromKey(state.selectedCoffeeDay); renderCoffeeCalendar(); return; } const yearDay = event.target.closest('[data-year-day]'); if (yearDay) { state.selectedCoffeeDay = yearDay.dataset.yearDay; state.coffeeCalendarDate = dateFromKey(state.selectedCoffeeDay); renderCoffeeCalendar(); return; } const logItem = event.target.closest('[data-log-id]'); if (logItem) openDrinkDetail(state.drinkLogs.find((log) => log.id === logItem.dataset.logId)); if (event.target.closest('#calendarSeeLogs')) { setDialog(els.calendar, false); state.view = 'drinks'; render(); } });
     $('#settingsClose').addEventListener('click', () => setDialog(els.settings, false)); $$('[data-theme-value]').forEach((button) => button.addEventListener('click', () => applyTheme(button.datasetThemeValue || button.dataset.themeValue, true))); $('#settingQuickGrams').addEventListener('change', saveSettingsFromUi); $('#settingBrewPlans').addEventListener('change', saveSettingsFromUi); $('#settingPriceUnit').addEventListener('change', () => { syncChoiceTrigger($('#settingPriceUnit')); saveSettingsFromUi(); }); $('#settingAdvanced').addEventListener('change', () => { $('#dimensionSection').hidden = !$('#settingAdvanced').checked; saveSettingsFromUi(); }); $('#dimensionSettings').addEventListener('change', saveSettingsFromUi); $('#aboutOpen').addEventListener('click', showAbout); $('#aboutClose').addEventListener('click', () => setDialog(els.about, false)); $('#exportData').addEventListener('click', exportBackup); $('#importData').addEventListener('click', startImport); $('#webImportInput').addEventListener('change', webImport); $('#migrationLater').addEventListener('click', () => setDialog(els.migration, false)); $('#migrationNow').addEventListener('click', migrateLegacy);
     $('#brewAssistStop').addEventListener('click', cancelBrewAssist); $('#brewAssistPause').addEventListener('click', pauseBrewAssist); $('#brewAssistSkip').addEventListener('click', skipBrewAssistStage); $('#brewAssistFinish').addEventListener('click', finishBrewAssist);
-    [els.personal, els.backup, els.calendar, els.detail, els.drinkDetail, els.planDetail, els.planEditor, els.editor, els.drink, els.brewAssist, els.choice, els.datePicker, els.photoSource, els.scanImage, els.imagePreview, els.shareChoice, els.manager, els.settings, els.about].forEach((dialog) => dialog.addEventListener('click', (event) => { if (event.target === dialog) dialog === els.brewAssist ? cancelBrewAssist() : dialog.close(); }));
+    $('#sharePreviewClose').addEventListener('click', closeSharePreview); $('#sharePreviewCancel').addEventListener('click', closeSharePreview); $('#sharePreviewSave').addEventListener('click', saveShareCard); $('#sharePreviewShare').addEventListener('click', confirmShareCard);
+    $('#exitCancel').addEventListener('click', () => setDialog(els.exitConfirm, false)); $('#exitConfirm').addEventListener('click', exitApp);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && els.brewAssist.open && state.brewAssist && !state.brewAssist.completed) requestWakeLock(); });
+    [els.personal, els.backup, els.calendar, els.detail, els.drinkDetail, els.planDetail, els.planEditor, els.editor, els.drink, els.brewAssist, els.choice, els.datePicker, els.photoSource, els.scanImage, els.imagePreview, els.shareChoice, els.sharePreview, els.exitConfirm, els.manager, els.settings, els.about].forEach((dialog) => dialog.addEventListener('click', (event) => { if (event.target === dialog) dialog === els.brewAssist ? cancelBrewAssist() : dialog === els.sharePreview ? closeSharePreview() : dialog.close(); }));
     $('#photoSourceClose').addEventListener('click', () => setDialog(els.photoSource, false));
     els.editor.addEventListener('close', () => clearPendingImages(true));
   }
