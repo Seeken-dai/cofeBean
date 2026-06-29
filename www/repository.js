@@ -2,13 +2,15 @@
   'use strict';
 
   const DB_NAME = 'coffee_vault';
-  const DB_VERSION = 4;
+  const DB_VERSION = 5;
   const WEB_KEY = 'coffee-vault-browser-preview';
   const LEGACY_KEYS = ['coffee-vault-data', 'beans-data', 'bean-data'];
   const BEAN_COLUMNS = ['id', 'name', 'roaster', 'origin', 'process', 'roastLevel', 'roastDate', 'openedDate', 'purchaseDate', 'initialWeight', 'remainingWeight', 'price', 'tastingNotes', 'status', 'favorite', 'bagImagePath', 'labelImagePath', 'createdAt', 'updatedAt'];
   const BEAN_NATIVE = { roastLevel: 'roast_level', roastDate: 'roast_date', openedDate: 'opened_date', purchaseDate: 'purchase_date', initialWeight: 'initial_weight', remainingWeight: 'remaining_weight', tastingNotes: 'tasting_notes', bagImagePath: 'bag_image_path', labelImagePath: 'label_image_path', createdAt: 'created_at', updatedAt: 'updated_at' };
-  const LOG_COLUMNS = ['id', 'beanId', 'beanName', 'grams', 'brewMethod', 'overallRating', 'aroma', 'acidity', 'sweetness', 'body', 'aftertaste', 'balance', 'bitterness', 'notes', 'consumedAt', 'createdAt', 'updatedAt'];
-  const LOG_NATIVE = { beanId: 'bean_id', beanName: 'bean_name', brewMethod: 'brew_method', overallRating: 'overall_rating', consumedAt: 'consumed_at', createdAt: 'created_at', updatedAt: 'updated_at' };
+  const LOG_COLUMNS = ['id', 'beanId', 'beanName', 'grams', 'brewMethod', 'brewPlanId', 'brewPlanVersion', 'brewPlanName', 'brewPlanSnapshot', 'overallRating', 'aroma', 'acidity', 'sweetness', 'body', 'aftertaste', 'balance', 'bitterness', 'notes', 'consumedAt', 'createdAt', 'updatedAt'];
+  const LOG_NATIVE = { beanId: 'bean_id', beanName: 'bean_name', brewMethod: 'brew_method', brewPlanId: 'brew_plan_id', brewPlanVersion: 'brew_plan_version', brewPlanName: 'brew_plan_name', brewPlanSnapshot: 'brew_plan_snapshot', overallRating: 'overall_rating', consumedAt: 'consumed_at', createdAt: 'created_at', updatedAt: 'updated_at' };
+  const PLAN_COLUMNS = ['id', 'name', 'brewMethod', 'version', 'source', 'beanIds', 'payload', 'createdAt', 'updatedAt'];
+  const PLAN_NATIVE = { brewMethod: 'brew_method', beanIds: 'bean_ids', createdAt: 'created_at', updatedAt: 'updated_at' };
   let sqlite = null;
   let native = false;
 
@@ -43,13 +45,21 @@
       CREATE INDEX IF NOT EXISTS idx_beans_roast_date ON beans(roast_date);
       CREATE TABLE IF NOT EXISTS drink_logs (
         id TEXT PRIMARY KEY NOT NULL, bean_id TEXT, bean_name TEXT NOT NULL, grams REAL NOT NULL,
-        brew_method TEXT NOT NULL DEFAULT '手冲', overall_rating INTEGER,
+        brew_method TEXT NOT NULL DEFAULT '手冲', brew_plan_id TEXT, brew_plan_version INTEGER,
+        brew_plan_name TEXT NOT NULL DEFAULT '', brew_plan_snapshot TEXT NOT NULL DEFAULT '', overall_rating INTEGER,
         aroma INTEGER, acidity INTEGER, sweetness INTEGER, body INTEGER, aftertaste INTEGER,
         balance INTEGER, bitterness INTEGER, notes TEXT NOT NULL DEFAULT '', consumed_at TEXT NOT NULL,
         created_at TEXT NOT NULL, updated_at TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_drink_logs_bean ON drink_logs(bean_id);
       CREATE INDEX IF NOT EXISTS idx_drink_logs_consumed ON drink_logs(consumed_at DESC);
+      CREATE TABLE IF NOT EXISTS brew_plans (
+        id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, brew_method TEXT NOT NULL DEFAULT '手冲',
+        version INTEGER NOT NULL DEFAULT 1, source TEXT NOT NULL DEFAULT 'user',
+        bean_ids TEXT NOT NULL DEFAULT '[]', payload TEXT NOT NULL DEFAULT '{}',
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_brew_plans_method ON brew_plans(brew_method);
       CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL);
     `;
     await sqlite.execute({ database: DB_NAME, statements, transaction: true, readonly: false });
@@ -63,7 +73,17 @@
     if (!(columns.values || []).some((column) => column.name === 'label_image_path')) {
       await sqlite.execute({ database: DB_NAME, statements: "ALTER TABLE beans ADD COLUMN label_image_path TEXT NOT NULL DEFAULT '';", transaction: true, readonly: false });
     }
-    await sqlite.execute({ database: DB_NAME, statements: 'PRAGMA user_version = 4;', transaction: true, readonly: false });
+    const logColumns = await sqlite.query({ database: DB_NAME, statement: 'PRAGMA table_info(drink_logs)', values: [], readonly: false });
+    const logNames = (logColumns.values || []).map((column) => column.name);
+    const logAdds = [
+      ['brew_plan_id', "ALTER TABLE drink_logs ADD COLUMN brew_plan_id TEXT;"],
+      ['brew_plan_version', "ALTER TABLE drink_logs ADD COLUMN brew_plan_version INTEGER;"],
+      ['brew_plan_name', "ALTER TABLE drink_logs ADD COLUMN brew_plan_name TEXT NOT NULL DEFAULT '';"],
+      ['brew_plan_snapshot', "ALTER TABLE drink_logs ADD COLUMN brew_plan_snapshot TEXT NOT NULL DEFAULT '';"]
+    ].filter(([name]) => !logNames.includes(name)).map(([, statement]) => statement).join('\n');
+    if (logAdds) await sqlite.execute({ database: DB_NAME, statements: logAdds, transaction: true, readonly: false });
+    await seedPresetPlans();
+    await sqlite.execute({ database: DB_NAME, statements: 'PRAGMA user_version = 5;', transaction: true, readonly: false });
   }
 
   function fromBeanRow(row) {
@@ -81,23 +101,59 @@
     const log = {};
     LOG_COLUMNS.forEach((key) => { log[key] = row[LOG_NATIVE[key] || key]; });
     if (row.display_bean_name) log.beanName = row.display_bean_name;
+    log.brewPlanSnapshot = row.brew_plan_snapshot || row.brewPlanSnapshot || null;
     return root.BeanCore.normalizeDrinkLog(log, log.updatedAt);
   }
 
   function logValues(log) {
     const l = root.BeanCore.normalizeDrinkLog(log, log.updatedAt);
-    return [l.id, l.beanId, l.beanName, l.grams, l.brewMethod, l.overallRating, l.aroma, l.acidity, l.sweetness, l.body, l.aftertaste, l.balance, l.bitterness, l.notes, l.consumedAt, l.createdAt, l.updatedAt];
+    return [l.id, l.beanId, l.beanName, l.grams, l.brewMethod, l.brewPlanId, l.brewPlanVersion, l.brewPlanName, l.brewPlanSnapshot ? JSON.stringify(l.brewPlanSnapshot) : '', l.overallRating, l.aroma, l.acidity, l.sweetness, l.body, l.aftertaste, l.balance, l.bitterness, l.notes, l.consumedAt, l.createdAt, l.updatedAt];
   }
 
-  function blankWebState() { return { beans: [], drinkLogs: [], settings: root.BeanCore.normalizeSettings({}) }; }
+  function planValues(plan) {
+    const p = root.BeanCore.normalizeBrewPlan(plan, plan.updatedAt);
+    return [p.id, p.name, p.brewMethod, p.version, p.source, JSON.stringify(p.beanIds), JSON.stringify(p), p.createdAt, p.updatedAt];
+  }
+
+  function presetPlans() {
+    return root.BeanCore.presetBrewPlans ? root.BeanCore.presetBrewPlans() : [];
+  }
+
+  function fromPlanRow(row) {
+    let payload = {};
+    try { payload = JSON.parse(row.payload || '{}'); } catch (_) {}
+    return root.BeanCore.normalizeBrewPlan({ ...payload, id: row.id, name: row.name, brewMethod: row.brew_method, version: row.version, source: row.source, beanIds: JSON.parse(row.bean_ids || '[]'), createdAt: row.created_at, updatedAt: row.updated_at }, row.updated_at);
+  }
+
+  async function seedPresetPlans() {
+    if (!native) return;
+    const presets = presetPlans();
+    if (!presets.length) return;
+    const columns = PLAN_COLUMNS.map((key) => PLAN_NATIVE[key] || key).join(',');
+    const placeholders = PLAN_COLUMNS.map(() => '?').join(',');
+    await sqlite.executeSet({ database: DB_NAME, set: presets.map((plan) => ({ statement: `INSERT OR REPLACE INTO brew_plans (${columns}) VALUES (${placeholders})`, values: planValues(plan) })), transaction: true, readonly: false });
+  }
+
+  function withPresetPlans(plans) {
+    const normalized = (plans || []).map((plan) => root.BeanCore.normalizeBrewPlan(plan, plan.updatedAt));
+    const presets = presetPlans();
+    const presetIds = new Set(presets.map((plan) => plan.id));
+    const userPlans = normalized.filter((plan) => !presetIds.has(plan.id));
+    const userIds = new Set(userPlans.map((plan) => plan.id));
+    presets.forEach((plan) => { if (!userIds.has(plan.id)) userPlans.push(plan); });
+    return userPlans;
+  }
+
+  function blankWebState() { return { beans: [], drinkLogs: [], brewPlans: presetPlans(), settings: root.BeanCore.normalizeSettings({}) }; }
   function loadWebState() {
     try {
       const parsed = JSON.parse(localStorage.getItem(WEB_KEY) || 'null');
-      if (Array.isArray(parsed)) return { beans: parsed.map((bean) => root.BeanCore.normalizeBean(bean, bean.updatedAt)), drinkLogs: [], settings: root.BeanCore.normalizeSettings({}) };
+      if (Array.isArray(parsed)) return { beans: parsed.map((bean) => root.BeanCore.normalizeBean(bean, bean.updatedAt)), drinkLogs: [], brewPlans: presetPlans(), settings: root.BeanCore.normalizeSettings({}) };
       if (!parsed || typeof parsed !== 'object') return blankWebState();
       return {
         beans: (parsed.beans || []).map((bean) => root.BeanCore.normalizeBean(bean, bean.updatedAt)),
         drinkLogs: (parsed.drinkLogs || []).map((log) => root.BeanCore.normalizeDrinkLog(log, log.updatedAt)),
+        brewPlans: withPresetPlans(parsed.brewPlans || []),
         settings: root.BeanCore.normalizeSettings(parsed.settings)
       };
     } catch (_) { return blankWebState(); }
@@ -129,11 +185,65 @@
       const state = loadWebState(); const bean = state.beans.find((item) => item.id === id);
       state.beans = state.beans.filter((item) => item.id !== id);
       state.drinkLogs = state.drinkLogs.map((log) => log.beanId === id ? { ...log, beanId: null, beanName: bean ? bean.name : log.beanName } : log);
+      state.brewPlans = state.brewPlans.map((plan) => root.BeanCore.normalizeBrewPlan({ ...plan, beanIds: plan.beanIds.filter((beanId) => beanId !== id) }, plan.updatedAt));
       saveWebState(state); return;
     }
     await sqlite.executeSet({ database: DB_NAME, set: [
       { statement: 'UPDATE drink_logs SET bean_name = COALESCE((SELECT name FROM beans WHERE id = ?), bean_name), bean_id = NULL WHERE bean_id = ?', values: [id, id] },
+      { statement: "UPDATE brew_plans SET bean_ids = json_remove(bean_ids, '$[' || (SELECT key FROM json_each(bean_ids) WHERE value = ? LIMIT 1) || ']') WHERE EXISTS (SELECT 1 FROM json_each(bean_ids) WHERE value = ?)", values: [id, id] },
       { statement: 'DELETE FROM beans WHERE id = ?', values: [id] }
+    ], transaction: true, readonly: false });
+  }
+
+  async function getBrewPlans() {
+    if (!native) return loadWebState().brewPlans.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    await seedPresetPlans();
+    const result = await sqlite.query({ database: DB_NAME, statement: 'SELECT * FROM brew_plans ORDER BY updated_at DESC', values: [], readonly: false });
+    return (result.values || []).map(fromPlanRow);
+  }
+
+  async function saveBrewPlan(input) {
+    const stamp = new Date().toISOString();
+    let normalized = root.BeanCore.normalizeBrewPlan({ ...input, updatedAt: stamp }, stamp);
+    if (!native) {
+      const state = loadWebState();
+      const index = state.brewPlans.findIndex((item) => item.id === normalized.id);
+      const old = index >= 0 ? state.brewPlans[index] : null;
+      if (old && old.source === 'preset') throw new Error('预置方案请先复制再编辑');
+      if (old) normalized = root.BeanCore.normalizeBrewPlan({ ...old, ...normalized, version: old.version + 1, createdAt: old.createdAt }, stamp);
+      if (index >= 0) state.brewPlans[index] = normalized; else state.brewPlans.unshift(normalized);
+      saveWebState(state); return normalized;
+    }
+    const oldResult = await sqlite.query({ database: DB_NAME, statement: 'SELECT * FROM brew_plans WHERE id = ?', values: [normalized.id], readonly: false });
+    const old = (oldResult.values || []).length ? fromPlanRow(oldResult.values[0]) : null;
+    if (old && old.source === 'preset') throw new Error('预置方案请先复制再编辑');
+    if (old) normalized = root.BeanCore.normalizeBrewPlan({ ...old, ...normalized, version: old.version + 1, createdAt: old.createdAt }, stamp);
+    const columns = PLAN_COLUMNS.map((key) => PLAN_NATIVE[key] || key).join(',');
+    const placeholders = PLAN_COLUMNS.map(() => '?').join(',');
+    const updates = PLAN_COLUMNS.filter((key) => key !== 'id' && key !== 'createdAt').map((key) => `${PLAN_NATIVE[key] || key}=excluded.${PLAN_NATIVE[key] || key}`).join(',');
+    await sqlite.run({ database: DB_NAME, statement: `INSERT INTO brew_plans (${columns}) VALUES (${placeholders}) ON CONFLICT(id) DO UPDATE SET ${updates}`, values: planValues(normalized), transaction: true, readonly: false });
+    return normalized;
+  }
+
+  async function duplicateBrewPlan(id) {
+    const plan = (await getBrewPlans()).find((item) => item.id === id);
+    if (!plan) throw new Error('找不到方案');
+    return saveBrewPlan(root.BeanCore.cloneBrewPlan(plan, { name: `${plan.name} 副本`, source: 'copy' }));
+  }
+
+  async function deleteBrewPlan(id) {
+    const plan = (await getBrewPlans()).find((item) => item.id === id);
+    if (!plan) return;
+    if (plan.source === 'preset') throw new Error('预置方案不能删除');
+    if (!native) {
+      const state = loadWebState();
+      state.brewPlans = state.brewPlans.filter((item) => item.id !== id);
+      state.drinkLogs = state.drinkLogs.map((log) => log.brewPlanId === id ? root.BeanCore.normalizeDrinkLog({ ...log, brewPlanId: null }, log.updatedAt) : log);
+      saveWebState(state); return;
+    }
+    await sqlite.executeSet({ database: DB_NAME, set: [
+      { statement: 'DELETE FROM brew_plans WHERE id = ? AND source != ?', values: [id, 'preset'] },
+      { statement: 'UPDATE drink_logs SET brew_plan_id = NULL WHERE brew_plan_id = ?', values: [id] }
     ], transaction: true, readonly: false });
   }
 
@@ -223,15 +333,18 @@
     return normalized;
   }
 
-  async function replaceAllData(beans, drinkLogs, settings) {
+  async function replaceAllData(beans, drinkLogs, settings, brewPlans) {
     const normalizedBeans = beans.map((bean) => root.BeanCore.normalizeBean(bean, bean.updatedAt));
     const beanIds = new Set(normalizedBeans.map((bean) => bean.id));
     const normalizedLogs = (drinkLogs || []).map((log) => root.BeanCore.normalizeDrinkLog({ ...log, beanId: beanIds.has(log.beanId) ? log.beanId : null }, log.updatedAt));
-    if (!native) { const state = loadWebState(); state.beans = normalizedBeans; state.drinkLogs = normalizedLogs; if (settings) state.settings = root.BeanCore.normalizeSettings(settings); saveWebState(state); return; }
+    const normalizedPlans = withPresetPlans(brewPlans || []).map((plan) => root.BeanCore.normalizeBrewPlan({ ...plan, beanIds: plan.beanIds.filter((id) => beanIds.has(id)) }, plan.updatedAt));
+    if (!native) { const state = loadWebState(); state.beans = normalizedBeans; state.drinkLogs = normalizedLogs; state.brewPlans = normalizedPlans; if (settings) state.settings = root.BeanCore.normalizeSettings(settings); saveWebState(state); return; }
     const beanColumns = BEAN_COLUMNS.map((key) => BEAN_NATIVE[key] || key).join(','); const beanPlaceholders = BEAN_COLUMNS.map(() => '?').join(',');
     const logColumns = LOG_COLUMNS.map((key) => LOG_NATIVE[key] || key).join(','); const logPlaceholders = LOG_COLUMNS.map(() => '?').join(',');
-    const set = [{ statement: 'DELETE FROM drink_logs', values: [] }, { statement: 'DELETE FROM beans', values: [] }]
+    const planColumns = PLAN_COLUMNS.map((key) => PLAN_NATIVE[key] || key).join(','); const planPlaceholders = PLAN_COLUMNS.map(() => '?').join(',');
+    const set = [{ statement: 'DELETE FROM drink_logs', values: [] }, { statement: 'DELETE FROM brew_plans', values: [] }, { statement: 'DELETE FROM beans', values: [] }]
       .concat(normalizedBeans.map((bean) => ({ statement: `INSERT INTO beans (${beanColumns}) VALUES (${beanPlaceholders})`, values: beanValues(bean) })))
+      .concat(normalizedPlans.map((plan) => ({ statement: `INSERT INTO brew_plans (${planColumns}) VALUES (${planPlaceholders})`, values: planValues(plan) })))
       .concat(normalizedLogs.map((log) => ({ statement: `INSERT INTO drink_logs (${logColumns}) VALUES (${logPlaceholders})`, values: logValues(log) })));
     if (settings) set.push({ statement: "INSERT INTO app_settings (key, value) VALUES ('preferences', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", values: [JSON.stringify(root.BeanCore.normalizeSettings(settings))] });
     await sqlite.executeSet({ database: DB_NAME, set, transaction: true, readonly: false });
@@ -259,5 +372,5 @@
     return null;
   }
 
-  root.BeanRepository = { init, isNative: () => native, getAll, save, remove, getDrinkLogs, saveDrinkLog, deleteDrinkLog, getSettings, saveSettings, replaceAllData, replaceAll, smartValues, renameSmartValue, deleteSmartValue, legacyData };
+  root.BeanRepository = { init, isNative: () => native, getAll, save, remove, getBrewPlans, saveBrewPlan, duplicateBrewPlan, deleteBrewPlan, getDrinkLogs, saveDrinkLog, deleteDrinkLog, getSettings, saveSettings, replaceAllData, replaceAll, smartValues, renameSmartValue, deleteSmartValue, legacyData };
 })(window);

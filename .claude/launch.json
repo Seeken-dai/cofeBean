@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "www",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "4178", "--directory", "www"],
+      "port": 4178
+    }
+  ]
+}

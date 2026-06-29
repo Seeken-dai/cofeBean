@@ -50,3 +50,30 @@ test('insufficient inventory rolls back and deleting bean preserves snapshot his
   assert.equal(kept.beanName, '豆二');
   delete global.window; delete global.localStorage;
 });
+
+test('brew plans save, copy, bind and snapshot drink history in web fallback', async () => {
+  const repo = loadRepository();
+  const bean = core.normalizeBean({ id: 'bean-plan', name: '方案豆', initialWeight: 100, remainingWeight: 100 });
+  await repo.save(bean);
+  const plan = await repo.saveBrewPlan({ name: '三段式测试', brewMethod: '手冲', dose: 15, ratio: '1:15', beanIds: [bean.id] });
+  assert.equal(plan.version, 1);
+  const edited = await repo.saveBrewPlan({ ...plan, waterTemp: '92°C' });
+  assert.equal(edited.version, 2);
+  const copy = await repo.duplicateBrewPlan(edited.id);
+  assert.equal(copy.version, 1);
+  assert.match(copy.name, /副本/);
+  const log = await repo.saveDrinkLog({ beanId: bean.id, beanName: bean.name, grams: 15, brewMethod: edited.brewMethod, brewPlanId: edited.id, brewPlanVersion: edited.version, brewPlanName: edited.name, brewPlanSnapshot: core.planSnapshot(edited) });
+  await repo.saveBrewPlan({ ...edited, waterTemp: '94°C' });
+  const kept = (await repo.getDrinkLogs())[0];
+  assert.equal(kept.id, log.id);
+  assert.equal(kept.brewPlanSnapshot.waterTemp, '92°C');
+  await repo.deleteBrewPlan(edited.id);
+  const unlinked = (await repo.getDrinkLogs())[0];
+  assert.equal(unlinked.brewPlanId, null);
+  assert.equal(unlinked.brewPlanSnapshot.waterTemp, '92°C');
+  await repo.remove(bean.id);
+  const plans = await repo.getBrewPlans();
+  assert.equal(plans.some((item) => item.id === edited.id), false);
+  assert.equal(plans.find((item) => item.id === copy.id).beanIds.includes(bean.id), false);
+  delete global.window; delete global.localStorage;
+});

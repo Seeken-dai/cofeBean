@@ -29,6 +29,8 @@ $env:ANDROID_HOME='C:\tmp\android-sdk'
 $env:ANDROID_SDK_ROOT='C:\tmp\android-sdk'
 ```
 
+默认发布正式版；调试版仅在需要开发验收或定位问题时构建。
+
 调试版：
 
 ```powershell
@@ -53,8 +55,9 @@ Set-Location android
 2. 将 `versionName` 改为用户可见版本，例如 `1.1.0`。
 3. 始终使用 `release-keystore/coffee-vault-release.jks` 和同一别名签名。
 4. 构建前运行测试和同步，再安装到保留数据的设备上验证覆盖升级。
+5. 没有特殊说明时只执行正式版构建，并把产物命名为 `dist/coffee-vault-<version>-release.apk`。
 
-数据库当前 `PRAGMA user_version = 4`。以后改变表结构时，在 `www/repository.js` 中增加顺序迁移，禁止删除数据库或清空旧表。
+数据库当前 `PRAGMA user_version = 5`。以后改变表结构时，在 `www/repository.js` 中增加顺序迁移，禁止删除数据库或清空旧表。
 
 ## 校验
 
@@ -65,3 +68,5 @@ node --check www/repository.js
 ```
 
 APK 可使用 Android Build Tools 的 `aapt2 dump badging`、`aapt2 dump permissions` 和 `apksigner verify --print-certs` 检查包信息、权限与签名。
+
+1.4.3 release 已验证 `versionName=1.4.3`、`versionCode=26`，权限仅包含 `android.permission.CAMERA` 和 Android 自动生成的应用内部动态接收器权限；未新增网络、相册或外部存储权限。签名证书 SHA-256 与 1.4.2 一致，可覆盖升级并保留数据库。

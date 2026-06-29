@@ -12,3 +12,4 @@ keystore.properties
 .idea/
 *.iml
 local-backups/
+.claude/settings.local.json
