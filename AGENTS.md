@@ -54,6 +54,29 @@ $env:ANDROID_SDK_ROOT='C:\tmp\android-sdk'
 - 修改 `www/data-core.js`、`www/repository.js`、备份格式、筛选排序、统计、迁移时，必须补充或更新 `tests/`。
 - 修改 `www/` 后，如要构建或验证 Android 行为，先运行 `npm.cmd run cap:sync`。
 
+## 版本发布与 Git 流程
+
+采用 release 分支流程：每个版本独立分支，验证通过后合并回 `main`；`main` 始终代表最新已发布状态。
+
+1. 从最新 `main` 切版本分支：`git checkout main && git checkout -b release/<x.y.z>`。
+2. 在该分支迭代：改代码、补测试，把版本号同步到下列所有位置，并更新 `README.md`、`CHANGELOG.md`、`BUILDING.md`。
+3. 在该分支用 `npm.cmd run android:release` 打正式签名 APK，复制为 `dist/coffee-vault-<x.y.z>-release.apk`，装到保留数据的设备验证覆盖升级。
+4. APK 验证无误后合并回主线并打 tag：`git checkout main && git merge --ff-only release/<x.y.z> && git tag -a v<x.y.z> -m "..."`。
+5. 下一个版本从更新后的 `main` 重新切分支，循环往复；旧版本分支合并后可删除（内容已在 `main` 中）。
+
+版本号需同步修改的位置（缺一不可）：
+
+- `package.json`、`package-lock.json` 的 `version`
+- `android/app/build.gradle` 的 `versionName` 与 `versionCode`（每次发布 `versionCode` 加一）
+- `www/index.html` 关于页 `#aboutVersion` 文案与「最新功能」列表
+- `www/data-core.js` 备份的 `appVersion`
+
+Git 约定：
+
+- `git commit` 只写入本地仓库；`git push` 才会推送到远程 `origin`（GitHub）。push、合并到远程默认分支等对外动作必须先获得用户明确同意。
+- APK、`*.jks` / `keystore.properties` / `release-keystore/`、构建产物已在 `.gitignore` 忽略，禁止提交；APK 通过本地 `dist/` 或 GitHub Releases 分发。
+- 合并优先 fast-forward；发布提交打 `v<x.y.z>` tag 便于回溯。
+
 ## 代码风格
 
 - 保持现有原生 JS 风格：IIFE、`'use strict'`、`const`/`let`、小函数、无构建步骤。
