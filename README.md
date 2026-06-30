@@ -1,6 +1,6 @@
 # 豆仓 Coffee Vault
 
-当前版本：1.4.8（Android versionCode 31）
+当前版本：1.5.0（Android versionCode 32）
 
 一个完全离线、面向 Android 的个人咖啡豆管理 App。数据保存在设备内的 SQLite 数据库中，不需要账号、网络、相册或存储权限；拍照识别功能仅申请相机权限。
 
@@ -8,7 +8,7 @@
 
 推荐安装正式签名版：
 
-- `dist/coffee-vault-1.4.8-release.apk`
+- `dist/coffee-vault-1.5.0-release.apk`
 
 把 APK 发送到 Android 手机，打开文件并按系统提示允许本次“安装未知应用”。已安装旧版时，只要继续使用同一份发布密钥并提高 `versionCode`，即可覆盖升级且保留数据库。
 
@@ -48,6 +48,7 @@
 - 冲煮方案编辑可快速选择或新建历史设备记录，减少重复手填
 - 全面屏状态栏、安全区域和小数水量输入已针对 Android 实机优化
 - 咖啡豆详情、冲煮方案和咖啡日历可生成统一票据风分享卡片，并通过系统面板分享 PNG 图片
+- 冲煮方案可生成离线分享码；分享卡片可附带二维码，接收方可拍照扫码、相册选图或粘贴分享码导入为新方案
 - 冲煮辅助支持按方案步骤自动计时，底部操作按钮保持一行展示
 - 自适应图标、启动画面、全面屏安全区域
 
@@ -56,7 +57,7 @@
 - 第一版分享卡片统一使用 `receipt` 极简票据风，入口位于咖啡豆详情、冲煮方案详情和咖啡日历。
 - 分享内容由 `www/data-core.js` 的 `buildSharePayload(type, source, options)` 生成，保持纯逻辑、可测试。
 - Canvas 渲染与系统分享在 `www/app.js` 中完成，渲染器通过 `SHARE_CARD_RENDERERS` 注册；后续新增样式时优先增加 renderer，不改内容 payload。
-- 咖啡豆分享可选择是否加入咖啡袋和标签图片；Android 真机生成 PNG 后写入缓存目录并调用系统分享面板，Web 预览则下载 PNG。
+- 咖啡豆分享可选择是否加入咖啡袋和标签图片；冲煮方案分享可选择是否加入离线导入二维码；Android 真机生成 PNG 后写入缓存目录并调用系统分享面板，Web 预览则下载 PNG。
 
 ## 工程入口
 
@@ -66,4 +67,4 @@
 - `resources/`、`assets/`：图标和启动画面源文件
 - `BUILDING.md`：构建、签名与版本升级说明
 
-当前包信息：`com.coffeebean.vault`，版本 `1.4.8`（versionCode `31`），最低 Android 7/API 24，目标 Android 16/API 36。
+当前包信息：`com.coffeebean.vault`，版本 `1.5.0`（versionCode `32`），最低 Android 7/API 24，目标 Android 16/API 36。

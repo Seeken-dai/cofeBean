@@ -71,6 +71,8 @@ node --check www/repository.js
 
 APK 可使用 Android Build Tools 的 `aapt2 dump badging`、`aapt2 dump permissions` 和 `apksigner verify --print-certs` 检查包信息、权限与签名。
 
+1.5.0 release 已验证 `versionName=1.5.0`、`versionCode=32`，已生成正式签名版 `dist/coffee-vault-1.5.0-release.apk`；本版新增冲煮方案离线分享码、二维码分享卡片和扫码/相册/粘贴导入能力，二维码生成与识别均使用纯离线 JS 依赖（`qrcode-generator`、`jsQR`），未引入网络、账号、云端解析或新增 Android 权限。权限仅包含 `android.permission.CAMERA` 和 Android 自动生成的应用内部动态接收器权限。签名证书 SHA-256 为 `aab5e3d3bd224b98f885945ecd868d54a99e2c96bf099a0c9e6ee59ca02151ae`。
+
 1.4.8 release 已验证 `versionName=1.4.8`、`versionCode=31`，已生成正式签名版 `dist/coffee-vault-1.4.8-release.apk`；本版新增购买链接字段与系统外部打开能力（`ExternalLinkOpenerPlugin` 用 `Intent.ACTION_VIEW` 交给系统打开，未引入 INTERNET 权限），权限仅包含 `android.permission.CAMERA` 和 Android 自动生成的应用内部动态接收器权限，未新增网络、相册或外部存储权限。签名证书 SHA-256 为 `aab5e3d3bd224b98f885945ecd868d54a99e2c96bf099a0c9e6ee59ca02151ae`。
 
 1.4.7 release 已验证 `versionName=1.4.7`、`versionCode=30`，已生成正式签名版 `dist/coffee-vault-1.4.7-release.apk`；权限仅包含 `android.permission.CAMERA` 和 Android 自动生成的应用内部动态接收器权限，未新增网络、相册或外部存储权限。签名证书 SHA-256 为 `aab5e3d3bd224b98f885945ecd868d54a99e2c96bf099a0c9e6ee59ca02151ae`。
