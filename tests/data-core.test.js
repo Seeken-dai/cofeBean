@@ -29,7 +29,8 @@ test('backup round trip validates schema and duplicate ids', () => {
   const plans = [core.normalizeBrewPlan({ id: 'plan-one', name: '三段式', brewMethod: '手冲', beanIds: ['one'], dose: 15 })];
   const backup = core.createBackup(beans, logs, { quickGrams: 18 }, '2026-01-01T00:00:00.000Z', plans);
   const imported = core.validateImport(backup);
-  assert.equal(backup.appVersion, '1.4.6');
+  assert.equal(backup.appVersion, '1.4.7');
+  assert.equal(backup.schemaVersion, 4);
   assert.equal(imported.exportScope, 'all');
   assert.equal(imported.beans[0].name, '豆一');
   assert.equal(imported.beans[0].labelImagePath, 'file:///label.jpg');
@@ -47,6 +48,26 @@ test('backup round trip validates schema and duplicate ids', () => {
   assert.equal(crossVersion.settings.enableBrewPlans, true);
   assert.throws(() => core.validateImport({ schemaVersion: 99, beans: [] }), /备份版本/);
   assert.throws(() => core.validateImport({ schemaVersion: 1, beans: [{ id: 'x', name: 'A' }, { id: 'x', name: 'B' }] }), /重复/);
+});
+
+test('bean best flavor days and in-app reminders are normalized', () => {
+  const bean = core.normalizeBean({ id: 'fresh', name: '新豆', openedDate: '2026-06-01', bestFlavorDays: 30, remainingWeight: 50, status: '饮用中' });
+  assert.equal(bean.bestFlavorDays, 30);
+  assert.equal(core.bestFlavorDaysLeft(bean, '2026-06-24T12:00:00.000Z'), 7);
+  const reminders = core.beanReminders([bean], { quickGrams: 15, flavorReminderDays: 7, lowStockCups: 4 }, '2026-06-24T12:00:00.000Z');
+  assert.deepEqual(reminders.map((item) => item.type), ['flavor', 'stock']);
+  assert.equal(reminders[0].message, '最佳赏味期还有 7 天');
+  assert.equal(core.normalizeSettings({ flavorReminderDays: 99, lowStockCups: 0 }).flavorReminderDays, 60);
+  assert.equal(core.normalizeSettings({ flavorReminderDays: 99, lowStockCups: 0 }).lowStockCups, 1);
+});
+
+test('backup can include bean images when requested', () => {
+  const beans = [core.normalizeBean({ id: 'image-bean', name: '图片豆', bagImagePath: 'file:///bag.jpg' })];
+  const beanImages = { 'image-bean': { bag: { data: 'abc', extension: '.jpg', mimeType: 'image/jpeg' } } };
+  const backup = core.createBackup(beans, [], {}, '2026-01-01T00:00:00.000Z', [], { scope: 'library', beanImages });
+  assert.deepEqual(backup.beanImages, beanImages);
+  const imported = core.validateImport(backup);
+  assert.equal(imported.beanImages['image-bean'].bag.data, 'abc');
 });
 
 test('scoped backups include only selected data and keep old imports compatible', () => {

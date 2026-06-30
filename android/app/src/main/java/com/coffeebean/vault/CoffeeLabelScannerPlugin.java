@@ -2,6 +2,7 @@ package com.coffeebean.vault;
 
 import android.graphics.Rect;
 import android.net.Uri;
+import android.util.Base64;
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -14,6 +15,7 @@ import com.google.mlkit.vision.text.TextRecognition;
 import com.google.mlkit.vision.text.TextRecognizer;
 import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -121,6 +123,71 @@ public class CoffeeLabelScannerPlugin extends Plugin {
             deleteTemporaryFile(uri);
         }
         call.resolve();
+    }
+
+    @PluginMethod
+    public void readArchivedImage(PluginCall call) {
+        String path = call.getString("path");
+        if (path == null || path.trim().isEmpty()) {
+            call.reject("缺少图片路径");
+            return;
+        }
+        Uri parsedUri = Uri.parse(path);
+        Uri uri = parsedUri.getScheme() == null ? Uri.fromFile(new File(path)) : parsedUri;
+        if (!"file".equalsIgnoreCase(uri.getScheme())) {
+            call.reject("只支持读取本机归档图片");
+            return;
+        }
+        File file = new File(uri.getPath());
+        try {
+            File archiveDir = new File(getContext().getFilesDir(), "bean-images");
+            if (!file.getCanonicalPath().startsWith(archiveDir.getCanonicalPath())) {
+                call.reject("只支持读取本机归档图片");
+                return;
+            }
+            byte[] buffer = new byte[(int) file.length()];
+            try (InputStream input = new FileInputStream(file)) {
+                int offset = 0;
+                int read;
+                while (offset < buffer.length && (read = input.read(buffer, offset, buffer.length - offset)) != -1) offset += read;
+            }
+            JSObject payload = new JSObject();
+            String extension = guessExtension(uri);
+            payload.put("data", Base64.encodeToString(buffer, Base64.NO_WRAP));
+            payload.put("extension", extension);
+            payload.put("mimeType", ".png".equals(extension) ? "image/png" : ".webp".equals(extension) ? "image/webp" : "image/jpeg");
+            call.resolve(payload);
+        } catch (IOException | SecurityException error) {
+            call.reject("图片读取失败", error);
+        }
+    }
+
+    @PluginMethod
+    public void restoreArchivedImage(PluginCall call) {
+        String data = call.getString("data");
+        if (data == null || data.trim().isEmpty()) {
+            call.reject("缺少图片数据");
+            return;
+        }
+        String role = call.getString("role", "bag");
+        String prefix = "label".equals(role) ? "label" : "bag";
+        String extension = call.getString("extension", ".jpg");
+        if (!".png".equals(extension) && !".webp".equals(extension)) extension = ".jpg";
+        File dir = new File(getContext().getFilesDir(), "bean-images");
+        if (!dir.exists() && !dir.mkdirs()) {
+            call.reject("无法创建图片归档目录");
+            return;
+        }
+        File target = new File(dir, prefix + "-" + UUID.randomUUID().toString() + extension);
+        try (OutputStream output = new FileOutputStream(target)) {
+            output.write(Base64.decode(data, Base64.DEFAULT));
+            JSObject payload = new JSObject();
+            payload.put("path", Uri.fromFile(target).toString());
+            payload.put("uri", Uri.fromFile(target).toString());
+            call.resolve(payload);
+        } catch (IOException | IllegalArgumentException error) {
+            call.reject("图片恢复失败", error);
+        }
     }
 
     private void deleteTemporaryFile(Uri uri) {

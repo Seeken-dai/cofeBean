@@ -39,6 +39,7 @@
       <article class="stat"><strong id="statActive">0</strong><span>饮用中</span></article>
       <article class="stat"><strong id="statRemaining">0g</strong><span>剩余总量</span></article>
     </section>
+    <section class="reminder-panel" id="beanReminderPanel" hidden></section>
 
     <nav class="filter-row" id="statusFilters" aria-label="按状态筛选">
       <button class="chip active" data-value="全部" type="button">全部</button>
@@ -113,6 +114,7 @@
     <header class="sheet-header"><div><p class="eyebrow">DATA VAULT</p><h2>数据备份</h2><p class="sheet-subtitle">备份文件只保存在你选择的位置</p></div><button class="icon-button" id="dataBackupClose" type="button" aria-label="关闭">×</button></header>
     <div class="backup-groups">
       <section><h3>导出</h3><div class="source-actions backup-actions">
+        <label class="backup-option"><input id="exportBeanImages" type="checkbox"><span><b>包含咖啡豆图片</b><small>仅完整或豆仓导出可用，文件会明显变大</small></span></label>
         <button data-export-scope="all" type="button"><span>全部数据</span><small>豆仓、饮用记录、设置等完整数据</small></button>
         <button data-export-scope="library" type="button"><span>豆仓与饮用记录</span><small>包含咖啡日历所需的饮用记录</small></button>
         <button data-export-scope="brewPlans" data-requires-brew-plans type="button"><span>冲煮方案</span><small>只导出手冲、冷萃等方案库</small></button>
@@ -290,6 +292,7 @@
         <label class="field"><span>状态</span><select id="field-status" name="status"><option>未开封</option><option>饮用中</option><option>已喝完</option></select></label>
         <label class="field"><span>烘焙日期</span><input id="field-roastDate" name="roastDate" class="picker-control" data-picker-kind="date" type="text" readonly placeholder="选择日期"></label>
         <label class="field"><span>开封日期</span><input id="field-openedDate" name="openedDate" class="picker-control" data-picker-kind="date" type="text" readonly placeholder="选择日期"></label>
+        <label class="field"><span>最佳赏味期</span><div class="input-unit"><input id="field-bestFlavorDays" name="bestFlavorDays" type="number" min="1" max="3650" step="1" inputmode="numeric" placeholder="例如 30"><em>天</em></div></label>
         <label class="field"><span>初始克重</span><div class="input-unit"><input id="field-initialWeight" name="initialWeight" type="number" min="0" step="1" inputmode="decimal"><em>g</em></div></label>
         <label class="field"><span>剩余克重</span><div class="input-unit"><input id="field-remainingWeight" name="remainingWeight" type="number" min="0" step="1" inputmode="decimal"><em>g</em></div></label>
         <label class="field"><span>价格</span><div class="input-unit currency"><em>¥</em><input id="field-price" name="price" type="number" min="0" step="0.01" inputmode="decimal"></div></label>
@@ -418,6 +421,7 @@
   <dialog class="sheet compact" id="settingsDialog">
     <header class="sheet-header"><div><p class="eyebrow">PREFERENCES</p><h2>设置</h2></div><button class="icon-button" id="settingsClose" type="button" aria-label="关闭">×</button></header>
     <section class="settings-section"><h3>饮用偏好</h3><label class="settings-number"><span><b>快捷喝一杯</b><small>卡片按钮默认扣减的克数</small></span><span><input id="settingQuickGrams" type="number" min="1" max="100" step="0.1" inputmode="decimal"><em>g</em></span></label></section>
+    <section class="settings-section"><h3>APP 内提醒</h3><label class="settings-number"><span><b>赏味期提醒</b><small>距离最佳赏味期小于等于此天数时提示</small></span><span><input id="settingFlavorReminderDays" type="number" min="0" max="60" step="1" inputmode="numeric"><em>天</em></span></label><label class="settings-number"><span><b>余量提醒</b><small>低于预计可喝杯数时提示</small></span><span><input id="settingLowStockCups" type="number" min="1" max="20" step="1" inputmode="numeric"><em>杯</em></span></label></section>
     <section class="settings-section"><h3>进阶功能</h3><label class="settings-toggle"><span><b>冲煮方案</b><small>开启后显示方案库，并在喝一杯时填写冲煮参数</small></span><input id="settingBrewPlans" type="checkbox"></label><label class="settings-toggle"><span><b>高级评价</b><small>在饮用弹窗显示多维评价</small></span><input id="settingAdvanced" type="checkbox"></label><div class="dimension-panel" id="dimensionSection" hidden><span>评价维度</span><div class="dimension-settings" id="dimensionSettings"></div></div></section>
     <section class="settings-section"><h3>价格显示</h3><label class="field"><span>单价计算单位</span><select id="settingPriceUnit"><option value="g">每克单价</option><option value="50g">每 50g 单价</option><option value="100g">每 100g 单价</option><option value="jin">每斤单价</option></select></label></section>
     <section class="settings-section"><h3>外观</h3><div class="theme-grid">
@@ -467,8 +471,8 @@
 
   <dialog class="sheet compact" id="aboutDialog">
     <header class="sheet-header"><div><p class="eyebrow">ABOUT</p><h2>关于豆仓</h2></div><button class="icon-button" id="aboutClose" type="button" aria-label="关闭">×</button></header>
-    <section class="about-hero"><div class="about-logo"><span></span></div><h3>豆仓</h3><p id="aboutVersion">版本 1.4.6</p></section>
-    <section class="about-copy"><h3>把每一包豆子，喝成有迹可循的日常。</h3><p>豆仓是一款为咖啡爱好者设计的离线豆单与饮用记录工具，从入仓、识别到每杯评价，都留在你自己的设备中。</p><h4>1.4.6 最新功能</h4><ul><li>主题更新为深烘、澳白、火山灰绿和生豆</li><li>备份可单独导出豆仓饮用记录或冲煮方案</li><li>导入已有数据时可选择合并或覆盖</li><li>合并时同 ID 数据会保留更新时间较新的版本</li></ul><div class="privacy-note"><b>离线与隐私</b><p>无需账号，不上传咖啡豆、照片或饮用记录。拍照识别、咖啡日历、分享卡片和图片归档均在本机完成。</p></div></section>
+    <section class="about-hero"><div class="about-logo"><span></span></div><h3>豆仓</h3><p id="aboutVersion">版本 1.4.7</p></section>
+    <section class="about-copy"><h3>把每一包豆子，喝成有迹可循的日常。</h3><p>豆仓是一款为咖啡爱好者设计的离线豆单与饮用记录工具，从入仓、识别到每杯评价，都留在你自己的设备中。</p><h4>1.4.7 最新功能</h4><ul><li>备份可选择包含咖啡豆包装与标签图片</li><li>咖啡豆支持填写开封后的最佳赏味天数</li><li>首页新增赏味期与余量不足的 APP 内提醒</li><li>设置中可调整赏味期和余量提醒阈值</li></ul><div class="privacy-note"><b>离线与隐私</b><p>无需账号，不上传咖啡豆、照片或饮用记录。拍照识别、咖啡日历、分享卡片和图片归档均在本机完成。</p></div></section>
   </dialog>
 
   <dialog class="sheet compact" id="migrationDialog">

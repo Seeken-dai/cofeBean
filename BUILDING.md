@@ -71,6 +71,8 @@ node --check www/repository.js
 
 APK 可使用 Android Build Tools 的 `aapt2 dump badging`、`aapt2 dump permissions` 和 `apksigner verify --print-certs` 检查包信息、权限与签名。
 
+1.4.7 release 已验证 `versionName=1.4.7`、`versionCode=30`，已生成正式签名版 `dist/coffee-vault-1.4.7-release.apk`；权限仅包含 `android.permission.CAMERA` 和 Android 自动生成的应用内部动态接收器权限，未新增网络、相册或外部存储权限。签名证书 SHA-256 为 `aab5e3d3bd224b98f885945ecd868d54a99e2c96bf099a0c9e6ee59ca02151ae`。
+
 1.4.6 release 已验证 `versionName=1.4.6`、`versionCode=29`，已生成正式签名版 `dist/coffee-vault-1.4.6-release.apk`；权限仅包含 `android.permission.CAMERA` 和 Android 自动生成的应用内部动态接收器权限，未新增网络、相册或外部存储权限。签名证书 SHA-256 为 `aab5e3d3bd224b98f885945ecd868d54a99e2c96bf099a0c9e6ee59ca02151ae`。
 
 1.4.5 release 已验证 `versionName=1.4.5`、`versionCode=28`，权限仅包含 `android.permission.CAMERA` 和 Android 自动生成的应用内部动态接收器权限；未新增网络、相册或外部存储权限（分享卡片「保存」写入应用外部目录，无需存储权限）。签名证书 SHA-256 与 1.4.2/1.4.3/1.4.4 一致，可覆盖升级并保留数据库。

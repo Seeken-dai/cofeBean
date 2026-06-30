@@ -19,8 +19,9 @@ function loadRepository() {
 
 test('drink save, edit and delete adjust inventory atomically in web fallback', async () => {
   const repo = loadRepository();
-  const bean = core.normalizeBean({ id: 'bean-one', name: '豆一', initialWeight: 100, remainingWeight: 100 });
+  const bean = core.normalizeBean({ id: 'bean-one', name: '豆一', initialWeight: 100, remainingWeight: 100, bestFlavorDays: 28 });
   await repo.save(bean);
+  assert.equal((await repo.getAll())[0].bestFlavorDays, 28);
   const log = await repo.saveDrinkLog({ beanId: bean.id, beanName: bean.name, grams: 15, brewMethod: '手冲' });
   let current = (await repo.getAll())[0];
   assert.equal(current.remainingWeight, 85);

@@ -3,7 +3,7 @@
 ## 项目背景
 
 - 豆仓 Coffee Vault 是完全离线、本地优先的 Android 个人咖啡豆管理 App。
-- 当前版本为 `1.4.4`，Android `versionCode 27`，正式产物为 `dist/coffee-vault-1.4.4-release.apk`。
+- 当前版本为 `1.4.7`，Android `versionCode 30`，正式产物为 `dist/coffee-vault-1.4.7-release.apk`。
 - 正式数据保存在应用私有 SQLite 数据库；Web 预览只用于开发，不代表真实设备存储行为。
 - App 不需要账号、网络、相册或存储权限；拍照识别只应申请相机权限。
 - 数据安全优先于功能速度：导入失败必须回滚，数据库升级必须保留旧数据。
@@ -59,7 +59,7 @@ $env:ANDROID_SDK_ROOT='C:\tmp\android-sdk'
 采用 release 分支流程：每个版本独立分支，验证通过后合并回 `main`；`main` 始终代表最新已发布状态。
 
 1. 从最新 `main` 切版本分支：`git checkout main && git checkout -b release/<x.y.z>`。
-2. 在该分支迭代：改代码、补测试，把版本号同步到下列所有位置，并更新 `README.md`、`CHANGELOG.md`、`BUILDING.md`。
+2. 在该分支迭代：改代码、补测试，把版本号同步到下列所有位置，并更新 `README.md`、`CHANGELOG.md`、`BUILDING.md`、`AGENTS.md`。
 3. 在该分支用 `npm.cmd run android:release` 打正式签名 APK，复制为 `dist/coffee-vault-<x.y.z>-release.apk`，装到保留数据的设备验证覆盖升级。
 4. APK 验证无误后合并回主线并打 tag：`git checkout main && git merge --ff-only release/<x.y.z> && git tag -a v<x.y.z> -m "..."`。
 5. 下一个版本从更新后的 `main` 重新切分支，循环往复；旧版本分支合并后可删除（内容已在 `main` 中）。
@@ -70,6 +70,7 @@ $env:ANDROID_SDK_ROOT='C:\tmp\android-sdk'
 - `android/app/build.gradle` 的 `versionName` 与 `versionCode`（每次发布 `versionCode` 加一）
 - `www/index.html` 关于页 `#aboutVersion` 文案与「最新功能」列表
 - `www/data-core.js` 备份的 `appVersion`
+- `AGENTS.md` 的当前版本、`versionCode` 与正式产物路径
 
 Git 约定：
 

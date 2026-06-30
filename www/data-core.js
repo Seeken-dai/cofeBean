@@ -5,7 +5,7 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
 
-  const SCHEMA_VERSION = 3;
+  const SCHEMA_VERSION = 4;
   const DIMENSION_KEYS = ['aroma', 'acidity', 'sweetness', 'body', 'aftertaste', 'balance', 'bitterness'];
   const BREW_METHODS = ['手冲', '冷萃', '冰滴', '意式', '法压', '摩卡壶', '爱乐压', '聪明杯', '虹吸', '自定义'];
   const PLAN_SOURCES = new Set(['user', 'preset', 'copy']);
@@ -22,13 +22,15 @@
     enabledDimensions: DIMENSION_KEYS.slice(),
     lastBrewMethod: '手冲',
     priceUnit: 'g',
-    theme: 'dark-roast'
+    theme: 'dark-roast',
+    flavorReminderDays: 7,
+    lowStockCups: 4
   });
   const STATUS_ORDER = ['饮用中', '未开封', '已喝完'];
   const ALLOWED_STATUS = new Set(['未开封', '饮用中', '已喝完']);
   const ALLOWED_ROAST = new Set(['浅烘', '中浅烘', '中烘', '中深烘', '深烘']);
   const TEXT_FIELDS = ['name', 'roaster', 'origin', 'process', 'roastDate', 'openedDate', 'purchaseDate', 'tastingNotes', 'status', 'roastLevel', 'bagImagePath', 'labelImagePath'];
-  const NUMBER_FIELDS = ['initialWeight', 'remainingWeight', 'price'];
+  const NUMBER_FIELDS = ['initialWeight', 'remainingWeight', 'price', 'bestFlavorDays'];
   const SEARCH_FIELDS = ['name', 'roaster', 'origin', 'process', 'tastingNotes'];
   const PRESET_BREW_PLANS = Object.freeze([
     {
@@ -221,6 +223,7 @@
     bean.tastingNotes = cleanText(source.tastingNotes, 4000);
     bean.bagImagePath = cleanText(source.bagImagePath, 1000);
     bean.labelImagePath = cleanText(source.labelImagePath, 1000);
+    bean.bestFlavorDays = bean.bestFlavorDays == null ? null : Math.min(3650, Math.max(1, Math.round(bean.bestFlavorDays)));
     bean.status = ALLOWED_STATUS.has(bean.status) ? bean.status : '未开封';
     bean.roastLevel = ALLOWED_ROAST.has(bean.roastLevel) ? bean.roastLevel : '';
     bean.favorite = source.favorite === true || source.favorite === 1 || source.favorite === '1';
@@ -364,7 +367,9 @@
       enabledDimensions: Array.isArray(source.enabledDimensions) ? [...new Set(enabled)] : DEFAULT_SETTINGS.enabledDimensions.slice(),
       lastBrewMethod: cleanText(source.lastBrewMethod, 80) || DEFAULT_SETTINGS.lastBrewMethod,
       priceUnit: ['g', '50g', '100g', 'jin'].includes(source.priceUnit) ? source.priceUnit : DEFAULT_SETTINGS.priceUnit,
-      theme: ['dark-roast', 'frost', 'obsidian', 'blaze'].includes(source.theme) ? source.theme : DEFAULT_SETTINGS.theme
+      theme: ['dark-roast', 'frost', 'obsidian', 'blaze'].includes(source.theme) ? source.theme : DEFAULT_SETTINGS.theme,
+      flavorReminderDays: cleanNumber(source.flavorReminderDays) == null ? DEFAULT_SETTINGS.flavorReminderDays : Math.min(60, Math.max(0, Math.round(Number(source.flavorReminderDays)))),
+      lowStockCups: cleanNumber(source.lowStockCups) == null ? DEFAULT_SETTINGS.lowStockCups : Math.min(20, Math.max(1, Math.round(Number(source.lowStockCups))))
     };
   }
 
@@ -427,7 +432,25 @@
       planIds.add(plan.id);
       return plan;
     });
-    return { schemaVersion: SCHEMA_VERSION, exportScope, beans, drinkLogs, brewPlans, settings: exportScope === 'all' ? normalizeSettings(payload.settings) : null };
+    const beanImages = {};
+    if (payload.beanImages && typeof payload.beanImages === 'object' && !Array.isArray(payload.beanImages)) {
+      beans.forEach((bean) => {
+        const entry = payload.beanImages[bean.id];
+        if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return;
+        const next = {};
+        ['bag', 'label'].forEach((role) => {
+          const image = entry[role];
+          if (!image || typeof image !== 'object' || !cleanText(image.data, 20000000)) return;
+          next[role] = {
+            data: cleanText(image.data, 20000000),
+            extension: ['.jpg', '.png', '.webp'].includes(image.extension) ? image.extension : '.jpg',
+            mimeType: cleanText(image.mimeType, 80) || 'image/jpeg'
+          };
+        });
+        if (next.bag || next.label) beanImages[bean.id] = next;
+      });
+    }
+    return { schemaVersion: SCHEMA_VERSION, exportScope, beans, drinkLogs, brewPlans, settings: exportScope === 'all' ? normalizeSettings(payload.settings) : null, beanImages };
   }
 
   function createBackup(beans, drinkLogs, settings, exportedAt, brewPlans, options) {
@@ -437,7 +460,7 @@
       exportScope,
       exportedAt: exportedAt || new Date().toISOString(),
       app: '豆仓',
-      appVersion: '1.4.6'
+      appVersion: '1.4.7'
     };
     if (exportScope === 'all' || exportScope === 'library') {
       payload.beans = (beans || []).map((bean) => normalizeBean(bean, bean.updatedAt));
@@ -445,7 +468,33 @@
     }
     if (exportScope === 'all' || exportScope === 'brewPlans') payload.brewPlans = (brewPlans || []).map((plan) => normalizeBrewPlan(plan, plan.updatedAt));
     if (exportScope === 'all') payload.settings = normalizeSettings(settings);
+    if ((exportScope === 'all' || exportScope === 'library') && options && options.beanImages) payload.beanImages = options.beanImages;
     return payload;
+  }
+
+  function bestFlavorDaysLeft(bean, today) {
+    const days = Number(bean && bean.bestFlavorDays);
+    if (!(days > 0) || !bean.openedDate) return null;
+    const opened = new Date(bean.openedDate);
+    if (Number.isNaN(opened.getTime())) return null;
+    const start = new Date(opened.getFullYear(), opened.getMonth(), opened.getDate());
+    const base = today ? new Date(today) : new Date();
+    const current = new Date(base.getFullYear(), base.getMonth(), base.getDate());
+    return Math.ceil((start.getTime() + days * 86400000 - current.getTime()) / 86400000);
+  }
+
+  function beanReminders(beans, settings, today) {
+    const prefs = normalizeSettings(settings);
+    const quick = Number(prefs.quickGrams) || DEFAULT_SETTINGS.quickGrams;
+    const results = [];
+    (beans || []).map((bean) => normalizeBean(bean, bean.updatedAt)).forEach((bean) => {
+      if (bean.status === '已喝完') return;
+      const daysLeft = bestFlavorDaysLeft(bean, today);
+      if (daysLeft != null && daysLeft >= 0 && daysLeft <= prefs.flavorReminderDays) results.push({ type: 'flavor', beanId: bean.id, beanName: bean.name, daysLeft, message: daysLeft === 0 ? '今天到达最佳赏味期' : `最佳赏味期还有 ${daysLeft} 天` });
+      const remaining = Number(bean.remainingWeight) || 0;
+      if (remaining > 0 && remaining <= quick * prefs.lowStockCups) results.push({ type: 'stock', beanId: bean.id, beanName: bean.name, cupsLeft: Math.max(1, Math.ceil(remaining / quick)), message: `约剩 ${Math.max(1, Math.ceil(remaining / quick))} 杯` });
+    });
+    return results;
   }
 
   function filterAndSort(beans, options) {
@@ -710,5 +759,5 @@
     return days;
   }
 
-  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, consumptionResult, validateImport, createBackup, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, prepareBrewAssistSteps, brewAssistStatus, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload };
+  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, prepareBrewAssistSteps, brewAssistStatus, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload };
 });

@@ -2,11 +2,11 @@
   'use strict';
 
   const DB_NAME = 'coffee_vault';
-  const DB_VERSION = 5;
+  const DB_VERSION = 6;
   const WEB_KEY = 'coffee-vault-browser-preview';
   const LEGACY_KEYS = ['coffee-vault-data', 'beans-data', 'bean-data'];
-  const BEAN_COLUMNS = ['id', 'name', 'roaster', 'origin', 'process', 'roastLevel', 'roastDate', 'openedDate', 'purchaseDate', 'initialWeight', 'remainingWeight', 'price', 'tastingNotes', 'status', 'favorite', 'bagImagePath', 'labelImagePath', 'createdAt', 'updatedAt'];
-  const BEAN_NATIVE = { roastLevel: 'roast_level', roastDate: 'roast_date', openedDate: 'opened_date', purchaseDate: 'purchase_date', initialWeight: 'initial_weight', remainingWeight: 'remaining_weight', tastingNotes: 'tasting_notes', bagImagePath: 'bag_image_path', labelImagePath: 'label_image_path', createdAt: 'created_at', updatedAt: 'updated_at' };
+  const BEAN_COLUMNS = ['id', 'name', 'roaster', 'origin', 'process', 'roastLevel', 'roastDate', 'openedDate', 'purchaseDate', 'initialWeight', 'remainingWeight', 'price', 'bestFlavorDays', 'tastingNotes', 'status', 'favorite', 'bagImagePath', 'labelImagePath', 'createdAt', 'updatedAt'];
+  const BEAN_NATIVE = { roastLevel: 'roast_level', roastDate: 'roast_date', openedDate: 'opened_date', purchaseDate: 'purchase_date', initialWeight: 'initial_weight', remainingWeight: 'remaining_weight', bestFlavorDays: 'best_flavor_days', tastingNotes: 'tasting_notes', bagImagePath: 'bag_image_path', labelImagePath: 'label_image_path', createdAt: 'created_at', updatedAt: 'updated_at' };
   const LOG_COLUMNS = ['id', 'beanId', 'beanName', 'grams', 'brewMethod', 'brewPlanId', 'brewPlanVersion', 'brewPlanName', 'brewPlanSnapshot', 'overallRating', 'aroma', 'acidity', 'sweetness', 'body', 'aftertaste', 'balance', 'bitterness', 'notes', 'consumedAt', 'createdAt', 'updatedAt'];
   const LOG_NATIVE = { beanId: 'bean_id', beanName: 'bean_name', brewMethod: 'brew_method', brewPlanId: 'brew_plan_id', brewPlanVersion: 'brew_plan_version', brewPlanName: 'brew_plan_name', brewPlanSnapshot: 'brew_plan_snapshot', overallRating: 'overall_rating', consumedAt: 'consumed_at', createdAt: 'created_at', updatedAt: 'updated_at' };
   const PLAN_COLUMNS = ['id', 'name', 'brewMethod', 'version', 'source', 'beanIds', 'payload', 'createdAt', 'updatedAt'];
@@ -37,7 +37,7 @@
         id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, roaster TEXT NOT NULL DEFAULT '',
         origin TEXT NOT NULL DEFAULT '', process TEXT NOT NULL DEFAULT '', roast_level TEXT NOT NULL DEFAULT '',
         roast_date TEXT NOT NULL DEFAULT '', opened_date TEXT NOT NULL DEFAULT '', purchase_date TEXT NOT NULL DEFAULT '', initial_weight REAL,
-        remaining_weight REAL, price REAL, tasting_notes TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT '未开封',
+        remaining_weight REAL, price REAL, best_flavor_days REAL, tasting_notes TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT '未开封',
         favorite INTEGER NOT NULL DEFAULT 0, bag_image_path TEXT NOT NULL DEFAULT '', label_image_path TEXT NOT NULL DEFAULT '',
         created_at TEXT NOT NULL, updated_at TEXT NOT NULL
       );
@@ -73,6 +73,9 @@
     if (!(columns.values || []).some((column) => column.name === 'label_image_path')) {
       await sqlite.execute({ database: DB_NAME, statements: "ALTER TABLE beans ADD COLUMN label_image_path TEXT NOT NULL DEFAULT '';", transaction: true, readonly: false });
     }
+    if (!(columns.values || []).some((column) => column.name === 'best_flavor_days')) {
+      await sqlite.execute({ database: DB_NAME, statements: "ALTER TABLE beans ADD COLUMN best_flavor_days REAL;", transaction: true, readonly: false });
+    }
     const logColumns = await sqlite.query({ database: DB_NAME, statement: 'PRAGMA table_info(drink_logs)', values: [], readonly: false });
     const logNames = (logColumns.values || []).map((column) => column.name);
     const logAdds = [
@@ -83,7 +86,7 @@
     ].filter(([name]) => !logNames.includes(name)).map(([, statement]) => statement).join('\n');
     if (logAdds) await sqlite.execute({ database: DB_NAME, statements: logAdds, transaction: true, readonly: false });
     await seedPresetPlans();
-    await sqlite.execute({ database: DB_NAME, statements: 'PRAGMA user_version = 5;', transaction: true, readonly: false });
+    await sqlite.execute({ database: DB_NAME, statements: 'PRAGMA user_version = 6;', transaction: true, readonly: false });
   }
 
   function fromBeanRow(row) {
@@ -94,7 +97,7 @@
 
   function beanValues(bean) {
     const b = root.BeanCore.normalizeBean(bean, bean.updatedAt);
-    return [b.id, b.name, b.roaster, b.origin, b.process, b.roastLevel, b.roastDate, b.openedDate, b.purchaseDate, b.initialWeight, b.remainingWeight, b.price, b.tastingNotes, b.status, b.favorite ? 1 : 0, b.bagImagePath, b.labelImagePath, b.createdAt, b.updatedAt];
+    return [b.id, b.name, b.roaster, b.origin, b.process, b.roastLevel, b.roastDate, b.openedDate, b.purchaseDate, b.initialWeight, b.remainingWeight, b.price, b.bestFlavorDays, b.tastingNotes, b.status, b.favorite ? 1 : 0, b.bagImagePath, b.labelImagePath, b.createdAt, b.updatedAt];
   }
 
   function fromLogRow(row) {

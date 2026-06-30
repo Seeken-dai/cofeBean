@@ -65,6 +65,15 @@ main { width:min(100%,760px); margin:0 auto; padding:0 16px calc(104px + env(saf
 .sort-button.active { background:var(--surface-2); color:var(--accent); }
 .direction-button { margin-left:auto; width:38px; color:var(--accent); font-size:18px; }
 
+.reminder-panel { display:grid; gap:8px; margin:-4px 0 12px; padding:12px; border:1px solid color-mix(in srgb,var(--accent) 42%,var(--border)); border-radius:15px; background:color-mix(in srgb,var(--accent) 8%,var(--surface)); }
+.reminder-panel > div:first-child { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.reminder-panel b { color:var(--accent); font-size:12px; }
+.reminder-panel span { color:var(--faint); font-size:10px; }
+.reminder-panel > div:last-child { display:grid; gap:6px; }
+.reminder-panel button { display:flex; justify-content:space-between; align-items:center; gap:10px; min-height:38px; padding:8px 10px; border:1px solid color-mix(in srgb,var(--border) 80%,transparent); border-radius:11px; background:var(--surface-2); color:var(--text); text-align:left; }
+.reminder-panel button strong { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; }
+.reminder-panel button small { flex:0 0 auto; color:var(--muted); font-size:10px; }
+
 .bean-list { display:grid; grid-template-columns:1fr; gap:8px; }
 .bean-card { position:relative; display:grid; grid-template-columns:4px 1fr; min-height:112px; overflow:hidden; border:1px solid color-mix(in srgb,var(--border) 78%,transparent); border-radius:16px; background:var(--surface); box-shadow:0 5px 18px rgb(0 0 0 / .08); cursor:pointer; animation:fade-up .26s both; transition:transform var(--ease),border-color var(--ease); }
 .bean-card:active { transform:scale(.988); border-color:var(--accent); }
@@ -286,6 +295,11 @@ dialog::backdrop { background:rgb(8 5 4 / .72); backdrop-filter:blur(4px); }
 .backup-groups h3 { margin:0; color:var(--muted); font-size:11px; font-weight:700; letter-spacing:.12em; }
 .backup-groups .backup-actions { grid-template-columns:1fr; padding:0; }
 #dataBackupDialog { max-width:520px; }
+.backup-option { display:flex; align-items:center; gap:12px; min-height:64px; padding:12px; border:1px solid var(--border); border-radius:14px; background:var(--surface-2); color:var(--text); }
+.backup-option input { width:22px; height:22px; accent-color:var(--accent); }
+.backup-option b,.backup-option small { display:block; }
+.backup-option b { color:var(--accent); font-size:13px; }
+.backup-option small { margin-top:4px; color:var(--faint); font-size:10px; line-height:1.4; }
 .settings-action { display:flex; justify-content:space-between; align-items:center; width:100%; min-height:64px; padding:10px 12px; border:1px solid var(--border); border-radius:13px; background:var(--surface-2); color:var(--text); text-align:left; }
 .settings-action + .settings-action { margin-top:8px; }
 .settings-action b,.settings-action small { display:block; }.settings-action b { font-size:13px; }.settings-action small { margin-top:4px; color:var(--faint); font-size:10px; }.settings-action strong { color:var(--accent); font-size:20px; }
