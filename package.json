@@ -1,6 +1,6 @@
 {
   "name": "coffee-vault-android",
-  "version": "1.4.7",
+  "version": "1.4.8",
   "private": true,
   "description": "豆仓 - 本地优先的咖啡豆管理 Android App",
   "scripts": {

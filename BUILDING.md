@@ -59,7 +59,7 @@ Set-Location android
 
 Git 流程：每个版本从 `main` 切 `release/<version>` 分支进行迭代与打包；APK 装机验证通过后用 `git merge --ff-only` 合并回 `main` 并打 `v<version>` tag，再从更新后的 `main` 进入下一版。`git push` 等对外操作需用户确认。完整说明见 `AGENTS.md` 的「版本发布与 Git 流程」。
 
-数据库当前 `PRAGMA user_version = 5`。以后改变表结构时，在 `www/repository.js` 中增加顺序迁移，禁止删除数据库或清空旧表。
+数据库当前 `PRAGMA user_version = 7`。以后改变表结构时，在 `www/repository.js` 中增加顺序迁移，禁止删除数据库或清空旧表。
 
 ## 校验
 
@@ -70,6 +70,8 @@ node --check www/repository.js
 ```
 
 APK 可使用 Android Build Tools 的 `aapt2 dump badging`、`aapt2 dump permissions` 和 `apksigner verify --print-certs` 检查包信息、权限与签名。
+
+1.4.8 release 已验证 `versionName=1.4.8`、`versionCode=31`，已生成正式签名版 `dist/coffee-vault-1.4.8-release.apk`；本版新增购买链接字段与系统外部打开能力（`ExternalLinkOpenerPlugin` 用 `Intent.ACTION_VIEW` 交给系统打开，未引入 INTERNET 权限），权限仅包含 `android.permission.CAMERA` 和 Android 自动生成的应用内部动态接收器权限，未新增网络、相册或外部存储权限。签名证书 SHA-256 为 `aab5e3d3bd224b98f885945ecd868d54a99e2c96bf099a0c9e6ee59ca02151ae`。
 
 1.4.7 release 已验证 `versionName=1.4.7`、`versionCode=30`，已生成正式签名版 `dist/coffee-vault-1.4.7-release.apk`；权限仅包含 `android.permission.CAMERA` 和 Android 自动生成的应用内部动态接收器权限，未新增网络、相册或外部存储权限。签名证书 SHA-256 为 `aab5e3d3bd224b98f885945ecd868d54a99e2c96bf099a0c9e6ee59ca02151ae`。
 

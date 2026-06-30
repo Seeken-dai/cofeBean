@@ -1,6 +1,6 @@
 # 豆仓 Coffee Vault
 
-当前版本：1.4.7（Android versionCode 30）
+当前版本：1.4.8（Android versionCode 31）
 
 一个完全离线、面向 Android 的个人咖啡豆管理 App。数据保存在设备内的 SQLite 数据库中，不需要账号、网络、相册或存储权限；拍照识别功能仅申请相机权限。
 
@@ -8,7 +8,7 @@
 
 推荐安装正式签名版：
 
-- `dist/coffee-vault-1.4.7-release.apk`
+- `dist/coffee-vault-1.4.8-release.apk`
 
 把 APK 发送到 Android 手机，打开文件并按系统提示允许本次“安装未知应用”。已安装旧版时，只要继续使用同一份发布密钥并提高 `versionCode`，即可覆盖升级且保留数据库。
 
@@ -36,6 +36,7 @@
 - 拍照后使用 APK 内置 ML Kit 模型离线识别中英文标签，并本地解析日期、克重、处理法、烘焙度、产地和风味
 - 识别结果进入编辑器等待确认，低可信字段以黄色标出；可将识别图片留存为咖啡袋或标签
 - 咖啡豆详情自动计算每克单价，并展示本机留存的咖啡袋/标签图片
+- 咖啡豆可记录购买链接；详情页点击购买链接资料项会交给系统打开对应 App 或浏览器
 - 豆仓列表支持按单价排序；咖啡袋/标签图片可点击查看大图，并通过系统面板保存或分享
 - 设置中可选择每克、每 50g、每 100g 或每斤单价；编辑页可手动添加包装袋和标签图片
 - 烘焙度支持中深烘；OCR 针对表格式咖啡标签和 Origin 横排标签增强解析
@@ -65,4 +66,4 @@
 - `resources/`、`assets/`：图标和启动画面源文件
 - `BUILDING.md`：构建、签名与版本升级说明
 
-当前包信息：`com.coffeebean.vault`，版本 `1.4.7`（versionCode `30`），最低 Android 7/API 24，目标 Android 16/API 36。
+当前包信息：`com.coffeebean.vault`，版本 `1.4.8`（versionCode `31`），最低 Android 7/API 24，目标 Android 16/API 36。

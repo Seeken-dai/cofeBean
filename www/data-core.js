@@ -5,7 +5,7 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
 
-  const SCHEMA_VERSION = 4;
+  const SCHEMA_VERSION = 5;
   const DIMENSION_KEYS = ['aroma', 'acidity', 'sweetness', 'body', 'aftertaste', 'balance', 'bitterness'];
   const BREW_METHODS = ['手冲', '冷萃', '冰滴', '意式', '法压', '摩卡壶', '爱乐压', '聪明杯', '虹吸', '自定义'];
   const PLAN_SOURCES = new Set(['user', 'preset', 'copy']);
@@ -29,7 +29,7 @@
   const STATUS_ORDER = ['饮用中', '未开封', '已喝完'];
   const ALLOWED_STATUS = new Set(['未开封', '饮用中', '已喝完']);
   const ALLOWED_ROAST = new Set(['浅烘', '中浅烘', '中烘', '中深烘', '深烘']);
-  const TEXT_FIELDS = ['name', 'roaster', 'origin', 'process', 'roastDate', 'openedDate', 'purchaseDate', 'tastingNotes', 'status', 'roastLevel', 'bagImagePath', 'labelImagePath'];
+  const TEXT_FIELDS = ['name', 'roaster', 'origin', 'process', 'roastDate', 'openedDate', 'purchaseDate', 'purchaseUrl', 'tastingNotes', 'status', 'roastLevel', 'bagImagePath', 'labelImagePath'];
   const NUMBER_FIELDS = ['initialWeight', 'remainingWeight', 'price', 'bestFlavorDays'];
   const SEARCH_FIELDS = ['name', 'roaster', 'origin', 'process', 'tastingNotes'];
   const PRESET_BREW_PLANS = Object.freeze([
@@ -129,6 +129,21 @@
     return value === true || value === 1 || value === '1' || value === 'true';
   }
 
+  function normalizePurchaseUrl(value) {
+    const text = cleanText(value, 5000);
+    const match = text.match(/https?:\/\/[^\s<>"'()[\]，。！？、）】》]+/i);
+    if (!match) return '';
+    let url = match[0].replace(/[)\]}>,.;!?，。！？；、]+$/u, '');
+    try {
+      const parsed = new URL(url);
+      if (!['http:', 'https:'].includes(parsed.protocol)) return '';
+      url = parsed.href;
+    } catch (_) {
+      return '';
+    }
+    return cleanText(url, 1000);
+  }
+
   function safeJson(value, fallback) {
     if (value == null || value === '') return fallback;
     if (typeof value === 'string') {
@@ -220,6 +235,7 @@
     bean.roaster = cleanText(source.roaster, 120);
     bean.origin = cleanText(source.origin, 120);
     bean.process = cleanText(source.process, 120);
+    bean.purchaseUrl = normalizePurchaseUrl(source.purchaseUrl);
     bean.tastingNotes = cleanText(source.tastingNotes, 4000);
     bean.bagImagePath = cleanText(source.bagImagePath, 1000);
     bean.labelImagePath = cleanText(source.labelImagePath, 1000);
@@ -460,7 +476,7 @@
       exportScope,
       exportedAt: exportedAt || new Date().toISOString(),
       app: '豆仓',
-      appVersion: '1.4.7'
+      appVersion: '1.4.8'
     };
     if (exportScope === 'all' || exportScope === 'library') {
       payload.beans = (beans || []).map((bean) => normalizeBean(bean, bean.updatedAt));

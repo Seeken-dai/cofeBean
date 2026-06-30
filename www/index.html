@@ -297,6 +297,7 @@
         <label class="field"><span>剩余克重</span><div class="input-unit"><input id="field-remainingWeight" name="remainingWeight" type="number" min="0" step="1" inputmode="decimal"><em>g</em></div></label>
         <label class="field"><span>价格</span><div class="input-unit currency"><em>¥</em><input id="field-price" name="price" type="number" min="0" step="0.01" inputmode="decimal"></div></label>
         <label class="field favorite-field"><input id="field-favorite" name="favorite" type="checkbox"><span>加入收藏</span></label>
+        <label class="field full"><span>购买链接</span><input id="field-purchaseUrl" name="purchaseUrl" type="text" maxlength="1000" inputmode="url" placeholder="可粘贴商品链接或分享文案"></label>
         <section class="image-vault full" id="editorImageVault"></section>
         <label class="field full"><span>风味笔记</span><textarea id="field-tastingNotes" name="tastingNotes" maxlength="4000" rows="4" placeholder="花香、柑橘、蜂蜜般的甜感…"></textarea></label>
       </div>
@@ -471,8 +472,8 @@
 
   <dialog class="sheet compact" id="aboutDialog">
     <header class="sheet-header"><div><p class="eyebrow">ABOUT</p><h2>关于豆仓</h2></div><button class="icon-button" id="aboutClose" type="button" aria-label="关闭">×</button></header>
-    <section class="about-hero"><div class="about-logo"><span></span></div><h3>豆仓</h3><p id="aboutVersion">版本 1.4.7</p></section>
-    <section class="about-copy"><h3>把每一包豆子，喝成有迹可循的日常。</h3><p>豆仓是一款为咖啡爱好者设计的离线豆单与饮用记录工具，从入仓、识别到每杯评价，都留在你自己的设备中。</p><h4>1.4.7 最新功能</h4><ul><li>备份可选择包含咖啡豆包装与标签图片</li><li>咖啡豆支持填写开封后的最佳赏味天数</li><li>首页新增赏味期与余量不足的 APP 内提醒</li><li>设置中可调整赏味期和余量提醒阈值</li></ul><div class="privacy-note"><b>离线与隐私</b><p>无需账号，不上传咖啡豆、照片或饮用记录。拍照识别、咖啡日历、分享卡片和图片归档均在本机完成。</p></div></section>
+    <section class="about-hero"><div class="about-logo"><span></span></div><h3>豆仓</h3><p id="aboutVersion">版本 1.4.8</p></section>
+    <section class="about-copy"><h3>把每一包豆子，喝成有迹可循的日常。</h3><p>豆仓是一款为咖啡爱好者设计的离线豆单与饮用记录工具，从入仓、识别到每杯评价，都留在你自己的设备中。</p><h4>1.4.8 最新功能</h4><ul><li>咖啡豆记录可维护购买链接</li><li>粘贴电商分享文案时自动提取网页链接</li><li>详情页点击购买链接资料项即可交给系统打开</li><li>购买链接支持备份导入导出和旧数据兼容</li></ul><div class="privacy-note"><b>离线与隐私</b><p>无需账号，不上传咖啡豆、照片或饮用记录。拍照识别、咖啡日历、分享卡片和图片归档均在本机完成。</p></div></section>
   </dialog>
 
   <dialog class="sheet compact" id="migrationDialog">

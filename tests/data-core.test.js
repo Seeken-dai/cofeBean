@@ -11,6 +11,15 @@ test('normalizeBean applies safe defaults and numeric bounds', () => {
   assert.equal(bean.bagImagePath, 'file:///bag.jpg');
 });
 
+test('normalizeBean extracts generic purchase urls from links and share text', () => {
+  assert.equal(core.normalizeBean({ name: '自营豆', purchaseUrl: 'https://shop.example.com/coffee?id=1' }).purchaseUrl, 'https://shop.example.com/coffee?id=1');
+  assert.equal(core.normalizeBean({ name: '京东豆', purchaseUrl: '京东：[https://3.cn/2U0-jewC?jkl=@F0P4h3F9xmY@](https://3.cn/2U0-jewC?jkl=@F0P4h3F9xmY@) CZ154' }).purchaseUrl, 'https://3.cn/2U0-jewC?jkl=@F0P4h3F9xmY@');
+  assert.equal(core.normalizeBean({ name: '拼多多豆', purchaseUrl: '拼多多：https://mobile.yangkeduo.com/goods2.html?ps=mg0SHbTJVw' }).purchaseUrl, 'https://mobile.yangkeduo.com/goods2.html?ps=mg0SHbTJVw');
+  assert.equal(core.normalizeBean({ name: '淘宝豆', purchaseUrl: '27₤CcJbg93PSFV£ https://m.tb.cn/h.RuBrt5H MF278' }).purchaseUrl, 'https://m.tb.cn/h.RuBrt5H');
+  assert.equal(core.normalizeBean({ name: '口令豆', purchaseUrl: '复制口令打开' }).purchaseUrl, '');
+  assert.equal(core.normalizeBean({ name: '私有协议豆', purchaseUrl: 'taobao://item?id=1' }).purchaseUrl, '');
+});
+
 test('filterAndSort searches multiple fields and sorts remaining weight or unit price', () => {
   const beans = [
     core.normalizeBean({ name: 'A', origin: '埃塞俄比亚', remainingWeight: 80, status: '饮用中', price: 100, initialWeight: 200 }),
@@ -24,21 +33,23 @@ test('filterAndSort searches multiple fields and sorts remaining weight or unit 
 });
 
 test('backup round trip validates schema and duplicate ids', () => {
-  const beans = [core.normalizeBean({ id: 'one', name: '豆一', labelImagePath: 'file:///label.jpg' })];
+  const beans = [core.normalizeBean({ id: 'one', name: '豆一', labelImagePath: 'file:///label.jpg', purchaseUrl: 'https://shop.example.com/beans/one' })];
   const logs = [core.normalizeDrinkLog({ id: 'cup-one', beanId: 'one', beanName: '豆一', grams: 15, brewMethod: '手冲' })];
   const plans = [core.normalizeBrewPlan({ id: 'plan-one', name: '三段式', brewMethod: '手冲', beanIds: ['one'], dose: 15 })];
   const backup = core.createBackup(beans, logs, { quickGrams: 18 }, '2026-01-01T00:00:00.000Z', plans);
   const imported = core.validateImport(backup);
-  assert.equal(backup.appVersion, '1.4.7');
-  assert.equal(backup.schemaVersion, 4);
+  assert.equal(backup.appVersion, '1.4.8');
+  assert.equal(backup.schemaVersion, 5);
   assert.equal(imported.exportScope, 'all');
   assert.equal(imported.beans[0].name, '豆一');
   assert.equal(imported.beans[0].labelImagePath, 'file:///label.jpg');
+  assert.equal(imported.beans[0].purchaseUrl, 'https://shop.example.com/beans/one');
   assert.equal(imported.drinkLogs[0].grams, 15);
   assert.equal(imported.brewPlans[0].name, '三段式');
   assert.equal(imported.settings.quickGrams, 18);
   const legacy = core.validateImport({ schemaVersion: 1, beans });
   assert.equal(legacy.beans.length, 1);
+  assert.equal(core.validateImport({ schemaVersion: 1, beans: [{ id: 'legacy', name: '旧豆' }] }).beans[0].purchaseUrl, '');
   assert.deepEqual(legacy.drinkLogs, []);
   assert.deepEqual(legacy.brewPlans, []);
   const crossVersion = core.validateImport({ schemaVersion: 2, beans, drinkLogs: logs, settings: { enableBrewPlans: true } });
