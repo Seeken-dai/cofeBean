@@ -15,6 +15,20 @@
     'targetYield', 'targetExtractionTime', 'pressTime', 'mokaPotSize', 'useHotWater',
     'heatLevel', 'customMethod'
   ];
+  // 分享码字段映射：长字段名 -> 短字段名。encode/decode 共用此唯一来源，禁止两侧各自手写短名。
+  // steps 固定为四元组 [label, water, startTime, endTime]，顺序即格式契约，不可调整。
+  const PLAN_SHARE_PREFIX = 'DC1-';
+  const PLAN_SHARE_MAX_BODY = 6000; // base64url 正文长度上限，约对应 4KB 原文，超长直接拒绝
+  const PLAN_SHARE_FIELD_MAP = Object.freeze({
+    name: 'n', brewMethod: 'm', dose: 'd', liquid: 'lq', waterTemp: 'wt', grinder: 'g',
+    grindSetting: 'gs', ratio: 'r', totalWater: 'tw', targetDuration: 'td', steepTime: 'st',
+    steepEnvironment: 'se', coffeeMachine: 'cm', basket: 'bk', targetYield: 'ty',
+    targetExtractionTime: 'te', pressTime: 'pt', mokaPotSize: 'mp', useHotWater: 'hw',
+    heatLevel: 'hl', customMethod: 'cu', steps: 's'
+  });
+  const PLAN_SHARE_SHORT_TO_LONG = Object.freeze(Object.fromEntries(
+    Object.entries(PLAN_SHARE_FIELD_MAP).map(([long, short]) => [short, long])
+  ));
   const DEFAULT_SETTINGS = Object.freeze({
     quickGrams: 15,
     enableBrewPlans: false,
@@ -334,6 +348,96 @@
     return plan ? normalizeBrewPlan(plan, plan.updatedAt) : null;
   }
 
+  function utf8ToBase64Url(text) {
+    const bytes = unescape(encodeURIComponent(String(text)));
+    const base64 = typeof btoa === 'function'
+      ? btoa(bytes)
+      : Buffer.from(bytes, 'binary').toString('base64');
+    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  function base64UrlToUtf8(code) {
+    const base64 = String(code).replace(/-/g, '+').replace(/_/g, '/');
+    const bytes = typeof atob === 'function'
+      ? atob(base64)
+      : Buffer.from(base64, 'base64').toString('binary');
+    return decodeURIComponent(escape(bytes));
+  }
+
+  function crc32Hex(text) {
+    let crc = 0xffffffff;
+    for (let i = 0; i < text.length; i += 1) {
+      crc ^= text.charCodeAt(i) & 0xff;
+      for (let bit = 0; bit < 8; bit += 1) {
+        crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+      }
+    }
+    return ((crc ^ 0xffffffff) >>> 0).toString(16).padStart(8, '0');
+  }
+
+  function planShareValue(value) {
+    if (value === undefined || value === null || value === '' || value === false) return undefined;
+    return value;
+  }
+
+  function encodePlanShare(planInput) {
+    const plan = normalizeBrewPlan(planInput || {}, planInput && planInput.updatedAt);
+    const compact = {};
+    Object.entries(PLAN_SHARE_FIELD_MAP).forEach(([long, short]) => {
+      if (long === 'steps') return;
+      const value = planShareValue(plan[long]);
+      if (value !== undefined) compact[short] = value;
+    });
+    const steps = (plan.steps || [])
+      .map((step) => [cleanText(step.label, 80), cleanNumber(step.water) || 0, cleanText(step.startTime, 80), cleanText(step.endTime, 80)])
+      .filter((tuple) => tuple[0] || tuple[1] || tuple[2] || tuple[3]);
+    if (steps.length) compact[PLAN_SHARE_FIELD_MAP.steps] = steps;
+    const body = utf8ToBase64Url(JSON.stringify(compact));
+    return PLAN_SHARE_PREFIX + crc32Hex(body) + body;
+  }
+
+  function decodePlanShare(code) {
+    const text = typeof code === 'string' ? code.trim() : '';
+    if (!text.startsWith(PLAN_SHARE_PREFIX)) throw new Error('不是有效的豆仓分享码');
+    const rest = text.slice(PLAN_SHARE_PREFIX.length);
+    if (rest.length <= 8) throw new Error('分享码不完整或已损坏');
+    const checksum = rest.slice(0, 8);
+    const body = rest.slice(8);
+    if (body.length > PLAN_SHARE_MAX_BODY) throw new Error('分享码内容过长');
+    if (crc32Hex(body) !== checksum) throw new Error('分享码不完整或已损坏');
+    let raw;
+    try {
+      raw = JSON.parse(base64UrlToUtf8(body));
+    } catch (_) {
+      throw new Error('分享码内容无法解析');
+    }
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('分享码中没有有效的方案');
+    const draft = {};
+    Object.entries(raw).forEach(([short, value]) => {
+      const long = PLAN_SHARE_SHORT_TO_LONG[short];
+      if (!long) return; // 忽略旧版未知字段，不致整体失败
+      if (long === 'steps') {
+        if (!Array.isArray(value)) return;
+        draft.steps = value.filter(Array.isArray).map((tuple) => ({
+          label: tuple[0], water: tuple[1], startTime: tuple[2], endTime: tuple[3]
+        }));
+      } else {
+        draft[long] = value;
+      }
+    });
+    if (!draft.name && !draft.brewMethod && !(draft.steps && draft.steps.length)) {
+      throw new Error('分享码中没有有效的方案');
+    }
+    // 始终生成全新本地方案：不携带原 id / beanIds / 时间戳，来源标记为用户方案。
+    return normalizeBrewPlan({
+      name: draft.name,
+      brewMethod: draft.brewMethod,
+      steps: draft.steps,
+      ...Object.fromEntries(PLAN_FIELD_KEYS.map((key) => [key, draft[key]])),
+      source: 'user'
+    });
+  }
+
   function cloneBrewPlan(plan, overrides) {
     const source = normalizeBrewPlan(plan);
     return normalizeBrewPlan({
@@ -618,15 +722,16 @@
   }
 
   function buildPlanSharePayload(planInput, options) {
+    const opts = options || {};
     const plan = normalizeBrewPlan(planInput || {}, planInput && planInput.updatedAt);
     const rows = sharePlanRows(plan);
     const steps = (plan.steps || []).map((step, index) => ({
       label: step.label || `第 ${index + 1} 段`,
       value: [step.water ? formatShareWeight(step.water) : '', step.time, step.note].filter(Boolean).join(' · ')
     })).filter((step) => step.label || step.value);
-    return {
+    const payload = {
       type: 'brewPlan',
-      style: cleanText(options && options.style, 40) || 'receipt',
+      style: cleanText(opts.style, 40) || 'receipt',
       title: plan.name,
       subtitle: `${plan.brewMethod} · v${plan.version} · ${plan.source === 'preset' ? '预置方案' : '自定义方案'}`,
       eyebrow: '冲煮方案',
@@ -636,6 +741,10 @@
       notes: plan.notes || '',
       footer: '本地记录 · 私人豆仓'
     };
+    if (opts.includeQr) {
+      payload.qr = { code: encodePlanShare(plan), title: '扫码导入此方案', hint: '在豆仓「导入方案」中拍摄或选图，即可保存为新方案 · 豆仓' };
+    }
+    return payload;
   }
 
   function buildMonthCells(year, month, days, selectedDate) {
@@ -775,5 +884,5 @@
     return days;
   }
 
-  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, prepareBrewAssistSteps, brewAssistStatus, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload };
+  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, prepareBrewAssistSteps, brewAssistStatus, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload };
 });

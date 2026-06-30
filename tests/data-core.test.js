@@ -249,3 +249,64 @@ test('summarize totals active beans and remaining grams', () => {
   ]);
   assert.deepEqual(stats, { total: 2, active: 1, remaining: 350 });
 });
+
+test('encode/decode plan share round trips a full plan and strips local-only fields', () => {
+  const plan = core.normalizeBrewPlan({
+    id: 'plan-huakui-v60', name: '花魁 V60 三段式', brewMethod: '手冲', source: 'user',
+    dose: 15, ratio: '1:15', totalWater: 225, waterTemp: '92°C', grinder: 'C40', grindSetting: '22 格',
+    targetDuration: '2:30', notes: '不应进入分享码的长备注', beanIds: ['bean-huakui'],
+    createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-02-02T00:00:00.000Z',
+    steps: [
+      { label: '闷蒸', water: 30, startTime: '0:00', endTime: '0:30' },
+      { label: '第 1 段', water: 100, startTime: '0:30', endTime: '1:00' },
+      { label: '结束萃取', water: 0, startTime: '2:00', endTime: '2:30' }
+    ]
+  });
+  const code = core.encodePlanShare(plan);
+  assert.ok(code.startsWith('DC1-'));
+  const decoded = core.decodePlanShare(code);
+  assert.equal(decoded.name, '花魁 V60 三段式');
+  assert.equal(decoded.brewMethod, '手冲');
+  assert.equal(decoded.dose, 15);
+  assert.equal(decoded.grindSetting, '22 格');
+  assert.equal(decoded.steps.length, 3);
+  assert.equal(decoded.steps[0].label, '闷蒸');
+  assert.equal(decoded.steps[2].startTime, '2:00');
+  // 本机私有字段不得通过分享码迁移
+  assert.notEqual(decoded.id, 'plan-huakui-v60');
+  assert.deepEqual(decoded.beanIds, []);
+  assert.notEqual(decoded.createdAt, '2026-01-01T00:00:00.000Z');
+  assert.equal(decoded.source, 'user');
+});
+
+test('decodePlanShare rejects malformed, truncated, and empty codes', () => {
+  assert.throws(() => core.decodePlanShare('hello'), /有效的豆仓分享码/);
+  assert.throws(() => core.decodePlanShare('DC1-abc'), /不完整或已损坏/);
+  const good = core.encodePlanShare(core.normalizeBrewPlan({ name: '测试', brewMethod: '手冲' }));
+  assert.throws(() => core.decodePlanShare(good.slice(0, good.length - 3)), /不完整或已损坏/);
+  // 篡改 base64 正文，校验位不符
+  assert.throws(() => core.decodePlanShare(good + 'XX'), /不完整或已损坏/);
+});
+
+test('decodePlanShare rejects a well-formed code that carries no known plan fields', () => {
+  // 复刻实现里的 crc32，构造「校验位正确但只含未知字段」的码，验证不会兜底成空方案
+  const crc32Hex = (text) => {
+    let crc = 0xffffffff;
+    for (let i = 0; i < text.length; i += 1) {
+      crc ^= text.charCodeAt(i) & 0xff;
+      for (let bit = 0; bit < 8; bit += 1) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+    }
+    return ((crc ^ 0xffffffff) >>> 0).toString(16).padStart(8, '0');
+  };
+  const body = Buffer.from(JSON.stringify({ zz: 1, qq: '未知' })).toString('base64')
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  assert.throws(() => core.decodePlanShare('DC1-' + crc32Hex(body) + body), /没有有效的方案/);
+});
+
+test('decodePlanShare ignores unknown fields but keeps a valid plan', () => {
+  const code = core.encodePlanShare(core.normalizeBrewPlan({ name: '兼容测试', brewMethod: '冷萃', dose: 20 }));
+  const decoded = core.decodePlanShare(code);
+  assert.equal(decoded.name, '兼容测试');
+  assert.equal(decoded.brewMethod, '冷萃');
+  assert.equal(decoded.dose, 20);
+});

@@ -82,6 +82,7 @@
         <article class="stat"><strong id="planPopular">—</strong><span>30天常用</span></article>
       </section>
       <nav class="filter-row" id="planMethodFilters" aria-label="按冲煮方式筛选方案"></nav>
+      <button class="assist-entry" id="planImportEntry" type="button"><span>导入分享方案</span><strong>扫码或粘贴 DC1- 分享码</strong></button>
       <section class="plan-list" id="brewPlanList" aria-live="polite"></section>
       <section class="empty-state" id="planEmpty" hidden><div class="empty-bag" aria-hidden="true"><span></span></div><h2>还没有冲煮方案</h2><p>从右下角保存第一套冲煮参数。</p></section>
     </section>
@@ -407,6 +408,28 @@
     <footer class="sheet-footer"><button class="secondary-button" id="shareImageChoiceCancel" type="button">取消</button><div><button class="primary-button" id="shareImageChoiceConfirm" type="button">生成预览</button></div></footer>
   </dialog>
 
+  <dialog class="sheet compact picker-sheet" id="planShareChoiceDialog">
+    <header class="sheet-header"><div><p class="eyebrow">SHARE CARD</p><h2>分享方案</h2><p class="sheet-subtitle">选择是否在卡片底部附上扫码导入的二维码</p></div><button class="icon-button" id="planShareChoiceClose" type="button" aria-label="关闭">×</button></header>
+    <section class="share-choice-body">
+      <label id="planShareQrOption"><input id="planShareIncludeQr" type="checkbox"><span><b>包含二维码</b><small>对方用豆仓「导入方案」扫码即可保存这份方案；不勾选则只生成普通分享卡片</small></span></label>
+    </section>
+    <footer class="sheet-footer"><button class="secondary-button" id="planShareChoiceCancel" type="button">取消</button><div><button class="primary-button" id="planShareChoiceConfirm" type="button">生成预览</button></div></footer>
+  </dialog>
+
+  <dialog class="sheet compact photo-source-sheet" id="planImportDialog">
+    <header class="sheet-header"><div><p class="eyebrow">IMPORT</p><h2>导入冲煮方案</h2><p class="sheet-subtitle">扫码或粘贴分享码，导入为一份新方案，不会覆盖现有方案</p></div><button class="icon-button" id="planImportClose" type="button" aria-label="关闭">×</button></header>
+    <div class="source-actions">
+      <button id="planImportCamera" type="button"><span>拍照扫码</span><small>用相机对准二维码</small></button>
+      <button id="planImportGallery" type="button"><span>相册选图</span><small>从截图或图片中识别二维码</small></button>
+    </div>
+    <label class="field full"><span>或粘贴分享码</span><textarea id="planImportCode" rows="3" maxlength="6000" placeholder="粘贴以 DC1- 开头的分享码"></textarea></label>
+    <div class="source-actions"><button id="planImportParse" type="button"><span>解析分享码</span><small>校验并预览方案</small></button></div>
+    <section class="share-choice-body" id="planImportSummary" hidden>
+      <label id="planImportSummaryCard"><span><b id="planImportName"></b><small id="planImportMeta"></small><small id="planImportSteps"></small></span></label>
+    </section>
+    <footer class="sheet-footer"><button class="secondary-button" id="planImportCancel" type="button">取消</button><div><button class="primary-button" id="planImportConfirm" type="button" disabled>确认导入</button></div></footer>
+  </dialog>
+
   <dialog class="sheet image-preview-sheet" id="sharePreviewDialog">
     <header class="sheet-header"><div><p class="eyebrow">SHARE CARD</p><h2>分享预览</h2><p class="sheet-subtitle">确认效果后再分享或保存到设备</p></div><button class="icon-button" id="sharePreviewClose" type="button" aria-label="关闭"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6 18 18M18 6 6 18"/></svg></button></header>
     <div class="image-preview-body share-preview-body"><img id="sharePreviewImage" alt="分享卡片预览"></div>
@@ -423,7 +446,7 @@
     <header class="sheet-header"><div><p class="eyebrow">PREFERENCES</p><h2>设置</h2></div><button class="icon-button" id="settingsClose" type="button" aria-label="关闭">×</button></header>
     <section class="settings-section"><h3>饮用偏好</h3><label class="settings-number"><span><b>快捷喝一杯</b><small>卡片按钮默认扣减的克数</small></span><span><input id="settingQuickGrams" type="number" min="1" max="100" step="0.1" inputmode="decimal"><em>g</em></span></label></section>
     <section class="settings-section"><h3>APP 内提醒</h3><label class="settings-number"><span><b>赏味期提醒</b><small>距离最佳赏味期小于等于此天数时提示</small></span><span><input id="settingFlavorReminderDays" type="number" min="0" max="60" step="1" inputmode="numeric"><em>天</em></span></label><label class="settings-number"><span><b>余量提醒</b><small>低于预计可喝杯数时提示</small></span><span><input id="settingLowStockCups" type="number" min="1" max="20" step="1" inputmode="numeric"><em>杯</em></span></label></section>
-    <section class="settings-section"><h3>进阶功能</h3><label class="settings-toggle"><span><b>冲煮方案</b><small>开启后显示方案库，并在喝一杯时填写冲煮参数</small></span><input id="settingBrewPlans" type="checkbox"></label><label class="settings-toggle"><span><b>高级评价</b><small>在饮用弹窗显示多维评价</small></span><input id="settingAdvanced" type="checkbox"></label><div class="dimension-panel" id="dimensionSection" hidden><span>评价维度</span><div class="dimension-settings" id="dimensionSettings"></div></div></section>
+    <section class="settings-section"><h3>进阶功能</h3><label class="settings-toggle"><span><b>冲煮方案</b><small>开启后显示方案库，并在喝一杯时填写冲煮参数</small></span><input id="settingBrewPlans" type="checkbox"></label><label class="settings-toggle"><span><b>高级评价</b><small>在饮用弹窗显示多维评价</small></span><input id="settingAdvanced" type="checkbox"></label><div class="dimension-panel" id="dimensionSection" hidden><span>评价维度</span><div class="dimension-settings" id="dimensionSettings"></div></div><button class="settings-action" id="settingsImportPlan" type="button"><span><b>导入分享方案</b><small>扫码或粘贴 DC1- 分享码；导入后会自动开启冲煮方案</small></span><strong aria-hidden="true">›</strong></button></section>
     <section class="settings-section"><h3>价格显示</h3><label class="field"><span>单价计算单位</span><select id="settingPriceUnit"><option value="g">每克单价</option><option value="50g">每 50g 单价</option><option value="100g">每 100g 单价</option><option value="jin">每斤单价</option></select></label></section>
     <section class="settings-section"><h3>外观</h3><div class="theme-grid">
       <button data-theme-value="dark-roast" type="button"><i class="theme-dark-roast"></i><span>深烘</span></button>
@@ -488,6 +511,8 @@
     <footer class="sheet-footer"><span></span><div><button class="ghost-button" id="exitCancel" type="button">取消</button><button class="primary-button" id="exitConfirm" type="button">退出</button></div></footer>
   </dialog>
 
+  <script src="vendor/qrcode-generator.js"></script>
+  <script src="vendor/jsQR.js"></script>
   <script src="data-core.js"></script>
   <script src="coffee-parser.js"></script>
   <script src="repository.js"></script>

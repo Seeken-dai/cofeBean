@@ -18,7 +18,7 @@
   let wakeLock = null;
   let cardPressTimer = null;
   let cardPressFired = false;
-  const els = { list: $('#beanList'), empty: $('#emptyState'), count: $('#recordCount'), searchPanel: $('#searchPanel'), search: $('#searchInput'), personal: $('#personalDialog'), backup: $('#dataBackupDialog'), calendar: $('#coffeeCalendarDialog'), detail: $('#detailDialog'), drinkDetail: $('#drinkDetailDialog'), planDetail: $('#planDetailDialog'), planEditor: $('#planEditorDialog'), editor: $('#editorDialog'), form: $('#beanForm'), planForm: $('#planForm'), drink: $('#drinkDialog'), drinkForm: $('#drinkForm'), brewAssist: $('#brewAssistDialog'), choice: $('#choiceDialog'), datePicker: $('#datePickerDialog'), photoSource: $('#photoSourceDialog'), scanImage: $('#scanImageDialog'), imagePreview: $('#imagePreviewDialog'), shareChoice: $('#shareImageChoiceDialog'), manager: $('#smartManagerDialog'), settings: $('#settingsDialog'), about: $('#aboutDialog'), migration: $('#migrationDialog'), exitConfirm: $('#exitConfirmDialog'), sharePreview: $('#sharePreviewDialog'), toast: $('#toast'), scanResult: $('#scanResult') };
+  const els = { list: $('#beanList'), empty: $('#emptyState'), count: $('#recordCount'), searchPanel: $('#searchPanel'), search: $('#searchInput'), personal: $('#personalDialog'), backup: $('#dataBackupDialog'), calendar: $('#coffeeCalendarDialog'), detail: $('#detailDialog'), drinkDetail: $('#drinkDetailDialog'), planDetail: $('#planDetailDialog'), planEditor: $('#planEditorDialog'), editor: $('#editorDialog'), form: $('#beanForm'), planForm: $('#planForm'), drink: $('#drinkDialog'), drinkForm: $('#drinkForm'), brewAssist: $('#brewAssistDialog'), choice: $('#choiceDialog'), datePicker: $('#datePickerDialog'), photoSource: $('#photoSourceDialog'), scanImage: $('#scanImageDialog'), imagePreview: $('#imagePreviewDialog'), shareChoice: $('#shareImageChoiceDialog'), planShareChoice: $('#planShareChoiceDialog'), planImport: $('#planImportDialog'), manager: $('#smartManagerDialog'), settings: $('#settingsDialog'), about: $('#aboutDialog'), migration: $('#migrationDialog'), exitConfirm: $('#exitConfirmDialog'), sharePreview: $('#sharePreviewDialog'), toast: $('#toast'), scanResult: $('#scanResult') };
 
   function capPlugin(name) { return window.Capacitor && window.Capacitor.Plugins ? window.Capacitor.Plugins[name] : null; }
   if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) document.body.classList.add('cap-native');
@@ -906,6 +906,27 @@
     steps.slice(0, 8).forEach((step, index) => { fillRound(ctx, x, y, w, 70, 18, palette.surface, palette.border); fillRound(ctx, x + 18, y + 16, 38, 38, 19, palette.paper, palette.line); setCanvasFont(ctx, 20, 800, false); ctx.fillStyle = palette.muted; ctx.fillText(String(index + 1), x + 31, y + 42); setCanvasFont(ctx, 26, 800, true); ctx.fillStyle = palette.ink; ctx.fillText(clipCanvasText(ctx, step.label, 210), x + 74, y + 30); setCanvasFont(ctx, 22, 600, false); ctx.fillStyle = palette.muted; ctx.fillText(clipCanvasText(ctx, step.value, w - 92), x + 74, y + 56); y += 84; });
     return y + 10;
   }
+  function drawReceiptQr(ctx, qr, palette, x, y, w) {
+    if (!qr || !qr.code || typeof qrcode === 'undefined') return y;
+    let model;
+    try { model = qrcode(0, 'M'); model.addData(qr.code); model.make(); } catch (error) { console.error(error); return y; }
+    const count = model.getModuleCount();
+    const pad = 28; const tile = 252; const quiet = 18; const boxH = tile + pad * 2;
+    fillRound(ctx, x, y, w, boxH, 24, palette.surface, palette.border);
+    const tileX = x + pad; const tileY = y + pad;
+    fillRound(ctx, tileX, tileY, tile, tile, 16, palette.paper, palette.line);
+    const cell = (tile - quiet * 2) / count; const originX = tileX + quiet; const originY = tileY + quiet;
+    ctx.fillStyle = palette.ink;
+    for (let row = 0; row < count; row += 1) {
+      for (let col = 0; col < count; col += 1) {
+        if (model.isDark(row, col)) ctx.fillRect(originX + col * cell, originY + row * cell, Math.ceil(cell), Math.ceil(cell));
+      }
+    }
+    const textX = tileX + tile + 34; const textW = w - (tile + pad + 34) - pad;
+    setCanvasFont(ctx, 30, 800, true); ctx.fillStyle = palette.ink; ctx.fillText(clipCanvasText(ctx, qr.title || '扫码导入此方案', textW), textX, tileY + 50);
+    setCanvasFont(ctx, 23, 600, false); ctx.fillStyle = palette.muted; drawCanvasTextBlock(ctx, qr.hint || '', textX, tileY + 96, textW, 34, 4);
+    return y + boxH + 30;
+  }
   function drawReceiptMonth(ctx, calendar, palette, x, y, w) {
     const cell = Math.floor((w - 6 * 10) / 7); ['一', '二', '三', '四', '五', '六', '日'].forEach((day, index) => { setCanvasFont(ctx, 20, 800, false); ctx.fillStyle = palette.muted; ctx.fillText(day, x + index * (cell + 10) + 12, y); }); y += 26;
     (calendar.cells || []).forEach((item, index) => { const col = index % 7; const row = Math.floor(index / 7); const px = x + col * (cell + 10); const py = y + row * (cell + 10); if (item.empty) return; fillRound(ctx, px, py, cell, cell, 12, palette.heat[item.level || 0], item.selected ? palette.ink : palette.border); setCanvasFont(ctx, 22, 800, false); ctx.fillStyle = item.level >= 3 ? palette.paper : palette.ink; ctx.fillText(String(item.day), px + 12, py + 29); });
@@ -942,7 +963,9 @@
     if (payload.calendar && payload.calendar.view === 'year') y = drawReceiptYear(ctx, payload.calendar, palette, x, y, w);
     y = drawReceiptRows(ctx, payload.rows, palette, x, y, w); y = drawReceiptSteps(ctx, payload.steps, palette, x, y, w);
     if (payload.notes) { fillRound(ctx, x, y, w, 140, 22, palette.surface, palette.border); setCanvasFont(ctx, 23, 700, false); ctx.fillStyle = palette.muted; ctx.fillText('风味 / 备注', x + 22, y + 38); setCanvasFont(ctx, 27, 600, false); ctx.fillStyle = palette.ink; drawCanvasTextBlock(ctx, payload.notes, x + 22, y + 78, w - 44, 34, 2); y += 166; }
-    y = await drawReceiptImages(ctx, payload.images, palette, x, y, w); y = drawReceiptLogs(ctx, payload.logs, palette, x, y, w); drawReceiptDivider(ctx, palette, x, y + 8, w); y += 58; setCanvasFont(ctx, 24, 800, false); ctx.fillStyle = palette.accent; ctx.fillText(payload.footer || '本地记录 · 私人豆仓', x, y);
+    y = await drawReceiptImages(ctx, payload.images, palette, x, y, w); y = drawReceiptLogs(ctx, payload.logs, palette, x, y, w);
+    y = drawReceiptQr(ctx, payload.qr, palette, x, y, w);
+    drawReceiptDivider(ctx, palette, x, y + 8, w); y += 58; setCanvasFont(ctx, 24, 800, false); ctx.fillStyle = palette.accent; ctx.fillText(payload.footer || '本地记录 · 私人豆仓', x, y);
     const cardHeight = Math.min(Math.max(Math.round(y + 116), 560), maxHeight);
     const out = document.createElement('canvas'); out.width = width; out.height = cardHeight; const octx = out.getContext('2d');
     octx.fillStyle = palette.bg; octx.fillRect(0, 0, width, cardHeight);
@@ -985,7 +1008,50 @@
     state.shareBeanId = bean.id; $('#shareIncludeBag').checked = true; setDialog(els.shareChoice, true);
   }
   async function confirmBeanShareChoice() { const beanId = state.shareBeanId; setDialog(els.shareChoice, false); try { await shareBeanCard({ beanId, includeBag: $('#shareIncludeBag').checked }); } catch (error) { console.error(error); toast('分享失败'); } }
-  async function sharePlanCard() { const plan = state.brewPlans.find((item) => item.id === state.viewingPlanId); if (!plan) return; try { await shareCanvas(BeanCore.buildSharePayload('brewPlan', plan, { style: 'receipt' })); } catch (error) { console.error(error); toast('分享失败'); } }
+  function sharePlanCard() { const plan = state.brewPlans.find((item) => item.id === state.viewingPlanId); if (!plan) return; state.sharePlanId = plan.id; $('#planShareIncludeQr').checked = false; setDialog(els.planShareChoice, true); }
+  async function confirmPlanShareChoice() {
+    const plan = state.brewPlans.find((item) => item.id === state.sharePlanId); const includeQr = $('#planShareIncludeQr').checked; setDialog(els.planShareChoice, false);
+    if (!plan) return;
+    try { await shareCanvas(BeanCore.buildSharePayload('brewPlan', plan, { style: 'receipt', includeQr })); } catch (error) { console.error(error); toast('分享失败'); }
+  }
+  function openPlanImport() { state.importPlanDraft = null; $('#planImportCode').value = ''; $('#planImportSummary').hidden = true; $('#planImportConfirm').disabled = true; setDialog(els.planImport, true); }
+  async function getPhotoForQr(source) { const camera = capPlugin('Camera'); if (!BeanRepository.isNative() || !camera) throw new Error('扫码功能仅在 Android App 中可用'); return camera.getPhoto({ quality: 92, width: 2200, correctOrientation: true, allowEditing: false, resultType: 'uri', source: source === 'camera' ? 'CAMERA' : 'PHOTOS', saveToGallery: false }); }
+  async function decodeQrFromImage(path) {
+    const img = await loadCanvasImage(path); if (!img) throw new Error('无法读取图片');
+    const w = img.naturalWidth || img.width; const h = img.naturalHeight || img.height;
+    const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, w, h);
+    const data = ctx.getImageData(0, 0, w, h);
+    const result = typeof jsQR === 'function' ? jsQR(data.data, w, h) : null;
+    if (!result || !result.data) throw new Error('未在图片中识别到二维码');
+    return result.data;
+  }
+  async function importQrFromSource(source) {
+    try { const photo = await getPhotoForQr(source); if (!photo) return; const code = await decodeQrFromImage(photo.path || photo.webPath); previewImportedPlan(code); }
+    catch (error) { console.error(error); toast(error.message || '扫码失败'); }
+  }
+  function parsePastedImportCode() { const code = $('#planImportCode').value.trim(); if (!code) { toast('请先粘贴分享码'); return; } previewImportedPlan(code); }
+  function previewImportedPlan(code) {
+    let plan;
+    try { plan = BeanCore.decodePlanShare(code); }
+    catch (error) { state.importPlanDraft = null; $('#planImportSummary').hidden = true; $('#planImportConfirm').disabled = true; toast(error.message || '分享码无法解析'); return; }
+    state.importPlanDraft = plan;
+    $('#planImportName').textContent = plan.name;
+    $('#planImportMeta').textContent = [plan.brewMethod, plan.dose ? plan.dose + 'g' : '', plan.ratio, plan.waterTemp].filter(Boolean).join(' · ');
+    $('#planImportSteps').textContent = plan.steps && plan.steps.length ? `${plan.steps.length} 段步骤` : '无分段步骤';
+    $('#planImportSummary').hidden = false; $('#planImportConfirm').disabled = false; toast('已识别方案，确认后导入');
+  }
+  async function confirmImportPlan() {
+    const draft = state.importPlanDraft; if (!draft) return;
+    try {
+      const saved = await BeanRepository.saveBrewPlan(BeanCore.cloneBrewPlan(draft, { name: draft.name, source: 'user' }));
+      if (!brewPlansEnabled()) await BeanRepository.saveSettings({ ...state.settings, enableBrewPlans: true });
+      setDialog(els.planImport, false); state.importPlanDraft = null;
+      await reload(); state.view = 'plans'; render();
+      const fresh = state.brewPlans.find((item) => item.id === saved.id) || saved; if (fresh) openPlanDetail(fresh);
+      toast('已导入方案');
+    } catch (error) { console.error(error); toast(error.message || '导入失败'); }
+  }
   async function shareCalendarCard() { try { const payload = BeanCore.buildSharePayload('calendar', { view: state.coffeeCalendarView, date: state.coffeeCalendarDate, selectedDate: state.selectedCoffeeDay, days: daySummaries() }, { style: 'receipt' }); await shareCanvas(payload); } catch (error) { console.error(error); toast('分享失败'); } }
   const backupScopes = { all: { title: '完整备份', file: '全部备份' }, library: { title: '豆仓与饮用记录', file: '豆仓记录备份' }, brewPlans: { title: '冲煮方案', file: '冲煮方案备份' } };
   function backupScope(scope) { return backupScopes[scope] ? scope : 'all'; }
@@ -1092,7 +1158,7 @@
     $('#detailImages').addEventListener('click', (event) => { const card = event.target.closest('[data-preview-image]'); if (card) openImagePreview(card.dataset.previewImage, card.dataset.previewLabel); });
     $('#detailFacts').addEventListener('click', (event) => { const item = event.target.closest('[data-purchase-url]'); if (item) openPurchaseUrl(item.dataset.purchaseUrl); });
     $('#detailFacts').addEventListener('keydown', (event) => { if (!['Enter', ' '].includes(event.key)) return; const item = event.target.closest('[data-purchase-url]'); if (item) { event.preventDefault(); openPurchaseUrl(item.dataset.purchaseUrl); } });
-    $('#imagePreviewClose').addEventListener('click', () => setDialog(els.imagePreview, false)); $('#imagePreviewCancel').addEventListener('click', () => setDialog(els.imagePreview, false)); $('#imagePreviewSave').addEventListener('click', sharePreviewImage); $('#shareImageChoiceClose').addEventListener('click', () => setDialog(els.shareChoice, false)); $('#shareImageChoiceCancel').addEventListener('click', () => setDialog(els.shareChoice, false)); $('#shareImageChoiceConfirm').addEventListener('click', confirmBeanShareChoice);
+    $('#imagePreviewClose').addEventListener('click', () => setDialog(els.imagePreview, false)); $('#imagePreviewCancel').addEventListener('click', () => setDialog(els.imagePreview, false)); $('#imagePreviewSave').addEventListener('click', sharePreviewImage); $('#shareImageChoiceClose').addEventListener('click', () => setDialog(els.shareChoice, false)); $('#shareImageChoiceCancel').addEventListener('click', () => setDialog(els.shareChoice, false)); $('#shareImageChoiceConfirm').addEventListener('click', confirmBeanShareChoice); $('#planShareChoiceClose').addEventListener('click', () => setDialog(els.planShareChoice, false)); $('#planShareChoiceCancel').addEventListener('click', () => setDialog(els.planShareChoice, false)); $('#planShareChoiceConfirm').addEventListener('click', confirmPlanShareChoice); $('#planImportEntry').addEventListener('click', openPlanImport); $('#settingsImportPlan').addEventListener('click', () => { setDialog(els.settings, false); openPlanImport(); }); $('#planImportClose').addEventListener('click', () => setDialog(els.planImport, false)); $('#planImportCancel').addEventListener('click', () => setDialog(els.planImport, false)); $('#planImportCamera').addEventListener('click', () => importQrFromSource('camera')); $('#planImportGallery').addEventListener('click', () => importQrFromSource('photos')); $('#planImportParse').addEventListener('click', parsePastedImportCode); $('#planImportConfirm').addEventListener('click', confirmImportPlan);
     $('#detailClose').addEventListener('click', () => setDialog(els.detail, false)); $('#detailShare').addEventListener('click', openBeanShareChoice); $('#detailEdit').addEventListener('click', () => { const bean = state.beans.find((item) => item.id === state.editingId); setDialog(els.detail, false); openEditor(bean); }); $('#detailDrink').addEventListener('click', () => openDrinkDialog(state.beans.find((bean) => bean.id === $('#detailDrink').dataset.beanId)));
     $('#drinkDetailClose').addEventListener('click', () => setDialog(els.drinkDetail, false)); $('#drinkSaveAsPlan').addEventListener('click', saveLogAsPlan); $('#drinkDetailEdit').addEventListener('click', () => { const log = state.drinkLogs.find((item) => item.id === state.viewingDrinkId); const bean = log && state.beans.find((item) => item.id === log.beanId); if (!log || !bean) return; setDialog(els.drinkDetail, false); openDrinkDialog(bean, log); });
     $$('[data-view]').forEach((button) => button.addEventListener('click', () => { state.view = button.dataset.view; render(); }));
