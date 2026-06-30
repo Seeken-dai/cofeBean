@@ -29,6 +29,8 @@ test('backup round trip validates schema and duplicate ids', () => {
   const plans = [core.normalizeBrewPlan({ id: 'plan-one', name: '三段式', brewMethod: '手冲', beanIds: ['one'], dose: 15 })];
   const backup = core.createBackup(beans, logs, { quickGrams: 18 }, '2026-01-01T00:00:00.000Z', plans);
   const imported = core.validateImport(backup);
+  assert.equal(backup.appVersion, '1.4.6');
+  assert.equal(imported.exportScope, 'all');
   assert.equal(imported.beans[0].name, '豆一');
   assert.equal(imported.beans[0].labelImagePath, 'file:///label.jpg');
   assert.equal(imported.drinkLogs[0].grams, 15);
@@ -39,11 +41,44 @@ test('backup round trip validates schema and duplicate ids', () => {
   assert.deepEqual(legacy.drinkLogs, []);
   assert.deepEqual(legacy.brewPlans, []);
   const crossVersion = core.validateImport({ schemaVersion: 2, beans, drinkLogs: logs, settings: { enableBrewPlans: true } });
+  assert.equal(crossVersion.exportScope, 'all');
   assert.equal(crossVersion.drinkLogs[0].id, 'cup-one');
   assert.deepEqual(crossVersion.brewPlans, []);
   assert.equal(crossVersion.settings.enableBrewPlans, true);
   assert.throws(() => core.validateImport({ schemaVersion: 99, beans: [] }), /备份版本/);
   assert.throws(() => core.validateImport({ schemaVersion: 1, beans: [{ id: 'x', name: 'A' }, { id: 'x', name: 'B' }] }), /重复/);
+});
+
+test('scoped backups include only selected data and keep old imports compatible', () => {
+  const beans = [core.normalizeBean({ id: 'bean-scope', name: '范围豆' })];
+  const logs = [core.normalizeDrinkLog({ id: 'log-scope', beanId: 'bean-scope', beanName: '范围豆', grams: 18 })];
+  const plans = [core.normalizeBrewPlan({ id: 'plan-scope', name: '冰滴', brewMethod: '冰滴', beanIds: ['bean-scope'] })];
+  const library = core.createBackup(beans, logs, { theme: 'obsidian' }, '2026-01-01T00:00:00.000Z', plans, { scope: 'library' });
+  assert.equal(library.exportScope, 'library');
+  assert.equal(Array.isArray(library.beans), true);
+  assert.equal(Array.isArray(library.drinkLogs), true);
+  assert.equal('brewPlans' in library, false);
+  assert.equal('settings' in library, false);
+  const importedLibrary = core.validateImport(library);
+  assert.equal(importedLibrary.beans.length, 1);
+  assert.equal(importedLibrary.drinkLogs.length, 1);
+  assert.deepEqual(importedLibrary.brewPlans, []);
+  assert.equal(importedLibrary.settings, null);
+
+  const planOnly = core.createBackup(beans, logs, { theme: 'frost' }, '2026-01-01T00:00:00.000Z', plans, { scope: 'brewPlans' });
+  assert.equal(planOnly.exportScope, 'brewPlans');
+  assert.equal('beans' in planOnly, false);
+  assert.equal('drinkLogs' in planOnly, false);
+  assert.equal('settings' in planOnly, false);
+  const importedPlans = core.validateImport(planOnly);
+  assert.deepEqual(importedPlans.beans, []);
+  assert.deepEqual(importedPlans.drinkLogs, []);
+  assert.equal(importedPlans.brewPlans[0].name, '冰滴');
+  assert.deepEqual(importedPlans.brewPlans[0].beanIds, ['bean-scope']);
+
+  const legacyWithoutScope = core.validateImport({ schemaVersion: 3, beans, drinkLogs: logs, settings: { theme: 'blaze' } });
+  assert.equal(legacyWithoutScope.exportScope, 'all');
+  assert.equal(legacyWithoutScope.settings.theme, 'blaze');
 });
 
 test('brew plans normalize presets, snapshots and recommendations', () => {

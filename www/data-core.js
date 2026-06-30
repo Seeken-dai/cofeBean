@@ -383,23 +383,32 @@
     return (prefix || 'bean') + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
   }
 
+  function normalizeExportScope(scope) {
+    return ['all', 'library', 'brewPlans'].includes(scope) ? scope : 'all';
+  }
+
   function validateImport(payload) {
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('备份文件结构不正确');
     const version = Number(payload.schemaVersion) || 1;
     if (version < 1 || version > SCHEMA_VERSION) throw new Error('暂不支持此备份版本');
-    if (!Array.isArray(payload.beans)) throw new Error('备份中没有有效的咖啡豆记录');
-    if (payload.beans.length > 10000) throw new Error('备份记录超过 10000 条限制');
+    const exportScope = normalizeExportScope(payload.exportScope);
+    const expectsLibrary = exportScope === 'all' || exportScope === 'library';
+    const expectsPlans = exportScope === 'all' || exportScope === 'brewPlans';
+    if (expectsLibrary && !Array.isArray(payload.beans)) throw new Error('备份中没有有效的咖啡豆记录');
+    if (expectsPlans && !Array.isArray(payload.brewPlans) && exportScope === 'brewPlans') throw new Error('备份中没有有效的冲煮方案');
+    const rawBeans = Array.isArray(payload.beans) ? payload.beans : [];
+    if (rawBeans.length > 10000) throw new Error('备份记录超过 10000 条限制');
     const ids = new Set();
-    const beans = payload.beans.map((raw) => {
+    const beans = rawBeans.map((raw) => {
       const bean = normalizeBean(raw);
       if (!bean.name) throw new Error('每条记录都必须有豆名');
       if (ids.has(bean.id)) throw new Error('备份包含重复记录 ID');
       ids.add(bean.id);
       return bean;
     });
-    if (version === 1) return { schemaVersion: 1, beans, drinkLogs: [], brewPlans: [], settings: null };
-    const rawLogs = Array.isArray(payload.drinkLogs) ? payload.drinkLogs : [];
-    const rawPlans = Array.isArray(payload.brewPlans) ? payload.brewPlans : [];
+    if (version === 1) return { schemaVersion: 1, exportScope: 'all', beans, drinkLogs: [], brewPlans: [], settings: null };
+    const rawLogs = expectsLibrary && Array.isArray(payload.drinkLogs) ? payload.drinkLogs : [];
+    const rawPlans = expectsPlans && Array.isArray(payload.brewPlans) ? payload.brewPlans : [];
     if (beans.length + rawLogs.length + rawPlans.length > 10000) throw new Error('备份记录超过 10000 条限制');
     const logIds = new Set();
     const drinkLogs = rawLogs.map((raw) => {
@@ -412,25 +421,31 @@
     const planIds = new Set();
     const beanIds = new Set(beans.map((bean) => bean.id));
     const brewPlans = rawPlans.map((raw) => {
-      const plan = normalizeBrewPlan({ ...raw, beanIds: (raw.beanIds || []).filter((id) => beanIds.has(id)) }, raw && raw.updatedAt);
+      const planBeanIds = expectsLibrary ? (raw.beanIds || []).filter((id) => beanIds.has(id)) : (raw.beanIds || []);
+      const plan = normalizeBrewPlan({ ...raw, beanIds: planBeanIds }, raw && raw.updatedAt);
       if (planIds.has(plan.id)) throw new Error('备份包含重复方案 ID');
       planIds.add(plan.id);
       return plan;
     });
-    return { schemaVersion: SCHEMA_VERSION, beans, drinkLogs, brewPlans, settings: normalizeSettings(payload.settings) };
+    return { schemaVersion: SCHEMA_VERSION, exportScope, beans, drinkLogs, brewPlans, settings: exportScope === 'all' ? normalizeSettings(payload.settings) : null };
   }
 
-  function createBackup(beans, drinkLogs, settings, exportedAt, brewPlans) {
-    return {
+  function createBackup(beans, drinkLogs, settings, exportedAt, brewPlans, options) {
+    const exportScope = normalizeExportScope(options && options.scope);
+    const payload = {
       schemaVersion: SCHEMA_VERSION,
+      exportScope,
       exportedAt: exportedAt || new Date().toISOString(),
       app: '豆仓',
-      appVersion: '1.4.5',
-      beans: beans.map((bean) => normalizeBean(bean, bean.updatedAt)),
-      drinkLogs: (drinkLogs || []).map((log) => normalizeDrinkLog(log, log.updatedAt)),
-      brewPlans: (brewPlans || []).map((plan) => normalizeBrewPlan(plan, plan.updatedAt)),
-      settings: normalizeSettings(settings)
+      appVersion: '1.4.6'
     };
+    if (exportScope === 'all' || exportScope === 'library') {
+      payload.beans = (beans || []).map((bean) => normalizeBean(bean, bean.updatedAt));
+      payload.drinkLogs = (drinkLogs || []).map((log) => normalizeDrinkLog(log, log.updatedAt));
+    }
+    if (exportScope === 'all' || exportScope === 'brewPlans') payload.brewPlans = (brewPlans || []).map((plan) => normalizeBrewPlan(plan, plan.updatedAt));
+    if (exportScope === 'all') payload.settings = normalizeSettings(settings);
+    return payload;
   }
 
   function filterAndSort(beans, options) {

@@ -333,21 +333,86 @@
     return normalized;
   }
 
-  async function replaceAllData(beans, drinkLogs, settings, brewPlans) {
-    const normalizedBeans = beans.map((bean) => root.BeanCore.normalizeBean(bean, bean.updatedAt));
+  function normalizeScope(scope) { return ['all', 'library', 'brewPlans'].includes(scope) ? scope : 'all'; }
+  function includesLibrary(scope) { return scope === 'all' || scope === 'library'; }
+  function includesPlans(scope) { return scope === 'all' || scope === 'brewPlans'; }
+  function newer(existing, incoming) {
+    const existingTime = Date.parse(existing && existing.updatedAt || '');
+    const incomingTime = Date.parse(incoming && incoming.updatedAt || '');
+    return Number.isFinite(incomingTime) && (!Number.isFinite(existingTime) || incomingTime > existingTime) ? incoming : existing;
+  }
+  function mergeRecords(existing, incoming, normalize) {
+    const map = new Map((existing || []).map((item) => [item.id, item]));
+    (incoming || []).forEach((item) => {
+      const normalized = normalize(item);
+      map.set(normalized.id, map.has(normalized.id) ? newer(map.get(normalized.id), normalized) : normalized);
+    });
+    return Array.from(map.values());
+  }
+  function normalizeBeans(beans) { return (beans || []).map((bean) => root.BeanCore.normalizeBean(bean, bean.updatedAt)); }
+  function sanitizeLogs(logs, beanIds) {
+    return (logs || []).map((log) => root.BeanCore.normalizeDrinkLog({ ...log, beanId: beanIds.has(log.beanId) ? log.beanId : null }, log.updatedAt));
+  }
+  function sanitizePlans(plans, beanIds) {
+    return withPresetPlans(plans || []).map((plan) => root.BeanCore.normalizeBrewPlan({ ...plan, beanIds: plan.beanIds.filter((id) => beanIds.has(id)) }, plan.updatedAt));
+  }
+  async function writeDataSet(beans, drinkLogs, settings, brewPlans, scope) {
+    const normalizedBeans = normalizeBeans(beans);
     const beanIds = new Set(normalizedBeans.map((bean) => bean.id));
-    const normalizedLogs = (drinkLogs || []).map((log) => root.BeanCore.normalizeDrinkLog({ ...log, beanId: beanIds.has(log.beanId) ? log.beanId : null }, log.updatedAt));
-    const normalizedPlans = withPresetPlans(brewPlans || []).map((plan) => root.BeanCore.normalizeBrewPlan({ ...plan, beanIds: plan.beanIds.filter((id) => beanIds.has(id)) }, plan.updatedAt));
-    if (!native) { const state = loadWebState(); state.beans = normalizedBeans; state.drinkLogs = normalizedLogs; state.brewPlans = normalizedPlans; if (settings) state.settings = root.BeanCore.normalizeSettings(settings); saveWebState(state); return; }
+    const normalizedLogs = sanitizeLogs(drinkLogs, beanIds);
+    const normalizedPlans = sanitizePlans(brewPlans, beanIds);
+    if (!native) {
+      const state = loadWebState();
+      if (includesLibrary(scope)) { state.beans = normalizedBeans; state.drinkLogs = normalizedLogs; }
+      if (includesPlans(scope) || includesLibrary(scope)) state.brewPlans = normalizedPlans;
+      if (scope === 'all' && settings) state.settings = root.BeanCore.normalizeSettings(settings);
+      saveWebState(state); return;
+    }
     const beanColumns = BEAN_COLUMNS.map((key) => BEAN_NATIVE[key] || key).join(','); const beanPlaceholders = BEAN_COLUMNS.map(() => '?').join(',');
     const logColumns = LOG_COLUMNS.map((key) => LOG_NATIVE[key] || key).join(','); const logPlaceholders = LOG_COLUMNS.map(() => '?').join(',');
     const planColumns = PLAN_COLUMNS.map((key) => PLAN_NATIVE[key] || key).join(','); const planPlaceholders = PLAN_COLUMNS.map(() => '?').join(',');
-    const set = [{ statement: 'DELETE FROM drink_logs', values: [] }, { statement: 'DELETE FROM brew_plans', values: [] }, { statement: 'DELETE FROM beans', values: [] }]
-      .concat(normalizedBeans.map((bean) => ({ statement: `INSERT INTO beans (${beanColumns}) VALUES (${beanPlaceholders})`, values: beanValues(bean) })))
-      .concat(normalizedPlans.map((plan) => ({ statement: `INSERT INTO brew_plans (${planColumns}) VALUES (${planPlaceholders})`, values: planValues(plan) })))
-      .concat(normalizedLogs.map((log) => ({ statement: `INSERT INTO drink_logs (${logColumns}) VALUES (${logPlaceholders})`, values: logValues(log) })));
-    if (settings) set.push({ statement: "INSERT INTO app_settings (key, value) VALUES ('preferences', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", values: [JSON.stringify(root.BeanCore.normalizeSettings(settings))] });
+    const set = [];
+    if (includesLibrary(scope)) set.push({ statement: 'DELETE FROM drink_logs', values: [] });
+    if (includesPlans(scope) || includesLibrary(scope)) set.push({ statement: 'DELETE FROM brew_plans', values: [] });
+    if (includesLibrary(scope)) set.push({ statement: 'DELETE FROM beans', values: [] });
+    if (includesLibrary(scope)) set.push(...normalizedBeans.map((bean) => ({ statement: `INSERT INTO beans (${beanColumns}) VALUES (${beanPlaceholders})`, values: beanValues(bean) })));
+    if (includesPlans(scope) || includesLibrary(scope)) set.push(...normalizedPlans.map((plan) => ({ statement: `INSERT INTO brew_plans (${planColumns}) VALUES (${planPlaceholders})`, values: planValues(plan) })));
+    if (includesLibrary(scope)) set.push(...normalizedLogs.map((log) => ({ statement: `INSERT INTO drink_logs (${logColumns}) VALUES (${logPlaceholders})`, values: logValues(log) })));
+    if (scope === 'all' && settings) set.push({ statement: "INSERT INTO app_settings (key, value) VALUES ('preferences', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", values: [JSON.stringify(root.BeanCore.normalizeSettings(settings))] });
     await sqlite.executeSet({ database: DB_NAME, set, transaction: true, readonly: false });
+  }
+
+  async function importData(imported, mode) {
+    const scope = normalizeScope(imported && imported.exportScope);
+    const merge = mode === 'merge';
+    const currentBeans = await getAll();
+    const currentLogs = await getDrinkLogs();
+    const currentPlans = await getBrewPlans();
+    const currentSettings = await getSettings();
+    let nextBeans = currentBeans;
+    let nextLogs = currentLogs;
+    let nextPlans = currentPlans;
+    let nextSettings = currentSettings;
+    if (includesLibrary(scope)) {
+      const incomingBeans = normalizeBeans(imported.beans || []);
+      nextBeans = merge ? mergeRecords(currentBeans, incomingBeans, (bean) => root.BeanCore.normalizeBean(bean, bean.updatedAt)) : incomingBeans;
+      const beanIds = new Set(nextBeans.map((bean) => bean.id));
+      const incomingLogs = sanitizeLogs(imported.drinkLogs || [], beanIds);
+      nextLogs = merge ? mergeRecords(currentLogs, incomingLogs, (log) => root.BeanCore.normalizeDrinkLog(log, log.updatedAt)) : incomingLogs;
+    }
+    const beanIds = new Set(nextBeans.map((bean) => bean.id));
+    nextLogs = sanitizeLogs(nextLogs, beanIds);
+    if (includesPlans(scope)) {
+      const incomingPlans = sanitizePlans(imported.brewPlans || [], beanIds);
+      nextPlans = merge ? mergeRecords(currentPlans, incomingPlans, (plan) => root.BeanCore.normalizeBrewPlan(plan, plan.updatedAt)) : incomingPlans;
+    }
+    nextPlans = sanitizePlans(nextPlans, beanIds);
+    if (scope === 'all' && imported.settings) nextSettings = root.BeanCore.normalizeSettings(imported.settings);
+    await writeDataSet(nextBeans, nextLogs, nextSettings, nextPlans, scope);
+  }
+
+  async function replaceAllData(beans, drinkLogs, settings, brewPlans) {
+    return writeDataSet(beans, drinkLogs, settings, brewPlans, 'all');
   }
 
   async function replaceAll(beans) { return replaceAllData(beans, []); }
@@ -372,5 +437,5 @@
     return null;
   }
 
-  root.BeanRepository = { init, isNative: () => native, getAll, save, remove, getBrewPlans, saveBrewPlan, duplicateBrewPlan, deleteBrewPlan, getDrinkLogs, saveDrinkLog, deleteDrinkLog, getSettings, saveSettings, replaceAllData, replaceAll, smartValues, renameSmartValue, deleteSmartValue, legacyData };
+  root.BeanRepository = { init, isNative: () => native, getAll, save, remove, getBrewPlans, saveBrewPlan, duplicateBrewPlan, deleteBrewPlan, getDrinkLogs, saveDrinkLog, deleteDrinkLog, getSettings, saveSettings, importData, replaceAllData, replaceAll, smartValues, renameSmartValue, deleteSmartValue, legacyData };
 })(window);
