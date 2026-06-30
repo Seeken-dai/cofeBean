@@ -237,7 +237,9 @@ npm.cmd run android:release
 
 - 引入 `jsqr@1.4.0`，vendor 为 `www/vendor/jsQR.js`，`index.html` 挂载（全局 `jsQR`）。
 - `app.js` 新增导入逻辑：`getPhotoForQr(source)` 直接以指定来源调 Camera（CAMERA/PHOTOS，resultType uri，不再二次询问来源）→ `decodeQrFromImage` 离屏 Canvas 取 `ImageData` → `jsQR` → `decodePlanShare`；`parsePastedImportCode` 走粘贴；`previewImportedPlan` 展示摘要（名称/方式/关键参数/步骤数）并按错误分支提示；`confirmImportPlan` → `saveBrewPlan(cloneBrewPlan(draft, { source:'user' }))`（天然只新增不覆盖）。
-- **两个入口**：冲煮方案页 `planImportEntry`（功能开启时可见）；设置「进阶功能」区 `settingsImportPlan`（功能关闭时也可达——解决了 `plansTab` 在功能关闭时被隐藏、导致首次收方无法导入的问题）。
+- **两个入口**：冲煮方案页右下角悬浮按钮 `planImportFab`（位于「新增方案」+ 按钮上方，仅方案页可见）；设置「进阶功能」区 `settingsImportPlan`（功能关闭时也可达——解决了 `plansTab` 在功能关闭时被隐藏、导致首次收方无法导入的问题）。
+- 弹窗反馈用对话框内联状态行 `planImportStatus`（而非 toast）：模态 `<dialog>` 处于浏览器 top layer，普通 toast 会被盖住看不见，内联状态行始终可见，错误用 `--danger` 红色。
+- `decodeQrFromImage` 对相机大图先原分辨率解码，失败再缩到约 1000px 重试，并启用 `inversionAttempts:'attemptBoth'`，提升拍照识别成功率。
 - 导入成功后若 `enableBrewPlans` 为 false，置 true 并 `saveSettings`，随后跳到方案页并打开新方案详情。
 - 验证（浏览器预览）：粘贴往返导入新增方案且不覆盖原方案、id 唯一；功能关闭时经设置入口导入后自动开启并显示方案页；坏码（非 DC1-/截断/校验位不符）摘要不出现、确认禁用、toast 报错；无 console 报错。相机/相册取图为原生能力，留待阶段 4 真机验证。
 

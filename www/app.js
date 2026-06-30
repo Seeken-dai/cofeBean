@@ -98,7 +98,7 @@
     $('#plansTab').hidden = !brewPlansEnabled();
     $('.view-tabs').classList.toggle('two-tabs', !brewPlansEnabled());
     $('#beansView').hidden = state.view !== 'beans'; $('#drinksView').hidden = state.view !== 'drinks'; $('#plansView').hidden = state.view !== 'plans';
-    $('#addBean').hidden = !['beans', 'plans'].includes(state.view); $('#scanBean').hidden = state.view !== 'beans';
+    $('#addBean').hidden = !['beans', 'plans'].includes(state.view); $('#scanBean').hidden = state.view !== 'beans'; $('#planImportFab').hidden = state.view !== 'plans';
     $('#addBean').setAttribute('aria-label', state.view === 'plans' ? '新增冲煮方案' : '新增咖啡豆');
     $('#addBean').textContent = '+';
     els.search.placeholder = state.view === 'beans' ? '搜索豆名、产地或风味' : state.view === 'plans' ? '搜索方案、方式或备注' : '搜索豆名、冲煮方式或备注';
@@ -1014,32 +1014,42 @@
     if (!plan) return;
     try { await shareCanvas(BeanCore.buildSharePayload('brewPlan', plan, { style: 'receipt', includeQr })); } catch (error) { console.error(error); toast('分享失败'); }
   }
-  function openPlanImport() { state.importPlanDraft = null; $('#planImportCode').value = ''; $('#planImportSummary').hidden = true; $('#planImportConfirm').disabled = true; setDialog(els.planImport, true); }
+  function setImportStatus(message, isError) { const el = $('#planImportStatus'); el.textContent = message || ''; el.classList.toggle('error', Boolean(isError)); }
+  function clearImportSummary() { state.importPlanDraft = null; $('#planImportSummary').hidden = true; $('#planImportConfirm').disabled = true; }
+  function openPlanImport() { clearImportSummary(); $('#planImportCode').value = ''; setImportStatus(''); setDialog(els.planImport, true); }
   async function getPhotoForQr(source) { const camera = capPlugin('Camera'); if (!BeanRepository.isNative() || !camera) throw new Error('扫码功能仅在 Android App 中可用'); return camera.getPhoto({ quality: 92, width: 2200, correctOrientation: true, allowEditing: false, resultType: 'uri', source: source === 'camera' ? 'CAMERA' : 'PHOTOS', saveToGallery: false }); }
-  async function decodeQrFromImage(path) {
-    const img = await loadCanvasImage(path); if (!img) throw new Error('无法读取图片');
-    const w = img.naturalWidth || img.width; const h = img.naturalHeight || img.height;
+  function runJsQr(img, w, h) {
     const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
     const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, w, h);
     const data = ctx.getImageData(0, 0, w, h);
-    const result = typeof jsQR === 'function' ? jsQR(data.data, w, h) : null;
-    if (!result || !result.data) throw new Error('未在图片中识别到二维码');
+    return typeof jsQR === 'function' ? jsQR(data.data, w, h, { inversionAttempts: 'attemptBoth' }) : null;
+  }
+  async function decodeQrFromImage(path) {
+    const img = await loadCanvasImage(path); if (!img) throw new Error('无法读取图片');
+    const ow = img.naturalWidth || img.width; const oh = img.naturalHeight || img.height;
+    let result = runJsQr(img, ow, oh);
+    // 相机拍摄的大图 jsQR 容易因二值化失败，缩到 ~1000px 再试一次更稳。
+    if ((!result || !result.data) && Math.max(ow, oh) > 1000) {
+      const scale = 1000 / Math.max(ow, oh);
+      result = runJsQr(img, Math.max(1, Math.round(ow * scale)), Math.max(1, Math.round(oh * scale)));
+    }
+    if (!result || !result.data) throw new Error('未在图片中识别到二维码，请让二维码更清晰、居中后重试');
     return result.data;
   }
   async function importQrFromSource(source) {
-    try { const photo = await getPhotoForQr(source); if (!photo) return; const code = await decodeQrFromImage(photo.path || photo.webPath); previewImportedPlan(code); }
-    catch (error) { console.error(error); toast(error.message || '扫码失败'); }
+    try { setImportStatus('正在识别二维码…'); const photo = await getPhotoForQr(source); if (!photo) { setImportStatus(''); return; } const code = await decodeQrFromImage(photo.path || photo.webPath); previewImportedPlan(code); }
+    catch (error) { console.error(error); clearImportSummary(); setImportStatus(error.message || '扫码失败', true); }
   }
-  function parsePastedImportCode() { const code = $('#planImportCode').value.trim(); if (!code) { toast('请先粘贴分享码'); return; } previewImportedPlan(code); }
+  function parsePastedImportCode() { const code = $('#planImportCode').value.trim(); if (!code) { setImportStatus('请先粘贴分享码', true); return; } previewImportedPlan(code); }
   function previewImportedPlan(code) {
     let plan;
     try { plan = BeanCore.decodePlanShare(code); }
-    catch (error) { state.importPlanDraft = null; $('#planImportSummary').hidden = true; $('#planImportConfirm').disabled = true; toast(error.message || '分享码无法解析'); return; }
+    catch (error) { clearImportSummary(); setImportStatus(error.message || '分享码无法解析', true); return; }
     state.importPlanDraft = plan;
     $('#planImportName').textContent = plan.name;
     $('#planImportMeta').textContent = [plan.brewMethod, plan.dose ? plan.dose + 'g' : '', plan.ratio, plan.waterTemp].filter(Boolean).join(' · ');
     $('#planImportSteps').textContent = plan.steps && plan.steps.length ? `${plan.steps.length} 段步骤` : '无分段步骤';
-    $('#planImportSummary').hidden = false; $('#planImportConfirm').disabled = false; toast('已识别方案，确认后导入');
+    $('#planImportSummary').hidden = false; $('#planImportConfirm').disabled = false; setImportStatus('已识别方案，确认后导入');
   }
   async function confirmImportPlan() {
     const draft = state.importPlanDraft; if (!draft) return;
@@ -1158,7 +1168,7 @@
     $('#detailImages').addEventListener('click', (event) => { const card = event.target.closest('[data-preview-image]'); if (card) openImagePreview(card.dataset.previewImage, card.dataset.previewLabel); });
     $('#detailFacts').addEventListener('click', (event) => { const item = event.target.closest('[data-purchase-url]'); if (item) openPurchaseUrl(item.dataset.purchaseUrl); });
     $('#detailFacts').addEventListener('keydown', (event) => { if (!['Enter', ' '].includes(event.key)) return; const item = event.target.closest('[data-purchase-url]'); if (item) { event.preventDefault(); openPurchaseUrl(item.dataset.purchaseUrl); } });
-    $('#imagePreviewClose').addEventListener('click', () => setDialog(els.imagePreview, false)); $('#imagePreviewCancel').addEventListener('click', () => setDialog(els.imagePreview, false)); $('#imagePreviewSave').addEventListener('click', sharePreviewImage); $('#shareImageChoiceClose').addEventListener('click', () => setDialog(els.shareChoice, false)); $('#shareImageChoiceCancel').addEventListener('click', () => setDialog(els.shareChoice, false)); $('#shareImageChoiceConfirm').addEventListener('click', confirmBeanShareChoice); $('#planShareChoiceClose').addEventListener('click', () => setDialog(els.planShareChoice, false)); $('#planShareChoiceCancel').addEventListener('click', () => setDialog(els.planShareChoice, false)); $('#planShareChoiceConfirm').addEventListener('click', confirmPlanShareChoice); $('#planImportEntry').addEventListener('click', openPlanImport); $('#settingsImportPlan').addEventListener('click', () => { setDialog(els.settings, false); openPlanImport(); }); $('#planImportClose').addEventListener('click', () => setDialog(els.planImport, false)); $('#planImportCancel').addEventListener('click', () => setDialog(els.planImport, false)); $('#planImportCamera').addEventListener('click', () => importQrFromSource('camera')); $('#planImportGallery').addEventListener('click', () => importQrFromSource('photos')); $('#planImportParse').addEventListener('click', parsePastedImportCode); $('#planImportConfirm').addEventListener('click', confirmImportPlan);
+    $('#imagePreviewClose').addEventListener('click', () => setDialog(els.imagePreview, false)); $('#imagePreviewCancel').addEventListener('click', () => setDialog(els.imagePreview, false)); $('#imagePreviewSave').addEventListener('click', sharePreviewImage); $('#shareImageChoiceClose').addEventListener('click', () => setDialog(els.shareChoice, false)); $('#shareImageChoiceCancel').addEventListener('click', () => setDialog(els.shareChoice, false)); $('#shareImageChoiceConfirm').addEventListener('click', confirmBeanShareChoice); $('#planShareChoiceClose').addEventListener('click', () => setDialog(els.planShareChoice, false)); $('#planShareChoiceCancel').addEventListener('click', () => setDialog(els.planShareChoice, false)); $('#planShareChoiceConfirm').addEventListener('click', confirmPlanShareChoice); $('#planImportFab').addEventListener('click', openPlanImport); $('#settingsImportPlan').addEventListener('click', () => { setDialog(els.settings, false); openPlanImport(); }); $('#planImportClose').addEventListener('click', () => setDialog(els.planImport, false)); $('#planImportCancel').addEventListener('click', () => setDialog(els.planImport, false)); $('#planImportCamera').addEventListener('click', () => importQrFromSource('camera')); $('#planImportGallery').addEventListener('click', () => importQrFromSource('photos')); $('#planImportParse').addEventListener('click', parsePastedImportCode); $('#planImportConfirm').addEventListener('click', confirmImportPlan);
     $('#detailClose').addEventListener('click', () => setDialog(els.detail, false)); $('#detailShare').addEventListener('click', openBeanShareChoice); $('#detailEdit').addEventListener('click', () => { const bean = state.beans.find((item) => item.id === state.editingId); setDialog(els.detail, false); openEditor(bean); }); $('#detailDrink').addEventListener('click', () => openDrinkDialog(state.beans.find((bean) => bean.id === $('#detailDrink').dataset.beanId)));
     $('#drinkDetailClose').addEventListener('click', () => setDialog(els.drinkDetail, false)); $('#drinkSaveAsPlan').addEventListener('click', saveLogAsPlan); $('#drinkDetailEdit').addEventListener('click', () => { const log = state.drinkLogs.find((item) => item.id === state.viewingDrinkId); const bean = log && state.beans.find((item) => item.id === log.beanId); if (!log || !bean) return; setDialog(els.drinkDetail, false); openDrinkDialog(bean, log); });
     $$('[data-view]').forEach((button) => button.addEventListener('click', () => { state.view = button.dataset.view; render(); }));

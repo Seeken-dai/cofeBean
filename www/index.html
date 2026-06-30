@@ -82,7 +82,6 @@
         <article class="stat"><strong id="planPopular">—</strong><span>30天常用</span></article>
       </section>
       <nav class="filter-row" id="planMethodFilters" aria-label="按冲煮方式筛选方案"></nav>
-      <button class="assist-entry" id="planImportEntry" type="button"><span>导入分享方案</span><strong>扫码或粘贴 DC1- 分享码</strong></button>
       <section class="plan-list" id="brewPlanList" aria-live="polite"></section>
       <section class="empty-state" id="planEmpty" hidden><div class="empty-bag" aria-hidden="true"><span></span></div><h2>还没有冲煮方案</h2><p>从右下角保存第一套冲煮参数。</p></section>
     </section>
@@ -90,6 +89,9 @@
 
   <button class="scan-fab" id="scanBean" type="button" aria-label="拍照识别咖啡豆">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 5.5 10 3h4l1.5 2.5H19A2.5 2.5 0 0 1 21.5 8v9A2.5 2.5 0 0 1 19 19.5H5A2.5 2.5 0 0 1 2.5 17V8A2.5 2.5 0 0 1 5 5.5h3.5Z"/><circle cx="12" cy="12.5" r="4"/></svg>
+  </button>
+  <button class="scan-fab" id="planImportFab" type="button" aria-label="导入分享方案" hidden>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16"/><path d="M8 8h3v3H8zM8 13.5h3M13 8h3v3M13 16h3v-3"/></svg>
   </button>
   <button class="fab" id="addBean" type="button" aria-label="新增咖啡豆">＋</button>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -416,17 +418,22 @@
     <footer class="sheet-footer"><button class="secondary-button" id="planShareChoiceCancel" type="button">取消</button><div><button class="primary-button" id="planShareChoiceConfirm" type="button">生成预览</button></div></footer>
   </dialog>
 
-  <dialog class="sheet compact photo-source-sheet" id="planImportDialog">
+  <dialog class="sheet compact" id="planImportDialog">
     <header class="sheet-header"><div><p class="eyebrow">IMPORT</p><h2>导入冲煮方案</h2><p class="sheet-subtitle">扫码或粘贴分享码，导入为一份新方案，不会覆盖现有方案</p></div><button class="icon-button" id="planImportClose" type="button" aria-label="关闭">×</button></header>
-    <div class="source-actions">
-      <button id="planImportCamera" type="button"><span>拍照扫码</span><small>用相机对准二维码</small></button>
-      <button id="planImportGallery" type="button"><span>相册选图</span><small>从截图或图片中识别二维码</small></button>
+    <div class="import-body">
+      <div class="import-sources">
+        <button id="planImportCamera" type="button"><span>拍照扫码</span><small>用相机对准二维码</small></button>
+        <button id="planImportGallery" type="button"><span>相册选图</span><small>从截图或图片中识别二维码</small></button>
+      </div>
+      <label class="field full"><span>或粘贴分享码</span><textarea id="planImportCode" rows="3" maxlength="6000" placeholder="粘贴以 DC1- 开头的分享码"></textarea></label>
+      <button class="import-parse" id="planImportParse" type="button">解析分享码</button>
+      <p class="import-status" id="planImportStatus" role="status" aria-live="polite"></p>
+      <section class="import-summary" id="planImportSummary" hidden>
+        <b id="planImportName"></b>
+        <small id="planImportMeta"></small>
+        <small id="planImportSteps"></small>
+      </section>
     </div>
-    <label class="field full"><span>或粘贴分享码</span><textarea id="planImportCode" rows="3" maxlength="6000" placeholder="粘贴以 DC1- 开头的分享码"></textarea></label>
-    <div class="source-actions"><button id="planImportParse" type="button"><span>解析分享码</span><small>校验并预览方案</small></button></div>
-    <section class="share-choice-body" id="planImportSummary" hidden>
-      <label id="planImportSummaryCard"><span><b id="planImportName"></b><small id="planImportMeta"></small><small id="planImportSteps"></small></span></label>
-    </section>
     <footer class="sheet-footer"><button class="secondary-button" id="planImportCancel" type="button">取消</button><div><button class="primary-button" id="planImportConfirm" type="button" disabled>确认导入</button></div></footer>
   </dialog>
 
