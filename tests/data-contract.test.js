@@ -17,18 +17,21 @@ const BEAN_FIELDS = [
   'name', 'roaster', 'origin', 'process', 'roastDate', 'openedDate', 'purchaseDate',
   'purchaseUrl', 'tastingNotes', 'status', 'roastLevel', 'bagImagePath', 'labelImagePath',
   'initialWeight', 'remainingWeight', 'price', 'bestFlavorDays',
-  'favorite', 'id', 'createdAt', 'updatedAt'
+  'favorite', 'id', 'createdAt', 'updatedAt',
+  'revision', 'deviceId', 'deletedAt'
 ];
 const DRINK_LOG_FIELDS = [
   'id', 'beanId', 'beanName', 'grams', 'brewMethod', 'brewPlanId', 'brewPlanVersion',
   'brewPlanName', 'brewPlanSnapshot', 'overallRating', 'notes', 'consumedAt', 'createdAt', 'updatedAt',
-  'aroma', 'acidity', 'sweetness', 'body', 'aftertaste', 'balance', 'bitterness'
+  'aroma', 'acidity', 'sweetness', 'body', 'aftertaste', 'balance', 'bitterness',
+  'revision', 'deviceId', 'deletedAt'
 ];
 const BREW_PLAN_FIELDS = [
   'id', 'name', 'brewMethod', 'version', 'source', 'beanIds', 'steps', 'notes', 'createdAt', 'updatedAt',
   'dose', 'liquid', 'waterTemp', 'grinder', 'grindSetting', 'ratio', 'totalWater',
   'targetDuration', 'steepTime', 'steepEnvironment', 'coffeeMachine', 'basket', 'targetYield',
-  'targetExtractionTime', 'pressTime', 'mokaPotSize', 'useHotWater', 'heatLevel', 'customMethod'
+  'targetExtractionTime', 'pressTime', 'mokaPotSize', 'useHotWater', 'heatLevel', 'customMethod',
+  'revision', 'deviceId', 'deletedAt'
 ];
 const SETTINGS_FIELDS = [
   'quickGrams', 'enableBrewPlans', 'advancedRatings', 'enabledDimensions',
@@ -132,6 +135,20 @@ test('contract: settings 默认值与取值范围', () => {
 
   // enabledDimensions 过滤非法维度
   assert.deepEqual(core.normalizeSettings({ enabledDimensions: ['aroma', '假维度'] }).enabledDimensions, ['aroma']);
+});
+
+test('contract: 同步元字段默认值与携带（阶段 4）', () => {
+  ['normalizeBean', 'normalizeDrinkLog', 'normalizeBrewPlan'].forEach((fn) => {
+    const r = core[fn]({});
+    assert.equal(r.deletedAt, null, `${fn} deletedAt 默认 null`);
+    assert.equal(r.revision, 1, `${fn} revision 默认 1`);
+    assert.equal(r.deviceId, '', `${fn} deviceId 默认 ''`);
+  });
+  // 传入值被携带；revision 至少为 1
+  assert.equal(core.normalizeBean({ revision: 5 }).revision, 5);
+  assert.equal(core.normalizeBean({ revision: 0 }).revision, 1);
+  assert.equal(core.normalizeBean({ deviceId: 'dev-1' }).deviceId, 'dev-1');
+  assert.equal(core.normalizeBean({ deletedAt: '2026-07-01T00:00:00.000Z' }).deletedAt, '2026-07-01T00:00:00.000Z');
 });
 
 test('contract: 备份 exportScope 白名单（经公开 createBackup）', () => {

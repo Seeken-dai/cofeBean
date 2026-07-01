@@ -261,6 +261,9 @@
     const stamp = now || new Date().toISOString();
     bean.createdAt = cleanText(source.createdAt, 40) || stamp;
     bean.updatedAt = cleanText(source.updatedAt, 40) || stamp;
+    bean.revision = Math.max(1, Math.round(Number(source.revision) || 1));
+    bean.deviceId = cleanText(source.deviceId, 100);
+    bean.deletedAt = cleanText(source.deletedAt, 40) || null;
     return bean;
   }
 
@@ -287,7 +290,10 @@
       notes: cleanText(source.notes, 2000),
       consumedAt: cleanText(source.consumedAt, 40) || stamp,
       createdAt: cleanText(source.createdAt, 40) || stamp,
-      updatedAt: cleanText(source.updatedAt, 40) || stamp
+      updatedAt: cleanText(source.updatedAt, 40) || stamp,
+      revision: Math.max(1, Math.round(Number(source.revision) || 1)),
+      deviceId: cleanText(source.deviceId, 100),
+      deletedAt: cleanText(source.deletedAt, 40) || null
     };
     DIMENSION_KEYS.forEach((key) => { log[key] = cleanRating(source[key]); });
     return log;
@@ -320,7 +326,10 @@
       steps: Array.isArray(source.steps) ? source.steps.map(normalizeStep).filter((step) => step.label || step.water || step.time || step.note) : [],
       notes: cleanText(source.notes, 3000),
       createdAt: cleanText(source.createdAt, 40) || stamp,
-      updatedAt: cleanText(source.updatedAt, 40) || stamp
+      updatedAt: cleanText(source.updatedAt, 40) || stamp,
+      revision: Math.max(1, Math.round(Number(source.revision) || 1)),
+      deviceId: cleanText(source.deviceId, 100),
+      deletedAt: cleanText(source.deletedAt, 40) || null
     };
     PLAN_FIELD_KEYS.forEach((key) => {
       if (['dose', 'liquid', 'totalWater', 'targetYield'].includes(key)) plan[key] = cleanNumber(source[key]);
