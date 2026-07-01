@@ -1,0 +1,17 @@
+{
+  "name": "豆仓 Coffee Vault",
+  "short_name": "豆仓",
+  "description": "本地优先的咖啡豆管理与冲煮记录",
+  "lang": "zh-CN",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1a1412",
+  "theme_color": "#1a1412",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

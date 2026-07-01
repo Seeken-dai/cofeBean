@@ -7,6 +7,8 @@
   <meta name="color-scheme" content="dark light">
   <title>豆仓</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
 </head>
 <body>
   <header class="topbar">
@@ -525,5 +527,11 @@
   <script src="coffee-parser.js"></script>
   <script src="repository.js"></script>
   <script src="app.js"></script>
+  <script>
+    // 仅在真正的 Web 环境注册 Service Worker；Capacitor 原生壳内跳过。
+    if ('serviceWorker' in navigator && !(window.Capacitor && window.Capacitor.getPlatform && window.Capacitor.getPlatform() !== 'web')) {
+      window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+    }
+  </script>
 </body>
 </html>
