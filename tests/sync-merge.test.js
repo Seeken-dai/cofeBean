@@ -86,3 +86,31 @@ test('sync: 胜者的未知字段原样保留（round-trip）', () => {
   assert.equal(merged.futureField, 'keep-me');
   assert.equal(merged.payload.extraNew, 1);
 });
+
+test('sync: 导入旧备份后再同步，不覆盖云端较新数据、不误删云端独有记录', () => {
+  // 本地导入了一份旧备份（overwrite 只是替换本地集合，不为缺失的记录造墓碑）
+  const localAfterImport = [rec('bean-x', '2026-07-01T09:00:00.000Z', { payload: { name: '旧备份的X' } })];
+  // 云端：X 被别的设备改得更晚，且有本地导入里没有的 Y
+  const remote = [
+    rec('bean-x', '2026-07-01T10:00:00.000Z', { payload: { name: '云端较新的X' } }),
+    rec('bean-y', '2026-07-01T10:00:00.000Z', { payload: { name: '云端独有Y' } })
+  ];
+  const merged = core.mergeSyncRecords(localAfterImport, remote);
+  const byId = Object.fromEntries(merged.map((r) => [r.id, r]));
+  assert.equal(byId['bean-x'].payload.name, '云端较新的X'); // 旧备份不覆盖云端新数据
+  assert.ok(byId['bean-y'], '云端独有记录不应被误删');
+  assert.equal(core.liveSyncRecords(merged).length, 2);
+});
+
+test('sync: 旧客户端缺同步元字段的 envelope 可容忍合并', () => {
+  // 旧客户端只带 id/updatedAt/payload，无 revision/deviceId/deletedAt
+  const oldClient = { id: 'x', updatedAt: '2026-07-01T10:00:00.000Z', payload: { name: 'old-client' } };
+  const full = rec('x', '2026-07-01T09:00:00.000Z', { payload: { name: 'full' } });
+  const merged = core.mergeSyncRecords([full], [oldClient]);
+  assert.equal(merged[0].payload.name, 'old-client'); // 更晚者胜，缺字段不报错
+  assert.equal(core.liveSyncRecords(merged).length, 1); // 无 deletedAt 视为存活
+  // updatedAt 并列时，缺字段方 revision 视为 0，输给带 revision 的一方
+  const oldTie = { id: 'y', updatedAt: '2026-07-01T10:00:00.000Z', payload: {} };
+  const fullTie = rec('y', '2026-07-01T10:00:00.000Z', { revision: 3, payload: { name: 'full-tie' } });
+  assert.equal(core.mergeSyncRecords([oldTie], [fullTie])[0].payload.name, 'full-tie');
+});
