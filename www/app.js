@@ -1121,8 +1121,22 @@
     return result.data;
   }
   async function importQrFromSource(source) {
-    try { setImportStatus('正在识别二维码…'); const photo = await getPhotoForQr(source); if (!photo) { setImportStatus(''); return; } const code = await decodeQrFromImage(photo.path || photo.webPath); previewImportedPlan(code); }
-    catch (error) { console.error(error); clearImportSummary(); setImportStatus(error.message || '扫码失败', true); }
+    try {
+      setImportStatus('正在识别二维码…');
+      let path, objectUrl = null;
+      if (!BeanRepository.isNative()) {
+        const file = await pickWebImageFile(); // web：相册选图 → 文件选择，jsQR 本地解码
+        if (!file) { setImportStatus(''); return; }
+        path = objectUrl = URL.createObjectURL(file);
+      } else {
+        const photo = await getPhotoForQr(source);
+        if (!photo) { setImportStatus(''); return; }
+        path = photo.path || photo.webPath;
+      }
+      const code = await decodeQrFromImage(path);
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      previewImportedPlan(code);
+    } catch (error) { console.error(error); clearImportSummary(); setImportStatus(error.message || '扫码失败', true); }
   }
   function parsePastedImportCode() { const code = $('#planImportCode').value.trim(); if (!code) { setImportStatus('请先粘贴分享码', true); return; } previewImportedPlan(code); }
   function previewImportedPlan(code) {
