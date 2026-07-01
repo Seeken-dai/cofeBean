@@ -25,7 +25,7 @@
 
   async function init() {
     native = isNative();
-    if (!native) { await initWeb(); return; }
+    if (!native) { await webAdapter.init(); return; }
     sqlite = plugin('CapacitorSQLite');
     if (!sqlite) throw new Error('SQLite 插件没有加载');
     try {
@@ -258,9 +258,17 @@
       }));
     } catch (_) {}
   }
+  const webAdapter = {
+    init: initWeb,
+    loadState: loadWebState,
+    saveState: saveWebState,
+    saveImage: saveWebImage,
+    getImage: getWebImage,
+    deleteImage: deleteWebImage
+  };
 
   async function getAll() {
-    if (!native) return loadWebState().beans;
+    if (!native) return webAdapter.loadState().beans;
     const result = await sqlite.query({ database: DB_NAME, statement: 'SELECT * FROM beans ORDER BY updated_at DESC', values: [], readonly: false });
     return (result.values || []).map(fromBeanRow);
   }
@@ -268,9 +276,9 @@
   async function save(bean) {
     const normalized = root.BeanCore.normalizeBean({ ...bean, updatedAt: new Date().toISOString() });
     if (!native) {
-      const state = loadWebState(); const index = state.beans.findIndex((item) => item.id === normalized.id);
+      const state = webAdapter.loadState(); const index = state.beans.findIndex((item) => item.id === normalized.id);
       if (index >= 0) state.beans[index] = normalized; else state.beans.unshift(normalized);
-      await saveWebState(state); return normalized;
+      await webAdapter.saveState(state); return normalized;
     }
     const placeholders = BEAN_COLUMNS.map(() => '?').join(',');
     const updates = BEAN_COLUMNS.filter((key) => key !== 'id' && key !== 'createdAt').map((key) => `${BEAN_NATIVE[key] || key}=excluded.${BEAN_NATIVE[key] || key}`).join(',');
@@ -281,11 +289,11 @@
 
   async function remove(id) {
     if (!native) {
-      const state = loadWebState(); const bean = state.beans.find((item) => item.id === id);
+      const state = webAdapter.loadState(); const bean = state.beans.find((item) => item.id === id);
       state.beans = state.beans.filter((item) => item.id !== id);
       state.drinkLogs = state.drinkLogs.map((log) => log.beanId === id ? { ...log, beanId: null, beanName: bean ? bean.name : log.beanName } : log);
       state.brewPlans = state.brewPlans.map((plan) => root.BeanCore.normalizeBrewPlan({ ...plan, beanIds: plan.beanIds.filter((beanId) => beanId !== id) }, plan.updatedAt));
-      await saveWebState(state); return;
+      await webAdapter.saveState(state); return;
     }
     await sqlite.executeSet({ database: DB_NAME, set: [
       { statement: 'UPDATE drink_logs SET bean_name = COALESCE((SELECT name FROM beans WHERE id = ?), bean_name), bean_id = NULL WHERE bean_id = ?', values: [id, id] },
@@ -295,7 +303,7 @@
   }
 
   async function getBrewPlans() {
-    if (!native) return loadWebState().brewPlans.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    if (!native) return webAdapter.loadState().brewPlans.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     await seedPresetPlans();
     const result = await sqlite.query({ database: DB_NAME, statement: 'SELECT * FROM brew_plans ORDER BY updated_at DESC', values: [], readonly: false });
     return (result.values || []).map(fromPlanRow);
@@ -305,13 +313,13 @@
     const stamp = new Date().toISOString();
     let normalized = root.BeanCore.normalizeBrewPlan({ ...input, updatedAt: stamp }, stamp);
     if (!native) {
-      const state = loadWebState();
+      const state = webAdapter.loadState();
       const index = state.brewPlans.findIndex((item) => item.id === normalized.id);
       const old = index >= 0 ? state.brewPlans[index] : null;
       if (old && old.source === 'preset') throw new Error('预置方案请先复制再编辑');
       if (old) normalized = root.BeanCore.normalizeBrewPlan({ ...old, ...normalized, version: old.version + 1, createdAt: old.createdAt }, stamp);
       if (index >= 0) state.brewPlans[index] = normalized; else state.brewPlans.unshift(normalized);
-      await saveWebState(state); return normalized;
+      await webAdapter.saveState(state); return normalized;
     }
     const oldResult = await sqlite.query({ database: DB_NAME, statement: 'SELECT * FROM brew_plans WHERE id = ?', values: [normalized.id], readonly: false });
     const old = (oldResult.values || []).length ? fromPlanRow(oldResult.values[0]) : null;
@@ -335,10 +343,10 @@
     if (!plan) return;
     if (plan.source === 'preset') throw new Error('预置方案不能删除');
     if (!native) {
-      const state = loadWebState();
+      const state = webAdapter.loadState();
       state.brewPlans = state.brewPlans.filter((item) => item.id !== id);
       state.drinkLogs = state.drinkLogs.map((log) => log.brewPlanId === id ? root.BeanCore.normalizeDrinkLog({ ...log, brewPlanId: null }, log.updatedAt) : log);
-      await saveWebState(state); return;
+      await webAdapter.saveState(state); return;
     }
     await sqlite.executeSet({ database: DB_NAME, set: [
       { statement: 'DELETE FROM brew_plans WHERE id = ? AND source != ?', values: [id, 'preset'] },
@@ -348,7 +356,7 @@
 
   async function getDrinkLogs(beanId) {
     if (!native) {
-      return loadWebState().drinkLogs.filter((log) => !beanId || log.beanId === beanId).sort((a, b) => b.consumedAt.localeCompare(a.consumedAt));
+      return webAdapter.loadState().drinkLogs.filter((log) => !beanId || log.beanId === beanId).sort((a, b) => b.consumedAt.localeCompare(a.consumedAt));
     }
     const where = beanId ? 'WHERE l.bean_id = ?' : '';
     const result = await sqlite.query({ database: DB_NAME, statement: `SELECT l.*, COALESCE(b.name, l.bean_name) AS display_bean_name FROM drink_logs l LEFT JOIN beans b ON b.id = l.bean_id ${where} ORDER BY l.consumed_at DESC`, values: beanId ? [beanId] : [], readonly: false });
@@ -362,7 +370,7 @@
     if (!log.beanId) throw new Error('请选择咖啡豆');
 
     if (!native) {
-      const state = loadWebState(); const beanIndex = state.beans.findIndex((bean) => bean.id === log.beanId);
+      const state = webAdapter.loadState(); const beanIndex = state.beans.findIndex((bean) => bean.id === log.beanId);
       if (beanIndex < 0) throw new Error('找不到对应的咖啡豆');
       const oldIndex = state.drinkLogs.findIndex((item) => item.id === log.id);
       const old = oldIndex >= 0 ? state.drinkLogs[oldIndex] : null;
@@ -372,7 +380,7 @@
       const remaining = root.BeanCore.consumptionResult(bean.remainingWeight, bean.initialWeight, delta);
       state.beans[beanIndex] = { ...bean, remainingWeight: remaining, status: remaining <= 0 ? '已喝完' : '饮用中', updatedAt: stamp };
       if (oldIndex >= 0) state.drinkLogs[oldIndex] = log; else state.drinkLogs.unshift(log);
-      await saveWebState(state); return log;
+      await webAdapter.saveState(state); return log;
     }
 
     const beanResult = await sqlite.query({ database: DB_NAME, statement: 'SELECT * FROM beans WHERE id = ?', values: [log.beanId], readonly: false });
@@ -397,13 +405,13 @@
 
   async function deleteDrinkLog(id) {
     if (!native) {
-      const state = loadWebState(); const index = state.drinkLogs.findIndex((log) => log.id === id);
+      const state = webAdapter.loadState(); const index = state.drinkLogs.findIndex((log) => log.id === id);
       if (index < 0) return; const log = state.drinkLogs[index]; const beanIndex = state.beans.findIndex((bean) => bean.id === log.beanId);
       if (beanIndex >= 0) {
         const bean = state.beans[beanIndex]; const remaining = root.BeanCore.consumptionResult(bean.remainingWeight, bean.initialWeight, -log.grams);
         state.beans[beanIndex] = { ...bean, remainingWeight: remaining, status: remaining > 0 && bean.status === '已喝完' ? '饮用中' : bean.status, updatedAt: new Date().toISOString() };
       }
-      state.drinkLogs.splice(index, 1); await saveWebState(state); return;
+      state.drinkLogs.splice(index, 1); await webAdapter.saveState(state); return;
     }
     const result = await sqlite.query({ database: DB_NAME, statement: 'SELECT * FROM drink_logs WHERE id = ?', values: [id], readonly: false });
     if (!(result.values || []).length) return; const log = fromLogRow(result.values[0]);
@@ -419,7 +427,7 @@
   }
 
   async function getSettings() {
-    if (!native) return loadWebState().settings;
+    if (!native) return webAdapter.loadState().settings;
     const result = await sqlite.query({ database: DB_NAME, statement: "SELECT value FROM app_settings WHERE key = 'preferences'", values: [], readonly: false });
     if (!(result.values || []).length) return root.BeanCore.normalizeSettings({});
     try { return root.BeanCore.normalizeSettings(JSON.parse(result.values[0].value)); } catch (_) { return root.BeanCore.normalizeSettings({}); }
@@ -427,7 +435,7 @@
 
   async function saveSettings(settings) {
     const normalized = root.BeanCore.normalizeSettings(settings);
-    if (!native) { const state = loadWebState(); state.settings = normalized; await saveWebState(state); return normalized; }
+    if (!native) { const state = webAdapter.loadState(); state.settings = normalized; await webAdapter.saveState(state); return normalized; }
     await sqlite.run({ database: DB_NAME, statement: "INSERT INTO app_settings (key, value) VALUES ('preferences', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", values: [JSON.stringify(normalized)], transaction: true, readonly: false });
     return normalized;
   }
@@ -461,11 +469,11 @@
     const normalizedLogs = sanitizeLogs(drinkLogs, beanIds);
     const normalizedPlans = sanitizePlans(brewPlans, beanIds);
     if (!native) {
-      const state = loadWebState();
+      const state = webAdapter.loadState();
       if (includesLibrary(scope)) { state.beans = normalizedBeans; state.drinkLogs = normalizedLogs; }
       if (includesPlans(scope) || includesLibrary(scope)) state.brewPlans = normalizedPlans;
       if (scope === 'all' && settings) state.settings = root.BeanCore.normalizeSettings(settings);
-      await saveWebState(state); return;
+      await webAdapter.saveState(state); return;
     }
     const beanColumns = BEAN_COLUMNS.map((key) => BEAN_NATIVE[key] || key).join(','); const beanPlaceholders = BEAN_COLUMNS.map(() => '?').join(',');
     const logColumns = LOG_COLUMNS.map((key) => LOG_NATIVE[key] || key).join(','); const logPlaceholders = LOG_COLUMNS.map(() => '?').join(',');
@@ -519,12 +527,12 @@
   async function smartValues(field) { assertSmartField(field); const beans = await getAll(); return [...new Set(beans.map((bean) => bean[field]).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'zh-CN')); }
   async function renameSmartValue(field, oldValue, newValue) {
     assertSmartField(field); const clean = String(newValue || '').trim(); if (!clean) throw new Error('新名称不能为空');
-    if (!native) { const state = loadWebState(); state.beans = state.beans.map((bean) => bean[field] === oldValue ? { ...bean, [field]: clean, updatedAt: new Date().toISOString() } : bean); await saveWebState(state); return; }
+    if (!native) { const state = webAdapter.loadState(); state.beans = state.beans.map((bean) => bean[field] === oldValue ? { ...bean, [field]: clean, updatedAt: new Date().toISOString() } : bean); await webAdapter.saveState(state); return; }
     await sqlite.run({ database: DB_NAME, statement: `UPDATE beans SET ${field} = ?, updated_at = ? WHERE ${field} = ?`, values: [clean, new Date().toISOString(), oldValue], transaction: true, readonly: false });
   }
   async function deleteSmartValue(field, value) {
     assertSmartField(field);
-    if (!native) { const state = loadWebState(); state.beans = state.beans.map((bean) => bean[field] === value ? { ...bean, [field]: '', updatedAt: new Date().toISOString() } : bean); await saveWebState(state); return; }
+    if (!native) { const state = webAdapter.loadState(); state.beans = state.beans.map((bean) => bean[field] === value ? { ...bean, [field]: '', updatedAt: new Date().toISOString() } : bean); await webAdapter.saveState(state); return; }
     await sqlite.run({ database: DB_NAME, statement: `UPDATE beans SET ${field} = '', updated_at = ? WHERE ${field} = ?`, values: [new Date().toISOString(), value], transaction: true, readonly: false });
   }
 
