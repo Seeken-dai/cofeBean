@@ -14,6 +14,60 @@ function memoryStorage() {
   };
 }
 
+function fakeIndexedDB() {
+  const databases = new Map();
+  function asyncCall(callback) { queueMicrotask(callback); }
+  function complete(tx) { asyncCall(() => { if (tx.oncomplete) tx.oncomplete(); }); }
+  function requestSuccess(request, value) { asyncCall(() => { request.result = value; if (request.onsuccess) request.onsuccess(); }); }
+
+  return {
+    open(name) {
+      const request = {};
+      asyncCall(() => {
+        let db = databases.get(name);
+        const fresh = !db;
+        if (!db) {
+          const stores = new Map();
+          db = {
+            objectStoreNames: { contains: (storeName) => stores.has(storeName) },
+            createObjectStore: (storeName) => stores.set(storeName, new Map()),
+            transaction(storeName) {
+              const tx = {
+                objectStore() {
+                  const store = stores.get(storeName);
+                  return {
+                    get(key) {
+                      const req = {};
+                      requestSuccess(req, store ? store.get(key) : undefined);
+                      complete(tx);
+                      return req;
+                    },
+                    put(value, key) {
+                      store.set(key, value);
+                      complete(tx);
+                    },
+                    delete(key) {
+                      if (store) store.delete(key);
+                      complete(tx);
+                    }
+                  };
+                }
+              };
+              return tx;
+            },
+            close() {}
+          };
+          databases.set(name, db);
+        }
+        request.result = db;
+        if (fresh && request.onupgradeneeded) request.onupgradeneeded();
+        if (request.onsuccess) request.onsuccess();
+      });
+      return request;
+    }
+  };
+}
+
 async function loadRepository(storage) {
   global.localStorage = storage || memoryStorage();
   global.window = { BeanCore: core };
@@ -28,6 +82,7 @@ async function loadRepository(storage) {
 function cleanupRepository() {
   delete global.window;
   delete global.localStorage;
+  delete global.indexedDB;
 }
 
 const PUBLIC_METHODS = [
@@ -96,5 +151,23 @@ test('repository contract: smart values update through the repository boundary',
 
   const beans = await repo.getAll();
   assert.equal(beans.every((bean) => bean.roaster === ''), true);
+  cleanupRepository();
+});
+
+test('repository contract: web image adapter stores, reads, and deletes IndexedDB blobs', async () => {
+  global.indexedDB = fakeIndexedDB();
+  const repo = await loadRepository();
+  const blob = new Blob(['bag-bytes'], { type: 'image/webp' });
+
+  const ref = await repo.saveWebImage(blob);
+  assert.match(ref, /^idb:/);
+
+  const saved = await repo.getWebImage(ref);
+  assert.equal(saved.type, 'image/webp');
+  assert.equal(await saved.text(), 'bag-bytes');
+  assert.equal(await repo.getWebImage('file:///bag.jpg'), null);
+
+  await repo.deleteWebImage(ref);
+  assert.equal(await repo.getWebImage(ref), null);
   cleanupRepository();
 });
