@@ -1121,9 +1121,10 @@
     return result.data;
   }
   async function importQrFromSource(source) {
+    let objectUrl = null;
     try {
       setImportStatus('正在识别二维码…');
-      let path, objectUrl = null;
+      let path;
       if (!BeanRepository.isNative()) {
         const file = await pickWebImageFile(); // web：相册选图 → 文件选择，jsQR 本地解码
         if (!file) { setImportStatus(''); return; }
@@ -1134,9 +1135,9 @@
         path = photo.path || photo.webPath;
       }
       const code = await decodeQrFromImage(path);
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
       previewImportedPlan(code);
     } catch (error) { console.error(error); clearImportSummary(); setImportStatus(error.message || '扫码失败', true); }
+    finally { if (objectUrl) URL.revokeObjectURL(objectUrl); }
   }
   function parsePastedImportCode() { const code = $('#planImportCode').value.trim(); if (!code) { setImportStatus('请先粘贴分享码', true); return; } previewImportedPlan(code); }
   function previewImportedPlan(code) {
