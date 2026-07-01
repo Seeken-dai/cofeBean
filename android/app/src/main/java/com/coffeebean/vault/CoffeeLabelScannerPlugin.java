@@ -2,6 +2,8 @@ package com.coffeebean.vault;
 
 import android.content.ContentResolver;
 import android.content.ContentValues;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Build;
@@ -30,6 +32,9 @@ import java.util.UUID;
 
 @CapacitorPlugin(name = "CoffeeLabelScanner")
 public class CoffeeLabelScannerPlugin extends Plugin {
+    private static final int ARCHIVE_MAX_EDGE = 1600;
+    private static final int ARCHIVE_WEBP_QUALITY = 80;
+
     @PluginMethod
     public void recognize(PluginCall call) {
         String path = call.getString("path");
@@ -98,6 +103,19 @@ public class CoffeeLabelScannerPlugin extends Plugin {
             call.reject("无法创建图片归档目录");
             return;
         }
+
+        // 优先压缩为 WebP：解码 -> 长边缩放到 1600 -> WebP q80。
+        // 解码失败（非位图、超大图 OOM 等）时回退为原样复制，保证不因压缩失败而丢图。
+        File compressed = new File(dir, prefix + "-" + UUID.randomUUID().toString() + ".webp");
+        if (writeCompressedWebp(source, compressed)) {
+            JSObject payload = new JSObject();
+            payload.put("path", Uri.fromFile(compressed).toString());
+            payload.put("uri", Uri.fromFile(compressed).toString());
+            call.resolve(payload);
+            if (call.getBoolean("deleteSource", true)) deleteTemporaryFile(source);
+            return;
+        }
+
         String extension = guessExtension(source);
         File target = new File(dir, prefix + "-" + UUID.randomUUID().toString() + extension);
         try (InputStream input = getContext().getContentResolver().openInputStream(source);
@@ -117,6 +135,56 @@ public class CoffeeLabelScannerPlugin extends Plugin {
         } catch (IOException | SecurityException error) {
             call.reject("图片归档失败", error);
         }
+    }
+
+    @SuppressWarnings("deprecation")
+    private boolean writeCompressedWebp(Uri source, File target) {
+        Bitmap bitmap = null;
+        try {
+            bitmap = decodeScaledBitmap(source, ARCHIVE_MAX_EDGE);
+            if (bitmap == null) return false;
+            try (OutputStream output = new FileOutputStream(target)) {
+                Bitmap.CompressFormat format = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+                    ? Bitmap.CompressFormat.WEBP_LOSSY
+                    : Bitmap.CompressFormat.WEBP;
+                if (!bitmap.compress(format, ARCHIVE_WEBP_QUALITY, output)) return false;
+            }
+            return true;
+        } catch (IOException | SecurityException | OutOfMemoryError error) {
+            if (target.exists()) target.delete();
+            return false;
+        } finally {
+            if (bitmap != null) bitmap.recycle();
+        }
+    }
+
+    private Bitmap decodeScaledBitmap(Uri source, int maxEdge) throws IOException {
+        BitmapFactory.Options bounds = new BitmapFactory.Options();
+        bounds.inJustDecodeBounds = true;
+        try (InputStream input = getContext().getContentResolver().openInputStream(source)) {
+            if (input == null) return null;
+            BitmapFactory.decodeStream(input, null, bounds);
+        }
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null;
+        int longEdge = Math.max(bounds.outWidth, bounds.outHeight);
+        int sample = 1;
+        while (longEdge / (sample * 2) >= maxEdge) sample *= 2;
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inSampleSize = sample;
+        Bitmap decoded;
+        try (InputStream input = getContext().getContentResolver().openInputStream(source)) {
+            if (input == null) return null;
+            decoded = BitmapFactory.decodeStream(input, null, options);
+        }
+        if (decoded == null) return null;
+        int longNow = Math.max(decoded.getWidth(), decoded.getHeight());
+        if (longNow <= maxEdge) return decoded;
+        float scale = (float) maxEdge / (float) longNow;
+        int width = Math.max(1, Math.round(decoded.getWidth() * scale));
+        int height = Math.max(1, Math.round(decoded.getHeight() * scale));
+        Bitmap scaled = Bitmap.createScaledBitmap(decoded, width, height, true);
+        if (scaled != decoded) decoded.recycle();
+        return scaled;
     }
 
     @PluginMethod

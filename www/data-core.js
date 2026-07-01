@@ -580,7 +580,7 @@
       exportScope,
       exportedAt: exportedAt || new Date().toISOString(),
       app: '豆仓',
-      appVersion: '1.5.1'
+      appVersion: '1.5.2'
     };
     if (exportScope === 'all' || exportScope === 'library') {
       payload.beans = (beans || []).map((bean) => normalizeBean(bean, bean.updatedAt));
