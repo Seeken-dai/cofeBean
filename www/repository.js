@@ -13,13 +13,18 @@
   const PLAN_NATIVE = { brewMethod: 'brew_method', beanIds: 'bean_ids', createdAt: 'created_at', updatedAt: 'updated_at' };
   let sqlite = null;
   let native = false;
+  const WEB_DB_NAME = 'coffee_vault_web';
+  const WEB_STORE = 'kv';
+  const WEB_STATE_KEY = 'state';
+  let webCache = null;        // 原始持久化对象（数组/对象/null）；loadWebState 从这里解析归一化
+  let webCacheLoaded = false; // init 完成后为 true，之后 loadWebState 只读内存镜像
 
   function plugin(name) { return root.Capacitor && root.Capacitor.Plugins ? root.Capacitor.Plugins[name] : null; }
   function isNative() { return Boolean(root.Capacitor && typeof root.Capacitor.getPlatform === 'function' && root.Capacitor.getPlatform() !== 'web'); }
 
   async function init() {
     native = isNative();
-    if (!native) return;
+    if (!native) { await initWeb(); return; }
     sqlite = plugin('CapacitorSQLite');
     if (!sqlite) throw new Error('SQLite 插件没有加载');
     try {
@@ -150,10 +155,50 @@
     return userPlans;
   }
 
+  function idbSupported() { return typeof indexedDB !== 'undefined'; }
+  function idbOpen() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(WEB_DB_NAME, 1);
+      request.onupgradeneeded = () => { const db = request.result; if (!db.objectStoreNames.contains(WEB_STORE)) db.createObjectStore(WEB_STORE); };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+  function idbGet(key) {
+    return idbOpen().then((db) => new Promise((resolve, reject) => {
+      const tx = db.transaction(WEB_STORE, 'readonly');
+      const req = tx.objectStore(WEB_STORE).get(key);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+      tx.oncomplete = () => db.close();
+    }));
+  }
+  function idbPut(key, value) {
+    return idbOpen().then((db) => new Promise((resolve, reject) => {
+      const tx = db.transaction(WEB_STORE, 'readwrite');
+      tx.objectStore(WEB_STORE).put(value, key);
+      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.onerror = () => { db.close(); reject(tx.error); };
+    }));
+  }
+  // Web 端持久化：优先 IndexedDB（容量大、可存图片 blob），失败回退 localStorage。
+  // init 时把旧的 localStorage 预览数据一次性迁移进 IndexedDB。
+  async function initWeb() {
+    webCacheLoaded = false;
+    try {
+      if (idbSupported()) {
+        const stored = await idbGet(WEB_STATE_KEY);
+        if (stored !== undefined && stored !== null) { webCache = stored; webCacheLoaded = true; return; }
+      }
+    } catch (_) {}
+    try { const ls = localStorage.getItem(WEB_KEY); webCache = ls ? JSON.parse(ls) : null; } catch (_) { webCache = null; }
+    webCacheLoaded = true;
+    if (webCache != null && idbSupported()) { try { await idbPut(WEB_STATE_KEY, webCache); } catch (_) {} }
+  }
   function blankWebState() { return { beans: [], drinkLogs: [], brewPlans: presetPlans(), settings: root.BeanCore.normalizeSettings({}) }; }
   function loadWebState() {
     try {
-      const parsed = JSON.parse(localStorage.getItem(WEB_KEY) || 'null');
+      const parsed = webCacheLoaded ? webCache : JSON.parse(localStorage.getItem(WEB_KEY) || 'null');
       if (Array.isArray(parsed)) return { beans: parsed.map((bean) => root.BeanCore.normalizeBean(bean, bean.updatedAt)), drinkLogs: [], brewPlans: presetPlans(), settings: root.BeanCore.normalizeSettings({}) };
       if (!parsed || typeof parsed !== 'object') return blankWebState();
       return {
@@ -164,7 +209,15 @@
       };
     } catch (_) { return blankWebState(); }
   }
-  function saveWebState(state) { localStorage.setItem(WEB_KEY, JSON.stringify(state)); }
+  function saveWebState(state) {
+    webCache = state;
+    webCacheLoaded = true;
+    if (idbSupported()) {
+      idbPut(WEB_STATE_KEY, state).catch(() => { try { localStorage.setItem(WEB_KEY, JSON.stringify(state)); } catch (_) {} });
+    } else {
+      try { localStorage.setItem(WEB_KEY, JSON.stringify(state)); } catch (_) {}
+    }
+  }
 
   async function getAll() {
     if (!native) return loadWebState().beans;
