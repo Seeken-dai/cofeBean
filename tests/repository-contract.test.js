@@ -77,8 +77,11 @@ function fakeIndexedDB(options = {}) {
 async function loadRepository(storage) {
   global.localStorage = storage || memoryStorage();
   global.window = { BeanCore: core };
+  const adapterPath = path.resolve(__dirname, '../www/repository-web-adapter.js');
   const modulePath = path.resolve(__dirname, '../www/repository.js');
+  delete require.cache[adapterPath];
   delete require.cache[modulePath];
+  require(adapterPath);
   require(modulePath);
   const repo = global.window.BeanRepository;
   await repo.init();

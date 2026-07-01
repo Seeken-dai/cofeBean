@@ -11,8 +11,11 @@ function memoryStorage() {
 function loadRepository() {
   global.localStorage = memoryStorage();
   global.window = { BeanCore: core };
+  const adapterPath = path.resolve(__dirname, '../www/repository-web-adapter.js');
   const modulePath = path.resolve(__dirname, '../www/repository.js');
+  delete require.cache[adapterPath];
   delete require.cache[modulePath];
+  require(adapterPath);
   require(modulePath);
   return global.window.BeanRepository;
 }

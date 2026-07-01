@@ -3,7 +3,6 @@
 
   const DB_NAME = 'coffee_vault';
   const DB_VERSION = 7;
-  const WEB_KEY = 'coffee-vault-browser-preview';
   const LEGACY_KEYS = ['coffee-vault-data', 'beans-data', 'bean-data'];
   const BEAN_COLUMNS = ['id', 'name', 'roaster', 'origin', 'process', 'roastLevel', 'roastDate', 'openedDate', 'purchaseDate', 'purchaseUrl', 'initialWeight', 'remainingWeight', 'price', 'bestFlavorDays', 'tastingNotes', 'status', 'favorite', 'bagImagePath', 'labelImagePath', 'createdAt', 'updatedAt'];
   const BEAN_NATIVE = { roastLevel: 'roast_level', roastDate: 'roast_date', openedDate: 'opened_date', purchaseDate: 'purchase_date', purchaseUrl: 'purchase_url', initialWeight: 'initial_weight', remainingWeight: 'remaining_weight', bestFlavorDays: 'best_flavor_days', tastingNotes: 'tasting_notes', bagImagePath: 'bag_image_path', labelImagePath: 'label_image_path', createdAt: 'created_at', updatedAt: 'updated_at' };
@@ -13,19 +12,14 @@
   const PLAN_NATIVE = { brewMethod: 'brew_method', beanIds: 'bean_ids', createdAt: 'created_at', updatedAt: 'updated_at' };
   let sqlite = null;
   let native = false;
-  const WEB_DB_NAME = 'coffee_vault_web';
-  const WEB_STORE = 'kv';
-  const WEB_IMAGE_STORE = 'images';
-  const WEB_STATE_KEY = 'state';
-  let webCache = null;        // 原始持久化对象（数组/对象/null）；loadWebState 从这里解析归一化
-  let webCacheLoaded = false; // init 完成后为 true，之后 loadWebState 只读内存镜像
+  let webAdapter = null;
 
   function plugin(name) { return root.Capacitor && root.Capacitor.Plugins ? root.Capacitor.Plugins[name] : null; }
   function isNative() { return Boolean(root.Capacitor && typeof root.Capacitor.getPlatform === 'function' && root.Capacitor.getPlatform() !== 'web'); }
 
   async function init() {
     native = isNative();
-    if (!native) { await webAdapter.init(); return; }
+    if (!native) { await web().init(); return; }
     sqlite = plugin('CapacitorSQLite');
     if (!sqlite) throw new Error('SQLite 插件没有加载');
     try {
@@ -131,6 +125,16 @@
     return root.BeanCore.presetBrewPlans ? root.BeanCore.presetBrewPlans() : [];
   }
 
+  function withPresetPlans(plans) {
+    const normalized = (plans || []).map((plan) => root.BeanCore.normalizeBrewPlan(plan, plan.updatedAt));
+    const presets = presetPlans();
+    const presetIds = new Set(presets.map((plan) => plan.id));
+    const userPlans = normalized.filter((plan) => !presetIds.has(plan.id));
+    const userIds = new Set(userPlans.map((plan) => plan.id));
+    presets.forEach((plan) => { if (!userIds.has(plan.id)) userPlans.push(plan); });
+    return userPlans;
+  }
+
   function fromPlanRow(row) {
     let payload = {};
     try { payload = JSON.parse(row.payload || '{}'); } catch (_) {}
@@ -146,129 +150,16 @@
     await sqlite.executeSet({ database: DB_NAME, set: presets.map((plan) => ({ statement: `INSERT OR REPLACE INTO brew_plans (${columns}) VALUES (${placeholders})`, values: planValues(plan) })), transaction: true, readonly: false });
   }
 
-  function withPresetPlans(plans) {
-    const normalized = (plans || []).map((plan) => root.BeanCore.normalizeBrewPlan(plan, plan.updatedAt));
-    const presets = presetPlans();
-    const presetIds = new Set(presets.map((plan) => plan.id));
-    const userPlans = normalized.filter((plan) => !presetIds.has(plan.id));
-    const userIds = new Set(userPlans.map((plan) => plan.id));
-    presets.forEach((plan) => { if (!userIds.has(plan.id)) userPlans.push(plan); });
-    return userPlans;
-  }
-
-  function idbSupported() { return typeof indexedDB !== 'undefined'; }
-  function idbOpen() {
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(WEB_DB_NAME, 2);
-      request.onupgradeneeded = () => {
-        const db = request.result;
-        if (!db.objectStoreNames.contains(WEB_STORE)) db.createObjectStore(WEB_STORE);
-        if (!db.objectStoreNames.contains(WEB_IMAGE_STORE)) db.createObjectStore(WEB_IMAGE_STORE);
-      };
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-  }
-  function idbGet(key) {
-    return idbOpen().then((db) => new Promise((resolve, reject) => {
-      const tx = db.transaction(WEB_STORE, 'readonly');
-      const req = tx.objectStore(WEB_STORE).get(key);
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
-      tx.oncomplete = () => db.close();
-    }));
-  }
-  function idbPut(key, value) {
-    return idbOpen().then((db) => new Promise((resolve, reject) => {
-      const tx = db.transaction(WEB_STORE, 'readwrite');
-      tx.objectStore(WEB_STORE).put(value, key);
-      tx.oncomplete = () => { db.close(); resolve(); };
-      tx.onerror = () => { db.close(); reject(tx.error); };
-    }));
-  }
-  // Web 端持久化：优先 IndexedDB（容量大、可存图片 blob），失败回退 localStorage。
-  // init 时把旧的 localStorage 预览数据一次性迁移进 IndexedDB。
-  async function initWeb() {
-    webCacheLoaded = false;
-    try {
-      if (idbSupported()) {
-        const stored = await idbGet(WEB_STATE_KEY);
-        if (stored !== undefined && stored !== null) { webCache = stored; webCacheLoaded = true; return; }
-      }
-    } catch (_) {}
-    try { const ls = localStorage.getItem(WEB_KEY); webCache = ls ? JSON.parse(ls) : null; } catch (_) { webCache = null; }
-    webCacheLoaded = true;
-    if (webCache != null && idbSupported()) { try { await idbPut(WEB_STATE_KEY, webCache); } catch (_) {} }
-  }
-  function blankWebState() { return { beans: [], drinkLogs: [], brewPlans: presetPlans(), settings: root.BeanCore.normalizeSettings({}) }; }
-  function loadWebState() {
-    try {
-      const parsed = webCacheLoaded ? webCache : JSON.parse(localStorage.getItem(WEB_KEY) || 'null');
-      if (Array.isArray(parsed)) return { beans: parsed.map((bean) => root.BeanCore.normalizeBean(bean, bean.updatedAt)), drinkLogs: [], brewPlans: presetPlans(), settings: root.BeanCore.normalizeSettings({}) };
-      if (!parsed || typeof parsed !== 'object') return blankWebState();
-      return {
-        beans: (parsed.beans || []).map((bean) => root.BeanCore.normalizeBean(bean, bean.updatedAt)),
-        drinkLogs: (parsed.drinkLogs || []).map((log) => root.BeanCore.normalizeDrinkLog(log, log.updatedAt)),
-        brewPlans: withPresetPlans(parsed.brewPlans || []),
-        settings: root.BeanCore.normalizeSettings(parsed.settings)
-      };
-    } catch (_) { return blankWebState(); }
-  }
-  function saveWebState(state) {
-    webCache = state;
-    webCacheLoaded = true;
-    if (idbSupported()) {
-      return idbPut(WEB_STATE_KEY, state).catch(() => { try { localStorage.setItem(WEB_KEY, JSON.stringify(state)); } catch (_) {} });
+  function web() {
+    if (!webAdapter) {
+      if (!root.BeanWebRepositoryAdapter) throw new Error('Web 仓储适配器没有加载');
+      webAdapter = root.BeanWebRepositoryAdapter({ core: root.BeanCore, presetPlans });
     }
-    try { localStorage.setItem(WEB_KEY, JSON.stringify(state)); } catch (_) {}
-    return Promise.resolve();
+    return webAdapter;
   }
-
-  // Web 图片：blob 存 IndexedDB images 存储，字段保存 `idb:<id>` 引用（不进 state blob）。
-  async function saveWebImage(blob) {
-    const id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : ('img-' + Date.now().toString(36) + Math.random().toString(36).slice(2));
-    await idbOpen().then((db) => new Promise((resolve, reject) => {
-      const tx = db.transaction(WEB_IMAGE_STORE, 'readwrite');
-      tx.objectStore(WEB_IMAGE_STORE).put(blob, id);
-      tx.oncomplete = () => { db.close(); resolve(); };
-      tx.onerror = () => { db.close(); reject(tx.error); };
-    }));
-    return 'idb:' + id;
-  }
-  function getWebImage(ref) {
-    if (!ref || String(ref).indexOf('idb:') !== 0) return Promise.resolve(null);
-    const id = String(ref).slice(4);
-    return idbOpen().then((db) => new Promise((resolve, reject) => {
-      const tx = db.transaction(WEB_IMAGE_STORE, 'readonly');
-      const req = tx.objectStore(WEB_IMAGE_STORE).get(id);
-      req.onsuccess = () => resolve(req.result || null);
-      req.onerror = () => reject(req.error);
-      tx.oncomplete = () => db.close();
-    }));
-  }
-  async function deleteWebImage(ref) {
-    if (!ref || String(ref).indexOf('idb:') !== 0) return;
-    const id = String(ref).slice(4);
-    try {
-      await idbOpen().then((db) => new Promise((resolve, reject) => {
-        const tx = db.transaction(WEB_IMAGE_STORE, 'readwrite');
-        tx.objectStore(WEB_IMAGE_STORE).delete(id);
-        tx.oncomplete = () => { db.close(); resolve(); };
-        tx.onerror = () => { db.close(); reject(tx.error); };
-      }));
-    } catch (_) {}
-  }
-  const webAdapter = {
-    init: initWeb,
-    loadState: loadWebState,
-    saveState: saveWebState,
-    saveImage: saveWebImage,
-    getImage: getWebImage,
-    deleteImage: deleteWebImage
-  };
 
   async function getAll() {
-    if (!native) return webAdapter.loadState().beans;
+    if (!native) return web().loadState().beans;
     const result = await sqlite.query({ database: DB_NAME, statement: 'SELECT * FROM beans ORDER BY updated_at DESC', values: [], readonly: false });
     return (result.values || []).map(fromBeanRow);
   }
@@ -276,9 +167,9 @@
   async function save(bean) {
     const normalized = root.BeanCore.normalizeBean({ ...bean, updatedAt: new Date().toISOString() });
     if (!native) {
-      const state = webAdapter.loadState(); const index = state.beans.findIndex((item) => item.id === normalized.id);
+      const state = web().loadState(); const index = state.beans.findIndex((item) => item.id === normalized.id);
       if (index >= 0) state.beans[index] = normalized; else state.beans.unshift(normalized);
-      await webAdapter.saveState(state); return normalized;
+      await web().saveState(state); return normalized;
     }
     const placeholders = BEAN_COLUMNS.map(() => '?').join(',');
     const updates = BEAN_COLUMNS.filter((key) => key !== 'id' && key !== 'createdAt').map((key) => `${BEAN_NATIVE[key] || key}=excluded.${BEAN_NATIVE[key] || key}`).join(',');
@@ -289,11 +180,11 @@
 
   async function remove(id) {
     if (!native) {
-      const state = webAdapter.loadState(); const bean = state.beans.find((item) => item.id === id);
+      const state = web().loadState(); const bean = state.beans.find((item) => item.id === id);
       state.beans = state.beans.filter((item) => item.id !== id);
       state.drinkLogs = state.drinkLogs.map((log) => log.beanId === id ? { ...log, beanId: null, beanName: bean ? bean.name : log.beanName } : log);
       state.brewPlans = state.brewPlans.map((plan) => root.BeanCore.normalizeBrewPlan({ ...plan, beanIds: plan.beanIds.filter((beanId) => beanId !== id) }, plan.updatedAt));
-      await webAdapter.saveState(state); return;
+      await web().saveState(state); return;
     }
     await sqlite.executeSet({ database: DB_NAME, set: [
       { statement: 'UPDATE drink_logs SET bean_name = COALESCE((SELECT name FROM beans WHERE id = ?), bean_name), bean_id = NULL WHERE bean_id = ?', values: [id, id] },
@@ -303,7 +194,7 @@
   }
 
   async function getBrewPlans() {
-    if (!native) return webAdapter.loadState().brewPlans.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    if (!native) return web().loadState().brewPlans.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     await seedPresetPlans();
     const result = await sqlite.query({ database: DB_NAME, statement: 'SELECT * FROM brew_plans ORDER BY updated_at DESC', values: [], readonly: false });
     return (result.values || []).map(fromPlanRow);
@@ -313,13 +204,13 @@
     const stamp = new Date().toISOString();
     let normalized = root.BeanCore.normalizeBrewPlan({ ...input, updatedAt: stamp }, stamp);
     if (!native) {
-      const state = webAdapter.loadState();
+      const state = web().loadState();
       const index = state.brewPlans.findIndex((item) => item.id === normalized.id);
       const old = index >= 0 ? state.brewPlans[index] : null;
       if (old && old.source === 'preset') throw new Error('预置方案请先复制再编辑');
       if (old) normalized = root.BeanCore.normalizeBrewPlan({ ...old, ...normalized, version: old.version + 1, createdAt: old.createdAt }, stamp);
       if (index >= 0) state.brewPlans[index] = normalized; else state.brewPlans.unshift(normalized);
-      await webAdapter.saveState(state); return normalized;
+      await web().saveState(state); return normalized;
     }
     const oldResult = await sqlite.query({ database: DB_NAME, statement: 'SELECT * FROM brew_plans WHERE id = ?', values: [normalized.id], readonly: false });
     const old = (oldResult.values || []).length ? fromPlanRow(oldResult.values[0]) : null;
@@ -343,10 +234,10 @@
     if (!plan) return;
     if (plan.source === 'preset') throw new Error('预置方案不能删除');
     if (!native) {
-      const state = webAdapter.loadState();
+      const state = web().loadState();
       state.brewPlans = state.brewPlans.filter((item) => item.id !== id);
       state.drinkLogs = state.drinkLogs.map((log) => log.brewPlanId === id ? root.BeanCore.normalizeDrinkLog({ ...log, brewPlanId: null }, log.updatedAt) : log);
-      await webAdapter.saveState(state); return;
+      await web().saveState(state); return;
     }
     await sqlite.executeSet({ database: DB_NAME, set: [
       { statement: 'DELETE FROM brew_plans WHERE id = ? AND source != ?', values: [id, 'preset'] },
@@ -356,7 +247,7 @@
 
   async function getDrinkLogs(beanId) {
     if (!native) {
-      return webAdapter.loadState().drinkLogs.filter((log) => !beanId || log.beanId === beanId).sort((a, b) => b.consumedAt.localeCompare(a.consumedAt));
+      return web().loadState().drinkLogs.filter((log) => !beanId || log.beanId === beanId).sort((a, b) => b.consumedAt.localeCompare(a.consumedAt));
     }
     const where = beanId ? 'WHERE l.bean_id = ?' : '';
     const result = await sqlite.query({ database: DB_NAME, statement: `SELECT l.*, COALESCE(b.name, l.bean_name) AS display_bean_name FROM drink_logs l LEFT JOIN beans b ON b.id = l.bean_id ${where} ORDER BY l.consumed_at DESC`, values: beanId ? [beanId] : [], readonly: false });
@@ -370,7 +261,7 @@
     if (!log.beanId) throw new Error('请选择咖啡豆');
 
     if (!native) {
-      const state = webAdapter.loadState(); const beanIndex = state.beans.findIndex((bean) => bean.id === log.beanId);
+      const state = web().loadState(); const beanIndex = state.beans.findIndex((bean) => bean.id === log.beanId);
       if (beanIndex < 0) throw new Error('找不到对应的咖啡豆');
       const oldIndex = state.drinkLogs.findIndex((item) => item.id === log.id);
       const old = oldIndex >= 0 ? state.drinkLogs[oldIndex] : null;
@@ -380,7 +271,7 @@
       const remaining = root.BeanCore.consumptionResult(bean.remainingWeight, bean.initialWeight, delta);
       state.beans[beanIndex] = { ...bean, remainingWeight: remaining, status: remaining <= 0 ? '已喝完' : '饮用中', updatedAt: stamp };
       if (oldIndex >= 0) state.drinkLogs[oldIndex] = log; else state.drinkLogs.unshift(log);
-      await webAdapter.saveState(state); return log;
+      await web().saveState(state); return log;
     }
 
     const beanResult = await sqlite.query({ database: DB_NAME, statement: 'SELECT * FROM beans WHERE id = ?', values: [log.beanId], readonly: false });
@@ -405,13 +296,13 @@
 
   async function deleteDrinkLog(id) {
     if (!native) {
-      const state = webAdapter.loadState(); const index = state.drinkLogs.findIndex((log) => log.id === id);
+      const state = web().loadState(); const index = state.drinkLogs.findIndex((log) => log.id === id);
       if (index < 0) return; const log = state.drinkLogs[index]; const beanIndex = state.beans.findIndex((bean) => bean.id === log.beanId);
       if (beanIndex >= 0) {
         const bean = state.beans[beanIndex]; const remaining = root.BeanCore.consumptionResult(bean.remainingWeight, bean.initialWeight, -log.grams);
         state.beans[beanIndex] = { ...bean, remainingWeight: remaining, status: remaining > 0 && bean.status === '已喝完' ? '饮用中' : bean.status, updatedAt: new Date().toISOString() };
       }
-      state.drinkLogs.splice(index, 1); await webAdapter.saveState(state); return;
+      state.drinkLogs.splice(index, 1); await web().saveState(state); return;
     }
     const result = await sqlite.query({ database: DB_NAME, statement: 'SELECT * FROM drink_logs WHERE id = ?', values: [id], readonly: false });
     if (!(result.values || []).length) return; const log = fromLogRow(result.values[0]);
@@ -427,7 +318,7 @@
   }
 
   async function getSettings() {
-    if (!native) return webAdapter.loadState().settings;
+    if (!native) return web().loadState().settings;
     const result = await sqlite.query({ database: DB_NAME, statement: "SELECT value FROM app_settings WHERE key = 'preferences'", values: [], readonly: false });
     if (!(result.values || []).length) return root.BeanCore.normalizeSettings({});
     try { return root.BeanCore.normalizeSettings(JSON.parse(result.values[0].value)); } catch (_) { return root.BeanCore.normalizeSettings({}); }
@@ -435,7 +326,7 @@
 
   async function saveSettings(settings) {
     const normalized = root.BeanCore.normalizeSettings(settings);
-    if (!native) { const state = webAdapter.loadState(); state.settings = normalized; await webAdapter.saveState(state); return normalized; }
+    if (!native) { const state = web().loadState(); state.settings = normalized; await web().saveState(state); return normalized; }
     await sqlite.run({ database: DB_NAME, statement: "INSERT INTO app_settings (key, value) VALUES ('preferences', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", values: [JSON.stringify(normalized)], transaction: true, readonly: false });
     return normalized;
   }
@@ -469,11 +360,11 @@
     const normalizedLogs = sanitizeLogs(drinkLogs, beanIds);
     const normalizedPlans = sanitizePlans(brewPlans, beanIds);
     if (!native) {
-      const state = webAdapter.loadState();
+      const state = web().loadState();
       if (includesLibrary(scope)) { state.beans = normalizedBeans; state.drinkLogs = normalizedLogs; }
       if (includesPlans(scope) || includesLibrary(scope)) state.brewPlans = normalizedPlans;
       if (scope === 'all' && settings) state.settings = root.BeanCore.normalizeSettings(settings);
-      await webAdapter.saveState(state); return;
+      await web().saveState(state); return;
     }
     const beanColumns = BEAN_COLUMNS.map((key) => BEAN_NATIVE[key] || key).join(','); const beanPlaceholders = BEAN_COLUMNS.map(() => '?').join(',');
     const logColumns = LOG_COLUMNS.map((key) => LOG_NATIVE[key] || key).join(','); const logPlaceholders = LOG_COLUMNS.map(() => '?').join(',');
@@ -527,12 +418,12 @@
   async function smartValues(field) { assertSmartField(field); const beans = await getAll(); return [...new Set(beans.map((bean) => bean[field]).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'zh-CN')); }
   async function renameSmartValue(field, oldValue, newValue) {
     assertSmartField(field); const clean = String(newValue || '').trim(); if (!clean) throw new Error('新名称不能为空');
-    if (!native) { const state = webAdapter.loadState(); state.beans = state.beans.map((bean) => bean[field] === oldValue ? { ...bean, [field]: clean, updatedAt: new Date().toISOString() } : bean); await webAdapter.saveState(state); return; }
+    if (!native) { const state = web().loadState(); state.beans = state.beans.map((bean) => bean[field] === oldValue ? { ...bean, [field]: clean, updatedAt: new Date().toISOString() } : bean); await web().saveState(state); return; }
     await sqlite.run({ database: DB_NAME, statement: `UPDATE beans SET ${field} = ?, updated_at = ? WHERE ${field} = ?`, values: [clean, new Date().toISOString(), oldValue], transaction: true, readonly: false });
   }
   async function deleteSmartValue(field, value) {
     assertSmartField(field);
-    if (!native) { const state = webAdapter.loadState(); state.beans = state.beans.map((bean) => bean[field] === value ? { ...bean, [field]: '', updatedAt: new Date().toISOString() } : bean); await webAdapter.saveState(state); return; }
+    if (!native) { const state = web().loadState(); state.beans = state.beans.map((bean) => bean[field] === value ? { ...bean, [field]: '', updatedAt: new Date().toISOString() } : bean); await web().saveState(state); return; }
     await sqlite.run({ database: DB_NAME, statement: `UPDATE beans SET ${field} = '', updated_at = ? WHERE ${field} = ?`, values: [new Date().toISOString(), value], transaction: true, readonly: false });
   }
 
@@ -543,6 +434,10 @@
     }
     return null;
   }
+
+  function saveWebImage(blob) { return web().saveImage(blob); }
+  function getWebImage(ref) { return web().getImage(ref); }
+  function deleteWebImage(ref) { return web().deleteImage(ref); }
 
   root.BeanRepository = { init, isNative: () => native, getAll, save, remove, getBrewPlans, saveBrewPlan, duplicateBrewPlan, deleteBrewPlan, getDrinkLogs, saveDrinkLog, deleteDrinkLog, getSettings, saveSettings, importData, replaceAllData, replaceAll, smartValues, renameSmartValue, deleteSmartValue, legacyData, saveWebImage, getWebImage, deleteWebImage };
 })(window);
