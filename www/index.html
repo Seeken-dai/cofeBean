@@ -411,9 +411,10 @@
   </dialog>
 
   <dialog class="sheet compact picker-sheet" id="planShareChoiceDialog">
-    <header class="sheet-header"><div><p class="eyebrow">SHARE CARD</p><h2>分享方案</h2><p class="sheet-subtitle">选择是否在卡片底部附上扫码导入的二维码</p></div><button class="icon-button" id="planShareChoiceClose" type="button" aria-label="关闭">×</button></header>
+    <header class="sheet-header"><div><p class="eyebrow">SHARE RECIPE</p><h2>分享方案</h2><p class="sheet-subtitle">生成图片卡片，或直接复制离线分享码</p></div><button class="icon-button" id="planShareChoiceClose" type="button" aria-label="关闭">×</button></header>
     <section class="share-choice-body">
       <label id="planShareQrOption"><input id="planShareIncludeQr" type="checkbox"><span><b>包含二维码</b><small>对方用豆仓「导入方案」扫码即可保存这份方案；不勾选则只生成普通分享卡片</small></span></label>
+      <button class="share-choice-action" id="planShareCopyCode" type="button"><span><b>复制分享码</b><small>复制 DC1- 短码，可发给对方粘贴导入</small></span><strong aria-hidden="true">⧉</strong></button>
     </section>
     <footer class="sheet-footer"><button class="secondary-button" id="planShareChoiceCancel" type="button">取消</button><div><button class="primary-button" id="planShareChoiceConfirm" type="button">生成预览</button></div></footer>
   </dialog>
@@ -502,8 +503,8 @@
 
   <dialog class="sheet compact" id="aboutDialog">
     <header class="sheet-header"><div><p class="eyebrow">ABOUT</p><h2>关于豆仓</h2></div><button class="icon-button" id="aboutClose" type="button" aria-label="关闭">×</button></header>
-    <section class="about-hero"><div class="about-logo"><span></span></div><h3>豆仓</h3><p id="aboutVersion">版本 1.5.0</p></section>
-    <section class="about-copy"><h3>把每一包豆子，喝成有迹可循的日常。</h3><p>豆仓是一款为咖啡爱好者设计的离线豆单与饮用记录工具，从入仓、识别到每杯评价，都留在你自己的设备中。</p><h4>1.5.0 最新功能</h4><ul><li>冲煮方案可生成离线分享码</li><li>分享卡片可附带二维码，扫码即可导入方案</li><li>支持拍照扫码、相册选图和粘贴分享码三种导入方式</li><li>导入只新增方案，不覆盖本机已有数据</li></ul><div class="privacy-note"><b>离线与隐私</b><p>无需账号，不上传咖啡豆、照片或饮用记录。拍照识别、咖啡日历、分享卡片、方案导入和图片归档均在本机完成。</p></div></section>
+    <section class="about-hero"><div class="about-logo"><span></span></div><h3>豆仓</h3><p id="aboutVersion">版本 1.5.1</p></section>
+    <section class="about-copy"><h3>把每一包豆子，喝成有迹可循的日常。</h3><p>豆仓是一款为咖啡爱好者设计的离线豆单与饮用记录工具，从入仓、识别到每杯评价，都留在你自己的设备中。</p><h4>1.5.1 最新功能</h4><ul><li>分享卡片保存到相册 Pictures/豆仓分享卡</li><li>冲煮方案分享弹窗可直接复制离线分享码</li><li>分享方案仍可生成图片卡片并附带二维码</li><li>保存分享图无需新增存储权限</li></ul><div class="privacy-note"><b>离线与隐私</b><p>无需账号，不上传咖啡豆、照片或饮用记录。拍照识别、咖啡日历、分享卡片、方案导入和图片归档均在本机完成。</p></div></section>
   </dialog>
 
   <dialog class="sheet compact" id="migrationDialog">

@@ -1,7 +1,12 @@
 package com.coffeebean.vault;
 
+import android.content.ContentResolver;
+import android.content.ContentValues;
 import android.graphics.Rect;
 import android.net.Uri;
+import android.os.Build;
+import android.os.Environment;
+import android.provider.MediaStore;
 import android.util.Base64;
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
@@ -190,6 +195,60 @@ public class CoffeeLabelScannerPlugin extends Plugin {
         }
     }
 
+    @PluginMethod
+    public void saveShareImage(PluginCall call) {
+        String data = call.getString("data");
+        if (data == null || data.trim().isEmpty()) {
+            call.reject("缺少分享图片数据");
+            return;
+        }
+        String filename = safePngFilename(call.getString("filename", "豆仓分享卡-" + UUID.randomUUID().toString() + ".png"));
+        byte[] bytes;
+        try {
+            bytes = Base64.decode(data, Base64.DEFAULT);
+        } catch (IllegalArgumentException error) {
+            call.reject("分享图片数据无效", error);
+            return;
+        }
+
+        ContentResolver resolver = getContext().getContentResolver();
+        ContentValues values = new ContentValues();
+        values.put(MediaStore.Images.Media.DISPLAY_NAME, filename);
+        values.put(MediaStore.Images.Media.MIME_TYPE, "image/png");
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            values.put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + File.separator + "豆仓分享卡");
+            values.put(MediaStore.Images.Media.IS_PENDING, 1);
+        }
+
+        Uri uri = null;
+        try {
+            uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+            if (uri == null) {
+                call.reject("无法创建分享图片");
+                return;
+            }
+            try (OutputStream output = resolver.openOutputStream(uri)) {
+                if (output == null) {
+                    call.reject("无法写入分享图片");
+                    return;
+                }
+                output.write(bytes);
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ContentValues done = new ContentValues();
+                done.put(MediaStore.Images.Media.IS_PENDING, 0);
+                resolver.update(uri, done, null, null);
+            }
+            JSObject payload = new JSObject();
+            payload.put("uri", uri.toString());
+            payload.put("folder", "Pictures/豆仓分享卡");
+            call.resolve(payload);
+        } catch (IOException | SecurityException error) {
+            if (uri != null) resolver.delete(uri, null, null);
+            call.reject("保存分享图片失败", error);
+        }
+    }
+
     private void deleteTemporaryFile(Uri uri) {
         if (!"file".equalsIgnoreCase(uri.getScheme())) return;
         try {
@@ -207,5 +266,17 @@ public class CoffeeLabelScannerPlugin extends Plugin {
             if (lower.endsWith(".webp")) return ".webp";
         }
         return ".jpg";
+    }
+
+    private String safePngFilename(String value) {
+        String name = value == null ? "" : value.trim();
+        if (name.isEmpty()) name = "豆仓分享卡-" + UUID.randomUUID().toString() + ".png";
+        name = name.replaceAll("[\\\\/:*?\"<>|]", "");
+        if (!name.toLowerCase(Locale.ROOT).endsWith(".png")) name = name + ".png";
+        if (name.length() > 96) {
+            String suffix = ".png";
+            name = name.substring(0, 96 - suffix.length()) + suffix;
+        }
+        return name;
     }
 }
