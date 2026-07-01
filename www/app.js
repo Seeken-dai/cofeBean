@@ -1167,10 +1167,50 @@
     return confirm(`覆盖本机「${label}」数据？此操作只覆盖本次备份包含的范围。`) ? 'replace' : null;
   }
   function backupIncludesLibrary(scope) { return scope === 'all' || scope === 'library'; }
+  function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(blob);
+    });
+  }
+  function base64ToBlob(data, mime) {
+    const bytes = atob(data); const arr = new Uint8Array(bytes.length);
+    for (let i = 0; i < bytes.length; i += 1) arr[i] = bytes.charCodeAt(i);
+    return new Blob([arr], { type: mime || 'image/webp' });
+  }
+  // Web 备份图片：与安卓同一 base64 格式（data/extension/mimeType），因此备份可在两端互相迁移图片。
+  async function collectWebBackupImages() {
+    const images = {};
+    for (const bean of state.beans) {
+      const entry = {};
+      for (const [role, key] of [['bag', 'bagImagePath'], ['label', 'labelImagePath']]) {
+        const ref = bean[key];
+        if (!ref || String(ref).indexOf('idb:') !== 0) continue;
+        try { const blob = await BeanRepository.getWebImage(ref); if (blob) entry[role] = { data: await blobToBase64(blob), extension: '.webp', mimeType: blob.type || 'image/webp' }; } catch (_) {}
+      }
+      if (entry.bag || entry.label) images[bean.id] = entry;
+    }
+    return Object.keys(images).length ? images : null;
+  }
+  async function restoreWebBackupImages(imported) {
+    const beans = imported.beans.map((bean) => ({ ...bean }));
+    for (const bean of beans) {
+      const entry = imported.beanImages[bean.id];
+      if (!entry) continue;
+      for (const [role, key] of [['bag', 'bagImagePath'], ['label', 'labelImagePath']]) {
+        if (!entry[role] || !entry[role].data) continue;
+        try { const blob = base64ToBlob(entry[role].data, entry[role].mimeType); bean[key] = await BeanRepository.saveWebImage(blob); } catch (_) {}
+      }
+    }
+    return { ...imported, beans };
+  }
   async function collectBackupImages(scope) {
     if (!backupIncludesLibrary(scope) || !$('#exportBeanImages').checked) return null;
+    if (!BeanRepository.isNative()) return collectWebBackupImages();
     const scanner = capPlugin('CoffeeLabelScanner');
-    if (!BeanRepository.isNative() || !scanner || !scanner.readArchivedImage) { toast('当前环境无法导出图片，仅导出数据'); return null; }
+    if (!scanner || !scanner.readArchivedImage) { toast('当前环境无法导出图片，仅导出数据'); return null; }
     const images = {};
     for (const bean of state.beans) {
       const entry = {};
@@ -1184,8 +1224,9 @@
   }
   async function restoreBackupImages(imported) {
     if (!imported.beanImages || !Object.keys(imported.beanImages).length) return imported;
+    if (!BeanRepository.isNative()) return restoreWebBackupImages(imported);
     const scanner = capPlugin('CoffeeLabelScanner');
-    if (!BeanRepository.isNative() || !scanner || !scanner.restoreArchivedImage) { toast('备份含图片，当前环境仅恢复数据'); return imported; }
+    if (!scanner || !scanner.restoreArchivedImage) { toast('备份含图片，当前环境仅恢复数据'); return imported; }
     const beans = imported.beans.map((bean) => ({ ...bean }));
     for (const bean of beans) {
       const entry = imported.beanImages[bean.id];
