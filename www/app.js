@@ -86,7 +86,41 @@
   }
   function setDialog(dialog, open) { if (open && !dialog.open) dialog.showModal(); if (!open && dialog.open) dialog.close(); }
   function stars(value) { return value ? `<span class="stars" aria-label="${value} 星">${'★'.repeat(value)}${'☆'.repeat(5 - value)}</span>` : '<span class="unrated">未评分</span>'; }
-  function imageSrc(path) { return path && window.Capacitor && window.Capacitor.convertFileSrc ? window.Capacitor.convertFileSrc(path) : path; }
+  const webImageUrls = new Map(); // idb:<id> -> objectURL，渲染前由 resolveWebImages 预取
+  function imageSrc(path) {
+    if (path && String(path).indexOf('idb:') === 0) return webImageUrls.get(path) || '';
+    return path && window.Capacitor && window.Capacitor.convertFileSrc ? window.Capacitor.convertFileSrc(path) : path;
+  }
+  async function resolveWebImages(beans) {
+    if (BeanRepository.isNative()) return;
+    const refs = new Set();
+    (beans || []).forEach((bean) => ['bagImagePath', 'labelImagePath'].forEach((key) => { if (bean[key] && String(bean[key]).indexOf('idb:') === 0) refs.add(bean[key]); }));
+    for (const [ref, url] of webImageUrls) { if (!refs.has(ref)) { URL.revokeObjectURL(url); webImageUrls.delete(ref); } }
+    for (const ref of refs) {
+      if (webImageUrls.has(ref)) continue;
+      try { const blob = await BeanRepository.getWebImage(ref); if (blob) webImageUrls.set(ref, URL.createObjectURL(blob)); } catch (_) {}
+    }
+  }
+  async function compressImageFile(file) {
+    const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    const long = Math.max(bitmap.width, bitmap.height);
+    const scale = long > 1600 ? 1600 / long : 1;
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = width; canvas.height = height;
+    canvas.getContext('2d').drawImage(bitmap, 0, 0, width, height);
+    if (bitmap.close) bitmap.close();
+    return new Promise((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('压缩失败')), 'image/webp', 0.8));
+  }
+  function pickWebImageFile() {
+    return new Promise((resolve) => {
+      const input = document.createElement('input');
+      input.type = 'file'; input.accept = 'image/*';
+      input.onchange = () => resolve(input.files && input.files[0] ? input.files[0] : null);
+      input.click();
+    });
+  }
   function imageCard(label, path, role, editable) { return path ? `<article class="vault-image-card" data-preview-image="${esc(path)}" data-preview-label="${esc(label)}" tabindex="0" role="button" aria-label="查看${esc(label)}大图"><img src="${esc(imageSrc(path))}" alt="${esc(label)}"><span>${esc(label)}</span>${editable ? `<button data-add-image-role="${role}" type="button">更换</button>` : ''}</article>` : ''; }
   function imageSlot(label, path, role) { return path ? imageCard(label, path, role, true) : `<button class="vault-image-empty" data-add-image-role="${role}" type="button"><span>${esc(label)}</span><small>拍摄或读取图片</small></button>`; }
   function currentImageBean() { return { bagImagePath: $('#field-bagImagePath').value, labelImagePath: $('#field-labelImagePath').value }; }
@@ -499,7 +533,7 @@
   }
 
   async function reload(options) {
-    try { const [beans, logs, plans, settings] = await Promise.all([BeanRepository.getAll(), BeanRepository.getDrinkLogs(), BeanRepository.getBrewPlans(), BeanRepository.getSettings()]); state.beans = beans; state.drinkLogs = logs; state.brewPlans = plans; state.settings = settings; applyTheme(settings.theme, false); render(); if (els.detail.open && state.editingId) { const bean = state.beans.find((item) => item.id === state.editingId); if (bean) openDetail(bean); } if (els.drinkDetail.open && state.viewingDrinkId) { const log = state.drinkLogs.find((item) => item.id === state.viewingDrinkId); if (log) openDrinkDetail(log); } if (els.planDetail.open && state.viewingPlanId) { const plan = state.brewPlans.find((item) => item.id === state.viewingPlanId); if (plan) openPlanDetail(plan); } if (!(options && options.keepForm) && els.editor.open && state.editingId) { const bean = state.beans.find((item) => item.id === state.editingId); if (bean) fillForm(bean); } }
+    try { const [beans, logs, plans, settings] = await Promise.all([BeanRepository.getAll(), BeanRepository.getDrinkLogs(), BeanRepository.getBrewPlans(), BeanRepository.getSettings()]); state.beans = beans; state.drinkLogs = logs; state.brewPlans = plans; state.settings = settings; await resolveWebImages(beans); applyTheme(settings.theme, false); render(); if (els.detail.open && state.editingId) { const bean = state.beans.find((item) => item.id === state.editingId); if (bean) openDetail(bean); } if (els.drinkDetail.open && state.viewingDrinkId) { const log = state.drinkLogs.find((item) => item.id === state.viewingDrinkId); if (log) openDrinkDetail(log); } if (els.planDetail.open && state.viewingPlanId) { const plan = state.brewPlans.find((item) => item.id === state.viewingPlanId); if (plan) openPlanDetail(plan); } if (!(options && options.keepForm) && els.editor.open && state.editingId) { const bean = state.beans.find((item) => item.id === state.editingId); if (bean) fillForm(bean); } }
     catch (error) { console.error(error); toast('读取豆仓失败，请重试'); }
   }
 
@@ -512,10 +546,40 @@
   async function askPhotoSource(options) { return new Promise((resolve) => { $('#photoSourceEyebrow').textContent = (options && options.eyebrow) || 'PHOTO'; $('#photoSourceTitle').textContent = (options && options.title) || '选择图片来源'; $('#photoSourceIntro').textContent = (options && options.intro) || '选择拍摄新照片，或从系统图片选择器读取已有照片。'; const finish = (source) => { cleanup(); setDialog(els.photoSource, false); resolve(source); }; const choose = (event) => { const button = event.target.closest('[data-photo-source]'); if (button) finish(button.dataset.photoSource); }; const skip = () => finish(null); const cleanup = () => { $('#photoSourceClose').removeEventListener('click', skip); els.photoSource.removeEventListener('close', skip); els.photoSource.removeEventListener('click', choose); }; $('#photoSourceClose').addEventListener('click', skip); els.photoSource.addEventListener('click', choose); els.photoSource.addEventListener('close', skip); setDialog(els.photoSource, true); }); }
   async function pickCoffeePhoto(options) { const camera = capPlugin('Camera'); if (!BeanRepository.isNative() || !camera) throw new Error('图片功能仅在 Android App 中可用'); const source = await askPhotoSource(options); if (!source) return null; return camera.getPhoto({ quality: 92, width: 2200, correctOrientation: true, allowEditing: false, resultType: 'uri', source: source === 'camera' ? 'CAMERA' : 'PHOTOS', saveToGallery: false }); }
   async function askScanImageRole(path, preview) { return new Promise((resolve) => { $('#scanImagePreview').src = imageSrc(preview || path); const finish = (role) => { cleanup(); setDialog(els.scanImage, false); resolve(role); }; const choose = (event) => { const button = event.target.closest('[data-image-role]'); if (button) finish(button.dataset.imageRole); }; const skip = () => finish(null); const cleanup = () => { $('#scanImageClose').removeEventListener('click', skip); $('#scanImageSkip').removeEventListener('click', skip); els.scanImage.removeEventListener('close', skip); els.scanImage.removeEventListener('click', choose); }; $('#scanImageClose').addEventListener('click', skip); $('#scanImageSkip').addEventListener('click', skip); els.scanImage.addEventListener('click', choose); els.scanImage.addEventListener('close', skip); setDialog(els.scanImage, true); }); }
-  async function clearPendingImages(discard) { const pending = state.pendingImages.slice(); state.pendingImages = []; if (discard && pending.length) { const scanner = capPlugin('CoffeeLabelScanner'); if (scanner && scanner.discardImage) pending.forEach((item) => scanner.discardImage({ path: item.path }).catch(() => {})); } }
+  async function clearPendingImages(discard) {
+    const pending = state.pendingImages.slice(); state.pendingImages = [];
+    if (!discard || !pending.length) return;
+    const scanner = capPlugin('CoffeeLabelScanner');
+    pending.forEach((item) => {
+      if (item.web) BeanRepository.deleteWebImage(item.ref);
+      else if (scanner && scanner.discardImage) scanner.discardImage({ path: item.path }).catch(() => {});
+    });
+  }
   async function scanCoffeeLabel() { const button = $('#scanBean'); const scanner = capPlugin('CoffeeLabelScanner'); if (!BeanRepository.isNative() || !scanner) return toast('拍照识别仅在 Android App 中可用'); button.disabled = true; try { const photo = await pickCoffeePhoto({ eyebrow: 'OCR', title: '识别咖啡包装', intro: '选择拍摄包装，或读取已有咖啡袋/标签图片。' }); if (!photo) return; const path = photo.path || photo.webPath; if (!path) throw new Error('没有取得照片路径'); toast('正在离线识别包装文字…'); const scan = await scanner.recognize({ path, deleteSource: false }); const parsed = CoffeeParser.parse(scan, { knownRoasters: [...new Set(state.beans.map((bean) => bean.roaster).filter(Boolean))] }); const role = scanner.archiveImage ? await askScanImageRole(path, photo.webPath || path) : null; if (role) { state.pendingImages.push({ path, role }); parsed.fields[role === 'bag' ? 'bagImagePath' : 'labelImagePath'] = path; } else if (scanner.discardImage) await scanner.discardImage({ path }).catch(() => {}); await openEditor(null, parsed); } catch (error) { const message = String(error && error.message || error || ''); if (!/cancel|取消/i.test(message)) { console.error(error); toast(/permission|权限/i.test(message) ? '需要相机权限才能拍照或读取图片' : '识别失败，请重新拍摄'); } } finally { button.disabled = false; } }
-  async function addBeanImage(role) { const scanner = capPlugin('CoffeeLabelScanner'); if (!BeanRepository.isNative() || !scanner) return toast('图片留存仅在 Android App 中可用'); try { const photo = await pickCoffeePhoto({ eyebrow: 'BEAN PHOTO', title: role === 'bag' ? '添加咖啡袋图片' : '添加标签图片', intro: '图片会先显示在编辑页，保存咖啡豆后才正式归档。' }); if (!photo) return; const path = photo.path || photo.webPath; if (!path) throw new Error('没有取得照片路径'); state.pendingImages = state.pendingImages.filter((item) => item.role !== role); state.pendingImages.push({ path, role }); $(`#field-${role === 'bag' ? 'bagImagePath' : 'labelImagePath'}`).value = path; renderImageVault(); toast(role === 'bag' ? '已添加咖啡袋图片' : '已添加标签图片'); } catch (error) { const message = String(error && error.message || error || ''); if (!/cancel|取消/i.test(message)) { console.error(error); toast(/permission|权限/i.test(message) ? '需要相机权限才能拍照或读取图片' : '添加图片失败'); } } }
-  async function archivePendingImages(fields) { if (!state.pendingImages.length) return fields; const scanner = capPlugin('CoffeeLabelScanner'); if (!scanner || !scanner.archiveImage) return fields; let next = { ...fields }; for (const item of state.pendingImages) { const result = await scanner.archiveImage({ path: item.path, role: item.role, deleteSource: true }); next[item.role === 'bag' ? 'bagImagePath' : 'labelImagePath'] = result.path || result.uri || next[item.role === 'bag' ? 'bagImagePath' : 'labelImagePath'] || ''; } state.pendingImages = []; return next; }
+  function setImageField(role, value) { $(`#field-${role === 'bag' ? 'bagImagePath' : 'labelImagePath'}`).value = value; }
+  async function addBeanImageWeb(role) {
+    const file = await pickWebImageFile();
+    if (!file) return;
+    const blob = await compressImageFile(file);
+    const ref = await BeanRepository.saveWebImage(blob);
+    webImageUrls.set(ref, URL.createObjectURL(blob));
+    state.pendingImages.filter((item) => item.role === role && item.web).forEach((item) => BeanRepository.deleteWebImage(item.ref));
+    state.pendingImages = state.pendingImages.filter((item) => item.role !== role);
+    state.pendingImages.push({ ref, role, web: true });
+    setImageField(role, ref);
+    renderImageVault();
+    toast(role === 'bag' ? '已添加咖啡袋图片' : '已添加标签图片');
+  }
+  async function addBeanImage(role) {
+    if (!BeanRepository.isNative()) {
+      try { await addBeanImageWeb(role); } catch (error) { console.error(error); toast('添加图片失败'); }
+      return;
+    }
+    const scanner = capPlugin('CoffeeLabelScanner');
+    if (!scanner) return toast('图片留存仅在 Android App 中可用');
+    try { const photo = await pickCoffeePhoto({ eyebrow: 'BEAN PHOTO', title: role === 'bag' ? '添加咖啡袋图片' : '添加标签图片', intro: '图片会先显示在编辑页，保存咖啡豆后才正式归档。' }); if (!photo) return; const path = photo.path || photo.webPath; if (!path) throw new Error('没有取得照片路径'); state.pendingImages = state.pendingImages.filter((item) => item.role !== role); state.pendingImages.push({ path, role }); setImageField(role, path); renderImageVault(); toast(role === 'bag' ? '已添加咖啡袋图片' : '已添加标签图片'); } catch (error) { const message = String(error && error.message || error || ''); if (!/cancel|取消/i.test(message)) { console.error(error); toast(/permission|权限/i.test(message) ? '需要相机权限才能拍照或读取图片' : '添加图片失败'); } }
+  }
+  async function archivePendingImages(fields) { if (!state.pendingImages.length) return fields; if (!BeanRepository.isNative()) { state.pendingImages = []; return fields; } const scanner = capPlugin('CoffeeLabelScanner'); if (!scanner || !scanner.archiveImage) return fields; let next = { ...fields }; for (const item of state.pendingImages) { const result = await scanner.archiveImage({ path: item.path, role: item.role, deleteSource: true }); next[item.role === 'bag' ? 'bagImagePath' : 'labelImagePath'] = result.path || result.uri || next[item.role === 'bag' ? 'bagImagePath' : 'labelImagePath'] || ''; } state.pendingImages = []; return next; }
   async function openPurchaseUrl(url) {
     if (!url) return;
     try {

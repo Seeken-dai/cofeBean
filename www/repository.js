@@ -15,6 +15,7 @@
   let native = false;
   const WEB_DB_NAME = 'coffee_vault_web';
   const WEB_STORE = 'kv';
+  const WEB_IMAGE_STORE = 'images';
   const WEB_STATE_KEY = 'state';
   let webCache = null;        // 原始持久化对象（数组/对象/null）；loadWebState 从这里解析归一化
   let webCacheLoaded = false; // init 完成后为 true，之后 loadWebState 只读内存镜像
@@ -158,8 +159,12 @@
   function idbSupported() { return typeof indexedDB !== 'undefined'; }
   function idbOpen() {
     return new Promise((resolve, reject) => {
-      const request = indexedDB.open(WEB_DB_NAME, 1);
-      request.onupgradeneeded = () => { const db = request.result; if (!db.objectStoreNames.contains(WEB_STORE)) db.createObjectStore(WEB_STORE); };
+      const request = indexedDB.open(WEB_DB_NAME, 2);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(WEB_STORE)) db.createObjectStore(WEB_STORE);
+        if (!db.objectStoreNames.contains(WEB_IMAGE_STORE)) db.createObjectStore(WEB_IMAGE_STORE);
+      };
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
@@ -217,6 +222,41 @@
     } else {
       try { localStorage.setItem(WEB_KEY, JSON.stringify(state)); } catch (_) {}
     }
+  }
+
+  // Web 图片：blob 存 IndexedDB images 存储，字段保存 `idb:<id>` 引用（不进 state blob）。
+  async function saveWebImage(blob) {
+    const id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : ('img-' + Date.now().toString(36) + Math.random().toString(36).slice(2));
+    await idbOpen().then((db) => new Promise((resolve, reject) => {
+      const tx = db.transaction(WEB_IMAGE_STORE, 'readwrite');
+      tx.objectStore(WEB_IMAGE_STORE).put(blob, id);
+      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.onerror = () => { db.close(); reject(tx.error); };
+    }));
+    return 'idb:' + id;
+  }
+  function getWebImage(ref) {
+    if (!ref || String(ref).indexOf('idb:') !== 0) return Promise.resolve(null);
+    const id = String(ref).slice(4);
+    return idbOpen().then((db) => new Promise((resolve, reject) => {
+      const tx = db.transaction(WEB_IMAGE_STORE, 'readonly');
+      const req = tx.objectStore(WEB_IMAGE_STORE).get(id);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+      tx.oncomplete = () => db.close();
+    }));
+  }
+  async function deleteWebImage(ref) {
+    if (!ref || String(ref).indexOf('idb:') !== 0) return;
+    const id = String(ref).slice(4);
+    try {
+      await idbOpen().then((db) => new Promise((resolve, reject) => {
+        const tx = db.transaction(WEB_IMAGE_STORE, 'readwrite');
+        tx.objectStore(WEB_IMAGE_STORE).delete(id);
+        tx.oncomplete = () => { db.close(); resolve(); };
+        tx.onerror = () => { db.close(); reject(tx.error); };
+      }));
+    } catch (_) {}
   }
 
   async function getAll() {
@@ -496,5 +536,5 @@
     return null;
   }
 
-  root.BeanRepository = { init, isNative: () => native, getAll, save, remove, getBrewPlans, saveBrewPlan, duplicateBrewPlan, deleteBrewPlan, getDrinkLogs, saveDrinkLog, deleteDrinkLog, getSettings, saveSettings, importData, replaceAllData, replaceAll, smartValues, renameSmartValue, deleteSmartValue, legacyData };
+  root.BeanRepository = { init, isNative: () => native, getAll, save, remove, getBrewPlans, saveBrewPlan, duplicateBrewPlan, deleteBrewPlan, getDrinkLogs, saveDrinkLog, deleteDrinkLog, getSettings, saveSettings, importData, replaceAllData, replaceAll, smartValues, renameSmartValue, deleteSmartValue, legacyData, saveWebImage, getWebImage, deleteWebImage };
 })(window);
