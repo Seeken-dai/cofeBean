@@ -10,24 +10,39 @@
   const LOG_NATIVE = { beanId: 'bean_id', beanName: 'bean_name', brewMethod: 'brew_method', brewPlanId: 'brew_plan_id', brewPlanVersion: 'brew_plan_version', brewPlanName: 'brew_plan_name', brewPlanSnapshot: 'brew_plan_snapshot', overallRating: 'overall_rating', consumedAt: 'consumed_at', createdAt: 'created_at', updatedAt: 'updated_at' };
   const PLAN_COLUMNS = ['id', 'name', 'brewMethod', 'version', 'source', 'beanIds', 'payload', 'createdAt', 'updatedAt'];
   const PLAN_NATIVE = { brewMethod: 'brew_method', beanIds: 'bean_ids', createdAt: 'created_at', updatedAt: 'updated_at' };
-  let sqlite = null;
   let native = false;
   let webAdapter = null;
+  let nativeAdapter = null;
 
   function plugin(name) { return root.Capacitor && root.Capacitor.Plugins ? root.Capacitor.Plugins[name] : null; }
   function isNative() { return Boolean(root.Capacitor && typeof root.Capacitor.getPlatform === 'function' && root.Capacitor.getPlatform() !== 'web'); }
+  function createNativeAdapter(sqlite) {
+    return {
+      createConnection: (options) => sqlite.createConnection(options),
+      open: (options) => sqlite.open(options),
+      execute: (options) => sqlite.execute(options),
+      executeSet: (options) => sqlite.executeSet(options),
+      query: (options) => sqlite.query(options),
+      run: (options) => sqlite.run(options)
+    };
+  }
+  function nativeDb() {
+    if (!nativeAdapter) throw new Error('SQLite 插件没有加载');
+    return nativeAdapter;
+  }
 
   async function init() {
     native = isNative();
     if (!native) { await web().init(); return; }
-    sqlite = plugin('CapacitorSQLite');
+    const sqlite = plugin('CapacitorSQLite');
     if (!sqlite) throw new Error('SQLite 插件没有加载');
+    nativeAdapter = createNativeAdapter(sqlite);
     try {
-      await sqlite.createConnection({ database: DB_NAME, encrypted: false, mode: 'no-encryption', version: DB_VERSION, readonly: false });
+      await nativeDb().createConnection({ database: DB_NAME, encrypted: false, mode: 'no-encryption', version: DB_VERSION, readonly: false });
     } catch (error) {
       if (!String(error && error.message || error).toLowerCase().includes('already')) throw error;
     }
-    await sqlite.open({ database: DB_NAME, readonly: false });
+    await nativeDb().open({ database: DB_NAME, readonly: false });
     await migrate();
   }
 
@@ -62,24 +77,24 @@
       CREATE INDEX IF NOT EXISTS idx_brew_plans_method ON brew_plans(brew_method);
       CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL);
     `;
-    await sqlite.execute({ database: DB_NAME, statements, transaction: true, readonly: false });
-    const columns = await sqlite.query({ database: DB_NAME, statement: 'PRAGMA table_info(beans)', values: [], readonly: false });
+    await nativeDb().execute({ database: DB_NAME, statements, transaction: true, readonly: false });
+    const columns = await nativeDb().query({ database: DB_NAME, statement: 'PRAGMA table_info(beans)', values: [], readonly: false });
     if (!(columns.values || []).some((column) => column.name === 'opened_date')) {
-      await sqlite.execute({ database: DB_NAME, statements: "ALTER TABLE beans ADD COLUMN opened_date TEXT NOT NULL DEFAULT '';", transaction: true, readonly: false });
+      await nativeDb().execute({ database: DB_NAME, statements: "ALTER TABLE beans ADD COLUMN opened_date TEXT NOT NULL DEFAULT '';", transaction: true, readonly: false });
     }
     if (!(columns.values || []).some((column) => column.name === 'bag_image_path')) {
-      await sqlite.execute({ database: DB_NAME, statements: "ALTER TABLE beans ADD COLUMN bag_image_path TEXT NOT NULL DEFAULT '';", transaction: true, readonly: false });
+      await nativeDb().execute({ database: DB_NAME, statements: "ALTER TABLE beans ADD COLUMN bag_image_path TEXT NOT NULL DEFAULT '';", transaction: true, readonly: false });
     }
     if (!(columns.values || []).some((column) => column.name === 'label_image_path')) {
-      await sqlite.execute({ database: DB_NAME, statements: "ALTER TABLE beans ADD COLUMN label_image_path TEXT NOT NULL DEFAULT '';", transaction: true, readonly: false });
+      await nativeDb().execute({ database: DB_NAME, statements: "ALTER TABLE beans ADD COLUMN label_image_path TEXT NOT NULL DEFAULT '';", transaction: true, readonly: false });
     }
     if (!(columns.values || []).some((column) => column.name === 'best_flavor_days')) {
-      await sqlite.execute({ database: DB_NAME, statements: "ALTER TABLE beans ADD COLUMN best_flavor_days REAL;", transaction: true, readonly: false });
+      await nativeDb().execute({ database: DB_NAME, statements: "ALTER TABLE beans ADD COLUMN best_flavor_days REAL;", transaction: true, readonly: false });
     }
     if (!(columns.values || []).some((column) => column.name === 'purchase_url')) {
-      await sqlite.execute({ database: DB_NAME, statements: "ALTER TABLE beans ADD COLUMN purchase_url TEXT NOT NULL DEFAULT '';", transaction: true, readonly: false });
+      await nativeDb().execute({ database: DB_NAME, statements: "ALTER TABLE beans ADD COLUMN purchase_url TEXT NOT NULL DEFAULT '';", transaction: true, readonly: false });
     }
-    const logColumns = await sqlite.query({ database: DB_NAME, statement: 'PRAGMA table_info(drink_logs)', values: [], readonly: false });
+    const logColumns = await nativeDb().query({ database: DB_NAME, statement: 'PRAGMA table_info(drink_logs)', values: [], readonly: false });
     const logNames = (logColumns.values || []).map((column) => column.name);
     const logAdds = [
       ['brew_plan_id', "ALTER TABLE drink_logs ADD COLUMN brew_plan_id TEXT;"],
@@ -87,9 +102,9 @@
       ['brew_plan_name', "ALTER TABLE drink_logs ADD COLUMN brew_plan_name TEXT NOT NULL DEFAULT '';"],
       ['brew_plan_snapshot', "ALTER TABLE drink_logs ADD COLUMN brew_plan_snapshot TEXT NOT NULL DEFAULT '';"]
     ].filter(([name]) => !logNames.includes(name)).map(([, statement]) => statement).join('\n');
-    if (logAdds) await sqlite.execute({ database: DB_NAME, statements: logAdds, transaction: true, readonly: false });
+    if (logAdds) await nativeDb().execute({ database: DB_NAME, statements: logAdds, transaction: true, readonly: false });
     await seedPresetPlans();
-    await sqlite.execute({ database: DB_NAME, statements: 'PRAGMA user_version = 7;', transaction: true, readonly: false });
+    await nativeDb().execute({ database: DB_NAME, statements: 'PRAGMA user_version = 7;', transaction: true, readonly: false });
   }
 
   function fromBeanRow(row) {
@@ -147,7 +162,7 @@
     if (!presets.length) return;
     const columns = PLAN_COLUMNS.map((key) => PLAN_NATIVE[key] || key).join(',');
     const placeholders = PLAN_COLUMNS.map(() => '?').join(',');
-    await sqlite.executeSet({ database: DB_NAME, set: presets.map((plan) => ({ statement: `INSERT OR REPLACE INTO brew_plans (${columns}) VALUES (${placeholders})`, values: planValues(plan) })), transaction: true, readonly: false });
+    await nativeDb().executeSet({ database: DB_NAME, set: presets.map((plan) => ({ statement: `INSERT OR REPLACE INTO brew_plans (${columns}) VALUES (${placeholders})`, values: planValues(plan) })), transaction: true, readonly: false });
   }
 
   function web() {
@@ -160,7 +175,7 @@
 
   async function getAll() {
     if (!native) return web().loadState().beans;
-    const result = await sqlite.query({ database: DB_NAME, statement: 'SELECT * FROM beans ORDER BY updated_at DESC', values: [], readonly: false });
+    const result = await nativeDb().query({ database: DB_NAME, statement: 'SELECT * FROM beans ORDER BY updated_at DESC', values: [], readonly: false });
     return (result.values || []).map(fromBeanRow);
   }
 
@@ -174,7 +189,7 @@
     const placeholders = BEAN_COLUMNS.map(() => '?').join(',');
     const updates = BEAN_COLUMNS.filter((key) => key !== 'id' && key !== 'createdAt').map((key) => `${BEAN_NATIVE[key] || key}=excluded.${BEAN_NATIVE[key] || key}`).join(',');
     const columns = BEAN_COLUMNS.map((key) => BEAN_NATIVE[key] || key).join(',');
-    await sqlite.run({ database: DB_NAME, statement: `INSERT INTO beans (${columns}) VALUES (${placeholders}) ON CONFLICT(id) DO UPDATE SET ${updates}`, values: beanValues(normalized), transaction: true, readonly: false });
+    await nativeDb().run({ database: DB_NAME, statement: `INSERT INTO beans (${columns}) VALUES (${placeholders}) ON CONFLICT(id) DO UPDATE SET ${updates}`, values: beanValues(normalized), transaction: true, readonly: false });
     return normalized;
   }
 
@@ -186,7 +201,7 @@
       state.brewPlans = state.brewPlans.map((plan) => root.BeanCore.normalizeBrewPlan({ ...plan, beanIds: plan.beanIds.filter((beanId) => beanId !== id) }, plan.updatedAt));
       await web().saveState(state); return;
     }
-    await sqlite.executeSet({ database: DB_NAME, set: [
+    await nativeDb().executeSet({ database: DB_NAME, set: [
       { statement: 'UPDATE drink_logs SET bean_name = COALESCE((SELECT name FROM beans WHERE id = ?), bean_name), bean_id = NULL WHERE bean_id = ?', values: [id, id] },
       { statement: "UPDATE brew_plans SET bean_ids = json_remove(bean_ids, '$[' || (SELECT key FROM json_each(bean_ids) WHERE value = ? LIMIT 1) || ']') WHERE EXISTS (SELECT 1 FROM json_each(bean_ids) WHERE value = ?)", values: [id, id] },
       { statement: 'DELETE FROM beans WHERE id = ?', values: [id] }
@@ -196,7 +211,7 @@
   async function getBrewPlans() {
     if (!native) return web().loadState().brewPlans.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     await seedPresetPlans();
-    const result = await sqlite.query({ database: DB_NAME, statement: 'SELECT * FROM brew_plans ORDER BY updated_at DESC', values: [], readonly: false });
+    const result = await nativeDb().query({ database: DB_NAME, statement: 'SELECT * FROM brew_plans ORDER BY updated_at DESC', values: [], readonly: false });
     return (result.values || []).map(fromPlanRow);
   }
 
@@ -212,14 +227,14 @@
       if (index >= 0) state.brewPlans[index] = normalized; else state.brewPlans.unshift(normalized);
       await web().saveState(state); return normalized;
     }
-    const oldResult = await sqlite.query({ database: DB_NAME, statement: 'SELECT * FROM brew_plans WHERE id = ?', values: [normalized.id], readonly: false });
+    const oldResult = await nativeDb().query({ database: DB_NAME, statement: 'SELECT * FROM brew_plans WHERE id = ?', values: [normalized.id], readonly: false });
     const old = (oldResult.values || []).length ? fromPlanRow(oldResult.values[0]) : null;
     if (old && old.source === 'preset') throw new Error('预置方案请先复制再编辑');
     if (old) normalized = root.BeanCore.normalizeBrewPlan({ ...old, ...normalized, version: old.version + 1, createdAt: old.createdAt }, stamp);
     const columns = PLAN_COLUMNS.map((key) => PLAN_NATIVE[key] || key).join(',');
     const placeholders = PLAN_COLUMNS.map(() => '?').join(',');
     const updates = PLAN_COLUMNS.filter((key) => key !== 'id' && key !== 'createdAt').map((key) => `${PLAN_NATIVE[key] || key}=excluded.${PLAN_NATIVE[key] || key}`).join(',');
-    await sqlite.run({ database: DB_NAME, statement: `INSERT INTO brew_plans (${columns}) VALUES (${placeholders}) ON CONFLICT(id) DO UPDATE SET ${updates}`, values: planValues(normalized), transaction: true, readonly: false });
+    await nativeDb().run({ database: DB_NAME, statement: `INSERT INTO brew_plans (${columns}) VALUES (${placeholders}) ON CONFLICT(id) DO UPDATE SET ${updates}`, values: planValues(normalized), transaction: true, readonly: false });
     return normalized;
   }
 
@@ -239,7 +254,7 @@
       state.drinkLogs = state.drinkLogs.map((log) => log.brewPlanId === id ? root.BeanCore.normalizeDrinkLog({ ...log, brewPlanId: null }, log.updatedAt) : log);
       await web().saveState(state); return;
     }
-    await sqlite.executeSet({ database: DB_NAME, set: [
+    await nativeDb().executeSet({ database: DB_NAME, set: [
       { statement: 'DELETE FROM brew_plans WHERE id = ? AND source != ?', values: [id, 'preset'] },
       { statement: 'UPDATE drink_logs SET brew_plan_id = NULL WHERE brew_plan_id = ?', values: [id] }
     ], transaction: true, readonly: false });
@@ -250,7 +265,7 @@
       return web().loadState().drinkLogs.filter((log) => !beanId || log.beanId === beanId).sort((a, b) => b.consumedAt.localeCompare(a.consumedAt));
     }
     const where = beanId ? 'WHERE l.bean_id = ?' : '';
-    const result = await sqlite.query({ database: DB_NAME, statement: `SELECT l.*, COALESCE(b.name, l.bean_name) AS display_bean_name FROM drink_logs l LEFT JOIN beans b ON b.id = l.bean_id ${where} ORDER BY l.consumed_at DESC`, values: beanId ? [beanId] : [], readonly: false });
+    const result = await nativeDb().query({ database: DB_NAME, statement: `SELECT l.*, COALESCE(b.name, l.bean_name) AS display_bean_name FROM drink_logs l LEFT JOIN beans b ON b.id = l.bean_id ${where} ORDER BY l.consumed_at DESC`, values: beanId ? [beanId] : [], readonly: false });
     return (result.values || []).map(fromLogRow);
   }
 
@@ -274,10 +289,10 @@
       await web().saveState(state); return log;
     }
 
-    const beanResult = await sqlite.query({ database: DB_NAME, statement: 'SELECT * FROM beans WHERE id = ?', values: [log.beanId], readonly: false });
+    const beanResult = await nativeDb().query({ database: DB_NAME, statement: 'SELECT * FROM beans WHERE id = ?', values: [log.beanId], readonly: false });
     if (!(beanResult.values || []).length) throw new Error('找不到对应的咖啡豆');
     const bean = fromBeanRow(beanResult.values[0]);
-    const oldResult = await sqlite.query({ database: DB_NAME, statement: 'SELECT * FROM drink_logs WHERE id = ?', values: [log.id], readonly: false });
+    const oldResult = await nativeDb().query({ database: DB_NAME, statement: 'SELECT * FROM drink_logs WHERE id = ?', values: [log.id], readonly: false });
     const old = (oldResult.values || []).length ? fromLogRow(oldResult.values[0]) : null;
     if (old && old.beanId !== log.beanId) throw new Error('不能更改饮用记录所属豆子');
     if (old) log = root.BeanCore.normalizeDrinkLog({ ...old, ...log, createdAt: old.createdAt }, stamp);
@@ -287,7 +302,7 @@
     const columns = LOG_COLUMNS.map((key) => LOG_NATIVE[key] || key).join(',');
     const placeholders = LOG_COLUMNS.map(() => '?').join(',');
     const updates = LOG_COLUMNS.filter((key) => key !== 'id' && key !== 'createdAt').map((key) => `${LOG_NATIVE[key] || key}=excluded.${LOG_NATIVE[key] || key}`).join(',');
-    await sqlite.executeSet({ database: DB_NAME, set: [
+    await nativeDb().executeSet({ database: DB_NAME, set: [
       { statement: `INSERT INTO drink_logs (${columns}) VALUES (${placeholders}) ON CONFLICT(id) DO UPDATE SET ${updates}`, values: logValues(log) },
       { statement: 'UPDATE beans SET remaining_weight = ?, status = ?, updated_at = ? WHERE id = ?', values: [remaining, remaining <= 0 ? '已喝完' : '饮用中', stamp, bean.id] }
     ], transaction: true, readonly: false });
@@ -304,22 +319,22 @@
       }
       state.drinkLogs.splice(index, 1); await web().saveState(state); return;
     }
-    const result = await sqlite.query({ database: DB_NAME, statement: 'SELECT * FROM drink_logs WHERE id = ?', values: [id], readonly: false });
+    const result = await nativeDb().query({ database: DB_NAME, statement: 'SELECT * FROM drink_logs WHERE id = ?', values: [id], readonly: false });
     if (!(result.values || []).length) return; const log = fromLogRow(result.values[0]);
     const set = [{ statement: 'DELETE FROM drink_logs WHERE id = ?', values: [id] }];
     if (log.beanId) {
-      const beanResult = await sqlite.query({ database: DB_NAME, statement: 'SELECT * FROM beans WHERE id = ?', values: [log.beanId], readonly: false });
+      const beanResult = await nativeDb().query({ database: DB_NAME, statement: 'SELECT * FROM beans WHERE id = ?', values: [log.beanId], readonly: false });
       if ((beanResult.values || []).length) {
         const bean = fromBeanRow(beanResult.values[0]); const remaining = root.BeanCore.consumptionResult(bean.remainingWeight, bean.initialWeight, -log.grams);
         set.push({ statement: 'UPDATE beans SET remaining_weight = ?, status = ?, updated_at = ? WHERE id = ?', values: [remaining, remaining > 0 && bean.status === '已喝完' ? '饮用中' : bean.status, new Date().toISOString(), bean.id] });
       }
     }
-    await sqlite.executeSet({ database: DB_NAME, set, transaction: true, readonly: false });
+    await nativeDb().executeSet({ database: DB_NAME, set, transaction: true, readonly: false });
   }
 
   async function getSettings() {
     if (!native) return web().loadState().settings;
-    const result = await sqlite.query({ database: DB_NAME, statement: "SELECT value FROM app_settings WHERE key = 'preferences'", values: [], readonly: false });
+    const result = await nativeDb().query({ database: DB_NAME, statement: "SELECT value FROM app_settings WHERE key = 'preferences'", values: [], readonly: false });
     if (!(result.values || []).length) return root.BeanCore.normalizeSettings({});
     try { return root.BeanCore.normalizeSettings(JSON.parse(result.values[0].value)); } catch (_) { return root.BeanCore.normalizeSettings({}); }
   }
@@ -327,7 +342,7 @@
   async function saveSettings(settings) {
     const normalized = root.BeanCore.normalizeSettings(settings);
     if (!native) { const state = web().loadState(); state.settings = normalized; await web().saveState(state); return normalized; }
-    await sqlite.run({ database: DB_NAME, statement: "INSERT INTO app_settings (key, value) VALUES ('preferences', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", values: [JSON.stringify(normalized)], transaction: true, readonly: false });
+    await nativeDb().run({ database: DB_NAME, statement: "INSERT INTO app_settings (key, value) VALUES ('preferences', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", values: [JSON.stringify(normalized)], transaction: true, readonly: false });
     return normalized;
   }
 
@@ -377,7 +392,7 @@
     if (includesPlans(scope) || includesLibrary(scope)) set.push(...normalizedPlans.map((plan) => ({ statement: `INSERT INTO brew_plans (${planColumns}) VALUES (${planPlaceholders})`, values: planValues(plan) })));
     if (includesLibrary(scope)) set.push(...normalizedLogs.map((log) => ({ statement: `INSERT INTO drink_logs (${logColumns}) VALUES (${logPlaceholders})`, values: logValues(log) })));
     if (scope === 'all' && settings) set.push({ statement: "INSERT INTO app_settings (key, value) VALUES ('preferences', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", values: [JSON.stringify(root.BeanCore.normalizeSettings(settings))] });
-    await sqlite.executeSet({ database: DB_NAME, set, transaction: true, readonly: false });
+    await nativeDb().executeSet({ database: DB_NAME, set, transaction: true, readonly: false });
   }
 
   async function importData(imported, mode) {
@@ -419,12 +434,12 @@
   async function renameSmartValue(field, oldValue, newValue) {
     assertSmartField(field); const clean = String(newValue || '').trim(); if (!clean) throw new Error('新名称不能为空');
     if (!native) { const state = web().loadState(); state.beans = state.beans.map((bean) => bean[field] === oldValue ? { ...bean, [field]: clean, updatedAt: new Date().toISOString() } : bean); await web().saveState(state); return; }
-    await sqlite.run({ database: DB_NAME, statement: `UPDATE beans SET ${field} = ?, updated_at = ? WHERE ${field} = ?`, values: [clean, new Date().toISOString(), oldValue], transaction: true, readonly: false });
+    await nativeDb().run({ database: DB_NAME, statement: `UPDATE beans SET ${field} = ?, updated_at = ? WHERE ${field} = ?`, values: [clean, new Date().toISOString(), oldValue], transaction: true, readonly: false });
   }
   async function deleteSmartValue(field, value) {
     assertSmartField(field);
     if (!native) { const state = web().loadState(); state.beans = state.beans.map((bean) => bean[field] === value ? { ...bean, [field]: '', updatedAt: new Date().toISOString() } : bean); await web().saveState(state); return; }
-    await sqlite.run({ database: DB_NAME, statement: `UPDATE beans SET ${field} = '', updated_at = ? WHERE ${field} = ?`, values: [new Date().toISOString(), value], transaction: true, readonly: false });
+    await nativeDb().run({ database: DB_NAME, statement: `UPDATE beans SET ${field} = '', updated_at = ? WHERE ${field} = ?`, values: [new Date().toISOString(), value], transaction: true, readonly: false });
   }
 
   function legacyData() {
