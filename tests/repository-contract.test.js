@@ -14,10 +14,12 @@ function memoryStorage() {
   };
 }
 
-function fakeIndexedDB() {
+function fakeIndexedDB(options = {}) {
   const databases = new Map();
+  const failPutStores = new Set(options.failPutStores || []);
   function asyncCall(callback) { queueMicrotask(callback); }
   function complete(tx) { asyncCall(() => { if (tx.oncomplete) tx.oncomplete(); }); }
+  function fail(tx, error) { asyncCall(() => { tx.error = error; if (tx.onerror) tx.onerror(); }); }
   function requestSuccess(request, value) { asyncCall(() => { request.result = value; if (request.onsuccess) request.onsuccess(); }); }
 
   return {
@@ -43,6 +45,10 @@ function fakeIndexedDB() {
                       return req;
                     },
                     put(value, key) {
+                      if (failPutStores.has(storeName)) {
+                        fail(tx, new Error('IndexedDB put failed'));
+                        return;
+                      }
                       store.set(key, value);
                       complete(tx);
                     },
@@ -169,5 +175,35 @@ test('repository contract: web image adapter stores, reads, and deletes IndexedD
 
   await repo.deleteWebImage(ref);
   assert.equal(await repo.getWebImage(ref), null);
+  cleanupRepository();
+});
+
+test('repository contract: web state migrates localStorage preview data into IndexedDB', async () => {
+  const storage = memoryStorage();
+  const indexedDB = fakeIndexedDB();
+  storage.setItem('coffee-vault-browser-preview', JSON.stringify({
+    beans: [core.normalizeBean({ id: 'legacy-web-bean', name: '旧 Web 豆' })]
+  }));
+  global.indexedDB = indexedDB;
+  let repo = await loadRepository(storage);
+  assert.equal((await repo.getAll())[0].id, 'legacy-web-bean');
+
+  cleanupRepository();
+  storage.removeItem('coffee-vault-browser-preview');
+  global.indexedDB = indexedDB;
+  repo = await loadRepository(storage);
+  assert.equal((await repo.getAll())[0].id, 'legacy-web-bean');
+  cleanupRepository();
+});
+
+test('repository contract: web state falls back to localStorage when IndexedDB writes fail', async () => {
+  const storage = memoryStorage();
+  global.indexedDB = fakeIndexedDB({ failPutStores: ['kv'] });
+  let repo = await loadRepository(storage);
+  await repo.save({ id: 'fallback-bean', name: '回退豆' });
+
+  cleanupRepository();
+  repo = await loadRepository(storage);
+  assert.equal((await repo.getAll())[0].id, 'fallback-bean');
   cleanupRepository();
 });
