@@ -56,7 +56,7 @@ test('native reads use the existing read/write SQLite connection', async () => {
   const migrations = calls.filter(([name]) => name === 'execute').map(([, options]) => options.statements).join('\n');
   const query = calls.find(([name]) => name === 'query')[1];
   assert.equal(create.readonly, false);
-  assert.equal(create.version, 7);
+  assert.equal(create.version, 8);
   assert.match(migrations, /opened_date/);
   assert.match(migrations, /bag_image_path/);
   assert.match(migrations, /label_image_path/);
@@ -64,7 +64,9 @@ test('native reads use the existing read/write SQLite connection', async () => {
   assert.match(migrations, /purchase_url/);
   assert.match(migrations, /brew_plans/);
   assert.match(migrations, /brew_plan_snapshot/);
-  assert.match(migrations, /user_version = 7/);
+  assert.match(migrations, /ALTER TABLE beans ADD COLUMN deleted_at/);
+  assert.match(migrations, /ALTER TABLE drink_logs ADD COLUMN revision/);
+  assert.match(migrations, /user_version = 8/);
   assert.equal(query.readonly, false);
   cleanupNativeRepository();
 });
@@ -94,6 +96,9 @@ test('native bean saves include image columns on a write transaction', async () 
   assert.equal(save.readonly, false);
   assert.match(save.statement, /bag_image_path/);
   assert.match(save.statement, /label_image_path/);
+  assert.match(save.statement, /revision/);
+  assert.match(save.statement, /device_id/);
+  assert.match(save.statement, /deleted_at/);
   assert.equal(save.values.includes('file:///bag.webp'), true);
   assert.equal(save.values.includes('file:///label.webp'), true);
   cleanupNativeRepository();

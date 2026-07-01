@@ -2,12 +2,12 @@
   'use strict';
 
   const DB_NAME = 'coffee_vault';
-  const DB_VERSION = 7;
+  const DB_VERSION = 8;
   const LEGACY_KEYS = ['coffee-vault-data', 'beans-data', 'bean-data'];
-  const BEAN_COLUMNS = ['id', 'name', 'roaster', 'origin', 'process', 'roastLevel', 'roastDate', 'openedDate', 'purchaseDate', 'purchaseUrl', 'initialWeight', 'remainingWeight', 'price', 'bestFlavorDays', 'tastingNotes', 'status', 'favorite', 'bagImagePath', 'labelImagePath', 'createdAt', 'updatedAt'];
-  const BEAN_NATIVE = { roastLevel: 'roast_level', roastDate: 'roast_date', openedDate: 'opened_date', purchaseDate: 'purchase_date', purchaseUrl: 'purchase_url', initialWeight: 'initial_weight', remainingWeight: 'remaining_weight', bestFlavorDays: 'best_flavor_days', tastingNotes: 'tasting_notes', bagImagePath: 'bag_image_path', labelImagePath: 'label_image_path', createdAt: 'created_at', updatedAt: 'updated_at' };
-  const LOG_COLUMNS = ['id', 'beanId', 'beanName', 'grams', 'brewMethod', 'brewPlanId', 'brewPlanVersion', 'brewPlanName', 'brewPlanSnapshot', 'overallRating', 'aroma', 'acidity', 'sweetness', 'body', 'aftertaste', 'balance', 'bitterness', 'notes', 'consumedAt', 'createdAt', 'updatedAt'];
-  const LOG_NATIVE = { beanId: 'bean_id', beanName: 'bean_name', brewMethod: 'brew_method', brewPlanId: 'brew_plan_id', brewPlanVersion: 'brew_plan_version', brewPlanName: 'brew_plan_name', brewPlanSnapshot: 'brew_plan_snapshot', overallRating: 'overall_rating', consumedAt: 'consumed_at', createdAt: 'created_at', updatedAt: 'updated_at' };
+  const BEAN_COLUMNS = ['id', 'name', 'roaster', 'origin', 'process', 'roastLevel', 'roastDate', 'openedDate', 'purchaseDate', 'purchaseUrl', 'initialWeight', 'remainingWeight', 'price', 'bestFlavorDays', 'tastingNotes', 'status', 'favorite', 'bagImagePath', 'labelImagePath', 'createdAt', 'updatedAt', 'revision', 'deviceId', 'deletedAt'];
+  const BEAN_NATIVE = { roastLevel: 'roast_level', roastDate: 'roast_date', openedDate: 'opened_date', purchaseDate: 'purchase_date', purchaseUrl: 'purchase_url', initialWeight: 'initial_weight', remainingWeight: 'remaining_weight', bestFlavorDays: 'best_flavor_days', tastingNotes: 'tasting_notes', bagImagePath: 'bag_image_path', labelImagePath: 'label_image_path', createdAt: 'created_at', updatedAt: 'updated_at', deviceId: 'device_id', deletedAt: 'deleted_at' };
+  const LOG_COLUMNS = ['id', 'beanId', 'beanName', 'grams', 'brewMethod', 'brewPlanId', 'brewPlanVersion', 'brewPlanName', 'brewPlanSnapshot', 'overallRating', 'aroma', 'acidity', 'sweetness', 'body', 'aftertaste', 'balance', 'bitterness', 'notes', 'consumedAt', 'createdAt', 'updatedAt', 'revision', 'deviceId', 'deletedAt'];
+  const LOG_NATIVE = { beanId: 'bean_id', beanName: 'bean_name', brewMethod: 'brew_method', brewPlanId: 'brew_plan_id', brewPlanVersion: 'brew_plan_version', brewPlanName: 'brew_plan_name', brewPlanSnapshot: 'brew_plan_snapshot', overallRating: 'overall_rating', consumedAt: 'consumed_at', createdAt: 'created_at', updatedAt: 'updated_at', deviceId: 'device_id', deletedAt: 'deleted_at' };
   const PLAN_COLUMNS = ['id', 'name', 'brewMethod', 'version', 'source', 'beanIds', 'payload', 'createdAt', 'updatedAt'];
   const PLAN_NATIVE = { brewMethod: 'brew_method', beanIds: 'bean_ids', createdAt: 'created_at', updatedAt: 'updated_at' };
   let native = false;
@@ -94,17 +94,26 @@
     if (!(columns.values || []).some((column) => column.name === 'purchase_url')) {
       await nativeDb().execute({ database: DB_NAME, statements: "ALTER TABLE beans ADD COLUMN purchase_url TEXT NOT NULL DEFAULT '';", transaction: true, readonly: false });
     }
+    const beanSyncAdds = [
+      ['revision', "ALTER TABLE beans ADD COLUMN revision INTEGER NOT NULL DEFAULT 1;"],
+      ['device_id', "ALTER TABLE beans ADD COLUMN device_id TEXT NOT NULL DEFAULT '';"],
+      ['deleted_at', "ALTER TABLE beans ADD COLUMN deleted_at TEXT;"]
+    ].filter(([name]) => !(columns.values || []).some((column) => column.name === name)).map(([, statement]) => statement).join('\n');
+    if (beanSyncAdds) await nativeDb().execute({ database: DB_NAME, statements: beanSyncAdds, transaction: true, readonly: false });
     const logColumns = await nativeDb().query({ database: DB_NAME, statement: 'PRAGMA table_info(drink_logs)', values: [], readonly: false });
     const logNames = (logColumns.values || []).map((column) => column.name);
     const logAdds = [
       ['brew_plan_id', "ALTER TABLE drink_logs ADD COLUMN brew_plan_id TEXT;"],
       ['brew_plan_version', "ALTER TABLE drink_logs ADD COLUMN brew_plan_version INTEGER;"],
       ['brew_plan_name', "ALTER TABLE drink_logs ADD COLUMN brew_plan_name TEXT NOT NULL DEFAULT '';"],
-      ['brew_plan_snapshot', "ALTER TABLE drink_logs ADD COLUMN brew_plan_snapshot TEXT NOT NULL DEFAULT '';"]
+      ['brew_plan_snapshot', "ALTER TABLE drink_logs ADD COLUMN brew_plan_snapshot TEXT NOT NULL DEFAULT '';"],
+      ['revision', "ALTER TABLE drink_logs ADD COLUMN revision INTEGER NOT NULL DEFAULT 1;"],
+      ['device_id', "ALTER TABLE drink_logs ADD COLUMN device_id TEXT NOT NULL DEFAULT '';"],
+      ['deleted_at', "ALTER TABLE drink_logs ADD COLUMN deleted_at TEXT;"]
     ].filter(([name]) => !logNames.includes(name)).map(([, statement]) => statement).join('\n');
     if (logAdds) await nativeDb().execute({ database: DB_NAME, statements: logAdds, transaction: true, readonly: false });
     await seedPresetPlans();
-    await nativeDb().execute({ database: DB_NAME, statements: 'PRAGMA user_version = 7;', transaction: true, readonly: false });
+    await nativeDb().execute({ database: DB_NAME, statements: 'PRAGMA user_version = 8;', transaction: true, readonly: false });
   }
 
   function fromBeanRow(row) {
@@ -115,7 +124,7 @@
 
   function beanValues(bean) {
     const b = root.BeanCore.normalizeBean(bean, bean.updatedAt);
-    return [b.id, b.name, b.roaster, b.origin, b.process, b.roastLevel, b.roastDate, b.openedDate, b.purchaseDate, b.purchaseUrl, b.initialWeight, b.remainingWeight, b.price, b.bestFlavorDays, b.tastingNotes, b.status, b.favorite ? 1 : 0, b.bagImagePath, b.labelImagePath, b.createdAt, b.updatedAt];
+    return [b.id, b.name, b.roaster, b.origin, b.process, b.roastLevel, b.roastDate, b.openedDate, b.purchaseDate, b.purchaseUrl, b.initialWeight, b.remainingWeight, b.price, b.bestFlavorDays, b.tastingNotes, b.status, b.favorite ? 1 : 0, b.bagImagePath, b.labelImagePath, b.createdAt, b.updatedAt, b.revision, b.deviceId, b.deletedAt];
   }
 
   function fromLogRow(row) {
@@ -128,7 +137,7 @@
 
   function logValues(log) {
     const l = root.BeanCore.normalizeDrinkLog(log, log.updatedAt);
-    return [l.id, l.beanId, l.beanName, l.grams, l.brewMethod, l.brewPlanId, l.brewPlanVersion, l.brewPlanName, l.brewPlanSnapshot ? JSON.stringify(l.brewPlanSnapshot) : '', l.overallRating, l.aroma, l.acidity, l.sweetness, l.body, l.aftertaste, l.balance, l.bitterness, l.notes, l.consumedAt, l.createdAt, l.updatedAt];
+    return [l.id, l.beanId, l.beanName, l.grams, l.brewMethod, l.brewPlanId, l.brewPlanVersion, l.brewPlanName, l.brewPlanSnapshot ? JSON.stringify(l.brewPlanSnapshot) : '', l.overallRating, l.aroma, l.acidity, l.sweetness, l.body, l.aftertaste, l.balance, l.bitterness, l.notes, l.consumedAt, l.createdAt, l.updatedAt, l.revision, l.deviceId, l.deletedAt];
   }
 
   function planValues(plan) {
