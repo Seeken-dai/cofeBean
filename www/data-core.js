@@ -884,5 +884,36 @@
     return days;
   }
 
-  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, prepareBrewAssistSteps, brewAssistStatus, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload };
+  // ===== 同步合并（阶段 3，纯逻辑，不接存储/云端）=====
+  // 记录信封形状：{ id, updatedAt, revision, deviceId, deletedAt, payload }
+  // 合并：按 (updatedAt, revision, deviceId) 的 last-write-wins；胜者的 deletedAt 即最终删除态（墓碑）。
+  // 删除必须写墓碑（deletedAt 非空且刷新 updatedAt），否则会被对端当作缺失而复活。
+  // 详见 plan/SYNC_PROTOCOL_DESIGN.md §4/§5。
+  function compareSyncRecords(a, b) {
+    const ta = Date.parse(a && a.updatedAt) || 0;
+    const tb = Date.parse(b && b.updatedAt) || 0;
+    if (ta !== tb) return ta - tb;
+    const ra = Number(a && a.revision) || 0;
+    const rb = Number(b && b.revision) || 0;
+    if (ra !== rb) return ra - rb;
+    return String((a && a.deviceId) || '').localeCompare(String((b && b.deviceId) || ''));
+  }
+  function mergeSyncRecords(local, remote) {
+    const winners = new Map();
+    [].concat(local || [], remote || []).forEach((record) => {
+      if (!record || record.id == null) return;
+      const prev = winners.get(record.id);
+      if (!prev || compareSyncRecords(record, prev) > 0) winners.set(record.id, record);
+    });
+    return Array.from(winners.values());
+  }
+  function liveSyncRecords(records) {
+    return (records || []).filter((record) => record && !record.deletedAt);
+  }
+  // 预置方案由 App 版本内置，不进同步集；只同步 user/copy。
+  function syncablePlans(plans) {
+    return (plans || []).filter((plan) => plan && plan.source !== 'preset');
+  }
+
+  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, prepareBrewAssistSteps, brewAssistStatus, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans };
 });
