@@ -65,6 +65,7 @@
 - `android/`：Capacitor Android 工程
 - `tests/`：数据规范化、筛选排序和备份测试
 - `resources/`、`assets/`：图标和启动画面源文件
-- `BUILDING.md`：构建、签名与版本升级说明
+- `docs/BUILDING.md`：构建、签名与版本升级说明
+- `docs/CHANGELOG.md`：版本更新记录
 
 当前包信息：`com.coffeebean.vault`，版本 `1.5.0`（versionCode `32`），最低 Android 7/API 24，目标 Android 16/API 36。

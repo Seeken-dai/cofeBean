@@ -59,7 +59,7 @@ $env:ANDROID_SDK_ROOT='C:\tmp\android-sdk'
 采用 release 分支流程：每个版本独立分支，验证通过后合并回 `main`；`main` 始终代表最新已发布状态。
 
 1. 从最新 `main` 切版本分支：`git checkout main && git checkout -b release/<x.y.z>`。
-2. 在该分支迭代：改代码、补测试，把版本号同步到下列所有位置，并更新 `README.md`、`CHANGELOG.md`、`BUILDING.md`、`AGENTS.md`。
+2. 在该分支迭代：改代码、补测试，把版本号同步到下列所有位置，并更新 `README.md`、`docs/CHANGELOG.md`、`docs/BUILDING.md`、`AGENTS.md`。
 3. 在该分支用 `npm.cmd run android:release` 打正式签名 APK，复制为 `dist/coffee-vault-<x.y.z>-release.apk`，装到保留数据的设备验证覆盖升级。
 4. APK 验证无误后合并回主线并打 tag：`git checkout main && git merge --ff-only release/<x.y.z> && git tag -a v<x.y.z> -m "..."`。
 5. 下一个版本从更新后的 `main` 重新切分支，循环往复；旧版本分支合并后可删除（内容已在 `main` 中）。
