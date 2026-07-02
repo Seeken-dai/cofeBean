@@ -183,8 +183,8 @@
   }
 
   async function getAll() {
-    if (!native) return web().loadState().beans;
-    const result = await nativeDb().query({ database: DB_NAME, statement: 'SELECT * FROM beans ORDER BY updated_at DESC', values: [], readonly: false });
+    if (!native) return web().loadState().beans.filter((bean) => !bean.deletedAt);
+    const result = await nativeDb().query({ database: DB_NAME, statement: 'SELECT * FROM beans WHERE deleted_at IS NULL ORDER BY updated_at DESC', values: [], readonly: false });
     return (result.values || []).map(fromBeanRow);
   }
 
@@ -203,9 +203,10 @@
   }
 
   async function remove(id) {
+    const stamp = new Date().toISOString();
     if (!native) {
       const state = web().loadState(); const bean = state.beans.find((item) => item.id === id);
-      state.beans = state.beans.filter((item) => item.id !== id);
+      state.beans = state.beans.map((item) => item.id === id ? root.BeanCore.normalizeBean({ ...item, deletedAt: stamp, updatedAt: stamp, revision: (item.revision || 1) + 1 }, stamp) : item);
       state.drinkLogs = state.drinkLogs.map((log) => log.beanId === id ? { ...log, beanId: null, beanName: bean ? bean.name : log.beanName } : log);
       state.brewPlans = state.brewPlans.map((plan) => root.BeanCore.normalizeBrewPlan({ ...plan, beanIds: plan.beanIds.filter((beanId) => beanId !== id) }, plan.updatedAt));
       await web().saveState(state); return;
@@ -213,15 +214,15 @@
     await nativeDb().executeSet({ database: DB_NAME, set: [
       { statement: 'UPDATE drink_logs SET bean_name = COALESCE((SELECT name FROM beans WHERE id = ?), bean_name), bean_id = NULL WHERE bean_id = ?', values: [id, id] },
       { statement: "UPDATE brew_plans SET bean_ids = json_remove(bean_ids, '$[' || (SELECT key FROM json_each(bean_ids) WHERE value = ? LIMIT 1) || ']') WHERE EXISTS (SELECT 1 FROM json_each(bean_ids) WHERE value = ?)", values: [id, id] },
-      { statement: 'DELETE FROM beans WHERE id = ?', values: [id] }
+      { statement: 'UPDATE beans SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE id = ?', values: [stamp, stamp, id] }
     ], transaction: true, readonly: false });
   }
 
   async function getBrewPlans() {
-    if (!native) return web().loadState().brewPlans.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    if (!native) return web().loadState().brewPlans.filter((plan) => !plan.deletedAt).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     await seedPresetPlans();
     const result = await nativeDb().query({ database: DB_NAME, statement: 'SELECT * FROM brew_plans ORDER BY updated_at DESC', values: [], readonly: false });
-    return (result.values || []).map(fromPlanRow);
+    return (result.values || []).map(fromPlanRow).filter((plan) => !plan.deletedAt);
   }
 
   async function saveBrewPlan(input) {
@@ -257,23 +258,27 @@
     const plan = (await getBrewPlans()).find((item) => item.id === id);
     if (!plan) return;
     if (plan.source === 'preset') throw new Error('预置方案不能删除');
+    const stamp = new Date().toISOString();
     if (!native) {
       const state = web().loadState();
-      state.brewPlans = state.brewPlans.filter((item) => item.id !== id);
+      state.brewPlans = state.brewPlans.map((item) => item.id === id ? root.BeanCore.normalizeBrewPlan({ ...item, deletedAt: stamp, updatedAt: stamp, revision: (item.revision || 1) + 1 }, stamp) : item);
       state.drinkLogs = state.drinkLogs.map((log) => log.brewPlanId === id ? root.BeanCore.normalizeDrinkLog({ ...log, brewPlanId: null }, log.updatedAt) : log);
       await web().saveState(state); return;
     }
+    const tombstoned = root.BeanCore.normalizeBrewPlan({ ...plan, deletedAt: stamp, updatedAt: stamp, revision: (plan.revision || 1) + 1 }, stamp);
+    const planColumns = PLAN_COLUMNS.map((key) => PLAN_NATIVE[key] || key).join(',');
+    const planPlaceholders = PLAN_COLUMNS.map(() => '?').join(',');
     await nativeDb().executeSet({ database: DB_NAME, set: [
-      { statement: 'DELETE FROM brew_plans WHERE id = ? AND source != ?', values: [id, 'preset'] },
+      { statement: `INSERT OR REPLACE INTO brew_plans (${planColumns}) VALUES (${planPlaceholders})`, values: planValues(tombstoned) },
       { statement: 'UPDATE drink_logs SET brew_plan_id = NULL WHERE brew_plan_id = ?', values: [id] }
     ], transaction: true, readonly: false });
   }
 
   async function getDrinkLogs(beanId) {
     if (!native) {
-      return web().loadState().drinkLogs.filter((log) => !beanId || log.beanId === beanId).sort((a, b) => b.consumedAt.localeCompare(a.consumedAt));
+      return web().loadState().drinkLogs.filter((log) => !log.deletedAt && (!beanId || log.beanId === beanId)).sort((a, b) => b.consumedAt.localeCompare(a.consumedAt));
     }
-    const where = beanId ? 'WHERE l.bean_id = ?' : '';
+    const where = beanId ? 'WHERE l.bean_id = ? AND l.deleted_at IS NULL' : 'WHERE l.deleted_at IS NULL';
     const result = await nativeDb().query({ database: DB_NAME, statement: `SELECT l.*, COALESCE(b.name, l.bean_name) AS display_bean_name FROM drink_logs l LEFT JOIN beans b ON b.id = l.bean_id ${where} ORDER BY l.consumed_at DESC`, values: beanId ? [beanId] : [], readonly: false });
     return (result.values || []).map(fromLogRow);
   }
@@ -319,23 +324,26 @@
   }
 
   async function deleteDrinkLog(id) {
+    const stamp = new Date().toISOString();
     if (!native) {
       const state = web().loadState(); const index = state.drinkLogs.findIndex((log) => log.id === id);
-      if (index < 0) return; const log = state.drinkLogs[index]; const beanIndex = state.beans.findIndex((bean) => bean.id === log.beanId);
+      if (index < 0 || state.drinkLogs[index].deletedAt) return; const log = state.drinkLogs[index]; const beanIndex = state.beans.findIndex((bean) => bean.id === log.beanId);
       if (beanIndex >= 0) {
         const bean = state.beans[beanIndex]; const remaining = root.BeanCore.consumptionResult(bean.remainingWeight, bean.initialWeight, -log.grams);
-        state.beans[beanIndex] = { ...bean, remainingWeight: remaining, status: remaining > 0 && bean.status === '已喝完' ? '饮用中' : bean.status, updatedAt: new Date().toISOString() };
+        state.beans[beanIndex] = { ...bean, remainingWeight: remaining, status: remaining > 0 && bean.status === '已喝完' ? '饮用中' : bean.status, updatedAt: stamp };
       }
-      state.drinkLogs.splice(index, 1); await web().saveState(state); return;
+      state.drinkLogs[index] = root.BeanCore.normalizeDrinkLog({ ...log, deletedAt: stamp, updatedAt: stamp, revision: (log.revision || 1) + 1 }, stamp);
+      await web().saveState(state); return;
     }
     const result = await nativeDb().query({ database: DB_NAME, statement: 'SELECT * FROM drink_logs WHERE id = ?', values: [id], readonly: false });
     if (!(result.values || []).length) return; const log = fromLogRow(result.values[0]);
-    const set = [{ statement: 'DELETE FROM drink_logs WHERE id = ?', values: [id] }];
+    if (log.deletedAt) return;
+    const set = [{ statement: 'UPDATE drink_logs SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE id = ?', values: [stamp, stamp, id] }];
     if (log.beanId) {
       const beanResult = await nativeDb().query({ database: DB_NAME, statement: 'SELECT * FROM beans WHERE id = ?', values: [log.beanId], readonly: false });
       if ((beanResult.values || []).length) {
         const bean = fromBeanRow(beanResult.values[0]); const remaining = root.BeanCore.consumptionResult(bean.remainingWeight, bean.initialWeight, -log.grams);
-        set.push({ statement: 'UPDATE beans SET remaining_weight = ?, status = ?, updated_at = ? WHERE id = ?', values: [remaining, remaining > 0 && bean.status === '已喝完' ? '饮用中' : bean.status, new Date().toISOString(), bean.id] });
+        set.push({ statement: 'UPDATE beans SET remaining_weight = ?, status = ?, updated_at = ? WHERE id = ?', values: [remaining, remaining > 0 && bean.status === '已喝完' ? '饮用中' : bean.status, stamp, bean.id] });
       }
     }
     await nativeDb().executeSet({ database: DB_NAME, set, transaction: true, readonly: false });

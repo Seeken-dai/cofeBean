@@ -210,3 +210,36 @@ test('repository contract: web state falls back to localStorage when IndexedDB w
   assert.equal((await repo.getAll())[0].id, 'fallback-bean');
   cleanupRepository();
 });
+
+test('repository contract: 删除豆子写墓碑而非物理删除，读接口过滤且重载不复活', async () => {
+  const storage = memoryStorage();
+  let repo = await loadRepository(storage);
+  await repo.save(core.normalizeBean({ id: 'tomb-bean', name: '墓碑豆', initialWeight: 100, remainingWeight: 100 }));
+
+  await repo.remove('tomb-bean');
+  assert.equal((await repo.getAll()).length, 0, '删除后 getAll 不含该豆');
+
+  const raw = JSON.parse(storage.getItem('coffee-vault-browser-preview'));
+  const stored = raw.beans.find((bean) => bean.id === 'tomb-bean');
+  assert.ok(stored, '底层仍保留记录（软删除）');
+  assert.ok(stored.deletedAt, '记录带墓碑 deletedAt');
+
+  cleanupRepository();
+  repo = await loadRepository(storage);
+  assert.equal((await repo.getAll()).length, 0, '重载后仍不含该豆（不复活）');
+  cleanupRepository();
+});
+
+test('repository contract: 删除饮用记录写墓碑并加回余量，读接口过滤', async () => {
+  const storage = memoryStorage();
+  const repo = await loadRepository(storage);
+  await repo.save(core.normalizeBean({ id: 'b1', name: '豆', initialWeight: 100, remainingWeight: 100 }));
+  await repo.saveDrinkLog({ id: 'l1', beanId: 'b1', beanName: '豆', grams: 20 });
+  assert.equal((await repo.getDrinkLogs()).length, 1);
+  assert.equal((await repo.getAll())[0].remainingWeight, 80);
+
+  await repo.deleteDrinkLog('l1');
+  assert.equal((await repo.getDrinkLogs()).length, 0, '删除后不含该记录');
+  assert.equal((await repo.getAll())[0].remainingWeight, 100, '删除记录后余量加回');
+  cleanupRepository();
+});
