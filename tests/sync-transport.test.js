@@ -95,3 +95,38 @@ test('sync-transport: auth client posts register/login/recover payloads', async 
     'https://sync.example.test/auth/recover'
   ]);
 });
+
+test('sync-transport: image upload calculates sha and download returns blob', async () => {
+  const calls = [];
+  const bytes = new TextEncoder().encode('image-bytes');
+  const sha = await transport.sha256Hex(bytes);
+  const imageBlob = new Blob([bytes], { type: 'image/webp' });
+  const http = transport.createHttpTransport({
+    core,
+    baseUrl: 'https://sync.example.test',
+    token: 'token-img',
+    fetch: async (url, init) => {
+      calls.push({ url, init });
+      if (init.method === 'PUT') return jsonResponse({ key: `r2:${sha}`, sha256: sha, deduped: false });
+      return {
+        ok: true,
+        status: 200,
+        headers: { get: () => 'image/webp' },
+        blob: async () => new Blob(['downloaded'], { type: 'image/webp' }),
+        text: async () => ''
+      };
+    }
+  });
+
+  const uploaded = await http.uploadImage(imageBlob);
+  const downloaded = await http.downloadImage(`r2:${sha}`);
+
+  assert.equal(uploaded.key, `r2:${sha}`);
+  assert.equal(calls[0].url, `https://sync.example.test/images/${sha}`);
+  assert.equal(calls[0].init.method, 'PUT');
+  assert.equal(calls[0].init.headers.Authorization, 'Bearer token-img');
+  assert.equal(calls[0].init.headers['Content-Type'], 'image/webp');
+  assert.equal(calls[1].url, `https://sync.example.test/images/${sha}`);
+  assert.equal(downloaded.type, 'image/webp');
+  assert.equal(await downloaded.text(), 'downloaded');
+});

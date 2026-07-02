@@ -11,6 +11,18 @@
   const SYNC_KEYS = new Set(['id', 'revision', 'updatedAt', 'deletedAt', 'deviceId']);
 
   function cleanBaseUrl(url) { return String(url || DEFAULT_BASE_URL).replace(/\/+$/, ''); }
+  function bytesToHex(bytes) { return Array.from(new Uint8Array(bytes)).map((byte) => byte.toString(16).padStart(2, '0')).join(''); }
+  async function toArrayBuffer(value) {
+    if (value instanceof ArrayBuffer) return value;
+    if (value && value.buffer instanceof ArrayBuffer) return value.buffer.slice(value.byteOffset || 0, (value.byteOffset || 0) + value.byteLength);
+    if (value && typeof value.arrayBuffer === 'function') return value.arrayBuffer();
+    throw new Error('图片数据不可读');
+  }
+  async function sha256Hex(value) {
+    const cryptoApi = typeof crypto !== 'undefined' ? crypto : null;
+    if (!cryptoApi || !cryptoApi.subtle) throw new Error('当前环境不支持 SHA-256');
+    return bytesToHex(await cryptoApi.subtle.digest('SHA-256', await toArrayBuffer(value)));
+  }
   function syncMeta(record) {
     return {
       id: record.id,
@@ -106,9 +118,31 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body)
         });
+      },
+      async uploadImage(blob) {
+        const buffer = await toArrayBuffer(blob);
+        const sha = await sha256Hex(buffer);
+        const response = await fetchImpl(`${baseUrl}/images/${sha}`, {
+          method: 'PUT',
+          headers: createHeaders(getToken(), { 'Content-Type': blob && blob.type || 'image/webp' }),
+          body: buffer
+        });
+        return readJson(response);
+      },
+      async downloadImage(ref) {
+        const sha = String(ref || '').replace(/^r2:/, '');
+        if (!/^[a-f0-9]{64}$/.test(sha)) throw new Error('图片引用无效');
+        const response = await fetchImpl(`${baseUrl}/images/${sha}`, {
+          method: 'GET',
+          headers: createHeaders(getToken())
+        });
+        if (!response.ok) await readJson(response);
+        if (typeof response.blob === 'function') return response.blob();
+        const buffer = await response.arrayBuffer();
+        return new Blob([buffer], { type: response.headers && response.headers.get ? response.headers.get('Content-Type') || 'image/webp' : 'image/webp' });
       }
     };
   }
 
-  return { DEFAULT_BASE_URL, BUCKET_MAP, TYPE_MAP, toEnvelope, fromEnvelope, createAuthClient, createHttpTransport };
+  return { DEFAULT_BASE_URL, BUCKET_MAP, TYPE_MAP, sha256Hex, toEnvelope, fromEnvelope, createAuthClient, createHttpTransport };
 });
