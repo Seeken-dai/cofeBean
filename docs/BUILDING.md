@@ -59,7 +59,7 @@ Set-Location android
 
 Git 流程：每个版本从 `main` 切 `release/<version>` 分支进行迭代与打包；APK 装机验证通过后用 `git merge --ff-only` 合并回 `main` 并打 `v<version>` tag，再从更新后的 `main` 进入下一版。`git push` 等对外操作需用户确认。完整说明见根目录 `AGENTS.md` 的「版本发布与 Git 流程」。
 
-数据库当前 `PRAGMA user_version = 7`。以后改变表结构时，在 `www/repository.js` 中增加顺序迁移，禁止删除数据库或清空旧表。
+数据库当前 `PRAGMA user_version = 8`。以后改变表结构时，在 `www/repository.js` 中增加顺序迁移，禁止删除数据库或清空旧表。
 
 ## 校验
 
