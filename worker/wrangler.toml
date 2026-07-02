@@ -1,0 +1,18 @@
+# 豆仓同步后端 Worker 配置（阶段 4）。
+# 部署：在 worker/ 目录下运行 `npx wrangler deploy`。
+# 密钥不写这里，用 `npx wrangler secret put <NAME>` 存到 Cloudflare。
+name = "cofebean-sync"
+main = "src/index.js"
+compatibility_date = "2026-07-01"
+account_id = "a40fc6e18933a954df29aaf6747c5379"
+
+# D1：结构化同步数据（豆子/记录/方案 envelope）
+[[d1_databases]]
+binding = "DB"
+database_name = "cofebean-sync"
+database_id = "5d148034-39ce-439d-88a2-a3afe536271c"
+
+# R2：图片 blob（key = 内容 sha256，内容寻址去重）
+[[r2_buckets]]
+binding = "IMAGES"
+bucket_name = "cofebean-images"
