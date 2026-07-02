@@ -23,7 +23,17 @@
 
   function capPlugin(name) { return window.Capacitor && window.Capacitor.Plugins ? window.Capacitor.Plugins[name] : null; }
   if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) document.body.classList.add('cap-native');
-  function toast(message) { clearTimeout(toastTimer); els.toast.textContent = message; els.toast.classList.add('show'); toastTimer = setTimeout(() => els.toast.classList.remove('show'), 2600); }
+  function toast(message) {
+    clearTimeout(toastTimer);
+    els.toast.textContent = message;
+    // 模态 <dialog>（showModal）位于浏览器 top layer，普通 toast 无论 z-index 都会被盖住；
+    // 有打开的 dialog 时把 toast 挪进最上层那个 dialog（同处 top layer 才能显示在最前）。
+    const openDialogs = document.querySelectorAll('dialog[open]');
+    const host = openDialogs.length ? openDialogs[openDialogs.length - 1] : document.body;
+    if (els.toast.parentElement !== host) host.appendChild(els.toast);
+    els.toast.classList.add('show');
+    toastTimer = setTimeout(() => els.toast.classList.remove('show'), 2600);
+  }
   function esc(value) { return String(value == null ? '' : value).replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]); }
   function formatWeight(value) { const n = Number(value) || 0; return n >= 1000 ? `${(n / 1000).toFixed(n % 1000 ? 1 : 0)}kg` : `${Math.round(n * 10) / 10}g`; }
   function formatPrice(value) { const n = Number(value); return Number.isFinite(n) && n >= 0 ? `¥${Math.round(n * 100) / 100}` : '未记录'; }
