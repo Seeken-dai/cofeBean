@@ -113,6 +113,24 @@ test('sync-service: 已登录同步流程会推进 cursor', async () => {
   assert.deepEqual(pushed[0].beans.map((bean) => bean.id).sort(), ['b1', 'b2']);
 });
 
+test('sync-service: 删号调用后端并清空本地凭证', async () => {
+  const storage = createStorage();
+  serviceApi.createConfigStore(storage).save({ enabled: true, email: 'd@example.com', token: 'tok', cursor: 5 });
+  let called = 0;
+  const service = serviceApi.createSyncService({
+    core, syncEngine, transportApi,
+    repository: createRepository({ beans: [], drinkLogs: [], brewPlans: [] }),
+    storage,
+    transportFactory: () => ({ deleteAccount: async () => { called += 1; return { deleted: true }; }, pull: async () => ({}), push: async () => ({}) })
+  });
+
+  const config = await service.deleteAccount();
+  assert.equal(called, 1);
+  assert.equal(config.token, '');
+  assert.equal(config.enabled, false);
+  assert.equal(config.loggedIn, false);
+});
+
 test('sync-service: 可从全局默认依赖创建服务', async () => {
   const originalCore = global.BeanCore;
   const originalRepository = global.BeanRepository;

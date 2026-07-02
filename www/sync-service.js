@@ -96,6 +96,7 @@
     }
     return {
       hello: () => baseTransport.hello(),
+      deleteAccount: (...args) => baseTransport.deleteAccount(...args),
       async pull(cursor) {
         const data = await baseTransport.pull(cursor);
         const cache = new Map();
@@ -166,10 +167,18 @@
       return { skipped: false, cursor: result.cursor || null, merged: result.merged, config: getConfig() };
     }
 
+    async function deleteAccount() {
+      if (!config.token) return getConfig();
+      const transport = createTransport();
+      if (typeof transport.deleteAccount === 'function') await transport.deleteAccount();
+      return persist({ enabled: false, token: '', cursor: null });
+    }
+
     return {
       getConfig,
       setEnabled: (enabled) => persist({ enabled: enabled === true }),
       logout: () => persist({ enabled: false, token: '', cursor: null }),
+      deleteAccount,
       register: async (body) => saveAuth(body && body.email, await createAuthClient().register(body)),
       login: async (body) => saveAuth(body && body.email, await createAuthClient().login(body)),
       recover: async (body) => saveAuth(body && body.email, await createAuthClient().recover(body)),

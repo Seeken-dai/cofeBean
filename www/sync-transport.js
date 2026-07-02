@@ -140,6 +140,9 @@
         if (typeof response.blob === 'function') return response.blob();
         const buffer = await response.arrayBuffer();
         return new Blob([buffer], { type: response.headers && response.headers.get ? response.headers.get('Content-Type') || 'image/webp' : 'image/webp' });
+      },
+      async deleteAccount() {
+        return request('/auth/delete', { method: 'POST' });
       }
     };
   }
