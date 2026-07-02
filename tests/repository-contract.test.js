@@ -95,9 +95,10 @@ function cleanupRepository() {
 }
 
 const PUBLIC_METHODS = [
+  'applySyncData',
   'deleteBrewPlan', 'deleteDrinkLog', 'deleteSmartValue', 'deleteWebImage',
-  'duplicateBrewPlan', 'getAll', 'getBrewPlans', 'getDrinkLogs', 'getSettings',
-  'getWebImage', 'importData', 'init', 'isNative', 'legacyData', 'remove',
+  'duplicateBrewPlan', 'exportForSync', 'getAll', 'getBrewPlans', 'getDeviceId',
+  'getDrinkLogs', 'getSettings', 'getWebImage', 'importData', 'init', 'isNative', 'legacyData', 'remove',
   'renameSmartValue', 'replaceAll', 'replaceAllData', 'save', 'saveBrewPlan',
   'saveDrinkLog', 'saveSettings', 'saveWebImage', 'smartValues'
 ];
@@ -241,5 +242,50 @@ test('repository contract: 删除饮用记录写墓碑并加回余量，读接�
   await repo.deleteDrinkLog('l1');
   assert.equal((await repo.getDrinkLogs()).length, 0, '删除后不含该记录');
   assert.equal((await repo.getAll())[0].remainingWeight, 100, '删除记录后余量加回');
+  cleanupRepository();
+});
+
+test('repository contract: local writes stamp stable deviceId and increment revision', async () => {
+  const storage = memoryStorage();
+  const repo = await loadRepository(storage);
+  const deviceId = repo.getDeviceId();
+
+  const first = await repo.save({ id: 'sync-bean', name: '同步豆', initialWeight: 100, remainingWeight: 100 });
+  const second = await repo.save({ ...first, name: '同步豆改名' });
+  assert.equal(first.deviceId, deviceId);
+  assert.equal(second.deviceId, deviceId);
+  assert.equal(first.revision, 1);
+  assert.equal(second.revision, 2);
+
+  const log = await repo.saveDrinkLog({ id: 'sync-log', beanId: 'sync-bean', beanName: '同步豆改名', grams: 10 });
+  assert.equal(log.deviceId, deviceId);
+  assert.equal(log.revision, 1);
+  const beanAfterLog = (await repo.getAll())[0];
+  assert.equal(beanAfterLog.revision, 3, '喝一杯会更新豆子库存并递增豆子 revision');
+  cleanupRepository();
+});
+
+test('repository contract: sync export includes tombstones and applySyncData keeps them hidden', async () => {
+  const storage = memoryStorage();
+  const repo = await loadRepository(storage);
+  await repo.save({ id: 'sync-a', name: '会删除' });
+  await repo.save({ id: 'sync-b', name: '会保留' });
+  await repo.remove('sync-a');
+
+  const exported = await repo.exportForSync();
+  assert.equal(exported.beans.length, 2);
+  assert.ok(exported.beans.find((bean) => bean.id === 'sync-a').deletedAt);
+  assert.equal((await repo.getAll()).length, 1);
+
+  await repo.applySyncData({
+    beans: [
+      core.normalizeBean({ id: 'remote-live', name: '远端豆', updatedAt: '2026-07-02T00:00:00.000Z', deviceId: 'remote' }, '2026-07-02T00:00:00.000Z'),
+      core.normalizeBean({ id: 'remote-dead', name: '远端墓碑', deletedAt: '2026-07-02T00:00:00.000Z', updatedAt: '2026-07-02T00:00:00.000Z', deviceId: 'remote' }, '2026-07-02T00:00:00.000Z')
+    ],
+    drinkLogs: [],
+    brewPlans: []
+  });
+  assert.deepEqual((await repo.getAll()).map((bean) => bean.id), ['remote-live']);
+  assert.equal((await repo.exportForSync()).beans.length, 2);
   cleanupRepository();
 });
