@@ -13,11 +13,16 @@
 ### 变更
 
 - 项目定位更新为“本地优先 + 可选同步”；1.x 本地优先线保留在 `release/1.x-local-first` 分支。
-- Android 2.0.0 同步版新增 `INTERNET` 权限用于可选云同步；仍需完成真机覆盖安装、迁移与墓碑验证。
+- Android 2.0.0 同步版新增 `INTERNET` 权限用于可选云同步。
+
+### 修复
+
+- 修复 Web 创建并同步到 Android 的咖啡豆在 Android 端无法删除的问题；原生删除路径不再引用冲煮方案表不存在的同步列，也不依赖 SQLite JSON 扩展。
 
 ### 发布
 
-- Android 版本号更新为 `versionName 2.0.0`、`versionCode 35`；正式签名版 `dist/coffee-vault-2.0.0-release.apk` 待阶段 5 构建验证。
+- Android 版本号更新为 `versionName 2.0.0`、`versionCode 35`；正式签名版 `dist/coffee-vault-2.0.0-release.apk`。
+- 构建前通过 `node --check www/app.js`、`node --check www/repository.js`、`node --check www/sync-service.js` 和 `npm.cmd test`（83/83）。
 
 ## [1.5.2] - 2026-07-01
 

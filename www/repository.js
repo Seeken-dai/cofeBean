@@ -239,9 +239,21 @@
       state.brewPlans = state.brewPlans.map((plan) => plan.beanIds.includes(id) ? root.BeanCore.normalizeBrewPlan(markLocal({ ...plan, beanIds: plan.beanIds.filter((beanId) => beanId !== id) }, plan, stamp), stamp) : plan);
       await web().saveState(state); return;
     }
+    const planResult = await nativeDb().query({ database: DB_NAME, statement: 'SELECT * FROM brew_plans', values: [], readonly: false });
+    const changedPlans = (planResult.values || [])
+      .map(fromPlanRow)
+      .filter((plan) => plan.beanIds.includes(id))
+      .map((plan) => root.BeanCore.normalizeBrewPlan({
+        ...plan,
+        beanIds: plan.beanIds.filter((beanId) => beanId !== id),
+        updatedAt: stamp
+      }, stamp));
+    const planColumns = PLAN_COLUMNS.map((key) => PLAN_NATIVE[key] || key).join(',');
+    const planPlaceholders = PLAN_COLUMNS.map(() => '?').join(',');
+    const planUpdates = PLAN_COLUMNS.filter((key) => key !== 'id' && key !== 'createdAt').map((key) => `${PLAN_NATIVE[key] || key}=excluded.${PLAN_NATIVE[key] || key}`).join(',');
     await nativeDb().executeSet({ database: DB_NAME, set: [
       { statement: 'UPDATE drink_logs SET bean_name = COALESCE((SELECT name FROM beans WHERE id = ?), bean_name), bean_id = NULL, updated_at = ?, revision = revision + 1, device_id = ? WHERE bean_id = ?', values: [id, stamp, getDeviceId(), id] },
-      { statement: "UPDATE brew_plans SET bean_ids = json_remove(bean_ids, '$[' || (SELECT key FROM json_each(bean_ids) WHERE value = ? LIMIT 1) || ']'), updated_at = ?, revision = revision + 1, device_id = ? WHERE EXISTS (SELECT 1 FROM json_each(bean_ids) WHERE value = ?)", values: [id, stamp, getDeviceId(), id] },
+      ...changedPlans.map((plan) => ({ statement: `INSERT INTO brew_plans (${planColumns}) VALUES (${planPlaceholders}) ON CONFLICT(id) DO UPDATE SET ${planUpdates}`, values: planValues(plan) })),
       { statement: 'UPDATE beans SET deleted_at = ?, updated_at = ?, revision = revision + 1, device_id = ? WHERE id = ?', values: [stamp, stamp, getDeviceId(), id] }
     ], transaction: true, readonly: false });
   }

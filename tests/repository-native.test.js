@@ -189,3 +189,53 @@ test('native drink log save updates log and bean inventory atomically', async ()
   assert.equal(write.set[1].values[1], '饮用中');
   cleanupNativeRepository();
 });
+
+test('native bean remove tombstones synced beans without invalid brew plan columns', async () => {
+  const calls = [];
+  const stamp = '2026-01-01T00:00:00.000Z';
+  const plan = core.normalizeBrewPlan({
+    id: 'plan-bound',
+    name: '绑定方案',
+    beanIds: ['remote-bean', 'local-bean'],
+    createdAt: stamp,
+    updatedAt: stamp
+  }, stamp);
+  const sqlite = {
+    createConnection: async (options) => calls.push(['createConnection', options]),
+    open: async (options) => calls.push(['open', options]),
+    execute: async (options) => calls.push(['execute', options]),
+    executeSet: async (options) => calls.push(['executeSet', options]),
+    query: async (options) => {
+      calls.push(['query', options]);
+      if (options.statement === 'SELECT * FROM brew_plans') {
+        return { values: [{
+          id: plan.id,
+          name: plan.name,
+          brew_method: plan.brewMethod,
+          version: plan.version,
+          source: plan.source,
+          bean_ids: JSON.stringify(plan.beanIds),
+          payload: JSON.stringify(plan),
+          created_at: plan.createdAt,
+          updated_at: plan.updatedAt
+        }] };
+      }
+      return migrationQuery(options.statement);
+    }
+  };
+  const repo = loadNativeRepository(sqlite);
+
+  await repo.init();
+  await repo.remove('remote-bean');
+
+  const write = calls.filter(([name]) => name === 'executeSet').at(-1)[1];
+  const statements = write.set.map((item) => item.statement);
+  const planWrite = write.set.find((item) => item.statement.startsWith('INSERT INTO brew_plans'));
+  assert.equal(write.transaction, true);
+  assert.equal(statements.some((statement) => /json_each|json_remove/.test(statement)), false);
+  assert.ok(planWrite, '受影响方案应写回解绑后的 bean_ids');
+  assert.equal(/revision|device_id/.test(planWrite.statement), false);
+  assert.deepEqual(JSON.parse(planWrite.values[5]), ['local-bean']);
+  assert.match(statements.at(-1), /^UPDATE beans SET deleted_at/);
+  cleanupNativeRepository();
+});
