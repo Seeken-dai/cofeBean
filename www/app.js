@@ -969,15 +969,20 @@
     if (!password || password.length < 8) throw new Error('密码至少 8 位');
     return { email, password };
   }
+  function setSyncBusy(busy) { [$('#syncLogin'), $('#syncRegister')].forEach((b) => { if (b) b.disabled = busy; }); }
   async function syncLogin() {
     if (!cloudSync) return toast('同步模块未加载');
-    try { const body = readSyncCredentials(); await cloudSync.login(body); $('#syncRecoveryBox').hidden = true; renderSyncSettings(); toast('已登录同步账号'); }
+    let body; try { body = readSyncCredentials(); } catch (error) { return toast(error.message); }
+    setSyncBusy(true); toast('正在登录…');
+    try { await cloudSync.login(body); $('#syncRecoveryBox').hidden = true; renderSyncSettings(); toast('已登录同步账号'); }
     catch (error) { console.error(error); toast(error.message || '登录失败'); }
+    finally { setSyncBusy(false); }
   }
   async function syncRegister() {
     if (!cloudSync) return toast('同步模块未加载');
+    let body; try { body = readSyncCredentials(); } catch (error) { return toast(error.message); }
+    setSyncBusy(true); toast('正在注册…');
     try {
-      const body = readSyncCredentials();
       const recoveryCode = generateRecoveryCode();
       await cloudSync.register({ ...body, recoveryCode });
       $('#syncRecoveryCode').textContent = recoveryCode;
@@ -985,6 +990,7 @@
       renderSyncSettings();
       toast('注册成功，请先保存恢复码');
     } catch (error) { console.error(error); toast(error.message || '注册失败'); }
+    finally { setSyncBusy(false); }
   }
   function syncLogout() { if (!cloudSync) return; cloudSync.logout(); $('#syncRecoveryBox').hidden = true; renderSyncSettings(); toast('已退出同步账号'); }
   async function syncDeleteAccount() {
