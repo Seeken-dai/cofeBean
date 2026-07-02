@@ -33,7 +33,7 @@
     }
 
     async function sync() {
-      const local = getLocal() || {};
+      const local = (await getLocal()) || {};
       const remote = (await transport.pull(cursor)) || {};
       const merged = mergeAll(local, remote);
       await applyLocal(merged);
