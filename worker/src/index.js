@@ -5,17 +5,14 @@
 
 const SYNC_PROTOCOL = 1;
 const TYPES = ['bean', 'drinkLog', 'brewPlan'];
-const ALLOWED_ORIGINS = ['https://cofebean.pages.dev', 'http://localhost:4178', 'http://127.0.0.1:4178'];
+const ALLOWED_ORIGINS = ['https://cofebean.pages.dev', 'http://localhost:4178', 'http://127.0.0.1:4178', 'http://localhost', 'capacitor://localhost'];
 
 function corsHeaders(request) {
-  const origin = request.headers.get('Origin') || '';
-  const allow = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
   return {
-    'Access-Control-Allow-Origin': allow,
+    'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET,POST,PUT,OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type,Authorization',
     'Access-Control-Max-Age': '86400',
-    'Vary': 'Origin'
   };
 }
 function json(data, status, request) {
