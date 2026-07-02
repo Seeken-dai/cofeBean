@@ -13,6 +13,7 @@
   const MONTH_NAMES = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
   const themeColors = { 'dark-roast': '#1a1412', frost: '#f7f1e8', obsidian: '#1e2320', blaze: '#f5f3ea' };
   const state = { beans: [], drinkLogs: [], brewPlans: [], settings: BeanCore.normalizeSettings({}), view: 'beans', status: '全部', planMethod: '全部', query: '', sort: 'roastDate', direction: 'desc', editingId: null, editingDrinkId: null, viewingDrinkId: null, editingPlanId: null, viewingPlanId: null, managerField: null, choiceTarget: null, dateTarget: null, calendarDate: null, coffeeCalendarDate: new Date(), coffeeCalendarView: 'month', selectedCoffeeDay: BeanCore.dateKey(new Date()), activeDrinkStepIndex: -1, brewAssist: null, pendingImages: [], previewImage: null, shareBeanId: null, shareCardPreview: null, importScope: 'all', initialized: false, resuming: false };
+  const cloudSync = window.BeanCloudSync ? window.BeanCloudSync.createSyncService() : null;
   let toastTimer = null;
   let assistTimer = null;
   let wakeLock = null;
@@ -913,7 +914,20 @@
 
   function applyTheme(theme, persist) { if (!themeColors[theme]) theme = 'dark-roast'; document.documentElement.dataset.theme = theme; state.settings.theme = theme; localStorage.setItem('coffee-vault-theme', theme); $$('[data-theme-value]').forEach((button) => button.classList.toggle('active', button.dataset.themeValue === theme)); const statusBar = capPlugin('StatusBar'); if (statusBar) { if (statusBar.setOverlaysWebView) statusBar.setOverlaysWebView({ overlay: false }).catch(() => {}); statusBar.setBackgroundColor({ color: themeColors[theme] }).catch(() => {}); statusBar.setStyle({ style: ['frost', 'blaze'].includes(theme) ? 'LIGHT' : 'DARK' }).catch(() => {}); } if (persist && state.initialized) BeanRepository.saveSettings(state.settings).catch(() => toast('主题保存失败')); }
   function syncBackupDialog() { $$('[data-requires-brew-plans]').forEach((button) => { button.hidden = !brewPlansEnabled(); }); }
-  function renderSettings() { $('#settingQuickGrams').value = state.settings.quickGrams; $('#settingFlavorReminderDays').value = state.settings.flavorReminderDays; $('#settingLowStockCups').value = state.settings.lowStockCups; $('#settingBrewPlans').checked = brewPlansEnabled(); $('#settingPriceUnit').value = state.settings.priceUnit || 'g'; enhanceSelect($('#settingPriceUnit')); syncChoiceTrigger($('#settingPriceUnit')); $('#settingAdvanced').checked = state.settings.advancedRatings; $('#dimensionSettings').innerHTML = BeanCore.DIMENSION_KEYS.map((key) => `<label><input type="checkbox" data-dimension="${key}" ${state.settings.enabledDimensions.includes(key) ? 'checked' : ''}><span>${DIMENSIONS[key]} ${key === 'bitterness' ? '☹' : '☺'}</span></label>`).join(''); $('#dimensionSection').hidden = !state.settings.advancedRatings; }
+  function renderSyncSettings() {
+    if (!cloudSync) return;
+    const config = cloudSync.getConfig();
+    const loggedIn = Boolean(config.token);
+    $('#syncEmail').value = config.email || $('#syncEmail').value || '';
+    $('#syncPassword').value = '';
+    $('#syncStateText').textContent = loggedIn ? `已登录 ${config.email || '同步账号'}${config.enabled ? '，同步已开启' : '，同步已关闭'}` : '未登录：默认不会访问云端';
+    $('#syncEnabled').checked = Boolean(config.enabled && loggedIn);
+    $('#syncEnabled').disabled = !loggedIn;
+    $('#syncNow').disabled = !loggedIn;
+    $('#syncLogout').hidden = !loggedIn;
+    $('#syncLastText').textContent = config.lastSyncAt ? `上次同步 ${formatDateTime(config.lastSyncAt)}` : (loggedIn ? '点击后同步这台设备的数据' : '登录后可同步这台设备的数据');
+  }
+  function renderSettings() { $('#settingQuickGrams').value = state.settings.quickGrams; $('#settingFlavorReminderDays').value = state.settings.flavorReminderDays; $('#settingLowStockCups').value = state.settings.lowStockCups; $('#settingBrewPlans').checked = brewPlansEnabled(); $('#settingPriceUnit').value = state.settings.priceUnit || 'g'; enhanceSelect($('#settingPriceUnit')); syncChoiceTrigger($('#settingPriceUnit')); $('#settingAdvanced').checked = state.settings.advancedRatings; $('#dimensionSettings').innerHTML = BeanCore.DIMENSION_KEYS.map((key) => `<label><input type="checkbox" data-dimension="${key}" ${state.settings.enabledDimensions.includes(key) ? 'checked' : ''}><span>${DIMENSIONS[key]} ${key === 'bitterness' ? '☹' : '☺'}</span></label>`).join(''); $('#dimensionSection').hidden = !state.settings.advancedRatings; renderSyncSettings(); }
   async function saveSettingsFromUi() { state.settings = BeanCore.normalizeSettings({ ...state.settings, quickGrams: $('#settingQuickGrams').value, flavorReminderDays: $('#settingFlavorReminderDays').value, lowStockCups: $('#settingLowStockCups').value, enableBrewPlans: $('#settingBrewPlans').checked, priceUnit: $('#settingPriceUnit').value, advancedRatings: $('#settingAdvanced').checked, enabledDimensions: $$('[data-dimension]:checked').map((node) => node.dataset.dimension) }); syncBackupDialog(); await BeanRepository.saveSettings(state.settings); render(); if (els.detail.open && state.editingId) openDetail(state.beans.find((bean) => bean.id === state.editingId)); }
   async function showAbout() { setDialog(els.about, true); const app = capPlugin('App'); if (app && app.getInfo) { try { const info = await app.getInfo(); $('#aboutVersion').textContent = `版本 ${info.version} · 构建 ${info.build}`; } catch (_) {} } }
   function openImagePreview(path, label) { if (!path) return; state.previewImage = { path, label: label || '图片预览' }; $('#imagePreviewTitle').textContent = state.previewImage.label; $('#imagePreviewPhoto').src = imageSrc(path); setDialog(els.imagePreview, true); }
@@ -932,6 +946,60 @@
     input.remove();
     if (!copied) throw new Error('copy failed');
   }
+  function generateRecoveryCode() {
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const bytes = new Uint8Array(20);
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) crypto.getRandomValues(bytes); else bytes.forEach((_, index) => { bytes[index] = Math.floor(Math.random() * 256); });
+    return Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join('').replace(/(.{4})/g, '$1-').replace(/-$/, '');
+  }
+  function readSyncCredentials() {
+    const email = $('#syncEmail').value.trim();
+    const password = $('#syncPassword').value;
+    if (!email || !email.includes('@')) throw new Error('请填写邮箱');
+    if (!password || password.length < 8) throw new Error('密码至少 8 位');
+    return { email, password };
+  }
+  async function syncLogin() {
+    if (!cloudSync) return toast('同步模块未加载');
+    try { const body = readSyncCredentials(); await cloudSync.login(body); $('#syncRecoveryBox').hidden = true; renderSyncSettings(); toast('已登录同步账号'); }
+    catch (error) { console.error(error); toast(error.message || '登录失败'); }
+  }
+  async function syncRegister() {
+    if (!cloudSync) return toast('同步模块未加载');
+    try {
+      const body = readSyncCredentials();
+      const recoveryCode = generateRecoveryCode();
+      await cloudSync.register({ ...body, recoveryCode });
+      $('#syncRecoveryCode').textContent = recoveryCode;
+      $('#syncRecoveryBox').hidden = false;
+      renderSyncSettings();
+      toast('注册成功，请先保存恢复码');
+    } catch (error) { console.error(error); toast(error.message || '注册失败'); }
+  }
+  function syncLogout() { if (!cloudSync) return; cloudSync.logout(); $('#syncRecoveryBox').hidden = true; renderSyncSettings(); toast('已退出同步账号'); }
+  function syncToggle() {
+    if (!cloudSync) return;
+    const config = cloudSync.getConfig();
+    if (!config.token) { $('#syncEnabled').checked = false; return toast('请先登录同步账号'); }
+    cloudSync.setEnabled($('#syncEnabled').checked);
+    renderSyncSettings();
+    toast($('#syncEnabled').checked ? '同步已开启' : '同步已关闭');
+  }
+  async function syncNow() {
+    if (!cloudSync) return toast('同步模块未加载');
+    const button = $('#syncNow');
+    button.disabled = true;
+    try {
+      toast('正在同步…');
+      const result = await cloudSync.sync({ force: true });
+      if (result.skipped) return toast(result.reason === 'not-authenticated' ? '请先登录同步账号' : '同步暂不可用');
+      await reload();
+      renderSyncSettings();
+      toast('同步完成');
+    } catch (error) { console.error(error); toast(error.message || '同步失败'); }
+    finally { button.disabled = false; renderSyncSettings(); }
+  }
+  async function copyRecoveryCode() { try { await copyText($('#syncRecoveryCode').textContent); toast('恢复码已复制'); } catch (_) { toast('复制失败，请手动保存'); } }
   async function copyCurrentPlanShareCode() {
     const plan = state.brewPlans.find((item) => item.id === state.viewingPlanId);
     if (!plan) return;
@@ -1319,7 +1387,7 @@
     setupSmartSelects(); setupPlanSmartSelects(); syncAllChoiceTriggers(); $$('.picker-control').forEach((input) => input.addEventListener('click', () => openDatePicker(input))); $('#choiceList').addEventListener('click', chooseOption); $('#choiceClose').addEventListener('click', () => setDialog(els.choice, false)); $('#datePickerClose').addEventListener('click', () => setDialog(els.datePicker, false)); $('#datePickerCancel').addEventListener('click', () => setDialog(els.datePicker, false)); $('#datePickerConfirm').addEventListener('click', confirmDatePicker); $('#datePickerClear').addEventListener('click', clearDatePicker); $('#calendarPrev').addEventListener('click', () => shiftCalendar(-1)); $('#calendarNext').addEventListener('click', () => shiftCalendar(1)); $('#calendarDays').addEventListener('click', chooseCalendarDay); $$('[data-manage]').forEach((button) => button.addEventListener('click', () => openManager(button.dataset.manage))); $('#managerClose').addEventListener('click', () => setDialog(els.manager, false)); $('#managerList').addEventListener('click', managerAction);
     $('#profileOpen').addEventListener('click', openPersonal); $('#personalClose').addEventListener('click', () => setDialog(els.personal, false)); $('#coffeeCalendarOpen').addEventListener('click', () => openCoffeeCalendar('month')); $('#personalSettingsOpen').addEventListener('click', () => { setDialog(els.personal, false); renderSettings(); setDialog(els.settings, true); }); $('#dataBackupOpen').addEventListener('click', () => { setDialog(els.personal, false); syncBackupDialog(); setDialog(els.backup, true); }); $('#dataBackupClose').addEventListener('click', () => setDialog(els.backup, false));
     $('#calendarClose').addEventListener('click', () => setDialog(els.calendar, false)); $('#calendarShare').addEventListener('click', shareCalendarCard); $$('[data-calendar-view]').forEach((button) => button.addEventListener('click', () => { state.coffeeCalendarView = button.dataset.calendarView; renderCoffeeCalendar(); })); $('#calendarPrevMonth').addEventListener('click', () => shiftCoffeeMonth(-1)); $('#calendarNextMonth').addEventListener('click', () => shiftCoffeeMonth(1)); $('#calendarPrevYear').addEventListener('click', () => shiftCoffeeYear(-1)); $('#calendarNextYear').addEventListener('click', () => shiftCoffeeYear(1)); els.calendar.addEventListener('click', (event) => { const day = event.target.closest('[data-calendar-day]'); if (day) { state.selectedCoffeeDay = day.dataset.calendarDay; state.coffeeCalendarDate = dateFromKey(state.selectedCoffeeDay); renderCoffeeCalendar(); return; } const yearDay = event.target.closest('[data-year-day]'); if (yearDay) { state.selectedCoffeeDay = yearDay.dataset.yearDay; state.coffeeCalendarDate = dateFromKey(state.selectedCoffeeDay); renderCoffeeCalendar(); return; } const logItem = event.target.closest('[data-log-id]'); if (logItem) openDrinkDetail(state.drinkLogs.find((log) => log.id === logItem.dataset.logId)); if (event.target.closest('#calendarSeeLogs')) { setDialog(els.calendar, false); state.view = 'drinks'; render(); } });
-    $('#settingsClose').addEventListener('click', () => setDialog(els.settings, false)); $$('[data-theme-value]').forEach((button) => button.addEventListener('click', () => applyTheme(button.datasetThemeValue || button.dataset.themeValue, true))); $('#settingQuickGrams').addEventListener('change', saveSettingsFromUi); $('#settingFlavorReminderDays').addEventListener('change', saveSettingsFromUi); $('#settingLowStockCups').addEventListener('change', saveSettingsFromUi); $('#settingBrewPlans').addEventListener('change', saveSettingsFromUi); $('#settingPriceUnit').addEventListener('change', () => { syncChoiceTrigger($('#settingPriceUnit')); saveSettingsFromUi(); }); $('#settingAdvanced').addEventListener('change', () => { $('#dimensionSection').hidden = !$('#settingAdvanced').checked; saveSettingsFromUi(); }); $('#dimensionSettings').addEventListener('change', saveSettingsFromUi); $('#aboutOpen').addEventListener('click', showAbout); $('#aboutClose').addEventListener('click', () => setDialog(els.about, false)); $$('[data-export-scope]').forEach((button) => button.addEventListener('click', () => exportBackup(button.dataset.exportScope))); $$('[data-import-scope]').forEach((button) => button.addEventListener('click', () => startImport(button.dataset.importScope))); $('#webImportInput').addEventListener('change', webImport); $('#migrationLater').addEventListener('click', () => setDialog(els.migration, false)); $('#migrationNow').addEventListener('click', migrateLegacy);
+    $('#settingsClose').addEventListener('click', () => setDialog(els.settings, false)); $$('[data-theme-value]').forEach((button) => button.addEventListener('click', () => applyTheme(button.datasetThemeValue || button.dataset.themeValue, true))); $('#settingQuickGrams').addEventListener('change', saveSettingsFromUi); $('#settingFlavorReminderDays').addEventListener('change', saveSettingsFromUi); $('#settingLowStockCups').addEventListener('change', saveSettingsFromUi); $('#settingBrewPlans').addEventListener('change', saveSettingsFromUi); $('#settingPriceUnit').addEventListener('change', () => { syncChoiceTrigger($('#settingPriceUnit')); saveSettingsFromUi(); }); $('#settingAdvanced').addEventListener('change', () => { $('#dimensionSection').hidden = !$('#settingAdvanced').checked; saveSettingsFromUi(); }); $('#dimensionSettings').addEventListener('change', saveSettingsFromUi); $('#syncLogin').addEventListener('click', syncLogin); $('#syncRegister').addEventListener('click', syncRegister); $('#syncLogout').addEventListener('click', syncLogout); $('#syncEnabled').addEventListener('change', syncToggle); $('#syncNow').addEventListener('click', syncNow); $('#syncCopyRecovery').addEventListener('click', copyRecoveryCode); $('#aboutOpen').addEventListener('click', showAbout); $('#aboutClose').addEventListener('click', () => setDialog(els.about, false)); $$('[data-export-scope]').forEach((button) => button.addEventListener('click', () => exportBackup(button.dataset.exportScope))); $$('[data-import-scope]').forEach((button) => button.addEventListener('click', () => startImport(button.dataset.importScope))); $('#webImportInput').addEventListener('change', webImport); $('#migrationLater').addEventListener('click', () => setDialog(els.migration, false)); $('#migrationNow').addEventListener('click', migrateLegacy);
     $('#brewAssistStop').addEventListener('click', cancelBrewAssist); $('#brewAssistPause').addEventListener('click', pauseBrewAssist); $('#brewAssistRing').addEventListener('click', pauseBrewAssist); $('#brewAssistRing').addEventListener('keydown', (event) => { if (['Enter', ' '].includes(event.key)) { event.preventDefault(); pauseBrewAssist(); } }); $('#brewAssistSkip').addEventListener('click', skipBrewAssistStage); $('#brewAssistFinish').addEventListener('click', finishBrewAssist);
     $('#sharePreviewClose').addEventListener('click', closeSharePreview); $('#sharePreviewCancel').addEventListener('click', closeSharePreview); $('#sharePreviewSave').addEventListener('click', saveShareCard); $('#sharePreviewShare').addEventListener('click', confirmShareCard);
     $('#exitCancel').addEventListener('click', () => setDialog(els.exitConfirm, false)); $('#exitConfirm').addEventListener('click', exitApp);

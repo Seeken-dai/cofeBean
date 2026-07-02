@@ -1,8 +1,8 @@
 (function (root, factory) {
-  const api = factory();
+  const api = factory(root);
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.BeanCloudSync = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (root) {
   'use strict';
 
   const CONFIG_KEY = 'coffee-vault-sync-config';
@@ -67,7 +67,6 @@
     if (!transportApi || typeof transportApi.createHttpTransport !== 'function') throw new Error('缺少 BeanSyncTransport');
 
     const configStore = deps.configStore || createConfigStore(deps.storage, deps.configKey);
-    const authClient = deps.authClient || transportApi.createAuthClient({ baseUrl: deps.baseUrl, fetch: deps.fetch });
     const canSync = deps.canSync || defaultCanSync;
     const now = deps.now || (() => new Date().toISOString());
     let config = configStore.load();
@@ -81,6 +80,9 @@
     function createTransport() {
       if (deps.transportFactory) return deps.transportFactory(config);
       return transportApi.createHttpTransport({ core, baseUrl: deps.baseUrl, fetch: deps.fetch, token: config.token });
+    }
+    function createAuthClient() {
+      return deps.authClient || transportApi.createAuthClient({ baseUrl: deps.baseUrl, fetch: deps.fetch });
     }
 
     async function saveAuth(email, response) {
@@ -108,9 +110,9 @@
       getConfig,
       setEnabled: (enabled) => persist({ enabled: enabled === true }),
       logout: () => persist({ enabled: false, token: '', cursor: null }),
-      register: async (body) => saveAuth(body && body.email, await authClient.register(body)),
-      login: async (body) => saveAuth(body && body.email, await authClient.login(body)),
-      recover: async (body) => saveAuth(body && body.email, await authClient.recover(body)),
+      register: async (body) => saveAuth(body && body.email, await createAuthClient().register(body)),
+      login: async (body) => saveAuth(body && body.email, await createAuthClient().login(body)),
+      recover: async (body) => saveAuth(body && body.email, await createAuthClient().recover(body)),
       sync
     };
   }

@@ -320,6 +320,13 @@ dialog::backdrop { background:rgb(8 5 4 / .72); backdrop-filter:blur(4px); }
 .settings-action { display:flex; justify-content:space-between; align-items:center; width:100%; min-height:64px; padding:10px 12px; border:1px solid var(--border); border-radius:13px; background:var(--surface-2); color:var(--text); text-align:left; }
 .settings-action + .settings-action { margin-top:8px; }
 .settings-action b,.settings-action small { display:block; }.settings-action b { font-size:13px; }.settings-action small { margin-top:4px; color:var(--faint); font-size:10px; }.settings-action strong { color:var(--accent); font-size:20px; }
+.sync-settings { display:grid; gap:12px; }
+.sync-state { margin:0; color:var(--muted); font-size:12px; line-height:1.5; }
+.sync-actions { display:grid; grid-template-columns:1fr 1fr auto; gap:8px; }
+.sync-actions button,.sync-recovery button { min-height:42px; }
+.sync-recovery { display:grid; gap:8px; padding:12px; border:1px solid color-mix(in srgb,var(--accent) 36%,var(--border)); border-radius:13px; background:color-mix(in srgb,var(--accent) 8%,var(--surface-2)); }
+.sync-recovery b,.sync-recovery small { display:block; }.sync-recovery b { color:var(--accent); font-size:12px; }.sync-recovery small { color:var(--faint); font-size:10px; line-height:1.5; }
+.sync-recovery code { overflow-wrap:anywhere; color:var(--text); font:700 13px ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing:0; }
 .settings-footnote { margin:0; padding:16px 20px calc(20px + env(safe-area-inset-bottom,0px)); color:var(--faint); font-size:10px; line-height:1.6; }
 .settings-number,.settings-toggle { display:flex; justify-content:space-between; align-items:center; gap:16px; }
 .settings-toggle + .settings-toggle { margin-top:12px; padding-top:12px; border-top:1px solid color-mix(in srgb,var(--border) 62%,transparent); }
@@ -461,6 +468,7 @@ dialog::backdrop { background:rgb(8 5 4 / .72); backdrop-filter:blur(4px); }
   .stat strong { font-size:17px; }.stat-primary strong { font-size:32px; }
   .form-grid,.drink-param-grid,.drink-plan-options,.pour-step-grid,.drink-step-grid { grid-template-columns:1fr; }.field.full,.drink-param-grid .field.full,.drink-param-grid > .full,.pour-step-grid label.full,.drink-step-grid label.full { grid-column:1; }.favorite-field { padding-top:0; }
   .rating-row { gap:4px; }.rating-row button { width:38px; height:40px; }.dimension-settings { grid-template-columns:1fr 1fr; }
+  .sync-actions { grid-template-columns:1fr 1fr; }.sync-actions #syncLogout { grid-column:1/-1; }
   .assist-ring strong { font-size:44px; }
   .assist-result-grid { grid-template-columns:1fr; }
   .assist-footer button { padding:0 14px; font-size:13px; }

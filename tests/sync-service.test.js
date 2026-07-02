@@ -112,3 +112,25 @@ test('sync-service: 已登录同步流程会推进 cursor', async () => {
   assert.deepEqual(local.beans.map((bean) => bean.id).sort(), ['b1', 'b2']);
   assert.deepEqual(pushed[0].beans.map((bean) => bean.id).sort(), ['b1', 'b2']);
 });
+
+test('sync-service: 可从全局默认依赖创建服务', async () => {
+  const originalCore = global.BeanCore;
+  const originalRepository = global.BeanRepository;
+  const originalSync = global.BeanSync;
+  const originalTransport = global.BeanSyncTransport;
+  try {
+    global.BeanCore = core;
+    global.BeanRepository = createRepository({ beans: [], drinkLogs: [], brewPlans: [] });
+    global.BeanSync = syncEngine;
+    global.BeanSyncTransport = transportApi;
+    const service = serviceApi.createSyncService({ storage: createStorage(), transportFactory: () => { throw new Error('不应联网'); } });
+    const result = await service.sync();
+    assert.equal(result.skipped, true);
+    assert.equal(result.reason, 'not-authenticated');
+  } finally {
+    global.BeanCore = originalCore;
+    global.BeanRepository = originalRepository;
+    global.BeanSync = originalSync;
+    global.BeanSyncTransport = originalTransport;
+  }
+});
