@@ -179,6 +179,24 @@ async function handleImageGet(request, env, userId, sha) {
   return new Response(object.body, { status: 200, headers: { 'Content-Type': object.httpMetadata?.contentType || 'image/webp', 'Cache-Control': 'private, max-age=31536000', ...corsHeaders(request) } });
 }
 
+// 删号：清空该用户的 R2 图片 + D1 所有数据（记录/会话/序列/图片引用/用户）。不可撤销。
+async function handleDeleteAccount(request, env, userId) {
+  let cursor;
+  do {
+    const listed = await env.IMAGES.list({ prefix: `${userId}/`, cursor });
+    for (const obj of (listed.objects || [])) await env.IMAGES.delete(obj.key);
+    cursor = listed.truncated ? listed.cursor : undefined;
+  } while (cursor);
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM records WHERE user_id = ?').bind(userId),
+    env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(userId),
+    env.DB.prepare('DELETE FROM user_seq WHERE user_id = ?').bind(userId),
+    env.DB.prepare('DELETE FROM image_refs WHERE user_id = ?').bind(userId),
+    env.DB.prepare('DELETE FROM users WHERE id = ?').bind(userId)
+  ]);
+  return json({ deleted: true }, 200, request);
+}
+
 export default {
   async fetch(request, env) {
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders(request) });
@@ -197,6 +215,7 @@ export default {
 
       if (request.method === 'GET' && path === '/sync/pull') return await handlePull(request, env, userId);
       if (request.method === 'POST' && path === '/sync/push') return await handlePush(request, env, userId);
+      if (request.method === 'POST' && path === '/auth/delete') return await handleDeleteAccount(request, env, userId);
 
       const imageMatch = path.match(/^\/images\/([a-f0-9]{64})$/);
       if (imageMatch) {
