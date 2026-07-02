@@ -1,0 +1,5 @@
+{
+  "name": "cofebean-sync-worker",
+  "private": true,
+  "type": "module"
+}
