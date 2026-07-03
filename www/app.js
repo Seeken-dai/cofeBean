@@ -15,24 +15,31 @@
   const state = { beans: [], drinkLogs: [], brewPlans: [], settings: BeanCore.normalizeSettings({}), view: 'beans', status: '全部', planMethod: '全部', query: '', sort: 'roastDate', direction: 'desc', editingId: null, editingDrinkId: null, viewingDrinkId: null, editingPlanId: null, viewingPlanId: null, managerField: null, choiceTarget: null, dateTarget: null, calendarDate: null, coffeeCalendarDate: new Date(), coffeeCalendarView: 'month', selectedCoffeeDay: BeanCore.dateKey(new Date()), activeDrinkStepIndex: -1, brewAssist: null, pendingImages: [], previewImage: null, shareBeanId: null, shareCardPreview: null, importScope: 'all', syncAuthMode: 'login', syncBusy: false, initialized: false, resuming: false };
   const cloudSync = window.BeanCloudSync ? window.BeanCloudSync.createSyncService() : null;
   let toastTimer = null;
+  let confirmResolver = null;
   let assistTimer = null;
   let wakeLock = null;
   let cardPressTimer = null;
   let cardPressFired = false;
-  const els = { list: $('#beanList'), empty: $('#emptyState'), count: $('#recordCount'), searchPanel: $('#searchPanel'), search: $('#searchInput'), personal: $('#personalDialog'), backup: $('#dataBackupDialog'), calendar: $('#coffeeCalendarDialog'), detail: $('#detailDialog'), drinkDetail: $('#drinkDetailDialog'), planDetail: $('#planDetailDialog'), planEditor: $('#planEditorDialog'), editor: $('#editorDialog'), form: $('#beanForm'), planForm: $('#planForm'), drink: $('#drinkDialog'), drinkForm: $('#drinkForm'), brewAssist: $('#brewAssistDialog'), choice: $('#choiceDialog'), datePicker: $('#datePickerDialog'), photoSource: $('#photoSourceDialog'), scanImage: $('#scanImageDialog'), imagePreview: $('#imagePreviewDialog'), shareChoice: $('#shareImageChoiceDialog'), planShareChoice: $('#planShareChoiceDialog'), planImport: $('#planImportDialog'), manager: $('#smartManagerDialog'), settings: $('#settingsDialog'), sync: $('#syncDialog'), syncAuth: $('#syncAuthDialog'), about: $('#aboutDialog'), migration: $('#migrationDialog'), exitConfirm: $('#exitConfirmDialog'), sharePreview: $('#sharePreviewDialog'), toast: $('#toast'), scanResult: $('#scanResult') };
+  const els = { list: $('#beanList'), empty: $('#emptyState'), count: $('#recordCount'), searchPanel: $('#searchPanel'), search: $('#searchInput'), personal: $('#personalDialog'), backup: $('#dataBackupDialog'), calendar: $('#coffeeCalendarDialog'), detail: $('#detailDialog'), drinkDetail: $('#drinkDetailDialog'), planDetail: $('#planDetailDialog'), planEditor: $('#planEditorDialog'), editor: $('#editorDialog'), form: $('#beanForm'), planForm: $('#planForm'), drink: $('#drinkDialog'), drinkForm: $('#drinkForm'), brewAssist: $('#brewAssistDialog'), choice: $('#choiceDialog'), datePicker: $('#datePickerDialog'), photoSource: $('#photoSourceDialog'), scanImage: $('#scanImageDialog'), imagePreview: $('#imagePreviewDialog'), shareChoice: $('#shareImageChoiceDialog'), planShareChoice: $('#planShareChoiceDialog'), planImport: $('#planImportDialog'), manager: $('#smartManagerDialog'), settings: $('#settingsDialog'), sync: $('#syncDialog'), syncAuth: $('#syncAuthDialog'), about: $('#aboutDialog'), migration: $('#migrationDialog'), confirm: $('#confirmDialog'), exitConfirm: $('#exitConfirmDialog'), sharePreview: $('#sharePreviewDialog'), toast: $('#toast'), scanResult: $('#scanResult') };
 
   function capPlugin(name) { return window.Capacitor && window.Capacitor.Plugins ? window.Capacitor.Plugins[name] : null; }
   if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) document.body.classList.add('cap-native');
   function toast(message) {
     clearTimeout(toastTimer);
     els.toast.textContent = message;
-    // 模态 <dialog>（showModal）位于浏览器 top layer，普通 toast 无论 z-index 都会被盖住；
-    // 有打开的 dialog 时把 toast 挪进最上层那个 dialog（同处 top layer 才能显示在最前）。
-    const openDialogs = document.querySelectorAll('dialog[open]');
-    const host = openDialogs.length ? openDialogs[openDialogs.length - 1] : document.body;
-    if (els.toast.parentElement !== host) host.appendChild(els.toast);
+    if (els.toast.showPopover) {
+      if (els.toast.parentElement !== document.body) document.body.appendChild(els.toast);
+      if (!els.toast.matches(':popover-open')) els.toast.showPopover();
+    } else {
+      const openDialogs = document.querySelectorAll('dialog[open]');
+      const host = openDialogs.length ? openDialogs[openDialogs.length - 1] : document.body;
+      if (els.toast.parentElement !== host) host.appendChild(els.toast);
+    }
     els.toast.classList.add('show');
-    toastTimer = setTimeout(() => els.toast.classList.remove('show'), 2600);
+    toastTimer = setTimeout(() => {
+      els.toast.classList.remove('show');
+      if (els.toast.hidePopover && els.toast.matches(':popover-open')) els.toast.hidePopover();
+    }, 2600);
   }
   function esc(value) { return String(value == null ? '' : value).replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]); }
   function formatWeight(value) { const n = Number(value) || 0; return n >= 1000 ? `${(n / 1000).toFixed(n % 1000 ? 1 : 0)}kg` : `${Math.round(n * 10) / 10}g`; }
@@ -96,6 +103,23 @@
     target.value = durationText(hour * 3600 + min * 60 + sec, field.querySelector('[data-duration-hour]') ? 'hour' : 'minute');
   }
   function setDialog(dialog, open) { if (open && !dialog.open) dialog.showModal(); if (!open && dialog.open) dialog.close(); }
+  function resolveConfirm(ok) {
+    const resolve = confirmResolver;
+    confirmResolver = null;
+    if (els.confirm.open) setDialog(els.confirm, false);
+    if (resolve) resolve(Boolean(ok));
+  }
+  function askConfirm(options) {
+    if (confirmResolver) resolveConfirm(false);
+    const config = options || {};
+    $('#confirmEyebrow').textContent = config.eyebrow || 'DELETE';
+    $('#confirmTitle').textContent = config.title || '确认删除？';
+    $('#confirmMessage').textContent = config.message || '此操作不可撤销。';
+    $('#confirmAccept').textContent = config.confirmText || '删除';
+    setDialog(els.confirm, true);
+    setTimeout(() => $('#confirmCancel').focus(), 40);
+    return new Promise((resolve) => { confirmResolver = resolve; });
+  }
   function stars(value) { return value ? `<span class="stars" aria-label="${value} 星">${'★'.repeat(value)}${'☆'.repeat(5 - value)}</span>` : '<span class="unrated">未评分</span>'; }
   const webImageUrls = new Map(); // idb:<id> -> objectURL，渲染前由 resolveWebImages 预取
   function imageSrc(path) {
@@ -603,7 +627,13 @@
     }
   }
   async function saveForm(event) { event.preventDefault(); const fd = new FormData(els.form); const old = state.editingId ? state.beans.find((bean) => bean.id === state.editingId) : null; const stamp = new Date().toISOString(); if (!String(fd.get('name') || '').trim()) return toast('请先填写豆名'); try { const fields = await archivePendingImages(Object.fromEntries(fd.entries())); const payload = BeanCore.normalizeBean({ ...(old || {}), ...fields, id: state.editingId || undefined, favorite: $('#field-favorite').checked, createdAt: old ? old.createdAt : stamp, updatedAt: stamp }, stamp); await BeanRepository.save(payload); setDialog(els.editor, false); state.editingId = null; await reload(); toast(old ? '记录已更新' : '咖啡豆已入仓'); } catch (error) { console.error(error); toast('保存失败，请稍后重试'); } }
-  async function removeCurrent() { if (!state.editingId || !confirm('确认删除这条咖啡豆记录？饮用历史会保留。')) return; try { await BeanRepository.remove(state.editingId); setDialog(els.editor, false); state.editingId = null; await reload(); toast('豆子已删除，饮用历史已保留'); } catch (error) { console.error(error); toast('删除失败'); } }
+  async function removeCurrent() {
+    if (!state.editingId) return;
+    const bean = state.beans.find((item) => item.id === state.editingId);
+    const ok = await askConfirm({ title: bean ? `删除「${bean.name}」？` : '删除咖啡豆？', message: '饮用历史会保留，只从豆仓列表隐藏这包豆子。' });
+    if (!ok) return;
+    try { await BeanRepository.remove(state.editingId); setDialog(els.editor, false); state.editingId = null; await reload(); toast('豆子已删除，饮用历史已保留'); } catch (error) { console.error(error); toast('删除失败'); }
+  }
 
   function fillPlanMethodOptions() { $('#plan-method').innerHTML = BREW_METHODS.map((method) => `<option>${esc(method)}</option>`).join(''); }
   function renderPlanBeanBind(selected) {
@@ -734,7 +764,7 @@
     const id = state.editingPlanId || state.viewingPlanId; const plan = state.brewPlans.find((item) => item.id === id);
     if (!plan) return;
     if (plan.source === 'preset') return toast('预置方案不能删除，可复制后编辑');
-    if (!confirm(`确认删除“${plan.name}”？历史饮用记录会保留当时的参数快照。`)) return;
+    if (!await askConfirm({ title: `删除「${plan.name}」？`, message: '历史饮用记录会保留当时的冲煮参数快照。' })) return;
     try { await BeanRepository.deleteBrewPlan(id); setDialog(els.planDetail, false); setDialog(els.planEditor, false); state.viewingPlanId = null; state.editingPlanId = null; await reload(); toast('方案已删除'); } catch (error) { console.error(error); toast(error.message || '删除失败'); }
   }
 
@@ -910,7 +940,11 @@
   function openDrinkDialog(bean, log) { if (!bean && log && log.beanId) bean = state.beans.find((item) => item.id === log.beanId); const orphaned = !bean && Boolean(log); if (!bean && !log) return; state.editingDrinkId = log ? log.id : null; els.drinkForm.reset(); const remaining = bean ? Number(bean.remainingWeight) || 0 : 0; const grams = log ? log.grams : Math.min(state.settings.quickGrams, remaining); const last = bean && !log ? lastBeanLog(bean.id) : null; const lastPlanEnabled = brewPlansEnabled() && last; const lastMethod = !log && last ? last.brewMethod : '手冲'; $('#drink-id').value = log ? log.id : ''; $('#drink-beanId').value = bean ? bean.id : ''; $('#drink-plan-id').value = log && log.brewPlanId || lastPlanEnabled && last.brewPlanId || ''; $('#drink-grams').value = grams; $('#drink-grams').max = remaining + (log ? Number(log.grams) : 0); $('#drink-time').value = localDateTime(log && log.consumedAt); $('#drink-notes').value = log ? log.notes : ''; $('#drinkTitle').textContent = orphaned ? '历史饮用记录' : log ? '编辑饮用记录' : '喝一杯'; $('#drinkBeanMeta').textContent = orphaned ? `${log.beanName} · 原豆子已删除` : `${bean.name} · 当前剩余 ${formatWeight(remaining)}`; $('#deleteDrink').hidden = !log; $('#saveDrink').hidden = orphaned; methodOptions(log && log.brewMethod || lastMethod); renderDrinkPlanPicker(bean, log); const source = log && log.brewPlanSnapshot || lastPlanEnabled && last.brewPlanSnapshot || selectedDrinkPlan() || { brewMethod: currentDrinkMethod(), dose: grams }; fillDrinkParams(source); $('#drinkParamPanel').hidden = !brewPlansEnabled(); renderRating($('#overallRating'), 'overallRating', log && log.overallRating, false); renderDimensionRatings(log); $$('#drinkForm input, #drinkForm select, #drinkForm textarea, #drinkForm [data-rate], #drinkForm .select-trigger, #drinkForm [data-drink-plan], #drinkForm [data-use-last-brew], #drinkForm [data-drink-step-open], #drinkForm [data-remove-drink-step], #addDrinkStep').forEach((control) => { if (!['drinkCancel', 'deleteDrink'].includes(control.id)) control.disabled = orphaned; }); setDialog(els.drink, true); }
   function ratingPayload() { const result = {}; $$('[data-rating-name]', els.drinkForm).forEach((node) => { result[node.dataset.ratingName] = node.dataset.value || null; }); return result; }
   async function saveDrink(event) { event.preventDefault(); syncRatioValue('drink'); $$('.duration-field', els.drinkForm).forEach(syncDurationField); const bean = state.beans.find((item) => item.id === $('#drink-beanId').value); const old = state.drinkLogs.find((item) => item.id === state.editingDrinkId); let method = $('#drink-method').value; if (method === '__custom__') method = $('#drink-method-custom').value.trim(); if (!method) return toast('请填写冲煮方式'); const consumed = new Date(dateTimeValue($('#drink-time').value)); if (Number.isNaN(consumed.getTime())) return toast('请选择饮用时间'); const plan = brewPlansEnabled() ? selectedDrinkPlan() : null; const snapshot = brewPlansEnabled() ? drinkParamSnapshot(method, plan) : null; const payload = { ...(old || {}), id: state.editingDrinkId || undefined, beanId: bean.id, beanName: bean.name, grams: $('#drink-grams').value, brewMethod: method, brewPlanId: plan ? plan.id : null, brewPlanVersion: plan ? plan.version : null, brewPlanName: plan ? plan.name : '', brewPlanSnapshot: snapshot, consumedAt: consumed.toISOString(), notes: $('#drink-notes').value, ...ratingPayload() }; try { await BeanRepository.saveDrinkLog(payload); state.settings.lastBrewMethod = method; await BeanRepository.saveSettings(state.settings); setDialog(els.drink, false); state.editingDrinkId = null; await reload(); toast(old ? '饮用记录已更新' : '已记录这一杯'); } catch (error) { console.error(error); toast(error.message || '保存失败'); } }
-  async function removeDrink() { if (!state.editingDrinkId || !confirm('删除这条饮用记录并归还用豆克数？')) return; try { await BeanRepository.deleteDrinkLog(state.editingDrinkId); setDialog(els.drink, false); state.editingDrinkId = null; await reload(); if (els.detail.open && state.editingId) openDetail(state.beans.find((bean) => bean.id === state.editingId)); toast('记录已删除，克数已归还'); } catch (error) { console.error(error); toast('删除失败'); } }
+  async function removeDrink() {
+    if (!state.editingDrinkId) return;
+    if (!await askConfirm({ title: '删除饮用记录？', message: '这杯记录会移除，并把用掉的咖啡豆克数归还。', confirmText: '删除记录' })) return;
+    try { await BeanRepository.deleteDrinkLog(state.editingDrinkId); setDialog(els.drink, false); state.editingDrinkId = null; await reload(); if (els.detail.open && state.editingId) openDetail(state.beans.find((bean) => bean.id === state.editingId)); toast('记录已删除，克数已归还'); } catch (error) { console.error(error); toast('删除失败'); }
+  }
 
   async function initSmartSelects() { await Promise.all(SMART_FIELDS.map(async (field) => { const values = [...new Set([...(PREDEFINED[field] || []), ...(await BeanRepository.smartValues(field))])]; const select = $(`#field-${field}-select`); const hidden = $(`#field-${field}`); const custom = $(`#field-${field}-custom`); const current = hidden.value; select.innerHTML = '<option value="">请选择或新建</option>' + values.map((value) => `<option value="${esc(value)}">${esc(value)}</option>`).join('') + '<option value="__custom__">＋ 新建选项</option>'; if (current && values.includes(current)) { select.value = current; custom.hidden = true; } else if (current) { select.value = '__custom__'; custom.hidden = false; custom.value = current; } else { select.value = ''; custom.hidden = true; } })); syncAllChoiceTriggers(); }
   function setupSmartSelects() { SMART_FIELDS.forEach((field) => { const select = $(`#field-${field}-select`); const hidden = $(`#field-${field}`); const custom = $(`#field-${field}-custom`); select.addEventListener('change', () => { if (select.value === '__custom__') { hidden.value = ''; custom.value = ''; custom.hidden = false; custom.focus(); } else { hidden.value = select.value; custom.hidden = true; } }); custom.addEventListener('input', () => { hidden.value = custom.value.trimStart(); }); }); }
@@ -920,7 +954,7 @@
   function initPlanSmartSelects() { PLAN_SMART_FIELDS.forEach((field) => { const select = $(`#plan-${field}-select`); const hidden = $(`#plan-${field}`); const custom = $(`#plan-${field}-custom`); if (!select || !hidden || !custom) return; const values = planSmartValues(field); const current = hidden.value; select.innerHTML = '<option value="">请选择或新建</option>' + values.map((value) => `<option value="${esc(value)}">${esc(value)}</option>`).join('') + '<option value="__custom__">＋ 新建选项</option>'; if (current && values.includes(current)) { select.value = current; custom.hidden = true; } else if (current) { select.value = '__custom__'; custom.hidden = false; custom.value = current; } else { select.value = ''; custom.hidden = true; } }); }
   async function openManager(field) { state.managerField = field; $('#managerTitle').textContent = `管理${SMART_LABELS[field]}`; await renderManager(); setDialog(els.manager, true); }
   async function renderManager() { const values = await BeanRepository.smartValues(state.managerField); $('#managerList').innerHTML = values.length ? values.map((value) => `<div class="manager-item" data-value="${esc(value)}"><span>${esc(value)}</span><button data-action="rename" type="button">改名</button><button class="remove" data-action="remove" type="button">删除</button></div>`).join('') : '<p class="manager-empty">暂无历史选项</p>'; }
-  async function managerAction(event) { const button = event.target.closest('button[data-action]'); if (!button) return; const oldValue = button.closest('.manager-item').dataset.value; try { if (button.dataset.action === 'rename') { const next = prompt(`将“${oldValue}”改为：`, oldValue); if (next == null || next.trim() === oldValue) return; await BeanRepository.renameSmartValue(state.managerField, oldValue, next); } else { if (!confirm(`删除“${oldValue}”？所有使用它的记录会清空此字段。`)) return; await BeanRepository.deleteSmartValue(state.managerField, oldValue); } await reload({ keepForm: true }); await renderManager(); await initSmartSelects(); toast('已批量更新'); } catch (error) { toast(error.message || '操作失败'); } }
+  async function managerAction(event) { const button = event.target.closest('button[data-action]'); if (!button) return; const oldValue = button.closest('.manager-item').dataset.value; try { if (button.dataset.action === 'rename') { const next = prompt(`将“${oldValue}”改为：`, oldValue); if (next == null || next.trim() === oldValue) return; await BeanRepository.renameSmartValue(state.managerField, oldValue, next); } else { if (!await askConfirm({ title: `删除「${oldValue}」？`, message: '所有使用它的记录会清空这个字段，咖啡豆本身不会删除。' })) return; await BeanRepository.deleteSmartValue(state.managerField, oldValue); } await reload({ keepForm: true }); await renderManager(); await initSmartSelects(); toast('已批量更新'); } catch (error) { toast(error.message || '操作失败'); } }
 
   function applyTheme(theme, persist) { if (!themeColors[theme]) theme = 'dark-roast'; document.documentElement.dataset.theme = theme; state.settings.theme = theme; localStorage.setItem('coffee-vault-theme', theme); $$('[data-theme-value]').forEach((button) => button.classList.toggle('active', button.dataset.themeValue === theme)); const statusBar = capPlugin('StatusBar'); if (statusBar) { if (statusBar.setOverlaysWebView) statusBar.setOverlaysWebView({ overlay: false }).catch(() => {}); statusBar.setBackgroundColor({ color: themeColors[theme] }).catch(() => {}); statusBar.setStyle({ style: ['frost', 'blaze'].includes(theme) ? 'LIGHT' : 'DARK' }).catch(() => {}); } if (persist && state.initialized) BeanRepository.saveSettings(state.settings).catch(() => toast('主题保存失败')); }
   function syncBackupDialog() { $$('[data-requires-brew-plans]').forEach((button) => { button.hidden = !brewPlansEnabled(); }); }
@@ -1053,7 +1087,7 @@
   async function syncDeleteAccount() {
     if (!cloudSync) return toast('同步模块未加载');
     if (!cloudSync.getConfig().token) return toast('未登录');
-    if (!confirm('确定删除云端账号？服务器上的账号与所有云端数据会被永久删除，且不可恢复（本机数据不受影响）。')) return;
+    if (!await askConfirm({ eyebrow: 'CLOUD DELETE', title: '删除云端账号？', message: '服务器上的账号与所有云端数据会被永久删除，且不可恢复；本机数据不受影响。', confirmText: '删除云端账号' })) return;
     setSyncBusy(true);
     try { await cloudSync.deleteAccount(); $('#syncRecoveryBox').hidden = true; renderSyncSettings(); toast('云端账号已删除'); }
     catch (error) { console.error(error); toast(error.message || '删除失败'); }
@@ -1415,7 +1449,7 @@
   async function migrateLegacy() { const legacy = BeanRepository.legacyData(); if (!legacy) return setDialog(els.migration, false); try { await BeanRepository.replaceAll(legacy.beans); await reload(); setDialog(els.migration, false); toast(`已迁移 ${legacy.beans.length} 条记录`); } catch (_) { toast('迁移失败，旧数据仍保持不变'); } }
 
   function exitApp() { const app = capPlugin('App'); if (app) app.exitApp(); }
-  function closeTopLayerOrExit() { if (els.exitConfirm.open) return exitApp(); if (els.sharePreview.open) return closeSharePreview(); if (els.choice.open) return els.choice.close(); if (els.datePicker.open) return els.datePicker.close(); if (els.photoSource.open) return els.photoSource.close(); if (els.scanImage.open) return els.scanImage.close(); if (els.imagePreview.open) return els.imagePreview.close(); if (els.shareChoice.open) return els.shareChoice.close(); if (els.brewAssist.open) return cancelBrewAssist(); if (els.drink.open) return els.drink.close(); if (els.planEditor.open) return els.planEditor.close(); if (els.syncAuth.open) return els.syncAuth.close(); if (els.sync.open) return els.sync.close(); if (els.backup.open) return els.backup.close(); if (els.calendar.open) return els.calendar.close(); if (els.drinkDetail.open) return els.drinkDetail.close(); if (els.planDetail.open) return els.planDetail.close(); if (els.about.open) return els.about.close(); if (els.manager.open) return els.manager.close(); if (els.settings.open) return els.settings.close(); if (els.personal.open) return els.personal.close(); if (els.editor.open) { clearPendingImages(true); return els.editor.close(); } if (els.detail.open) return els.detail.close(); if (els.migration.open) return els.migration.close(); setDialog(els.exitConfirm, true); }
+  function closeTopLayerOrExit() { if (els.confirm.open) return resolveConfirm(false); if (els.exitConfirm.open) return exitApp(); if (els.sharePreview.open) return closeSharePreview(); if (els.choice.open) return els.choice.close(); if (els.datePicker.open) return els.datePicker.close(); if (els.photoSource.open) return els.photoSource.close(); if (els.scanImage.open) return els.scanImage.close(); if (els.imagePreview.open) return els.imagePreview.close(); if (els.shareChoice.open) return els.shareChoice.close(); if (els.brewAssist.open) return cancelBrewAssist(); if (els.drink.open) return els.drink.close(); if (els.planEditor.open) return els.planEditor.close(); if (els.syncAuth.open) return els.syncAuth.close(); if (els.sync.open) return els.sync.close(); if (els.backup.open) return els.backup.close(); if (els.calendar.open) return els.calendar.close(); if (els.drinkDetail.open) return els.drinkDetail.close(); if (els.planDetail.open) return els.planDetail.close(); if (els.about.open) return els.about.close(); if (els.manager.open) return els.manager.close(); if (els.settings.open) return els.settings.close(); if (els.personal.open) return els.personal.close(); if (els.editor.open) { clearPendingImages(true); return els.editor.close(); } if (els.detail.open) return els.detail.close(); if (els.migration.open) return els.migration.close(); setDialog(els.exitConfirm, true); }
   function attachLongPress(container, selector, onLongPress) {
     if (!container) return;
     let startX = 0, startY = 0;
@@ -1434,14 +1468,14 @@
   }
   async function longPressDeleteBean(card) {
     const bean = state.beans.find((item) => item.id === card.dataset.id);
-    if (!bean || !confirm(`删除「${bean.name}」？饮用历史会保留。`)) return;
+    if (!bean || !await askConfirm({ title: `删除「${bean.name}」？`, message: '饮用历史会保留，只从豆仓列表隐藏这包豆子。' })) return;
     try { await BeanRepository.remove(bean.id); if (els.detail.open) setDialog(els.detail, false); await reload(); toast('已删除，饮用历史保留'); } catch (error) { console.error(error); toast('删除失败'); }
   }
   async function longPressDeletePlan(card) {
     const plan = state.brewPlans.find((item) => item.id === card.dataset.planId);
     if (!plan) return;
     if (plan.source === 'preset') return toast('预置方案不能删除，可复制后编辑');
-    if (!confirm(`删除方案「${plan.name}」？历史饮用记录会保留当时的参数快照。`)) return;
+    if (!await askConfirm({ title: `删除方案「${plan.name}」？`, message: '历史饮用记录会保留当时的冲煮参数快照。' })) return;
     try { await BeanRepository.deleteBrewPlan(plan.id); if (els.planDetail.open) setDialog(els.planDetail, false); await reload(); toast('方案已删除'); } catch (error) { console.error(error); toast(error.message || '删除失败'); }
   }
   function bindEvents() {
@@ -1471,9 +1505,10 @@
     $('#settingsClose').addEventListener('click', () => setDialog(els.settings, false)); $$('[data-theme-value]').forEach((button) => button.addEventListener('click', () => applyTheme(button.datasetThemeValue || button.dataset.themeValue, true))); $('#settingQuickGrams').addEventListener('change', saveSettingsFromUi); $('#settingFlavorReminderDays').addEventListener('change', saveSettingsFromUi); $('#settingLowStockCups').addEventListener('change', saveSettingsFromUi); $('#settingBrewPlans').addEventListener('change', saveSettingsFromUi); $('#settingPriceUnit').addEventListener('change', () => { syncChoiceTrigger($('#settingPriceUnit')); saveSettingsFromUi(); }); $('#settingAdvanced').addEventListener('change', () => { $('#dimensionSection').hidden = !$('#settingAdvanced').checked; saveSettingsFromUi(); }); $('#dimensionSettings').addEventListener('change', saveSettingsFromUi); $('#syncClose').addEventListener('click', () => setDialog(els.sync, false)); $('#syncLoginOpen').addEventListener('click', () => openSyncAuth('login')); $('#syncAuthClose').addEventListener('click', () => setDialog(els.syncAuth, false)); $$('[data-sync-auth-mode]').forEach((button) => button.addEventListener('click', () => setSyncAuthMode(button.dataset.syncAuthMode))); $('#syncAuthSubmit').addEventListener('click', syncAuthSubmit); $('#syncLogout').addEventListener('click', syncLogout); $('#syncDeleteAccount').addEventListener('click', syncDeleteAccount); $('#syncEnabled').addEventListener('change', syncToggle); $('#syncNow').addEventListener('click', syncNow); $('#syncCopyRecovery').addEventListener('click', copyRecoveryCode); $('#aboutOpen').addEventListener('click', showAbout); $('#aboutClose').addEventListener('click', () => setDialog(els.about, false)); $$('[data-export-scope]').forEach((button) => button.addEventListener('click', () => exportBackup(button.dataset.exportScope))); $$('[data-import-scope]').forEach((button) => button.addEventListener('click', () => startImport(button.dataset.importScope))); $('#webImportInput').addEventListener('change', webImport); $('#migrationLater').addEventListener('click', () => setDialog(els.migration, false)); $('#migrationNow').addEventListener('click', migrateLegacy);
     $('#brewAssistStop').addEventListener('click', cancelBrewAssist); $('#brewAssistPause').addEventListener('click', pauseBrewAssist); $('#brewAssistRing').addEventListener('click', pauseBrewAssist); $('#brewAssistRing').addEventListener('keydown', (event) => { if (['Enter', ' '].includes(event.key)) { event.preventDefault(); pauseBrewAssist(); } }); $('#brewAssistSkip').addEventListener('click', skipBrewAssistStage); $('#brewAssistFinish').addEventListener('click', finishBrewAssist);
     $('#sharePreviewClose').addEventListener('click', closeSharePreview); $('#sharePreviewCancel').addEventListener('click', closeSharePreview); $('#sharePreviewSave').addEventListener('click', saveShareCard); $('#sharePreviewShare').addEventListener('click', confirmShareCard);
+    $('#confirmCancel').addEventListener('click', () => resolveConfirm(false)); $('#confirmAccept').addEventListener('click', () => resolveConfirm(true)); els.confirm.addEventListener('close', () => resolveConfirm(false));
     $('#exitCancel').addEventListener('click', () => setDialog(els.exitConfirm, false)); $('#exitConfirm').addEventListener('click', exitApp);
     document.addEventListener('visibilitychange', () => { if (document.visibilityState !== 'visible') return; if (els.brewAssist.open && state.brewAssist && !state.brewAssist.completed) requestWakeLock(); scheduleAutoSync(); });
-    [els.personal, els.backup, els.calendar, els.detail, els.drinkDetail, els.planDetail, els.planEditor, els.editor, els.drink, els.brewAssist, els.choice, els.datePicker, els.photoSource, els.scanImage, els.imagePreview, els.shareChoice, els.sharePreview, els.exitConfirm, els.manager, els.settings, els.sync, els.syncAuth, els.about].forEach((dialog) => dialog.addEventListener('click', (event) => { if (event.target === dialog) dialog === els.brewAssist ? cancelBrewAssist() : dialog === els.sharePreview ? closeSharePreview() : dialog.close(); }));
+    [els.personal, els.backup, els.calendar, els.detail, els.drinkDetail, els.planDetail, els.planEditor, els.editor, els.drink, els.brewAssist, els.choice, els.datePicker, els.photoSource, els.scanImage, els.imagePreview, els.shareChoice, els.sharePreview, els.confirm, els.exitConfirm, els.manager, els.settings, els.sync, els.syncAuth, els.about].forEach((dialog) => dialog.addEventListener('click', (event) => { if (event.target === dialog) dialog === els.brewAssist ? cancelBrewAssist() : dialog === els.sharePreview ? closeSharePreview() : dialog.close(); }));
     $('#photoSourceClose').addEventListener('click', () => setDialog(els.photoSource, false));
     els.editor.addEventListener('close', () => clearPendingImages(true));
   }

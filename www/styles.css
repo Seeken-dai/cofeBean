@@ -117,7 +117,8 @@ main { width:min(100%,760px); margin:0 auto; padding:0 16px calc(104px + env(saf
 /* Web（非 Capacitor 原生）隐藏依赖相机/OCR 的入口：拍照识别、拍照扫码。相册选图与粘贴分享码在 Web 仍可用。 */
 body:not(.cap-native) #scanBean,
 body:not(.cap-native) #planImportCamera { display:none; }
-.toast { position:fixed; z-index:100; left:50%; bottom:calc(92px + env(safe-area-inset-bottom,0px)); max-width:calc(100% - 32px); padding:11px 16px; border:1px solid var(--border); border-radius:12px; background:var(--surface-3); color:var(--text); box-shadow:var(--shadow); font-size:13px; opacity:0; pointer-events:none; transform:translate(-50%,12px); transition:opacity var(--ease),transform var(--ease); }
+.toast { position:fixed; z-index:1000; inset:auto auto calc(92px + env(safe-area-inset-bottom,0px)) 50%; width:max-content; max-width:calc(100% - 32px); margin:0; padding:11px 16px; border:1px solid var(--border); border-radius:12px; background:var(--surface-3); color:var(--text); box-shadow:var(--shadow); font-size:13px; opacity:0; pointer-events:none; transform:translate(-50%,12px); transition:opacity var(--ease),transform var(--ease); }
+.toast::backdrop { display:none; }
 .toast.show { opacity:1; transform:translate(-50%,0); }
 
 dialog { color:var(--text); }
@@ -226,10 +227,11 @@ dialog::backdrop { background:rgb(8 5 4 / .72); backdrop-filter:blur(4px); }
 .sheet-footer { position:sticky; bottom:0; z-index:3; display:flex; justify-content:space-between; align-items:center; gap:12px; padding:14px 20px calc(14px + env(safe-area-inset-bottom,0px)); border-top:1px solid var(--border); background:color-mix(in srgb,var(--surface) 95%,transparent); backdrop-filter:blur(14px); }
 .sheet-footer > div { display:flex; justify-content:flex-end; gap:8px; margin-left:auto; }
 .sheet-footer > span:first-child { flex:1 1 auto; }
-.primary-button,.secondary-button,.danger-button { min-height:46px; padding:0 18px; border-radius:12px; cursor:pointer; }
+.primary-button,.secondary-button,.danger-button,.danger-fill-button { min-height:46px; padding:0 18px; border-radius:12px; cursor:pointer; }
 .primary-button { border:1px solid var(--accent); background:var(--accent); color:var(--accent-ink); font-weight:700; }
 .secondary-button { border:1px solid var(--border); background:var(--surface-2); color:var(--muted); }
 .danger-button { border:0; background:transparent; color:var(--danger); }
+.danger-fill-button { border:1px solid color-mix(in srgb,var(--danger) 72%,var(--border)); background:color-mix(in srgb,var(--danger) 18%,var(--surface-2)); color:color-mix(in srgb,var(--danger) 82%,var(--text)); font-weight:750; }
 .ghost-button { min-height:46px; padding:0 14px; border:0; border-radius:12px; background:transparent; color:var(--faint); cursor:pointer; }
 .ghost-button:active { background:var(--surface-2); }
 .sheet-intro { margin:0; padding:18px 20px; color:var(--muted); font-size:12px; line-height:1.65; }

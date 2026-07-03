@@ -96,7 +96,7 @@
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16"/><path d="M8 8h3v3H8zM8 13.5h3M13 8h3v3M13 16h3v-3"/></svg>
   </button>
   <button class="fab" id="addBean" type="button" aria-label="新增咖啡豆">＋</button>
-  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <div class="toast" id="toast" role="status" aria-live="polite" popover="manual"></div>
 
   <dialog class="sheet compact personal-sheet" id="personalDialog">
     <header class="sheet-header"><div><p class="eyebrow">PERSONAL BREW</p><h2>个人中心</h2><p class="sheet-subtitle">你的咖啡日常和数据工具</p></div><button class="icon-button" id="personalClose" type="button" aria-label="关闭">×</button></header>
@@ -535,6 +535,12 @@
     <header class="sheet-header"><div><p class="eyebrow">DATA FOUND</p><h2>发现旧版数据</h2></div></header>
     <p class="sheet-intro" id="migrationMessage">是否将旧版浏览器记录迁移到 SQLite？原数据不会被删除。</p>
     <footer class="sheet-footer"><span></span><div><button class="secondary-button" id="migrationLater" type="button">以后再说</button><button class="primary-button" id="migrationNow" type="button">开始迁移</button></div></footer>
+  </dialog>
+
+  <dialog class="sheet compact confirm-sheet" id="confirmDialog">
+    <header class="sheet-header"><div><p class="eyebrow" id="confirmEyebrow">CONFIRM</p><h2 id="confirmTitle">确认操作？</h2></div></header>
+    <p class="sheet-intro" id="confirmMessage">此操作需要确认。</p>
+    <footer class="sheet-footer"><span></span><div><button class="secondary-button" id="confirmCancel" type="button">取消</button><button class="danger-fill-button" id="confirmAccept" type="button">确认</button></div></footer>
   </dialog>
 
   <dialog class="sheet compact" id="exitConfirmDialog">
