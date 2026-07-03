@@ -6,8 +6,8 @@
   "scripts": {
     "test": "node --test tests/*.test.js",
     "cap:sync": "cap sync android",
-    "android:debug": "cap sync android && cd android && gradlew.bat assembleDebug",
-    "android:release": "cap sync android && cd android && gradlew.bat assembleRelease",
+    "android:debug": "cap sync android && cd android && .\\gradlew.bat assembleDebug",
+    "android:release": "cap sync android && cd android && .\\gradlew.bat assembleRelease",
     "assets": "capacitor-assets generate --android"
   },
   "dependencies": {
