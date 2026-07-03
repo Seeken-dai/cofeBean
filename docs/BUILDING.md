@@ -71,6 +71,8 @@ node --check www/repository.js
 
 APK 可使用 Android Build Tools 的 `aapt2 dump badging`、`aapt2 dump permissions` 和 `apksigner verify --print-certs` 检查包信息、权限与签名。
 
+2.0.5 release 已验证 `versionName=2.0.5`、`versionCode=38`，已生成正式签名版 `dist/coffee-vault-2.0.5-release.apk`；本版新增空豆仓首屏引导、“喝一杯”发现提示、进阶功能轻提示，并让豆仓/冲煮方案右下浮动按钮空闲后自动收起以减少遮挡。未新增 Android 权限或网络能力。
+
 1.5.1 release 已验证 `versionName=1.5.1`、`versionCode=33`，已生成正式签名版 `dist/coffee-vault-1.5.1-release.apk`；本版修复分享卡片保存后不易出现在手机相册的问题，改为通过系统媒体库写入 `Pictures/豆仓分享卡`，并将冲煮方案离线分享码入口整合到分享弹窗中。未引入网络、账号、云端解析或新增 Android 权限。权限仅包含 `android.permission.CAMERA` 和 Android 自动生成的应用内部动态接收器权限。签名证书 SHA-256 为 `aab5e3d3bd224b98f885945ecd868d54a99e2c96bf099a0c9e6ee59ca02151ae`。
 
 1.5.0 release 已验证 `versionName=1.5.0`、`versionCode=32`，已生成正式签名版 `dist/coffee-vault-1.5.0-release.apk`；本版新增冲煮方案离线分享码、二维码分享卡片和扫码/相册/粘贴导入能力，二维码生成与识别均使用纯离线 JS 依赖（`qrcode-generator`、`jsQR`），未引入网络、账号、云端解析或新增 Android 权限。权限仅包含 `android.permission.CAMERA` 和 Android 自动生成的应用内部动态接收器权限。签名证书 SHA-256 为 `aab5e3d3bd224b98f885945ecd868d54a99e2c96bf099a0c9e6ee59ca02151ae`。
