@@ -1,6 +1,6 @@
 # 豆仓 Coffee Vault
 
-当前版本：2.0.0（Android versionCode 35）
+当前版本：2.0.3（Android versionCode 36）
 
 一个本地优先的个人咖啡豆管理 App（Android + Web）。默认完全离线：数据保存在设备本地（Android SQLite / Web IndexedDB），不需要账号或网络，拍照识别功能仅申请相机权限。可选择登录开启跨设备云同步：登录后数据（含图片）经 HTTPS 加密传输并保存在云端、仅你自己可见、可随时删除云端账号；不登录则始终不联网、不上传任何数据。
 
@@ -8,7 +8,7 @@
 
 推荐安装正式签名版：
 
-- `dist/coffee-vault-2.0.0-release.apk`
+- `dist/coffee-vault-2.0.3-release.apk`
 
 把 APK 发送到 Android 手机，打开文件并按系统提示允许本次“安装未知应用”。已安装旧版时，只要继续使用同一份发布密钥并提高 `versionCode`，即可覆盖升级且保留数据库。
 
@@ -51,8 +51,8 @@
 - 冲煮方案可生成离线分享码；分享卡片可附带二维码，接收方可拍照扫码、相册选图或粘贴分享码导入为新方案
 - 分享卡片可保存到系统相册 `Pictures/豆仓分享卡`；冲煮方案分享弹窗可直接复制离线分享码
 - 冲煮辅助支持按方案步骤自动计时，底部操作按钮保持一行展示
-- 自适应图标、启动画面、全面屏安全区域
-- 可选云同步：登录后在 Android 与 Web 间同步咖啡豆、饮用记录、冲煮方案和图片；默认关闭，不登录不联网
+- 自适应图标、全面屏安全区域；Android 12+ 系统启动画面使用矢量豆图标与底部手写 slogan 品牌条，冷启动无插件停留
+- 可选云同步：登录后在 Android 与 Web 间同步咖啡豆、饮用记录、冲煮方案和图片；默认关闭，不登录不联网；网络请求带超时保护，连不上时明确提示
 
 ## 分享卡片架构
 
@@ -70,4 +70,4 @@
 - `docs/BUILDING.md`：构建、签名与版本升级说明
 - `docs/CHANGELOG.md`：版本更新记录
 
-当前包信息：`com.coffeebean.vault`，版本 `2.0.0`（versionCode `35`），最低 Android 7/API 24，目标 Android 16/API 36。
+当前包信息：`com.coffeebean.vault`，版本 `2.0.3`（versionCode `36`），最低 Android 7/API 24，目标 Android 16/API 36。

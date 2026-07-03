@@ -38,7 +38,7 @@ test('backup round trip validates schema and duplicate ids', () => {
   const plans = [core.normalizeBrewPlan({ id: 'plan-one', name: '三段式', brewMethod: '手冲', beanIds: ['one'], dose: 15 })];
   const backup = core.createBackup(beans, logs, { quickGrams: 18 }, '2026-01-01T00:00:00.000Z', plans);
   const imported = core.validateImport(backup);
-  assert.equal(backup.appVersion, '2.0.0');
+  assert.equal(backup.appVersion, '2.0.3');
   assert.equal(backup.schemaVersion, 5);
   assert.equal(imported.exportScope, 'all');
   assert.equal(imported.beans[0].name, '豆一');
