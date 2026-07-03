@@ -81,6 +81,25 @@
    - 覆盖前基线：豆仓 3 款、1 饮用中、剩余 314g（截图存 scratchpad `before_upgrade_home.png`）。
 5. 待办文档：`docs/CHANGELOG.md` 尚无 2.0.6 条目，正式发布前补。
 
+## 真机验证结果（2026-07-03）
+
+- ✅ 验证 1 覆盖升级数据保留：`adb install -r` 后仍为 3 款豆/314g，与基线一致。
+- ✅ 验证 2 登录同步：已登录 nick_lim@foxmail.com，手动“立即同步”弹“同步完成”，无卡顿。
+- ✅ 验证 4 小屏错误文案：布局 `min-width:0` 已处理，另加 `overflow-wrap:anywhere` 兜底（`www/styles.css` `.sync-account-card small`，未提交/需重建生效）。
+- ❌ **验证 3 图片同步：发现存量图片 bug（P0，未修）**。
+  - 现象：新增/重新加的图能端到端同步显示（橘子汽水已验证正常）；但**旧版本存量图**（映夏）在 web 端裂图，`<img src>` = `about:blank#blocked`（浏览器拦截 `file://`）。
+  - 根因（高置信）：增量 push 只推签名变化的记录；`www/sync-service.js` `beanIdbToR2` 的 `file:`→`r2:` 上行转换只在记录被 push 时发生且**不回写本地**。存量图记录签名早已稳定 → 永不进 delta → 转换永不触发 → 云端残留旧 `file:///data/...` 本地路径 → web 加载被拦截。
+  - “重新加图能修好”是因为改了签名、强制走了一次转换。
+  - 待定判定实验：安卓端仅编辑映夏任意字段+保存+同步，看 web 端映夏是否恢复（区分“未触发” vs “读图失败”两种子因）。
+  - 判定实验结果：安卓端仅编辑映夏任意字段并保存+同步后，映夏图在 web 端恢复正常 → 坐实“存量图未被触发重推”，图字节本身可正常上传。
+  - **已修复（待真机复验）**：
+    - `www/sync-service.js`：`createImageMappingTransport` 增加持久化 `localRef↔r2` 双向映射（存 `config.imageRefs`）。push 时除增量记录外，用第三参 `allRecords` 补推“图片尚未映射到 r2”的存量豆（跳过墓碑）；反向映射保证 finalPull 拿回自己刚传的 r2 时复用原本地引用，杜绝每次同步重复落盘的死循环；已映射的图不再重复上传。账号登录/退出/删除时重置 `imageRefs`。
+    - `www/sync-engine.js`：`transport.push` 第三参传全量 `merged`。
+    - 测试：`tests/sync-image-mapping.test.js` 新增 3 例（存量补推、已映射不重复、round-trip 不震荡）；`tests/data-core.test.js` 版本断言改读 `package.json` 避免每次发版硬编码破测。全套 98 通过。
+    - 复验方式：重装新包后触发一次同步，web 端刷新应看到映夏等存量图正常显示。
+  - 真机复验：映夏存量图在 web 端已恢复正常。**金菠萝仍裂图**待查——若安卓本机金菠萝也无真实图，说明本机缺源文件（图在别的设备加的，只同步来 file: 脏引用），任何设备都补不出来，非代码可修；已加健壮性守卫：补推时只有确有图上传成功才推，不再反复推 file: 脏值（`converted === bean` 跳过）。
+  - 新需求已实现：编辑器袋子/标签图片支持“删除”（`www/app.js` `removeBeanImage` + `imageCard` 删除按钮 + `www/styles.css` 操作区），清空字段后随同步把删除传播到其它设备。已提交 `0b87ec8`/`8770d5e`。
+
 ## 下一步建议
 
 1. 需要人工介入（真机，用户操作）：
