@@ -113,6 +113,21 @@ test('sync-service: 已登录同步流程会推进 cursor', async () => {
   assert.deepEqual(pushed[0].beans.map((bean) => bean.id).sort(), ['b1', 'b2']);
 });
 
+test('sync-service: 整体同步超时会中止并提示', async () => {
+  const storage = createStorage();
+  serviceApi.createConfigStore(storage).save({ enabled: true, email: 'slow@example.com', token: 'tok', cursor: null });
+  const service = serviceApi.createSyncService({
+    core, syncEngine, transportApi,
+    repository: createRepository({ beans: [], drinkLogs: [], brewPlans: [] }),
+    storage,
+    syncTimeoutMs: 30,
+    transportFactory: () => ({ pull: () => new Promise(() => {}), push: async () => ({}) })
+  });
+
+  await assert.rejects(service.sync(), /同步超时/);
+  assert.equal(service.getConfig().cursor, null);
+});
+
 test('sync-service: 删号调用后端并清空本地凭证', async () => {
   const storage = createStorage();
   serviceApi.createConfigStore(storage).save({ enabled: true, email: 'd@example.com', token: 'tok', cursor: 5 });

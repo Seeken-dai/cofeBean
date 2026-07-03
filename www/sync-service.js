@@ -6,6 +6,13 @@
   'use strict';
 
   const CONFIG_KEY = 'coffee-vault-sync-config';
+  const SYNC_TIMEOUT_MS = 60000;
+  function withDeadline(promise, ms) {
+    if (!ms) return promise;
+    let timer = null;
+    const timeout = new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('同步超时，请检查网络后重试')), ms); });
+    return Promise.race([promise, timeout]).finally(() => { if (timer) clearTimeout(timer); });
+  }
   const DEFAULT_CONFIG = Object.freeze({
     enabled: false,
     email: '',
@@ -126,6 +133,7 @@
     const configStore = deps.configStore || createConfigStore(deps.storage, deps.configKey);
     const canSync = deps.canSync || defaultCanSync;
     const now = deps.now || (() => new Date().toISOString());
+    const syncTimeoutMs = deps.syncTimeoutMs == null ? SYNC_TIMEOUT_MS : deps.syncTimeoutMs;
     let config = configStore.load();
 
     function persist(patch) {
@@ -162,7 +170,7 @@
         applyLocal: (merged) => repository.applySyncData(merged),
         cursor: config.cursor
       });
-      const result = await engine.sync();
+      const result = await withDeadline(engine.sync(), options.timeoutMs == null ? syncTimeoutMs : options.timeoutMs);
       persist({ cursor: result.cursor || null, lastSyncAt: now() });
       return { skipped: false, cursor: result.cursor || null, merged: result.merged, config: getConfig() };
     }
