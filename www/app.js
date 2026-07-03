@@ -12,14 +12,14 @@
   const PRICE_UNITS = { g: { label: '每克单价', grams: 1, suffix: '/ g' }, '50g': { label: '每 50g 单价', grams: 50, suffix: '/ 50g' }, '100g': { label: '每 100g 单价', grams: 100, suffix: '/ 100g' }, jin: { label: '每斤单价', grams: 500, suffix: '/ 斤' } };
   const MONTH_NAMES = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
   const themeColors = { 'dark-roast': '#1a1412', frost: '#f7f1e8', obsidian: '#1e2320', blaze: '#f5f3ea' };
-  const state = { beans: [], drinkLogs: [], brewPlans: [], settings: BeanCore.normalizeSettings({}), view: 'beans', status: '全部', planMethod: '全部', query: '', sort: 'roastDate', direction: 'desc', editingId: null, editingDrinkId: null, viewingDrinkId: null, editingPlanId: null, viewingPlanId: null, managerField: null, choiceTarget: null, dateTarget: null, calendarDate: null, coffeeCalendarDate: new Date(), coffeeCalendarView: 'month', selectedCoffeeDay: BeanCore.dateKey(new Date()), activeDrinkStepIndex: -1, brewAssist: null, pendingImages: [], previewImage: null, shareBeanId: null, shareCardPreview: null, importScope: 'all', initialized: false, resuming: false };
+  const state = { beans: [], drinkLogs: [], brewPlans: [], settings: BeanCore.normalizeSettings({}), view: 'beans', status: '全部', planMethod: '全部', query: '', sort: 'roastDate', direction: 'desc', editingId: null, editingDrinkId: null, viewingDrinkId: null, editingPlanId: null, viewingPlanId: null, managerField: null, choiceTarget: null, dateTarget: null, calendarDate: null, coffeeCalendarDate: new Date(), coffeeCalendarView: 'month', selectedCoffeeDay: BeanCore.dateKey(new Date()), activeDrinkStepIndex: -1, brewAssist: null, pendingImages: [], previewImage: null, shareBeanId: null, shareCardPreview: null, importScope: 'all', syncAuthMode: 'login', syncBusy: false, initialized: false, resuming: false };
   const cloudSync = window.BeanCloudSync ? window.BeanCloudSync.createSyncService() : null;
   let toastTimer = null;
   let assistTimer = null;
   let wakeLock = null;
   let cardPressTimer = null;
   let cardPressFired = false;
-  const els = { list: $('#beanList'), empty: $('#emptyState'), count: $('#recordCount'), searchPanel: $('#searchPanel'), search: $('#searchInput'), personal: $('#personalDialog'), backup: $('#dataBackupDialog'), calendar: $('#coffeeCalendarDialog'), detail: $('#detailDialog'), drinkDetail: $('#drinkDetailDialog'), planDetail: $('#planDetailDialog'), planEditor: $('#planEditorDialog'), editor: $('#editorDialog'), form: $('#beanForm'), planForm: $('#planForm'), drink: $('#drinkDialog'), drinkForm: $('#drinkForm'), brewAssist: $('#brewAssistDialog'), choice: $('#choiceDialog'), datePicker: $('#datePickerDialog'), photoSource: $('#photoSourceDialog'), scanImage: $('#scanImageDialog'), imagePreview: $('#imagePreviewDialog'), shareChoice: $('#shareImageChoiceDialog'), planShareChoice: $('#planShareChoiceDialog'), planImport: $('#planImportDialog'), manager: $('#smartManagerDialog'), settings: $('#settingsDialog'), sync: $('#syncDialog'), about: $('#aboutDialog'), migration: $('#migrationDialog'), exitConfirm: $('#exitConfirmDialog'), sharePreview: $('#sharePreviewDialog'), toast: $('#toast'), scanResult: $('#scanResult') };
+  const els = { list: $('#beanList'), empty: $('#emptyState'), count: $('#recordCount'), searchPanel: $('#searchPanel'), search: $('#searchInput'), personal: $('#personalDialog'), backup: $('#dataBackupDialog'), calendar: $('#coffeeCalendarDialog'), detail: $('#detailDialog'), drinkDetail: $('#drinkDetailDialog'), planDetail: $('#planDetailDialog'), planEditor: $('#planEditorDialog'), editor: $('#editorDialog'), form: $('#beanForm'), planForm: $('#planForm'), drink: $('#drinkDialog'), drinkForm: $('#drinkForm'), brewAssist: $('#brewAssistDialog'), choice: $('#choiceDialog'), datePicker: $('#datePickerDialog'), photoSource: $('#photoSourceDialog'), scanImage: $('#scanImageDialog'), imagePreview: $('#imagePreviewDialog'), shareChoice: $('#shareImageChoiceDialog'), planShareChoice: $('#planShareChoiceDialog'), planImport: $('#planImportDialog'), manager: $('#smartManagerDialog'), settings: $('#settingsDialog'), sync: $('#syncDialog'), syncAuth: $('#syncAuthDialog'), about: $('#aboutDialog'), migration: $('#migrationDialog'), exitConfirm: $('#exitConfirmDialog'), sharePreview: $('#sharePreviewDialog'), toast: $('#toast'), scanResult: $('#scanResult') };
 
   function capPlugin(name) { return window.Capacitor && window.Capacitor.Plugins ? window.Capacitor.Plugins[name] : null; }
   if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) document.body.classList.add('cap-native');
@@ -928,13 +928,19 @@
     if (!cloudSync) return;
     const config = cloudSync.getConfig();
     const loggedIn = Boolean(config.token);
-    $('#syncEmail').value = config.email || $('#syncEmail').value || '';
-    $('#syncPassword').value = '';
-    $('#syncStateText').textContent = loggedIn ? `已登录 ${config.email || '同步账号'}${config.enabled ? '，同步已开启' : '，同步已关闭'}` : '未登录：默认不会访问云端';
+    $('#syncStateText').textContent = state.syncBusy ? '正在同步' : (loggedIn ? (config.enabled ? '同步已开启' : '同步已暂停') : '未登录');
+    $('#syncAccountText').textContent = loggedIn ? (config.email || '同步账号') : '本机离线使用中';
+    $('#syncAccountHint').textContent = loggedIn ? (config.lastSyncAt ? `上次同步 ${formatDateTime(config.lastSyncAt)}` : '还没有完成过同步') : '登录后可在 Android 与 Web 间同步豆子、饮用记录、方案和图片。';
+    $('#syncStatusBadge').textContent = loggedIn ? (config.enabled ? '在线' : '暂停') : '离线';
+    $('#syncStatusBadge').dataset.state = loggedIn ? (config.enabled ? 'enabled' : 'paused') : 'offline';
     $('#syncEnabled').checked = Boolean(config.enabled && loggedIn);
-    $('#syncEnabled').disabled = !loggedIn;
-    $('#syncNow').disabled = !loggedIn;
+    $('#syncEnabled').disabled = !loggedIn || state.syncBusy;
+    $('#syncNow').disabled = !loggedIn || state.syncBusy;
+    $('#syncNow').classList.toggle('is-syncing', state.syncBusy);
+    els.sync.classList.toggle('is-syncing', state.syncBusy);
+    $('#syncLoginOpen').hidden = loggedIn;
     $('#syncLogout').hidden = !loggedIn;
+    $('#syncDeleteAccount').disabled = !loggedIn || state.syncBusy;
     $('#syncLastText').textContent = config.lastSyncAt ? `上次同步 ${formatDateTime(config.lastSyncAt)}` : (loggedIn ? '点击后同步这台设备的数据' : '登录后可同步这台设备的数据');
   }
   function renderSettings() { $('#settingQuickGrams').value = state.settings.quickGrams; $('#settingFlavorReminderDays').value = state.settings.flavorReminderDays; $('#settingLowStockCups').value = state.settings.lowStockCups; $('#settingBrewPlans').checked = brewPlansEnabled(); $('#settingPriceUnit').value = state.settings.priceUnit || 'g'; enhanceSelect($('#settingPriceUnit')); syncChoiceTrigger($('#settingPriceUnit')); $('#settingAdvanced').checked = state.settings.advancedRatings; $('#dimensionSettings').innerHTML = BeanCore.DIMENSION_KEYS.map((key) => `<label><input type="checkbox" data-dimension="${key}" ${state.settings.enabledDimensions.includes(key) ? 'checked' : ''}><span>${DIMENSIONS[key]} ${key === 'bitterness' ? '☹' : '☺'}</span></label>`).join(''); $('#dimensionSection').hidden = !state.settings.advancedRatings; }
@@ -963,18 +969,58 @@
     return Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join('').replace(/(.{4})/g, '$1-').replace(/-$/, '');
   }
   function readSyncCredentials() {
-    const email = $('#syncEmail').value.trim();
-    const password = $('#syncPassword').value;
+    const email = $('#syncAuthEmail').value.trim();
+    const password = $('#syncAuthPassword').value;
     if (!email || !email.includes('@')) throw new Error('请填写邮箱');
     if (!password || password.length < 8) throw new Error('密码至少 8 位');
     return { email, password };
   }
-  function setSyncBusy(busy) { [$('#syncLogin'), $('#syncRegister')].forEach((b) => { if (b) b.disabled = busy; }); }
+  function setSyncBusy(busy) {
+    state.syncBusy = Boolean(busy);
+    ['syncAuthSubmit', 'syncAuthModeLogin', 'syncAuthModeRegister', 'syncAuthModeRecover', 'syncAuthForgot', 'syncLoginOpen', 'syncLogout', 'syncCopyRecovery'].forEach((id) => { const el = $(`#${id}`); if (el) el.disabled = state.syncBusy; });
+    renderSyncAuth();
+    renderSyncSettings();
+  }
+  function renderSyncAuth() {
+    const mode = state.syncAuthMode;
+    const copy = {
+      login: ['登录同步账号', '登录后再决定是否开启同步。', '密码', '至少 8 位', '登录'],
+      register: ['创建同步账号', '注册后会生成一次性恢复码，请先保存。', '设置密码', '至少 8 位', '创建账号'],
+      recover: ['恢复同步账号', '用注册时保存的恢复码重设密码。', '新密码', '至少 8 位', '重设并登录']
+    }[mode];
+    $('#syncAuthTitle').textContent = copy[0];
+    $('#syncAuthSubtitle').textContent = copy[1];
+    $('#syncAuthPassword').previousElementSibling.textContent = copy[2];
+    $('#syncAuthPassword').placeholder = copy[3];
+    $('#syncAuthSubmit').textContent = state.syncBusy ? '请稍候…' : copy[4];
+    $('#syncRecoveryField').hidden = mode !== 'recover';
+    $('#syncAuthForgot').hidden = mode === 'recover';
+    $$('[data-sync-auth-mode]').forEach((button) => button.classList.toggle('active', button.dataset.syncAuthMode === mode));
+  }
+  function setSyncAuthMode(mode) {
+    state.syncAuthMode = ['login', 'register', 'recover'].includes(mode) ? mode : 'login';
+    $('#syncRecoveryBox').hidden = true;
+    renderSyncAuth();
+  }
+  function openSyncAuth(mode) {
+    const config = cloudSync ? cloudSync.getConfig() : {};
+    setSyncAuthMode(mode || 'login');
+    $('#syncAuthEmail').value = config.email || $('#syncAuthEmail').value || '';
+    $('#syncAuthPassword').value = '';
+    $('#syncAuthRecovery').value = '';
+    setDialog(els.syncAuth, true);
+    setTimeout(() => $('#syncAuthEmail').focus(), 80);
+  }
+  async function syncAuthSubmit() {
+    if (state.syncAuthMode === 'login') return syncLogin();
+    if (state.syncAuthMode === 'register') return syncRegister();
+    return syncRecover();
+  }
   async function syncLogin() {
     if (!cloudSync) return toast('同步模块未加载');
     let body; try { body = readSyncCredentials(); } catch (error) { return toast(error.message); }
     setSyncBusy(true); toast('正在登录…');
-    try { await cloudSync.login(body); $('#syncRecoveryBox').hidden = true; renderSyncSettings(); toast('已登录同步账号'); }
+    try { await cloudSync.login(body); $('#syncRecoveryBox').hidden = true; setDialog(els.syncAuth, false); renderSyncSettings(); toast('已登录同步账号'); }
     catch (error) { console.error(error); toast(error.message || '登录失败'); }
     finally { setSyncBusy(false); }
   }
@@ -992,13 +1038,25 @@
     } catch (error) { console.error(error); toast(error.message || '注册失败'); }
     finally { setSyncBusy(false); }
   }
+  async function syncRecover() {
+    if (!cloudSync) return toast('同步模块未加载');
+    let body; try { body = readSyncCredentials(); } catch (error) { return toast(error.message); }
+    const recoveryCode = $('#syncAuthRecovery').value.trim();
+    if (!recoveryCode) return toast('请填写恢复码');
+    setSyncBusy(true); toast('正在恢复账号…');
+    try { await cloudSync.recover({ ...body, recoveryCode }); $('#syncRecoveryBox').hidden = true; setDialog(els.syncAuth, false); renderSyncSettings(); toast('已恢复并登录'); }
+    catch (error) { console.error(error); toast(error.message || '恢复失败'); }
+    finally { setSyncBusy(false); }
+  }
   function syncLogout() { if (!cloudSync) return; cloudSync.logout(); $('#syncRecoveryBox').hidden = true; renderSyncSettings(); toast('已退出同步账号'); }
   async function syncDeleteAccount() {
     if (!cloudSync) return toast('同步模块未加载');
     if (!cloudSync.getConfig().token) return toast('未登录');
     if (!confirm('确定删除云端账号？服务器上的账号与所有云端数据会被永久删除，且不可恢复（本机数据不受影响）。')) return;
+    setSyncBusy(true);
     try { await cloudSync.deleteAccount(); $('#syncRecoveryBox').hidden = true; renderSyncSettings(); toast('云端账号已删除'); }
     catch (error) { console.error(error); toast(error.message || '删除失败'); }
+    finally { setSyncBusy(false); }
   }
   function syncToggle() {
     if (!cloudSync) return;
@@ -1010,8 +1068,7 @@
   }
   async function syncNow() {
     if (!cloudSync) return toast('同步模块未加载');
-    const button = $('#syncNow');
-    button.disabled = true;
+    setSyncBusy(true);
     try {
       toast('正在同步…');
       const result = await cloudSync.sync({ force: true });
@@ -1020,7 +1077,7 @@
       renderSyncSettings();
       toast('同步完成');
     } catch (error) { console.error(error); toast(error.message || '同步失败'); }
-    finally { button.disabled = false; renderSyncSettings(); }
+    finally { setSyncBusy(false); renderSyncSettings(); }
   }
   async function copyRecoveryCode() { try { await copyText($('#syncRecoveryCode').textContent); toast('恢复码已复制'); } catch (_) { toast('复制失败，请手动保存'); } }
   async function copyCurrentPlanShareCode() {
@@ -1357,7 +1414,7 @@
   async function migrateLegacy() { const legacy = BeanRepository.legacyData(); if (!legacy) return setDialog(els.migration, false); try { await BeanRepository.replaceAll(legacy.beans); await reload(); setDialog(els.migration, false); toast(`已迁移 ${legacy.beans.length} 条记录`); } catch (_) { toast('迁移失败，旧数据仍保持不变'); } }
 
   function exitApp() { const app = capPlugin('App'); if (app) app.exitApp(); }
-  function closeTopLayerOrExit() { if (els.exitConfirm.open) return exitApp(); if (els.sharePreview.open) return closeSharePreview(); if (els.choice.open) return els.choice.close(); if (els.datePicker.open) return els.datePicker.close(); if (els.photoSource.open) return els.photoSource.close(); if (els.scanImage.open) return els.scanImage.close(); if (els.imagePreview.open) return els.imagePreview.close(); if (els.shareChoice.open) return els.shareChoice.close(); if (els.brewAssist.open) return cancelBrewAssist(); if (els.drink.open) return els.drink.close(); if (els.planEditor.open) return els.planEditor.close(); if (els.sync.open) return els.sync.close(); if (els.backup.open) return els.backup.close(); if (els.calendar.open) return els.calendar.close(); if (els.drinkDetail.open) return els.drinkDetail.close(); if (els.planDetail.open) return els.planDetail.close(); if (els.about.open) return els.about.close(); if (els.manager.open) return els.manager.close(); if (els.settings.open) return els.settings.close(); if (els.personal.open) return els.personal.close(); if (els.editor.open) { clearPendingImages(true); return els.editor.close(); } if (els.detail.open) return els.detail.close(); if (els.migration.open) return els.migration.close(); setDialog(els.exitConfirm, true); }
+  function closeTopLayerOrExit() { if (els.exitConfirm.open) return exitApp(); if (els.sharePreview.open) return closeSharePreview(); if (els.choice.open) return els.choice.close(); if (els.datePicker.open) return els.datePicker.close(); if (els.photoSource.open) return els.photoSource.close(); if (els.scanImage.open) return els.scanImage.close(); if (els.imagePreview.open) return els.imagePreview.close(); if (els.shareChoice.open) return els.shareChoice.close(); if (els.brewAssist.open) return cancelBrewAssist(); if (els.drink.open) return els.drink.close(); if (els.planEditor.open) return els.planEditor.close(); if (els.syncAuth.open) return els.syncAuth.close(); if (els.sync.open) return els.sync.close(); if (els.backup.open) return els.backup.close(); if (els.calendar.open) return els.calendar.close(); if (els.drinkDetail.open) return els.drinkDetail.close(); if (els.planDetail.open) return els.planDetail.close(); if (els.about.open) return els.about.close(); if (els.manager.open) return els.manager.close(); if (els.settings.open) return els.settings.close(); if (els.personal.open) return els.personal.close(); if (els.editor.open) { clearPendingImages(true); return els.editor.close(); } if (els.detail.open) return els.detail.close(); if (els.migration.open) return els.migration.close(); setDialog(els.exitConfirm, true); }
   function attachLongPress(container, selector, onLongPress) {
     if (!container) return;
     let startX = 0, startY = 0;
@@ -1410,12 +1467,12 @@
     setupSmartSelects(); setupPlanSmartSelects(); syncAllChoiceTriggers(); $$('.picker-control').forEach((input) => input.addEventListener('click', () => openDatePicker(input))); $('#choiceList').addEventListener('click', chooseOption); $('#choiceClose').addEventListener('click', () => setDialog(els.choice, false)); $('#datePickerClose').addEventListener('click', () => setDialog(els.datePicker, false)); $('#datePickerCancel').addEventListener('click', () => setDialog(els.datePicker, false)); $('#datePickerConfirm').addEventListener('click', confirmDatePicker); $('#datePickerClear').addEventListener('click', clearDatePicker); $('#calendarPrev').addEventListener('click', () => shiftCalendar(-1)); $('#calendarNext').addEventListener('click', () => shiftCalendar(1)); $('#calendarDays').addEventListener('click', chooseCalendarDay); $$('[data-manage]').forEach((button) => button.addEventListener('click', () => openManager(button.dataset.manage))); $('#managerClose').addEventListener('click', () => setDialog(els.manager, false)); $('#managerList').addEventListener('click', managerAction);
     $('#profileOpen').addEventListener('click', openPersonal); $('#personalClose').addEventListener('click', () => setDialog(els.personal, false)); $('#coffeeCalendarOpen').addEventListener('click', () => openCoffeeCalendar('month')); $('#personalSettingsOpen').addEventListener('click', () => { setDialog(els.personal, false); renderSettings(); setDialog(els.settings, true); }); $('#personalSyncOpen').addEventListener('click', () => { setDialog(els.personal, false); renderSyncSettings(); setDialog(els.sync, true); }); $('#dataBackupOpen').addEventListener('click', () => { setDialog(els.personal, false); syncBackupDialog(); setDialog(els.backup, true); }); $('#dataBackupClose').addEventListener('click', () => setDialog(els.backup, false));
     $('#calendarClose').addEventListener('click', () => setDialog(els.calendar, false)); $('#calendarShare').addEventListener('click', shareCalendarCard); $$('[data-calendar-view]').forEach((button) => button.addEventListener('click', () => { state.coffeeCalendarView = button.dataset.calendarView; renderCoffeeCalendar(); })); $('#calendarPrevMonth').addEventListener('click', () => shiftCoffeeMonth(-1)); $('#calendarNextMonth').addEventListener('click', () => shiftCoffeeMonth(1)); $('#calendarPrevYear').addEventListener('click', () => shiftCoffeeYear(-1)); $('#calendarNextYear').addEventListener('click', () => shiftCoffeeYear(1)); els.calendar.addEventListener('click', (event) => { const day = event.target.closest('[data-calendar-day]'); if (day) { state.selectedCoffeeDay = day.dataset.calendarDay; state.coffeeCalendarDate = dateFromKey(state.selectedCoffeeDay); renderCoffeeCalendar(); return; } const yearDay = event.target.closest('[data-year-day]'); if (yearDay) { state.selectedCoffeeDay = yearDay.dataset.yearDay; state.coffeeCalendarDate = dateFromKey(state.selectedCoffeeDay); renderCoffeeCalendar(); return; } const logItem = event.target.closest('[data-log-id]'); if (logItem) openDrinkDetail(state.drinkLogs.find((log) => log.id === logItem.dataset.logId)); if (event.target.closest('#calendarSeeLogs')) { setDialog(els.calendar, false); state.view = 'drinks'; render(); } });
-    $('#settingsClose').addEventListener('click', () => setDialog(els.settings, false)); $$('[data-theme-value]').forEach((button) => button.addEventListener('click', () => applyTheme(button.datasetThemeValue || button.dataset.themeValue, true))); $('#settingQuickGrams').addEventListener('change', saveSettingsFromUi); $('#settingFlavorReminderDays').addEventListener('change', saveSettingsFromUi); $('#settingLowStockCups').addEventListener('change', saveSettingsFromUi); $('#settingBrewPlans').addEventListener('change', saveSettingsFromUi); $('#settingPriceUnit').addEventListener('change', () => { syncChoiceTrigger($('#settingPriceUnit')); saveSettingsFromUi(); }); $('#settingAdvanced').addEventListener('change', () => { $('#dimensionSection').hidden = !$('#settingAdvanced').checked; saveSettingsFromUi(); }); $('#dimensionSettings').addEventListener('change', saveSettingsFromUi); $('#syncClose').addEventListener('click', () => setDialog(els.sync, false)); $('#syncLogin').addEventListener('click', syncLogin); $('#syncRegister').addEventListener('click', syncRegister); $('#syncLogout').addEventListener('click', syncLogout); $('#syncDeleteAccount').addEventListener('click', syncDeleteAccount); $('#syncEnabled').addEventListener('change', syncToggle); $('#syncNow').addEventListener('click', syncNow); $('#syncCopyRecovery').addEventListener('click', copyRecoveryCode); $('#aboutOpen').addEventListener('click', showAbout); $('#aboutClose').addEventListener('click', () => setDialog(els.about, false)); $$('[data-export-scope]').forEach((button) => button.addEventListener('click', () => exportBackup(button.dataset.exportScope))); $$('[data-import-scope]').forEach((button) => button.addEventListener('click', () => startImport(button.dataset.importScope))); $('#webImportInput').addEventListener('change', webImport); $('#migrationLater').addEventListener('click', () => setDialog(els.migration, false)); $('#migrationNow').addEventListener('click', migrateLegacy);
+    $('#settingsClose').addEventListener('click', () => setDialog(els.settings, false)); $$('[data-theme-value]').forEach((button) => button.addEventListener('click', () => applyTheme(button.datasetThemeValue || button.dataset.themeValue, true))); $('#settingQuickGrams').addEventListener('change', saveSettingsFromUi); $('#settingFlavorReminderDays').addEventListener('change', saveSettingsFromUi); $('#settingLowStockCups').addEventListener('change', saveSettingsFromUi); $('#settingBrewPlans').addEventListener('change', saveSettingsFromUi); $('#settingPriceUnit').addEventListener('change', () => { syncChoiceTrigger($('#settingPriceUnit')); saveSettingsFromUi(); }); $('#settingAdvanced').addEventListener('change', () => { $('#dimensionSection').hidden = !$('#settingAdvanced').checked; saveSettingsFromUi(); }); $('#dimensionSettings').addEventListener('change', saveSettingsFromUi); $('#syncClose').addEventListener('click', () => setDialog(els.sync, false)); $('#syncLoginOpen').addEventListener('click', () => openSyncAuth('login')); $('#syncAuthClose').addEventListener('click', () => setDialog(els.syncAuth, false)); $$('[data-sync-auth-mode]').forEach((button) => button.addEventListener('click', () => setSyncAuthMode(button.dataset.syncAuthMode))); $('#syncAuthForgot').addEventListener('click', () => setSyncAuthMode('recover')); $('#syncAuthSubmit').addEventListener('click', syncAuthSubmit); $('#syncLogout').addEventListener('click', syncLogout); $('#syncDeleteAccount').addEventListener('click', syncDeleteAccount); $('#syncEnabled').addEventListener('change', syncToggle); $('#syncNow').addEventListener('click', syncNow); $('#syncCopyRecovery').addEventListener('click', copyRecoveryCode); $('#aboutOpen').addEventListener('click', showAbout); $('#aboutClose').addEventListener('click', () => setDialog(els.about, false)); $$('[data-export-scope]').forEach((button) => button.addEventListener('click', () => exportBackup(button.dataset.exportScope))); $$('[data-import-scope]').forEach((button) => button.addEventListener('click', () => startImport(button.dataset.importScope))); $('#webImportInput').addEventListener('change', webImport); $('#migrationLater').addEventListener('click', () => setDialog(els.migration, false)); $('#migrationNow').addEventListener('click', migrateLegacy);
     $('#brewAssistStop').addEventListener('click', cancelBrewAssist); $('#brewAssistPause').addEventListener('click', pauseBrewAssist); $('#brewAssistRing').addEventListener('click', pauseBrewAssist); $('#brewAssistRing').addEventListener('keydown', (event) => { if (['Enter', ' '].includes(event.key)) { event.preventDefault(); pauseBrewAssist(); } }); $('#brewAssistSkip').addEventListener('click', skipBrewAssistStage); $('#brewAssistFinish').addEventListener('click', finishBrewAssist);
     $('#sharePreviewClose').addEventListener('click', closeSharePreview); $('#sharePreviewCancel').addEventListener('click', closeSharePreview); $('#sharePreviewSave').addEventListener('click', saveShareCard); $('#sharePreviewShare').addEventListener('click', confirmShareCard);
     $('#exitCancel').addEventListener('click', () => setDialog(els.exitConfirm, false)); $('#exitConfirm').addEventListener('click', exitApp);
     document.addEventListener('visibilitychange', () => { if (document.visibilityState !== 'visible') return; if (els.brewAssist.open && state.brewAssist && !state.brewAssist.completed) requestWakeLock(); scheduleAutoSync(); });
-    [els.personal, els.backup, els.calendar, els.detail, els.drinkDetail, els.planDetail, els.planEditor, els.editor, els.drink, els.brewAssist, els.choice, els.datePicker, els.photoSource, els.scanImage, els.imagePreview, els.shareChoice, els.sharePreview, els.exitConfirm, els.manager, els.settings, els.sync, els.about].forEach((dialog) => dialog.addEventListener('click', (event) => { if (event.target === dialog) dialog === els.brewAssist ? cancelBrewAssist() : dialog === els.sharePreview ? closeSharePreview() : dialog.close(); }));
+    [els.personal, els.backup, els.calendar, els.detail, els.drinkDetail, els.planDetail, els.planEditor, els.editor, els.drink, els.brewAssist, els.choice, els.datePicker, els.photoSource, els.scanImage, els.imagePreview, els.shareChoice, els.sharePreview, els.exitConfirm, els.manager, els.settings, els.sync, els.syncAuth, els.about].forEach((dialog) => dialog.addEventListener('click', (event) => { if (event.target === dialog) dialog === els.brewAssist ? cancelBrewAssist() : dialog === els.sharePreview ? closeSharePreview() : dialog.close(); }));
     $('#photoSourceClose').addEventListener('click', () => setDialog(els.photoSource, false));
     els.editor.addEventListener('close', () => clearPendingImages(true));
   }
@@ -1426,9 +1483,11 @@
     const config = cloudSync.getConfig();
     if (!config.loggedIn || !config.enabled) return; // 未登录/未开启：零网络
     autoSyncing = true;
+    state.syncBusy = true;
+    if (els.sync.open) renderSyncSettings();
     try { const result = await cloudSync.sync(); if (result && !result.skipped) { await reload(); if (els.sync.open) renderSyncSettings(); } }
     catch (error) { console.error(error); }
-    finally { autoSyncing = false; }
+    finally { autoSyncing = false; state.syncBusy = false; if (els.sync.open) renderSyncSettings(); }
   }
   function scheduleAutoSync(delay) { clearTimeout(syncTimer); syncTimer = setTimeout(autoSync, delay == null ? 800 : delay); }
   function bindNativeLifecycle() { const app = capPlugin('App'); if (!app) return; app.addListener('backButton', closeTopLayerOrExit); app.addListener('appStateChange', async ({ isActive }) => { if (!isActive || state.resuming) return; state.resuming = true; await reload({ keepForm: true }); state.resuming = false; scheduleAutoSync(); }); }

@@ -2,7 +2,7 @@
 <html lang="zh-CN" data-theme="dark-roast">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#1a1412">
   <meta name="color-scheme" content="dark light">
   <title>豆仓</title>
@@ -471,9 +471,22 @@
 
   <dialog class="sheet compact" id="syncDialog">
     <header class="sheet-header"><div><p class="eyebrow">CLOUD SYNC</p><h2>云同步</h2><p class="sheet-subtitle">默认关闭，登录后才会访问云端</p></div><button class="icon-button" id="syncClose" type="button" aria-label="关闭">×</button></header>
-    <section class="settings-section sync-settings"><h3>账号</h3><p class="sync-state" id="syncStateText">未登录</p><label class="field"><span>邮箱</span><input id="syncEmail" type="email" autocomplete="username" placeholder="you@example.com"></label><label class="field"><span>密码</span><input id="syncPassword" type="password" autocomplete="current-password" minlength="8" placeholder="至少 8 位"></label><div class="sync-actions"><button class="secondary-button" id="syncLogin" type="button">登录</button><button class="secondary-button" id="syncRegister" type="button">注册</button><button class="danger-button" id="syncLogout" type="button">退出</button></div><div class="sync-recovery" id="syncRecoveryBox" hidden><b>恢复码只显示这一次</b><code id="syncRecoveryCode"></code><small>忘记密码时需要它重设密码，请先保存到安全的位置。</small><button class="secondary-button" id="syncCopyRecovery" type="button">复制恢复码</button></div></section>
-    <section class="settings-section sync-settings"><h3>同步</h3><label class="settings-toggle"><span><b>开启同步</b><small>关闭时不会访问云端；登录后可手动同步。</small></span><input id="syncEnabled" type="checkbox"></label><button class="settings-action" id="syncNow" type="button"><span><b>立即同步</b><small id="syncLastText">登录后可同步这台设备的数据</small></span><strong aria-hidden="true">↻</strong></button></section>
+    <section class="settings-section sync-settings"><h3>账号</h3><div class="sync-account-card"><div class="sync-orb" aria-hidden="true">↻</div><div><p class="sync-state" id="syncStateText">未登录</p><strong id="syncAccountText">本机离线使用中</strong><small id="syncAccountHint">登录后可在 Android 与 Web 间同步豆子、饮用记录、方案和图片。</small></div><span class="sync-badge" id="syncStatusBadge">离线</span></div><div class="sync-actions"><button class="primary-button" id="syncLoginOpen" type="button">登录 / 注册</button><button class="danger-button" id="syncLogout" type="button">退出账号</button></div></section>
+    <section class="settings-section sync-settings"><h3>同步</h3><label class="settings-toggle"><span><b>开启同步</b><small>关闭时不会访问云端；登录后可手动同步。</small></span><input id="syncEnabled" type="checkbox"></label><button class="settings-action sync-now-action" id="syncNow" type="button"><span><b>立即同步</b><small id="syncLastText">登录后可同步这台设备的数据</small></span><strong id="syncNowIcon" aria-hidden="true">↻</strong></button></section>
     <section class="settings-section sync-settings"><h3>隐私与删除</h3><button class="settings-action" id="syncDeleteAccount" type="button"><span><b>删除云端账号</b><small>永久删除服务器上的账号与所有云端数据；本机数据保留</small></span><strong aria-hidden="true">✕</strong></button><p class="sync-privacy">隐私说明：不登录则完全离线、不联网、不上传任何数据。开启同步后，你的咖啡数据（含图片）经 HTTPS 传输并保存在云端，仅用于你自己的跨设备同步、仅你可见；可随时“删除云端账号”清除云端副本。</p></section>
+  </dialog>
+
+  <dialog class="sheet compact sync-auth-sheet" id="syncAuthDialog">
+    <header class="sheet-header"><div><p class="eyebrow">COFFEE CLOUD</p><h2 id="syncAuthTitle">登录同步账号</h2><p class="sheet-subtitle" id="syncAuthSubtitle">登录后再决定是否开启同步。</p></div><button class="icon-button" id="syncAuthClose" type="button" aria-label="关闭">×</button></header>
+    <section class="sync-auth-body">
+      <div class="sync-auth-tabs" role="tablist" aria-label="同步账号操作"><button class="active" id="syncAuthModeLogin" type="button" data-sync-auth-mode="login">登录</button><button id="syncAuthModeRegister" type="button" data-sync-auth-mode="register">注册</button><button id="syncAuthModeRecover" type="button" data-sync-auth-mode="recover">恢复</button></div>
+      <label class="auth-field"><span>邮箱</span><input id="syncAuthEmail" type="email" autocomplete="username" placeholder="you@example.com"></label>
+      <label class="auth-field"><span>密码</span><input id="syncAuthPassword" type="password" autocomplete="current-password" minlength="8" placeholder="至少 8 位"></label>
+      <label class="auth-field" id="syncRecoveryField" hidden><span>恢复码</span><input id="syncAuthRecovery" type="text" autocomplete="one-time-code" placeholder="注册时保存的恢复码"></label>
+      <button class="primary-button sync-auth-submit" id="syncAuthSubmit" type="button">登录</button>
+      <button class="ghost-button sync-auth-alt" id="syncAuthForgot" type="button">忘记密码？用恢复码重设</button>
+      <div class="sync-recovery" id="syncRecoveryBox" hidden><b>恢复码只显示这一次</b><code id="syncRecoveryCode"></code><small>忘记密码时需要它重设密码，请先保存到安全的位置。</small><button class="secondary-button" id="syncCopyRecovery" type="button">复制恢复码</button></div>
+    </section>
   </dialog>
 
   <dialog class="sheet assist-sheet" id="brewAssistDialog">
