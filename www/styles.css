@@ -327,6 +327,7 @@ dialog::backdrop { background:rgb(8 5 4 / .72); backdrop-filter:blur(4px); }
 .sync-settings { display:grid; gap:12px; }
 .sync-account-card { display:grid; grid-template-columns:46px 1fr auto; align-items:center; gap:12px; min-width:0; padding:13px; border:1px solid color-mix(in srgb,var(--border) 72%,transparent); border-radius:16px; background:color-mix(in srgb,var(--surface-2) 76%,var(--surface)); }
 .sync-orb { display:grid; place-items:center; width:46px; height:46px; border:1px solid color-mix(in srgb,var(--accent) 42%,var(--border)); border-radius:15px; background:color-mix(in srgb,var(--accent) 10%,var(--surface)); color:var(--accent); font-size:22px; line-height:1; }
+.sync-now-action strong { display:inline-flex; align-items:center; justify-content:center; width:1em; height:1em; line-height:1; transform-origin:50% 50%; }
 .sync-now-action.is-syncing strong { animation:sync-spin 1s linear infinite; }
 .sync-state { margin:0; color:var(--faint); font-size:10px; font-weight:750; letter-spacing:.08em; line-height:1.4; }
 .sync-account-card > div { min-width:0; }
