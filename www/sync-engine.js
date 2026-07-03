@@ -94,7 +94,9 @@
       await applyLocal(merged);
       const pushBaseCursor = initialPull.cursor || cursor;
       const delta = changedRecords(merged);
-      await transport.push(delta.records, pushBaseCursor);
+      // 第三参传全量 merged：让图片映射层能补推“记录本身没变、但本地图片尚未上传云端”
+      // 的存量豆（增量集不含它们）。普通 transport 忽略该参数。
+      await transport.push(delta.records, pushBaseCursor, merged);
       const finalPull = await pullAll(pushBaseCursor);
       if ((finalPull.records.beans || []).length || (finalPull.records.drinkLogs || []).length || (finalPull.records.brewPlans || []).length) {
         merged = mergeAll(merged, finalPull.records);

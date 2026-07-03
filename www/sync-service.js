@@ -19,6 +19,7 @@
     token: '',
     cursor: null,
     pushState: null,
+    imageRefs: null,
     lastSyncAt: null,
     lastSyncError: '',
     lastSyncErrorAt: null
@@ -32,6 +33,7 @@
       token: String(source.token || ''),
       cursor: source.cursor == null || source.cursor === '' ? null : source.cursor,
       pushState: source.pushState && typeof source.pushState === 'object' ? source.pushState : null,
+      imageRefs: source.imageRefs && typeof source.imageRefs === 'object' ? source.imageRefs : null,
       lastSyncAt: source.lastSyncAt || null,
       lastSyncError: String(source.lastSyncError || ''),
       lastSyncErrorAt: source.lastSyncErrorAt || null
@@ -132,50 +134,94 @@
     const getImage = imageDeps.getImage;
     const saveImage = imageDeps.saveImage;
     const isUploadableRef = imageDeps.isUploadableRef || isIdbRef;
+    // 本地图片引用 ↔ 云端 r2 的持久映射（跨同步复用）：
+    //   - 避免重复上传/下载同一张图；
+    //   - 让“存量本地图（从未上传过云端）”可被识别并补推；
+    //   - 反向映射保证 push 后 finalPull 拿回自己刚传的 r2 时复用原本地引用，
+    //     不再重复落盘，避免每次同步生成新文件的死循环。
+    const refMap = imageDeps.imageRefs && typeof imageDeps.imageRefs === 'object' ? imageDeps.imageRefs : {};
+    const uploaded = new Map();   // localRef -> r2
+    const restored = new Map();   // r2 -> localRef
+    Object.keys(refMap).forEach((localRef) => {
+      const r2 = refMap[localRef];
+      if (!r2) return;
+      uploaded.set(localRef, r2);
+      if (!restored.has(r2)) restored.set(r2, localRef);
+    });
+    function remember(localRef, r2) {
+      if (!localRef || !r2) return;
+      uploaded.set(localRef, r2);
+      if (!restored.has(r2)) restored.set(r2, localRef);
+      refMap[localRef] = r2;
+    }
+    async function uploadRef(ref) {
+      const cached = uploaded.get(ref);
+      if (cached) return cached;
+      const blob = await getImage(ref);
+      if (!blob) return null;
+      const res = await baseTransport.uploadImage(blob);
+      const r2 = res && (res.key || (res.sha256 ? 'r2:' + res.sha256 : null));
+      if (r2) remember(ref, r2);
+      return r2;
+    }
     async function beanIdbToR2(bean) {
       let next = null;
       for (const field of IMAGE_FIELDS) {
         if (!isUploadableRef(bean[field])) continue;
         try {
-          const blob = await getImage(bean[field]);
-          if (!blob) continue;
-          const res = await baseTransport.uploadImage(blob);
-          const r2 = res && (res.key || (res.sha256 ? 'r2:' + res.sha256 : null));
+          const r2 = await uploadRef(bean[field]);
           if (r2) { next = next || { ...bean }; next[field] = r2; }
         } catch (_) {}
       }
       return next || bean;
     }
-    async function beanR2ToIdb(bean, cache) {
+    async function beanR2ToIdb(bean) {
       let next = null;
       for (const field of IMAGE_FIELDS) {
         if (!isR2Ref(bean[field])) continue;
         try {
-          let idbRef = cache.get(bean[field]);
-          if (!idbRef) {
+          let localRef = restored.get(bean[field]);
+          if (!localRef) {
             const blob = await baseTransport.downloadImage(bean[field]);
             if (!blob) continue;
-            idbRef = await saveImage(blob, field);
-            cache.set(bean[field], idbRef);
+            localRef = await saveImage(blob, field);
+            remember(localRef, bean[field]);
           }
-          next = next || { ...bean }; next[field] = idbRef;
+          next = next || { ...bean }; next[field] = localRef;
         } catch (_) {}
       }
       return next || bean;
+    }
+    function beanHasUnsyncedImage(bean) {
+      return IMAGE_FIELDS.some((field) => isUploadableRef(bean[field]) && !uploaded.get(bean[field]));
     }
     return {
       hello: () => baseTransport.hello(),
       deleteAccount: (...args) => baseTransport.deleteAccount(...args),
       async pull(cursor) {
         const data = await baseTransport.pull(cursor);
-        const cache = new Map();
         const beans = [];
-        for (const bean of data.beans || []) beans.push(await beanR2ToIdb(bean, cache));
+        for (const bean of data.beans || []) beans.push(await beanR2ToIdb(bean));
         return { ...data, beans };
       },
-      async push(records, cursor) {
+      async push(records, cursor, allRecords) {
         const beans = [];
-        for (const bean of (records && records.beans) || []) beans.push(await beanIdbToR2(bean));
+        const seen = new Set();
+        for (const bean of (records && records.beans) || []) {
+          beans.push(await beanIdbToR2(bean));
+          if (bean && bean.id != null) seen.add(bean.id);
+        }
+        // 补推：本地仍有未上传到云端的图片（多为旧版本存量图，记录本身没变、
+        // 不在增量集里）。只上传/补推“图片尚未映射到 r2”的豆，一次修复后即稳定。
+        for (const bean of (allRecords && allRecords.beans) || []) {
+          if (!bean || bean.id == null || seen.has(bean.id)) continue;
+          if (bean.deletedAt) continue; // 墓碑不必上传图片
+          if (!beanHasUnsyncedImage(bean)) continue;
+          const converted = await beanIdbToR2(bean);
+          if (converted === bean) continue; // 没有任何图片成功上传（如本机缺源文件），不补推 file: 脏值
+          beans.push(converted);
+          seen.add(bean.id);
+        }
         return baseTransport.push({ ...records, beans }, cursor);
       }
     };
@@ -204,7 +250,7 @@
     }
 
     function getConfig() { return { ...config, loggedIn: Boolean(config.token) }; }
-    function createTransport() {
+    function createTransport(imageRefs) {
       if (deps.transportFactory) return deps.transportFactory(config);
       const base = transportApi.createHttpTransport({ core, baseUrl: deps.baseUrl, fetch: deps.fetch, token: config.token });
       const scanner = root.Capacitor && root.Capacitor.Plugins ? root.Capacitor.Plugins.CoffeeLabelScanner : null;
@@ -212,7 +258,7 @@
       const getImage = deps.getImage || (nativeImages && nativeImages.getImage) || (typeof repository.getWebImage === 'function' ? (ref) => repository.getWebImage(ref) : null);
       const saveImage = deps.saveImage || (nativeImages && nativeImages.saveImage) || (typeof repository.saveWebImage === 'function' ? (blob) => repository.saveWebImage(blob) : null);
       const isUploadableRef = deps.isUploadableRef || (nativeImages && nativeImages.isUploadableRef) || isIdbRef;
-      if (getImage && saveImage) return createImageMappingTransport(base, { getImage, saveImage, isUploadableRef });
+      if (getImage && saveImage) return createImageMappingTransport(base, { getImage, saveImage, isUploadableRef, imageRefs: imageRefs || {} });
       return base;
     }
     function createAuthClient() {
@@ -221,16 +267,17 @@
 
     async function saveAuth(email, response) {
       if (!response || !response.token) throw new Error('登录响应缺少 token');
-      return persist({ email: String(email || '').trim(), token: response.token, cursor: null, pushState: null, enabled: true, lastSyncError: '', lastSyncErrorAt: null });
+      return persist({ email: String(email || '').trim(), token: response.token, cursor: null, pushState: null, imageRefs: null, enabled: true, lastSyncError: '', lastSyncErrorAt: null });
     }
 
     async function sync(options = {}) {
       if (!canSync()) return { skipped: true, reason: 'not-allowed', config: getConfig() };
       if (!config.token) return { skipped: true, reason: 'not-authenticated', config: getConfig() };
       if (!config.enabled && !options.force) return { skipped: true, reason: 'disabled', config: getConfig() };
+      const imageRefs = { ...(config.imageRefs || {}) };
       const engine = syncEngine.createEngine({
         core,
-        transport: createTransport(),
+        transport: createTransport(imageRefs),
         getLocal: () => repository.exportForSync(),
         applyLocal: (merged) => repository.applySyncData(merged),
         cursor: config.cursor,
@@ -238,7 +285,7 @@
       });
       try {
         const result = await withDeadline(engine.sync(), options.timeoutMs == null ? syncTimeoutMs : options.timeoutMs);
-        persist({ cursor: result.cursor || null, pushState: result.pushState || null, lastSyncAt: now(), lastSyncError: '', lastSyncErrorAt: null });
+        persist({ cursor: result.cursor || null, pushState: result.pushState || null, imageRefs, lastSyncAt: now(), lastSyncError: '', lastSyncErrorAt: null });
         return { skipped: false, cursor: result.cursor || null, merged: result.merged, config: getConfig() };
       } catch (error) {
         persist({ lastSyncError: syncErrorMessage(error), lastSyncErrorAt: now() });
@@ -250,13 +297,13 @@
       if (!config.token) return getConfig();
       const transport = createTransport();
       if (typeof transport.deleteAccount === 'function') await transport.deleteAccount();
-      return persist({ enabled: false, token: '', cursor: null, pushState: null, lastSyncError: '', lastSyncErrorAt: null });
+      return persist({ enabled: false, token: '', cursor: null, pushState: null, imageRefs: null, lastSyncError: '', lastSyncErrorAt: null });
     }
 
     return {
       getConfig,
       setEnabled: (enabled) => persist({ enabled: enabled === true }),
-      logout: () => persist({ enabled: false, token: '', cursor: null, pushState: null, lastSyncError: '', lastSyncErrorAt: null }),
+      logout: () => persist({ enabled: false, token: '', cursor: null, pushState: null, imageRefs: null, lastSyncError: '', lastSyncErrorAt: null }),
       deleteAccount,
       register: async (body) => saveAuth(body && body.email, await createAuthClient().register(body)),
       login: async (body) => saveAuth(body && body.email, await createAuthClient().login(body)),

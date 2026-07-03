@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const core = require('../www/data-core.js');
+const pkg = require('../package.json');
 
 test('normalizeBean applies safe defaults and numeric bounds', () => {
   const bean = core.normalizeBean({ name: '  花魁  ', status: '未知', remainingWeight: '-2', favorite: '1', bagImagePath: ' file:///bag.jpg ' }, '2026-01-01T00:00:00.000Z');
@@ -38,7 +39,7 @@ test('backup round trip validates schema and duplicate ids', () => {
   const plans = [core.normalizeBrewPlan({ id: 'plan-one', name: '三段式', brewMethod: '手冲', beanIds: ['one'], dose: 15 })];
   const backup = core.createBackup(beans, logs, { quickGrams: 18 }, '2026-01-01T00:00:00.000Z', plans);
   const imported = core.validateImport(backup);
-  assert.equal(backup.appVersion, '2.0.5');
+  assert.equal(backup.appVersion, pkg.version);
   assert.equal(backup.schemaVersion, 5);
   assert.equal(imported.exportScope, 'all');
   assert.equal(imported.beans[0].name, '豆一');

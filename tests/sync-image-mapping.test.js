@@ -82,6 +82,53 @@ test('image-mapping: 同一 r2 引用在一次 pull 内只下载一次', async (
   assert.equal(base.calls.downloaded.length, 1, '相同 r2 引用在本次 pull 内应去重下载');
 });
 
+test('image-mapping: 存量本地图（不在增量集）通过全量参数被补推上传为 r2', async () => {
+  const base = mockBase();
+  const img = mockImageStore();
+  img.store.set('idb:old', new Blob(['legacy-bag'], { type: 'image/webp' }));
+  const imageRefs = {};
+  const t = createImageMappingTransport(base, { ...img, imageRefs });
+
+  // 增量集为空（记录内容没变），但全量里有一张从未上传的本地图
+  const delta = { beans: [], drinkLogs: [], brewPlans: [] };
+  const all = { beans: [{ id: 'b1', name: '存量豆', bagImagePath: 'idb:old', labelImagePath: '' }], drinkLogs: [], brewPlans: [] };
+  await t.push(delta, 0, all);
+
+  assert.equal(base.calls.uploaded.length, 1, '存量图应被上传一次');
+  assert.equal(base.calls.pushed.beans.length, 1, '该豆被补推');
+  assert.equal(base.calls.pushed.beans[0].id, 'b1');
+  assert.equal(base.calls.pushed.beans[0].bagImagePath, R2_A, '补推记录用 r2 引用');
+  assert.equal(imageRefs['idb:old'], R2_A, '映射已持久化，下轮不再重复处理');
+});
+
+test('image-mapping: 图片已映射后不再重复上传或补推', async () => {
+  const base = mockBase();
+  const img = mockImageStore();
+  img.store.set('idb:old', new Blob(['bag'], { type: 'image/webp' }));
+  const t = createImageMappingTransport(base, { ...img, imageRefs: { 'idb:old': R2_A } });
+
+  const all = { beans: [{ id: 'b1', bagImagePath: 'idb:old', labelImagePath: '' }], drinkLogs: [], brewPlans: [] };
+  await t.push({ beans: [], drinkLogs: [], brewPlans: [] }, 0, all);
+
+  assert.equal(base.calls.uploaded.length, 0, '已映射不再上传');
+  assert.equal(base.calls.pushed.beans.length, 0, '已映射不再补推');
+});
+
+test('image-mapping: push 后 pull 拿回自己刚传的 r2 时复用原引用，不重复落盘', async () => {
+  const base = mockBase([{ id: 'b1', bagImagePath: R2_A, labelImagePath: '' }]);
+  const img = mockImageStore();
+  img.store.set('idb:old', new Blob(['bag'], { type: 'image/webp' }));
+  const t = createImageMappingTransport(base, { ...img, imageRefs: {} });
+
+  const all = { beans: [{ id: 'b1', bagImagePath: 'idb:old', labelImagePath: '' }], drinkLogs: [], brewPlans: [] };
+  await t.push({ beans: [], drinkLogs: [], brewPlans: [] }, 0, all);
+  const pulled = await t.pull(0);
+
+  assert.equal(pulled.beans[0].bagImagePath, 'idb:old', 'pull 回来复用原本地引用');
+  assert.equal(base.calls.downloaded.length, 0, '不重复下载自己刚传的图');
+  assert.equal(img.store.size, 1, '不新增本地图片，杜绝每次同步生成新文件的死循环');
+});
+
 test('image-mapping: Android file 图片可上传为 r2，下载后恢复到原生归档目录', async () => {
   const fileRef = 'file:///data/user/0/com.coffeebean.vault/files/bean-images/bag-1.webp';
   const restoredRef = 'file:///data/user/0/com.coffeebean.vault/files/bean-images/label-2.webp';
