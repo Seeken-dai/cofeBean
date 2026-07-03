@@ -43,6 +43,7 @@
       <article class="stat"><strong id="statRemaining">0g</strong><span>剩余总量</span></article>
     </section>
     <section class="reminder-panel" id="beanReminderPanel" hidden></section>
+    <section class="feature-hint drink-starter-hint" id="drinkStarterHint" hidden></section>
 
     <nav class="filter-row" id="statusFilters" aria-label="按状态筛选">
       <button class="chip active" data-value="全部" type="button">全部</button>
@@ -65,6 +66,7 @@
       <div class="empty-bag" aria-hidden="true"><svg viewBox="0 0 1024 1024"><path d="M861.866667 179.2l4.266666 4.266667c59.733333 68.266667 85.333333 157.866667 68.266667 245.333333-25.6 125.866667-85.333333 238.933333-174.933333 328.533333-89.6 89.6-204.8 151.466667-328.533334 174.933334-17.066667 4.266667-36.266667 4.266667-53.333333 4.266666-74.666667 0-149.333333-29.866667-202.666667-85.333333-2.133333-2.133333-4.266667-6.4-8.533333-8.533333l-4.266667-4.266667c-59.733333-68.266667-85.333333-157.866667-68.266666-245.333333 25.6-125.866667 85.333333-238.933333 174.933333-328.533334 89.6-89.6 204.8-151.466667 328.533333-174.933333 91.733333-17.066667 187.733333 12.8 256 81.066667l8.533334 8.533333z m-12.8 232.533333c8.533333-38.4 2.133333-78.933333-12.8-115.2-78.933333 134.4-194.133333 194.133333-305.066667 253.866667-115.2 59.733333-224 117.333333-288 253.866667 46.933333 40.533333 108.8 57.6 168.533333 44.8 108.8-21.333333 206.933333-74.666667 285.866667-151.466667s130.133333-177.066667 151.466667-285.866667zM174.933333 612.266667c-8.533333 38.4-2.133333 78.933333 12.8 115.2 78.933333-134.4 194.133333-194.133333 305.066667-253.866667 115.2-59.733333 224-117.333333 288-253.866667C744.533333 187.733333 697.6 170.666667 650.666667 170.666667c-12.8 0-25.6 2.133333-38.4 4.266666-108.8 21.333333-206.933333 74.666667-285.866667 151.466667-76.8 78.933333-130.133333 177.066667-151.466667 285.866667z" fill="currentColor"/></svg></div>
       <h2>豆仓还是空的</h2>
       <p>从右下角放入第一包咖啡豆吧。</p>
+      <div class="empty-guide" id="beanEmptyGuide"></div>
     </section>
     </div>
     <section id="drinksView" hidden>
@@ -360,6 +362,7 @@
         </section>
         <label class="field full"><span>饮用时间</span><input id="drink-time" name="consumedAt" class="picker-control" data-picker-kind="datetime" type="text" readonly required placeholder="选择日期与时间"></label>
         <fieldset class="rating-field full"><legend>整体评分（可留空）</legend><div class="rating-row" id="overallRating" data-rating-name="overallRating"></div></fieldset>
+        <section class="feature-hint full" id="drinkFeatureHint" hidden></section>
         <section class="advanced-ratings full" id="advancedRatingSection" hidden><div class="section-heading"><div><span>高级评价</span><small>笑脸越多越满意；苦涩感的哭脸越多越明显</small></div></div><div id="dimensionRatings"></div></section>
         <label class="field full"><span>评价备注</span><textarea id="drink-notes" name="notes" maxlength="2000" rows="4" placeholder="这杯的香气、风味变化，或下次想调整的参数…"></textarea></label>
       </div>
@@ -458,7 +461,7 @@
     <header class="sheet-header"><div><p class="eyebrow">PREFERENCES</p><h2>设置</h2></div><button class="icon-button" id="settingsClose" type="button" aria-label="关闭">×</button></header>
     <section class="settings-section"><h3>饮用偏好</h3><label class="settings-number"><span><b>快捷喝一杯</b><small>卡片按钮默认扣减的克数</small></span><span><input id="settingQuickGrams" type="number" min="1" max="100" step="0.1" inputmode="decimal"><em>g</em></span></label></section>
     <section class="settings-section"><h3>APP 内提醒</h3><label class="settings-number"><span><b>赏味期提醒</b><small>距离最佳赏味期小于等于此天数时提示</small></span><span><input id="settingFlavorReminderDays" type="number" min="0" max="60" step="1" inputmode="numeric"><em>天</em></span></label><label class="settings-number"><span><b>余量提醒</b><small>低于预计可喝杯数时提示</small></span><span><input id="settingLowStockCups" type="number" min="1" max="20" step="1" inputmode="numeric"><em>杯</em></span></label></section>
-    <section class="settings-section"><h3>进阶功能</h3><label class="settings-toggle"><span><b>冲煮方案</b><small>开启后显示方案库，并在喝一杯时填写冲煮参数</small></span><input id="settingBrewPlans" type="checkbox"></label><label class="settings-toggle"><span><b>高级评价</b><small>在饮用弹窗显示多维评价</small></span><input id="settingAdvanced" type="checkbox"></label><div class="dimension-panel" id="dimensionSection" hidden><span>评价维度</span><div class="dimension-settings" id="dimensionSettings"></div></div></section>
+    <section class="settings-section"><h3>进阶功能</h3><div class="feature-hint settings-feature-hint"><b>可稍后开启</b><span>先把第一包豆和第一杯记下来；想复盘参数或细分风味时，再打开冲煮方案和高级评价。</span></div><label class="settings-toggle"><span><b>冲煮方案</b><small>开启后显示方案库，并在喝一杯时填写冲煮参数</small></span><input id="settingBrewPlans" type="checkbox"></label><label class="settings-toggle"><span><b>高级评价</b><small>在饮用弹窗显示多维评价</small></span><input id="settingAdvanced" type="checkbox"></label><div class="dimension-panel" id="dimensionSection" hidden><span>评价维度</span><div class="dimension-settings" id="dimensionSettings"></div></div></section>
     <section class="settings-section"><h3>方案导入</h3><button class="settings-action" id="settingsImportPlan" type="button"><span><b>导入分享方案</b><small>扫码或粘贴 DC1- 分享码；导入后会自动开启冲煮方案</small></span><strong aria-hidden="true">›</strong></button></section>
     <section class="settings-section"><h3>价格显示</h3><label class="field"><span>单价计算单位</span><select id="settingPriceUnit"><option value="g">每克单价</option><option value="50g">每 50g 单价</option><option value="100g">每 100g 单价</option><option value="jin">每斤单价</option></select></label></section>
     <section class="settings-section"><h3>外观</h3><div class="theme-grid">
@@ -528,8 +531,8 @@
 
   <dialog class="sheet compact" id="aboutDialog">
     <header class="sheet-header"><div><p class="eyebrow">ABOUT</p><h2>关于豆仓</h2></div><button class="icon-button" id="aboutClose" type="button" aria-label="关闭">×</button></header>
-    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 2.0.4</p></section>
-    <section class="about-copy"><h3>一包豆子，一段风味，一页日常。</h3><p>豆仓是一款为咖啡爱好者设计的本地优先记录工具。你可以保存每一包咖啡豆的产地、风味与价格，记录每次饮用和冲煮方案，让日常里喝过的咖啡慢慢有迹可循。</p><h4>2.0.0 最新功能</h4><ul><li>Web 端可选择登录开启云同步，跨设备同步咖啡豆、饮用记录、冲煮方案和图片</li><li>同步默认关闭；可在设置中立即同步、退出账号或删除云端账号</li></ul><div class="privacy-note"><b>离线与隐私</b><p>豆仓默认完全离线使用，数据保存在你的设备中。云同步为可选功能，仅在登录并开启后使用。</p><p>你可以随时退出账号或删除云端副本。</p></div></section>
+    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 2.0.5</p></section>
+    <section class="about-copy"><h3>一包豆子，一段风味，一页日常。</h3><p>豆仓是一款为咖啡爱好者设计的本地优先记录工具。你可以保存每一包咖啡豆的产地、风味与价格，记录每次饮用和冲煮方案，让日常里喝过的咖啡慢慢有迹可循。</p><h4>2.0.5 最新功能</h4><ul><li>新增空豆仓引导、“喝一杯”提示和进阶功能轻提示，新用户更容易找到关键操作</li><li>豆仓与冲煮方案右下浮动按钮空闲后自动收起，减少遮挡列表内容</li></ul><div class="privacy-note"><b>离线与隐私</b><p>豆仓默认完全离线使用，数据保存在你的设备中。云同步为可选功能，仅在登录并开启后使用。</p><p>你可以随时退出账号或删除云端副本。</p></div></section>
   </dialog>
 
   <dialog class="sheet compact" id="migrationDialog">
