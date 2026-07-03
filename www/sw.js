@@ -1,7 +1,7 @@
 // 豆仓 Web Service Worker。
 // 策略：网络优先 + 缓存回退。在线时总是取最新资源（满足 Web 热更新），
 // 离线时回退到已缓存的应用外壳，导航请求回退到 index.html。
-const CACHE = 'coffee-vault-shell-v5';
+const CACHE = 'coffee-vault-shell-v6';
 const SHELL = [
   './',
   './index.html',

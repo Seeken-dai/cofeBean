@@ -329,7 +329,8 @@ dialog::backdrop { background:rgb(8 5 4 / .72); backdrop-filter:blur(4px); }
 .sync-orb { display:grid; place-items:center; width:46px; height:46px; border:1px solid color-mix(in srgb,var(--accent) 42%,var(--border)); border-radius:15px; background:color-mix(in srgb,var(--accent) 10%,var(--surface)); color:var(--accent); font-size:22px; line-height:1; }
 .sync-now-action.is-syncing strong,#syncDialog.is-syncing .sync-orb { animation:sync-spin 1s linear infinite; }
 .sync-state { margin:0; color:var(--faint); font-size:10px; font-weight:750; letter-spacing:.08em; line-height:1.4; }
-.sync-account-card strong,.sync-account-card small { display:block; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }.sync-account-card strong { margin-top:3px; color:var(--text); font-size:14px; }.sync-account-card small { margin-top:4px; color:var(--muted); font-size:10px; line-height:1.45; }
+.sync-account-card > div { min-width:0; }
+.sync-account-card strong,.sync-account-card small { display:block; min-width:0; }.sync-account-card strong { margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text); font-size:14px; }.sync-account-card small { margin-top:4px; color:var(--muted); font-size:10px; line-height:1.45; }
 .sync-badge { align-self:start; padding:4px 8px; border:1px solid var(--border); border-radius:999px; color:var(--faint); font-size:9px; font-weight:750; }.sync-badge[data-state="enabled"] { border-color:color-mix(in srgb,var(--active) 46%,var(--border)); color:var(--active); }.sync-badge[data-state="paused"] { border-color:color-mix(in srgb,var(--reserve) 46%,var(--border)); color:var(--reserve); }
 .sync-actions { display:grid; grid-template-columns:1fr auto; gap:8px; }
 .sync-actions #syncLoginOpen { grid-column:1/-1; }
