@@ -19,7 +19,7 @@
     token: '',
     cursor: null,
     pushState: null,
-    imageRefs: null,
+    imageSynced: null,
     lastSyncAt: null,
     lastSyncError: '',
     lastSyncErrorAt: null
@@ -33,7 +33,7 @@
       token: String(source.token || ''),
       cursor: source.cursor == null || source.cursor === '' ? null : source.cursor,
       pushState: source.pushState && typeof source.pushState === 'object' ? source.pushState : null,
-      imageRefs: source.imageRefs && typeof source.imageRefs === 'object' ? source.imageRefs : null,
+      imageSynced: source.imageSynced && typeof source.imageSynced === 'object' ? source.imageSynced : null,
       lastSyncAt: source.lastSyncAt || null,
       lastSyncError: String(source.lastSyncError || ''),
       lastSyncErrorAt: source.lastSyncErrorAt || null
@@ -134,25 +134,24 @@
     const getImage = imageDeps.getImage;
     const saveImage = imageDeps.saveImage;
     const isUploadableRef = imageDeps.isUploadableRef || isIdbRef;
-    // 本地图片引用 ↔ 云端 r2 的持久映射（跨同步复用）：
-    //   - 避免重复上传/下载同一张图；
-    //   - 让“存量本地图（从未上传过云端）”可被识别并补推；
-    //   - 反向映射保证 push 后 finalPull 拿回自己刚传的 r2 时复用原本地引用，
-    //     不再重复落盘，避免每次同步生成新文件的死循环。
-    const refMap = imageDeps.imageRefs && typeof imageDeps.imageRefs === 'object' ? imageDeps.imageRefs : {};
-    const uploaded = new Map();   // localRef -> r2
-    const restored = new Map();   // r2 -> localRef
-    Object.keys(refMap).forEach((localRef) => {
-      const r2 = refMap[localRef];
+    // 持久映射 syncedMap：只记录“云端已确认承载该 r2”的本地图（localRef -> r2）。
+    // 关键：确认信号是“pull 回显了该 r2”，而非“blob 上传成功”——两者会在 push 被服务端
+    // LWW 拒绝时分叉。若用“已上传”当作跳过补推的依据，会出现“图传上了 R2、但 bean 记录没被
+    // 接受、却再也不补推”的坑（金菠萝即此）。故上传只做会话内去重，确认才落持久层。
+    const syncedMap = imageDeps.imageSynced && typeof imageDeps.imageSynced === 'object' ? imageDeps.imageSynced : {};
+    const uploaded = new Map();   // localRef -> r2（会话去重 + 已确认）
+    const restored = new Map();   // r2 -> localRef（round-trip 复用原引用，避免重复落盘）
+    Object.keys(syncedMap).forEach((localRef) => {
+      const r2 = syncedMap[localRef];
       if (!r2) return;
       uploaded.set(localRef, r2);
       if (!restored.has(r2)) restored.set(r2, localRef);
     });
-    function remember(localRef, r2) {
+    function confirm(localRef, r2) { // 云端已确认承载该 r2，落持久层，下轮不再补推
       if (!localRef || !r2) return;
       uploaded.set(localRef, r2);
       if (!restored.has(r2)) restored.set(r2, localRef);
-      refMap[localRef] = r2;
+      syncedMap[localRef] = r2;
     }
     async function uploadRef(ref) {
       const cached = uploaded.get(ref);
@@ -161,7 +160,7 @@
       if (!blob) return null;
       const res = await baseTransport.uploadImage(blob);
       const r2 = res && (res.key || (res.sha256 ? 'r2:' + res.sha256 : null));
-      if (r2) remember(ref, r2);
+      if (r2) { uploaded.set(ref, r2); if (!restored.has(r2)) restored.set(r2, ref); } // 仅会话去重/复用，未确认不落持久层
       return r2;
     }
     async function beanIdbToR2(bean) {
@@ -173,6 +172,11 @@
           if (r2) { next = next || { ...bean }; next[field] = r2; }
         } catch (_) {}
       }
+      // 图片引用从本地脏值 file:/idb: 变成 r2 是一次真实内容变化，但 updatedAt 没变；
+      // 服务端 LWW 按 (updatedAt, revision, deviceId) 判定，若不 bump revision，未编辑过的
+      // 存量豆（updatedAt 与云端脏记录相同）会被判为“非更新”而拒绝覆盖。bump 后 finalPull
+      // 会把新 revision 写回本地，下轮即稳定。
+      if (next) next.revision = (Number(next.revision) || 0) + 1;
       return next || bean;
     }
     async function beanR2ToIdb(bean) {
@@ -185,15 +189,15 @@
             const blob = await baseTransport.downloadImage(bean[field]);
             if (!blob) continue;
             localRef = await saveImage(blob, field);
-            remember(localRef, bean[field]);
           }
+          confirm(localRef, bean[field]); // 云端确实回显了该 r2 → 确认，之后不再补推
           next = next || { ...bean }; next[field] = localRef;
         } catch (_) {}
       }
       return next || bean;
     }
     function beanHasUnsyncedImage(bean) {
-      return IMAGE_FIELDS.some((field) => isUploadableRef(bean[field]) && !uploaded.get(bean[field]));
+      return IMAGE_FIELDS.some((field) => isUploadableRef(bean[field]) && !syncedMap[bean[field]]);
     }
     return {
       hello: () => baseTransport.hello(),
@@ -250,7 +254,7 @@
     }
 
     function getConfig() { return { ...config, loggedIn: Boolean(config.token) }; }
-    function createTransport(imageRefs) {
+    function createTransport(imageSynced) {
       if (deps.transportFactory) return deps.transportFactory(config);
       const base = transportApi.createHttpTransport({ core, baseUrl: deps.baseUrl, fetch: deps.fetch, token: config.token });
       const scanner = root.Capacitor && root.Capacitor.Plugins ? root.Capacitor.Plugins.CoffeeLabelScanner : null;
@@ -258,7 +262,7 @@
       const getImage = deps.getImage || (nativeImages && nativeImages.getImage) || (typeof repository.getWebImage === 'function' ? (ref) => repository.getWebImage(ref) : null);
       const saveImage = deps.saveImage || (nativeImages && nativeImages.saveImage) || (typeof repository.saveWebImage === 'function' ? (blob) => repository.saveWebImage(blob) : null);
       const isUploadableRef = deps.isUploadableRef || (nativeImages && nativeImages.isUploadableRef) || isIdbRef;
-      if (getImage && saveImage) return createImageMappingTransport(base, { getImage, saveImage, isUploadableRef, imageRefs: imageRefs || {} });
+      if (getImage && saveImage) return createImageMappingTransport(base, { getImage, saveImage, isUploadableRef, imageSynced: imageSynced || {} });
       return base;
     }
     function createAuthClient() {
@@ -267,17 +271,17 @@
 
     async function saveAuth(email, response) {
       if (!response || !response.token) throw new Error('登录响应缺少 token');
-      return persist({ email: String(email || '').trim(), token: response.token, cursor: null, pushState: null, imageRefs: null, enabled: true, lastSyncError: '', lastSyncErrorAt: null });
+      return persist({ email: String(email || '').trim(), token: response.token, cursor: null, pushState: null, imageSynced: null, enabled: true, lastSyncError: '', lastSyncErrorAt: null });
     }
 
     async function sync(options = {}) {
       if (!canSync()) return { skipped: true, reason: 'not-allowed', config: getConfig() };
       if (!config.token) return { skipped: true, reason: 'not-authenticated', config: getConfig() };
       if (!config.enabled && !options.force) return { skipped: true, reason: 'disabled', config: getConfig() };
-      const imageRefs = { ...(config.imageRefs || {}) };
+      const imageSynced = { ...(config.imageSynced || {}) };
       const engine = syncEngine.createEngine({
         core,
-        transport: createTransport(imageRefs),
+        transport: createTransport(imageSynced),
         getLocal: () => repository.exportForSync(),
         applyLocal: (merged) => repository.applySyncData(merged),
         cursor: config.cursor,
@@ -285,7 +289,7 @@
       });
       try {
         const result = await withDeadline(engine.sync(), options.timeoutMs == null ? syncTimeoutMs : options.timeoutMs);
-        persist({ cursor: result.cursor || null, pushState: result.pushState || null, imageRefs, lastSyncAt: now(), lastSyncError: '', lastSyncErrorAt: null });
+        persist({ cursor: result.cursor || null, pushState: result.pushState || null, imageSynced, lastSyncAt: now(), lastSyncError: '', lastSyncErrorAt: null });
         return { skipped: false, cursor: result.cursor || null, merged: result.merged, config: getConfig() };
       } catch (error) {
         persist({ lastSyncError: syncErrorMessage(error), lastSyncErrorAt: now() });
@@ -297,13 +301,13 @@
       if (!config.token) return getConfig();
       const transport = createTransport();
       if (typeof transport.deleteAccount === 'function') await transport.deleteAccount();
-      return persist({ enabled: false, token: '', cursor: null, pushState: null, imageRefs: null, lastSyncError: '', lastSyncErrorAt: null });
+      return persist({ enabled: false, token: '', cursor: null, pushState: null, imageSynced: null, lastSyncError: '', lastSyncErrorAt: null });
     }
 
     return {
       getConfig,
       setEnabled: (enabled) => persist({ enabled: enabled === true }),
-      logout: () => persist({ enabled: false, token: '', cursor: null, pushState: null, imageRefs: null, lastSyncError: '', lastSyncErrorAt: null }),
+      logout: () => persist({ enabled: false, token: '', cursor: null, pushState: null, imageSynced: null, lastSyncError: '', lastSyncErrorAt: null }),
       deleteAccount,
       register: async (body) => saveAuth(body && body.email, await createAuthClient().register(body)),
       login: async (body) => saveAuth(body && body.email, await createAuthClient().login(body)),
