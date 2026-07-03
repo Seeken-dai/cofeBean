@@ -6,7 +6,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createImageMappingTransport } = require('../www/sync-service.js');
+const { createImageMappingTransport, createNativeImageStore } = require('../www/sync-service.js');
 
 const R2_A = 'r2:' + 'a'.repeat(64);
 const R2_B = 'r2:' + 'b'.repeat(64);
@@ -80,4 +80,32 @@ test('image-mapping: 同一 r2 引用在一次 pull 内只下载一次', async (
 
   await t.pull(0);
   assert.equal(base.calls.downloaded.length, 1, '相同 r2 引用在本次 pull 内应去重下载');
+});
+
+test('image-mapping: Android file 图片可上传为 r2，下载后恢复到原生归档目录', async () => {
+  const fileRef = 'file:///data/user/0/com.coffeebean.vault/files/bean-images/bag-1.webp';
+  const restoredRef = 'file:///data/user/0/com.coffeebean.vault/files/bean-images/label-2.webp';
+  const scannerCalls = { read: [], restore: [] };
+  const scanner = {
+    readArchivedImage: async ({ path }) => {
+      scannerCalls.read.push(path);
+      return { data: Buffer.from('native-bag').toString('base64'), mimeType: 'image/webp', extension: '.webp' };
+    },
+    restoreArchivedImage: async (payload) => {
+      scannerCalls.restore.push(payload);
+      return { path: restoredRef, uri: restoredRef };
+    }
+  };
+  const nativeStore = createNativeImageStore(scanner);
+  const base = mockBase([{ id: 'b6', name: '远端豆', bagImagePath: '', labelImagePath: R2_B }]);
+  const t = createImageMappingTransport(base, nativeStore);
+
+  await t.push({ beans: [{ id: 'b6', bagImagePath: fileRef, labelImagePath: '' }], drinkLogs: [], brewPlans: [] });
+  const pulled = await t.pull(0);
+
+  assert.equal(base.calls.pushed.beans[0].bagImagePath, R2_A);
+  assert.equal(scannerCalls.read[0], fileRef);
+  assert.equal(pulled.beans[0].labelImagePath, restoredRef);
+  assert.equal(scannerCalls.restore[0].role, 'label');
+  assert.equal(scannerCalls.restore[0].extension, '.webp');
 });

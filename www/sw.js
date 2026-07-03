@@ -1,7 +1,7 @@
 // 豆仓 Web Service Worker。
-// 策略：网络优先 + 缓存回退。在线时总是取最新资源（满足 Web 热更新），
-// 离线时回退到已缓存的应用外壳，导航请求回退到 index.html。
-const CACHE = 'coffee-vault-shell-v6';
+// 策略：应用外壳网络优先 + 缓存回退；vendor/图标等稳定资源 cache-first。
+// 这样保留 Web 热更新，同时避免每次打开都重新下载较大的 vendor 文件。
+const CACHE = 'coffee-vault-shell-v7';
 const SHELL = [
   './',
   './index.html',
@@ -23,6 +23,14 @@ const SHELL = [
 ];
 const SHELL_URLS = SHELL.map((path) => new URL(path, self.location).href);
 const INDEX_URL = new URL('./index.html', self.location).href;
+const CACHE_FIRST_URLS = new Set([
+  './vendor/qrcode-generator.js',
+  './vendor/jsQR.js',
+  './icons/icon.svg',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  './manifest.webmanifest'
+].map((path) => new URL(path, self.location).href));
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -53,6 +61,15 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() => caches.match(INDEX_URL))
+    );
+    return;
+  }
+  if (CACHE_FIRST_URLS.has(new URL(request.url).href)) {
+    event.respondWith(
+      caches.match(request, { ignoreSearch: true }).then((cached) => cached || fetch(request).then((response) => {
+        if (response && response.ok) caches.open(CACHE).then((cache) => cache.put(request, response.clone()));
+        return response;
+      }))
     );
     return;
   }

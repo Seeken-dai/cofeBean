@@ -3,16 +3,36 @@
 // 端点：/auth/register /auth/login /auth/recover /sync/hello /sync/pull /sync/push /images/:sha
 // 合并采用 last-write-wins（updated_at → revision → device_id）+ 墓碑；与客户端 data-core 一致。
 
+import {
+  PULL_LIMIT,
+  TYPE_BUCKET,
+  collectIncoming,
+  rowToEnvelope,
+  recordKey,
+  shouldAcceptRecord,
+  assignServerSeq
+} from './sync-logic.mjs';
+
 const SYNC_PROTOCOL = 1;
 const TYPES = ['bean', 'drinkLog', 'brewPlan'];
-const ALLOWED_ORIGINS = ['https://cofebean.pages.dev', 'http://localhost:4178', 'http://127.0.0.1:4178', 'http://localhost', 'capacitor://localhost'];
+const ALLOWED_ORIGINS = ['https://cofebean.pages.dev', 'http://localhost:4173', 'http://127.0.0.1:4173', 'http://localhost:4178', 'http://127.0.0.1:4178', 'http://localhost', 'capacitor://localhost'];
+const SESSION_TTL_MS = 90 * 24 * 60 * 60 * 1000;
+const AUTH_WINDOW_MS = 15 * 60 * 1000;
+const AUTH_MAX_ATTEMPTS = 12;
+const authAttempts = new Map();
 
+function isCorsAllowed(request) {
+  const origin = request.headers.get('Origin');
+  return !origin || ALLOWED_ORIGINS.includes(origin);
+}
 function corsHeaders(request) {
+  const origin = request.headers.get('Origin');
   return {
-    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Origin': origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0],
     'Access-Control-Allow-Methods': 'GET,POST,PUT,OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type,Authorization',
     'Access-Control-Max-Age': '86400',
+    'Vary': 'Origin',
   };
 }
 function json(data, status, request) {
@@ -37,14 +57,18 @@ async function pbkdf2(secret, saltHex, pepper) {
 }
 async function sha256Hex(buffer) { return bytesToHex(await crypto.subtle.digest('SHA-256', buffer)); }
 function normEmail(email) { return String(email || '').trim().toLowerCase(); }
-
-// LWW：a 是否比 b 新（与客户端 compareSyncRecords 一致）
-function isNewer(a, b) {
-  const ta = Date.parse(a.updated_at) || 0; const tb = Date.parse(b.updated_at) || 0;
-  if (ta !== tb) return ta > tb;
-  const ra = Number(a.revision) || 0; const rb = Number(b.revision) || 0;
-  if (ra !== rb) return ra > rb;
-  return String(a.device_id || '') > String(b.device_id || '');
+function clientIp(request) { return request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || 'unknown'; }
+function checkAuthRateLimit(request, key) {
+  const now = Date.now();
+  const id = `${clientIp(request)}:${key}`;
+  const current = authAttempts.get(id);
+  if (!current || current.resetAt <= now) {
+    authAttempts.set(id, { count: 1, resetAt: now + AUTH_WINDOW_MS });
+    return true;
+  }
+  current.count += 1;
+  if (current.count > AUTH_MAX_ATTEMPTS) return false;
+  return true;
 }
 
 // ---- 鉴权 ----
@@ -52,8 +76,14 @@ async function currentUser(request, env) {
   const auth = request.headers.get('Authorization') || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
   if (!token) return null;
-  const row = await env.DB.prepare('SELECT user_id FROM sessions WHERE token = ?').bind(token).first();
+  const row = await env.DB.prepare('SELECT user_id, created_at, last_seen FROM sessions WHERE token = ?').bind(token).first();
   if (!row) return null;
+  const lastSeen = Date.parse(row.last_seen || row.created_at) || 0;
+  if (!lastSeen || Date.now() - lastSeen > SESSION_TTL_MS) {
+    await env.DB.prepare('DELETE FROM sessions WHERE token = ?').bind(token).run();
+    return null;
+  }
+  await env.DB.prepare('UPDATE sessions SET last_seen = ? WHERE token = ?').bind(new Date().toISOString(), token).run();
   return row.user_id;
 }
 async function createSession(env, userId) {
@@ -68,6 +98,7 @@ async function handleRegister(request, env) {
   const email = normEmail(body.email);
   const password = String(body.password || '');
   const recoveryCode = String(body.recoveryCode || '');
+  if (!checkAuthRateLimit(request, `register:${email || 'blank'}`)) return bad('尝试次数过多，请稍后再试', 429, request);
   if (!email || !email.includes('@')) return bad('邮箱格式不正确', 400, request);
   if (password.length < 8) return bad('密码至少 8 位', 400, request);
   const existing = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
@@ -87,6 +118,7 @@ async function handleLogin(request, env) {
   const body = await request.json().catch(() => ({}));
   const email = normEmail(body.email);
   const password = String(body.password || '');
+  if (!checkAuthRateLimit(request, `login:${email || 'blank'}`)) return bad('尝试次数过多，请稍后再试', 429, request);
   const user = await env.DB.prepare('SELECT id, pwd_hash, pwd_salt FROM users WHERE email = ?').bind(email).first();
   if (!user) return bad('邮箱或密码错误', 401, request);
   const hash = await pbkdf2(password, user.pwd_salt, env.PWD_PEPPER);
@@ -100,6 +132,7 @@ async function handleRecover(request, env) {
   const email = normEmail(body.email);
   const recoveryCode = String(body.recoveryCode || '');
   const newPassword = String(body.newPassword || '');
+  if (!checkAuthRateLimit(request, `recover:${email || 'blank'}`)) return bad('尝试次数过多，请稍后再试', 429, request);
   if (newPassword.length < 8) return bad('新密码至少 8 位', 400, request);
   const user = await env.DB.prepare('SELECT id, recovery_hash FROM users WHERE email = ?').bind(email).first();
   if (!user || !user.recovery_hash) return bad('无法找回', 401, request);
@@ -115,43 +148,62 @@ async function handleRecover(request, env) {
 }
 
 // ---- 同步 ----
-function rowToEnvelope(row) {
-  return { type: row.type, id: row.id, revision: row.revision, updatedAt: row.updated_at, deletedAt: row.deleted_at || null, deviceId: row.device_id || '', payload: JSON.parse(row.payload_json || '{}') };
-}
 async function handlePull(request, env, userId) {
   const cursor = Number(new URL(request.url).searchParams.get('cursor')) || 0;
-  const result = await env.DB.prepare('SELECT * FROM records WHERE user_id = ? AND server_seq > ? ORDER BY server_seq ASC LIMIT 1000')
-    .bind(userId, cursor).all();
+  const result = await env.DB.prepare('SELECT * FROM records WHERE user_id = ? AND server_seq > ? ORDER BY server_seq ASC LIMIT ?')
+    .bind(userId, cursor, PULL_LIMIT).all();
   const rows = result.results || [];
   const out = { beans: [], drinkLogs: [], brewPlans: [] };
   let nextCursor = cursor;
-  const bucket = { bean: 'beans', drinkLog: 'drinkLogs', brewPlan: 'brewPlans' };
-  rows.forEach((row) => { out[bucket[row.type]].push(rowToEnvelope(row)); if (row.server_seq > nextCursor) nextCursor = row.server_seq; });
-  return json({ ...out, cursor: nextCursor, protocol: SYNC_PROTOCOL }, 200, request);
+  rows.forEach((row) => { out[TYPE_BUCKET[row.type]].push(rowToEnvelope(row)); if (row.server_seq > nextCursor) nextCursor = row.server_seq; });
+  return json({ ...out, cursor: nextCursor, hasMore: rows.length === PULL_LIMIT, protocol: SYNC_PROTOCOL }, 200, request);
 }
+
+async function loadStoredRecords(env, userId, incoming) {
+  const stored = new Map();
+  for (let offset = 0; offset < incoming.length; offset += 100) {
+    const chunk = incoming.slice(offset, offset + 100);
+    if (!chunk.length) continue;
+    const clauses = chunk.map(() => '(type = ? AND id = ?)').join(' OR ');
+    const params = [userId];
+    chunk.forEach(({ type, rec }) => { params.push(type, rec.id); });
+    const result = await env.DB.prepare(`SELECT type, id, updated_at, revision, device_id FROM records WHERE user_id = ? AND (${clauses})`).bind(...params).all();
+    (result.results || []).forEach((row) => stored.set(recordKey(row.type, row.id), row));
+  }
+  return stored;
+}
+
+async function reserveServerSeq(env, userId, count) {
+  if (!count) return null;
+  await env.DB.prepare('INSERT INTO user_seq (user_id, seq) VALUES (?,0) ON CONFLICT(user_id) DO NOTHING').bind(userId).run();
+  const row = await env.DB.prepare('UPDATE user_seq SET seq = seq + ? WHERE user_id = ? RETURNING seq').bind(count, userId).first();
+  const endSeq = Number(row && row.seq) || count;
+  return { startSeq: endSeq - count + 1, endSeq };
+}
+
 async function handlePush(request, env, userId) {
   const body = await request.json().catch(() => ({}));
-  const incoming = [];
-  const bucket = { beans: 'bean', drinkLogs: 'drinkLog', brewPlans: 'brewPlan' };
-  Object.keys(bucket).forEach((key) => (body[key] || []).forEach((rec) => { if (rec && rec.id) incoming.push({ type: bucket[key], rec }); }));
-
-  const seqRow = await env.DB.prepare('SELECT seq FROM user_seq WHERE user_id = ?').bind(userId).first();
-  let seq = seqRow ? Number(seqRow.seq) : 0;
+  const clientCursor = Number(body.cursor) || 0;
+  const incoming = collectIncoming(body);
+  const stored = await loadStoredRecords(env, userId, incoming);
+  const acceptedRecords = incoming.filter(({ type, rec }) => shouldAcceptRecord(rec, stored.get(recordKey(type, rec.id))));
+  const reserved = await reserveServerSeq(env, userId, acceptedRecords.length);
+  const acceptedWithSeq = reserved ? assignServerSeq(acceptedRecords, reserved.startSeq) : [];
   const stmts = [];
-  let accepted = 0;
-  for (const { type, rec } of incoming) {
-    const stored = await env.DB.prepare('SELECT updated_at, revision, device_id FROM records WHERE user_id = ? AND type = ? AND id = ?').bind(userId, type, rec.id).first();
-    const candidate = { updated_at: rec.updatedAt, revision: rec.revision, device_id: rec.deviceId };
-    if (stored && !isNewer(candidate, stored)) continue; // 服务端已有更新或同等版本，忽略
-    seq += 1; accepted += 1;
+  for (const { type, rec, serverSeq } of acceptedWithSeq) {
     stmts.push(env.DB.prepare(
       'INSERT INTO records (user_id, type, id, revision, updated_at, deleted_at, device_id, payload_json, server_seq) VALUES (?,?,?,?,?,?,?,?,?) ' +
       'ON CONFLICT(user_id, type, id) DO UPDATE SET revision=excluded.revision, updated_at=excluded.updated_at, deleted_at=excluded.deleted_at, device_id=excluded.device_id, payload_json=excluded.payload_json, server_seq=excluded.server_seq'
-    ).bind(userId, type, rec.id, rec.revision || 1, rec.updatedAt, rec.deletedAt || null, rec.deviceId || '', JSON.stringify(rec.payload || {}), seq));
+    ).bind(userId, type, rec.id, rec.revision || 1, rec.updatedAt, rec.deletedAt || null, rec.deviceId || '', JSON.stringify(rec.payload || {}), serverSeq));
   }
-  stmts.push(env.DB.prepare('INSERT INTO user_seq (user_id, seq) VALUES (?,?) ON CONFLICT(user_id) DO UPDATE SET seq = excluded.seq').bind(userId, seq));
   if (stmts.length) await env.DB.batch(stmts);
-  return json({ accepted, cursor: seq, protocol: SYNC_PROTOCOL }, 200, request);
+  return json({
+    accepted: acceptedWithSeq.length,
+    cursor: clientCursor || null,
+    serverSeqStart: reserved ? reserved.startSeq : null,
+    serverSeqEnd: reserved ? reserved.endSeq : null,
+    protocol: SYNC_PROTOCOL
+  }, 200, request);
 }
 
 // ---- 图片（R2，用户作用域 key = userId/sha256）----
@@ -162,12 +214,12 @@ async function handleImagePut(request, env, userId, sha) {
   const actual = await sha256Hex(buf);
   if (sha && sha !== actual) return bad('sha256 不匹配', 400, request);
   const existing = await env.IMAGES.head(key);
+  const mime = request.headers.get('Content-Type') || 'image/webp';
   if (!existing) {
-    const mime = request.headers.get('Content-Type') || 'image/webp';
     await env.IMAGES.put(key, buf, { httpMetadata: { contentType: mime } });
-    await env.DB.prepare('INSERT INTO image_refs (user_id, sha256, bytes, mime, ref_count) VALUES (?,?,?,?,1) ON CONFLICT(user_id, sha256) DO UPDATE SET ref_count = ref_count + 1')
-      .bind(userId, actual, buf.byteLength, mime).run();
   }
+  await env.DB.prepare('INSERT INTO image_refs (user_id, sha256, bytes, mime, ref_count) VALUES (?,?,?,?,1) ON CONFLICT(user_id, sha256) DO UPDATE SET ref_count = ref_count + 1, bytes = excluded.bytes, mime = excluded.mime')
+    .bind(userId, actual, buf.byteLength, mime).run();
   return json({ key: `r2:${actual}`, sha256: actual, deduped: Boolean(existing) }, 200, request);
 }
 async function handleImageGet(request, env, userId, sha) {
@@ -196,6 +248,7 @@ async function handleDeleteAccount(request, env, userId) {
 
 export default {
   async fetch(request, env) {
+    if (!isCorsAllowed(request)) return new Response(null, { status: request.method === 'OPTIONS' ? 403 : 403, headers: { 'Vary': 'Origin' } });
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders(request) });
     const url = new URL(request.url);
     const path = url.pathname;
@@ -221,7 +274,8 @@ export default {
       }
       return bad('未找到', 404, request);
     } catch (error) {
-      return bad('服务器错误：' + (error && error.message || error), 500, request);
+      console.error(error);
+      return bad('服务器暂时不可用', 500, request);
     }
   }
 };

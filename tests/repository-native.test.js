@@ -190,6 +190,39 @@ test('native drink log save updates log and bean inventory atomically', async ()
   cleanupNativeRepository();
 });
 
+test('native applySyncData upserts records without clearing tables', async () => {
+  const calls = [];
+  const sqlite = {
+    createConnection: async (options) => calls.push(['createConnection', options]),
+    open: async (options) => calls.push(['open', options]),
+    execute: async (options) => calls.push(['execute', options]),
+    executeSet: async (options) => calls.push(['executeSet', options]),
+    query: async (options) => {
+      calls.push(['query', options]);
+      if (options.statement === 'SELECT * FROM beans') return { values: [{ id: 'local-existing' }] };
+      return migrationQuery(options.statement);
+    }
+  };
+  const repo = loadNativeRepository(sqlite);
+  const stamp = '2026-07-03T00:00:00.000Z';
+  const bean = core.normalizeBean({ id: 'remote-bean', name: '远端豆', updatedAt: stamp }, stamp);
+  const log = core.normalizeDrinkLog({ id: 'remote-log', beanId: 'remote-bean', beanName: '远端豆', updatedAt: stamp }, stamp);
+  const plan = core.normalizeBrewPlan({ id: 'remote-plan', name: '远端方案', beanIds: ['remote-bean'], updatedAt: stamp }, stamp);
+
+  await repo.init();
+  await repo.applySyncData({ beans: [bean], drinkLogs: [log], brewPlans: [plan] });
+
+  const write = calls.filter(([name]) => name === 'executeSet').at(-1)[1];
+  const statements = write.set.map((item) => item.statement);
+  assert.equal(write.transaction, true);
+  assert.equal(write.readonly, false);
+  assert.equal(statements.some((statement) => statement.startsWith('DELETE FROM')), false);
+  assert.equal(statements.some((statement) => statement.startsWith('INSERT INTO beans') && statement.includes('ON CONFLICT(id) DO UPDATE')), true);
+  assert.equal(statements.some((statement) => statement.startsWith('INSERT INTO drink_logs') && statement.includes('ON CONFLICT(id) DO UPDATE')), true);
+  assert.equal(statements.some((statement) => statement.startsWith('INSERT INTO brew_plans') && statement.includes('ON CONFLICT(id) DO UPDATE')), true);
+  cleanupNativeRepository();
+});
+
 test('native bean remove tombstones synced beans without invalid brew plan columns', async () => {
   const calls = [];
   const stamp = '2026-01-01T00:00:00.000Z';

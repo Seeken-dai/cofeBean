@@ -18,7 +18,10 @@
     email: '',
     token: '',
     cursor: null,
-    lastSyncAt: null
+    pushState: null,
+    lastSyncAt: null,
+    lastSyncError: '',
+    lastSyncErrorAt: null
   });
 
   function normalizeConfig(input) {
@@ -28,7 +31,10 @@
       email: String(source.email || '').trim(),
       token: String(source.token || ''),
       cursor: source.cursor == null || source.cursor === '' ? null : source.cursor,
-      lastSyncAt: source.lastSyncAt || null
+      pushState: source.pushState && typeof source.pushState === 'object' ? source.pushState : null,
+      lastSyncAt: source.lastSyncAt || null,
+      lastSyncError: String(source.lastSyncError || ''),
+      lastSyncErrorAt: source.lastSyncErrorAt || null
     };
   }
 
@@ -61,19 +67,75 @@
   }
 
   function defaultCanSync() { return true; }
+  function syncErrorMessage(error) {
+    const message = String(error && error.message || error || '同步失败');
+    return message.length > 120 ? message.slice(0, 117) + '...' : message;
+  }
 
   const IMAGE_FIELDS = ['bagImagePath', 'labelImagePath'];
   function isIdbRef(value) { return typeof value === 'string' && value.indexOf('idb:') === 0; }
   function isR2Ref(value) { return typeof value === 'string' && value.indexOf('r2:') === 0; }
-  // 图片映射 transport：让引擎/合并始终在本地 idb: 空间，wire 上用云端 r2:。
-  // push 前 idb→r2（读本地 blob 上传），pull 后 r2→idb（下载存本地）。仅 bean 带图片字段。
+  function isFileRef(value) { return typeof value === 'string' && value.indexOf('file:') === 0; }
+  function imageRole(field) { return field === 'labelImagePath' ? 'label' : 'bag'; }
+  function binaryToBase64(binary) {
+    if (typeof btoa === 'function') return btoa(binary);
+    if (typeof Buffer !== 'undefined') return Buffer.from(binary, 'binary').toString('base64');
+    throw new Error('当前环境不支持图片编码');
+  }
+  function base64ToBinary(data) {
+    if (typeof atob === 'function') return atob(data);
+    if (typeof Buffer !== 'undefined') return Buffer.from(data, 'base64').toString('binary');
+    throw new Error('当前环境不支持图片解码');
+  }
+  async function blobToBase64(blob) {
+    const buffer = await blob.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += 1) binary += String.fromCharCode(bytes[i]);
+    return binaryToBase64(binary);
+  }
+  function base64ToBlob(data, mimeType) {
+    const binary = base64ToBinary(data || '');
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+    return new Blob([bytes], { type: mimeType || 'image/webp' });
+  }
+  function extensionForMime(mimeType) {
+    if (mimeType === 'image/png') return '.png';
+    if (mimeType === 'image/webp') return '.webp';
+    return '.jpg';
+  }
+  function createNativeImageStore(scanner) {
+    return {
+      isUploadableRef: isFileRef,
+      getImage: async (ref) => {
+        if (!scanner || typeof scanner.readArchivedImage !== 'function') return null;
+        const image = await scanner.readArchivedImage({ path: ref });
+        if (!image || !image.data) return null;
+        return base64ToBlob(image.data, image.mimeType);
+      },
+      saveImage: async (blob, field) => {
+        if (!scanner || typeof scanner.restoreArchivedImage !== 'function') return '';
+        const result = await scanner.restoreArchivedImage({
+          data: await blobToBase64(blob),
+          mimeType: blob && blob.type || 'image/webp',
+          extension: extensionForMime(blob && blob.type),
+          role: imageRole(field)
+        });
+        return result && (result.path || result.uri) || '';
+      }
+    };
+  }
+  // 图片映射 transport：让引擎/合并始终在本地图片空间，wire 上用云端 r2:。
+  // Web 使用 idb:；Android 使用原生私有目录 file:。仅 bean 带图片字段。
   function createImageMappingTransport(baseTransport, imageDeps) {
     const getImage = imageDeps.getImage;
     const saveImage = imageDeps.saveImage;
+    const isUploadableRef = imageDeps.isUploadableRef || isIdbRef;
     async function beanIdbToR2(bean) {
       let next = null;
       for (const field of IMAGE_FIELDS) {
-        if (!isIdbRef(bean[field])) continue;
+        if (!isUploadableRef(bean[field])) continue;
         try {
           const blob = await getImage(bean[field]);
           if (!blob) continue;
@@ -93,7 +155,7 @@
           if (!idbRef) {
             const blob = await baseTransport.downloadImage(bean[field]);
             if (!blob) continue;
-            idbRef = await saveImage(blob);
+            idbRef = await saveImage(blob, field);
             cache.set(bean[field], idbRef);
           }
           next = next || { ...bean }; next[field] = idbRef;
@@ -145,9 +207,12 @@
     function createTransport() {
       if (deps.transportFactory) return deps.transportFactory(config);
       const base = transportApi.createHttpTransport({ core, baseUrl: deps.baseUrl, fetch: deps.fetch, token: config.token });
-      const getImage = deps.getImage || (typeof repository.getWebImage === 'function' ? (ref) => repository.getWebImage(ref) : null);
-      const saveImage = deps.saveImage || (typeof repository.saveWebImage === 'function' ? (blob) => repository.saveWebImage(blob) : null);
-      if (getImage && saveImage) return createImageMappingTransport(base, { getImage, saveImage });
+      const scanner = root.Capacitor && root.Capacitor.Plugins ? root.Capacitor.Plugins.CoffeeLabelScanner : null;
+      const nativeImages = repository.isNative && repository.isNative() && scanner ? createNativeImageStore(scanner) : null;
+      const getImage = deps.getImage || (nativeImages && nativeImages.getImage) || (typeof repository.getWebImage === 'function' ? (ref) => repository.getWebImage(ref) : null);
+      const saveImage = deps.saveImage || (nativeImages && nativeImages.saveImage) || (typeof repository.saveWebImage === 'function' ? (blob) => repository.saveWebImage(blob) : null);
+      const isUploadableRef = deps.isUploadableRef || (nativeImages && nativeImages.isUploadableRef) || isIdbRef;
+      if (getImage && saveImage) return createImageMappingTransport(base, { getImage, saveImage, isUploadableRef });
       return base;
     }
     function createAuthClient() {
@@ -156,7 +221,7 @@
 
     async function saveAuth(email, response) {
       if (!response || !response.token) throw new Error('登录响应缺少 token');
-      return persist({ email: String(email || '').trim(), token: response.token, cursor: null, enabled: true });
+      return persist({ email: String(email || '').trim(), token: response.token, cursor: null, pushState: null, enabled: true, lastSyncError: '', lastSyncErrorAt: null });
     }
 
     async function sync(options = {}) {
@@ -168,24 +233,30 @@
         transport: createTransport(),
         getLocal: () => repository.exportForSync(),
         applyLocal: (merged) => repository.applySyncData(merged),
-        cursor: config.cursor
+        cursor: config.cursor,
+        pushState: config.pushState
       });
-      const result = await withDeadline(engine.sync(), options.timeoutMs == null ? syncTimeoutMs : options.timeoutMs);
-      persist({ cursor: result.cursor || null, lastSyncAt: now() });
-      return { skipped: false, cursor: result.cursor || null, merged: result.merged, config: getConfig() };
+      try {
+        const result = await withDeadline(engine.sync(), options.timeoutMs == null ? syncTimeoutMs : options.timeoutMs);
+        persist({ cursor: result.cursor || null, pushState: result.pushState || null, lastSyncAt: now(), lastSyncError: '', lastSyncErrorAt: null });
+        return { skipped: false, cursor: result.cursor || null, merged: result.merged, config: getConfig() };
+      } catch (error) {
+        persist({ lastSyncError: syncErrorMessage(error), lastSyncErrorAt: now() });
+        throw error;
+      }
     }
 
     async function deleteAccount() {
       if (!config.token) return getConfig();
       const transport = createTransport();
       if (typeof transport.deleteAccount === 'function') await transport.deleteAccount();
-      return persist({ enabled: false, token: '', cursor: null });
+      return persist({ enabled: false, token: '', cursor: null, pushState: null, lastSyncError: '', lastSyncErrorAt: null });
     }
 
     return {
       getConfig,
       setEnabled: (enabled) => persist({ enabled: enabled === true }),
-      logout: () => persist({ enabled: false, token: '', cursor: null }),
+      logout: () => persist({ enabled: false, token: '', cursor: null, pushState: null, lastSyncError: '', lastSyncErrorAt: null }),
       deleteAccount,
       register: async (body) => saveAuth(body && body.email, await createAuthClient().register(body)),
       login: async (body) => saveAuth(body && body.email, await createAuthClient().login(body)),
@@ -194,5 +265,5 @@
     };
   }
 
-  return { CONFIG_KEY, DEFAULT_CONFIG, normalizeConfig, createConfigStore, createImageMappingTransport, createSyncService };
+  return { CONFIG_KEY, DEFAULT_CONFIG, normalizeConfig, createConfigStore, createNativeImageStore, createImageMappingTransport, createSyncService };
 });

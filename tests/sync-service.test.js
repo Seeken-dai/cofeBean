@@ -68,6 +68,9 @@ test('sync-service: 登录保存 token 并默认开启同步', async () => {
   assert.equal(config.token, 'token-1');
   assert.equal(config.enabled, true);
   assert.equal(config.cursor, null);
+  assert.equal(config.pushState, null);
+  assert.equal(config.lastSyncError, '');
+  assert.equal(config.lastSyncErrorAt, null);
   assert.deepEqual(authCalls, [{ email: ' user@example.com ', password: '12345678' }]);
 });
 
@@ -89,12 +92,20 @@ test('sync-service: 已登录同步流程会推进 cursor', async () => {
     now: () => '2026-07-02T03:00:00.000Z',
     transportFactory: () => ({
       pull: async (cursor) => {
-        assert.equal(cursor, null);
+        if (cursor === null) {
+          return {
+            beans: [core.normalizeBean({ id: 'b2', name: '云豆', updatedAt: '2026-07-02T02:00:00.000Z', deviceId: 'B' })],
+            drinkLogs: [],
+            brewPlans: [],
+            cursor: 7
+          };
+        }
+        assert.equal(cursor, 7);
         return {
-          beans: [core.normalizeBean({ id: 'b2', name: '云豆', updatedAt: '2026-07-02T02:00:00.000Z', deviceId: 'B' })],
+          beans: [],
           drinkLogs: [],
           brewPlans: [],
-          cursor: 7
+          cursor: 8
         };
       },
       push: async (records) => {
@@ -108,24 +119,59 @@ test('sync-service: 已登录同步流程会推进 cursor', async () => {
   assert.equal(result.skipped, false);
   assert.equal(result.cursor, 8);
   assert.equal(service.getConfig().cursor, 8);
+  assert.equal(typeof service.getConfig().pushState.beans.b1, 'string');
+  assert.equal(typeof service.getConfig().pushState.beans.b2, 'string');
   assert.equal(service.getConfig().lastSyncAt, '2026-07-02T03:00:00.000Z');
+  assert.equal(service.getConfig().lastSyncError, '');
+  assert.equal(service.getConfig().lastSyncErrorAt, null);
   assert.deepEqual(local.beans.map((bean) => bean.id).sort(), ['b1', 'b2']);
   assert.deepEqual(pushed[0].beans.map((bean) => bean.id).sort(), ['b1', 'b2']);
 });
 
-test('sync-service: 整体同步超时会中止并提示', async () => {
+test('sync-service: 整体同步超时会中止并记录最近错误', async () => {
   const storage = createStorage();
   serviceApi.createConfigStore(storage).save({ enabled: true, email: 'slow@example.com', token: 'tok', cursor: null });
   const service = serviceApi.createSyncService({
     core, syncEngine, transportApi,
     repository: createRepository({ beans: [], drinkLogs: [], brewPlans: [] }),
     storage,
+    now: () => '2026-07-02T04:00:00.000Z',
     syncTimeoutMs: 30,
     transportFactory: () => ({ pull: () => new Promise(() => {}), push: async () => ({}) })
   });
 
   await assert.rejects(service.sync(), /同步超时/);
   assert.equal(service.getConfig().cursor, null);
+  assert.match(service.getConfig().lastSyncError, /同步超时/);
+  assert.equal(service.getConfig().lastSyncErrorAt, '2026-07-02T04:00:00.000Z');
+});
+
+test('sync-service: 同步成功会清除历史错误', async () => {
+  const storage = createStorage();
+  serviceApi.createConfigStore(storage).save({
+    enabled: true,
+    email: 'recover@example.com',
+    token: 'tok',
+    cursor: 5,
+    lastSyncError: '旧错误',
+    lastSyncErrorAt: '2026-07-02T04:00:00.000Z'
+  });
+  const service = serviceApi.createSyncService({
+    core, syncEngine, transportApi,
+    repository: createRepository({ beans: [], drinkLogs: [], brewPlans: [] }),
+    storage,
+    now: () => '2026-07-02T05:00:00.000Z',
+    transportFactory: () => ({
+      pull: async (cursor) => ({ beans: [], drinkLogs: [], brewPlans: [], cursor: cursor || 5 }),
+      push: async () => ({ cursor: 5 })
+    })
+  });
+
+  await service.sync();
+
+  assert.equal(service.getConfig().lastSyncError, '');
+  assert.equal(service.getConfig().lastSyncErrorAt, null);
+  assert.equal(service.getConfig().lastSyncAt, '2026-07-02T05:00:00.000Z');
 });
 
 test('sync-service: 删号调用后端并清空本地凭证', async () => {

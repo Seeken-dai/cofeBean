@@ -68,9 +68,10 @@ test('sync-transport: push sends worker envelopes and surfaces server errors', a
     }
   });
 
-  const result = await http.push({ beans: [core.normalizeBean({ id: 'b1', name: '本地豆' })], drinkLogs: [], brewPlans: [] });
+  const result = await http.push({ beans: [core.normalizeBean({ id: 'b1', name: '本地豆' })], drinkLogs: [], brewPlans: [] }, 2);
   const body = JSON.parse(calls[0].init.body);
   assert.equal(result.cursor, 3);
+  assert.equal(body.cursor, 2);
   assert.equal(calls[0].url, 'https://sync.example.test/sync/push');
   assert.equal(calls[0].init.headers.Authorization, 'Bearer token-2');
   assert.equal(body.beans[0].type, 'bean');

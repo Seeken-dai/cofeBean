@@ -435,6 +435,7 @@ dialog::backdrop { background:rgb(8 5 4 / .72); backdrop-filter:blur(4px); }
 .plan-card .dimension-summary { margin-top:0; }
 .plan-hero .brew-cup { font-size:25px; }
 .drink-entry { position:relative; display:grid; grid-template-columns:16px 1fr; gap:9px; padding:13px 14px; border:1px solid var(--border); border-radius:15px; background:var(--surface); cursor:pointer; }
+.timeline-more { width:100%; min-height:46px; border:1px solid color-mix(in srgb,var(--accent) 40%,var(--border)); border-radius:12px; background:color-mix(in srgb,var(--accent) 8%,var(--surface)); color:var(--accent); font-weight:750; cursor:pointer; }
 .drink-dot { width:9px; height:9px; margin-top:5px; border:2px solid var(--accent); border-radius:50%; box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 11%,transparent); }
 .drink-head { display:flex; justify-content:space-between; gap:10px; }.drink-head strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:700 15px "Vault Serif",serif; }.drink-head time { flex:0 0 auto; color:var(--faint); font-size:9px; }
 .drink-meta { margin:6px 0 0; color:var(--muted); font-size:11px; }.stars { color:var(--accent); letter-spacing:.08em; }.unrated { color:var(--faint); }

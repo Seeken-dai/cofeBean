@@ -430,6 +430,22 @@
   function sanitizePlans(plans, beanIds) {
     return withPresetPlans(plans || []).map((plan) => root.BeanCore.normalizeBrewPlan({ ...plan, beanIds: plan.beanIds.filter((id) => beanIds.has(id)) }, plan.updatedAt));
   }
+  function upsertById(existing, incoming) {
+    const map = new Map((existing || []).map((item) => [item.id, item]));
+    (incoming || []).forEach((item) => {
+      if (item && item.id) map.set(item.id, item);
+    });
+    return Array.from(map.values());
+  }
+  function upsertStatement(columns, nativeMap) {
+    const nativeColumns = columns.map((key) => nativeMap[key] || key);
+    const updates = columns.filter((key) => key !== 'id' && key !== 'createdAt').map((key) => `${nativeMap[key] || key}=excluded.${nativeMap[key] || key}`).join(',');
+    return {
+      columns: nativeColumns.join(','),
+      placeholders: columns.map(() => '?').join(','),
+      updates
+    };
+  }
   async function writeDataSet(beans, drinkLogs, settings, brewPlans, scope) {
     const normalizedBeans = normalizeBeans(beans);
     const beanIds = new Set(normalizedBeans.map((bean) => bean.id));
@@ -456,12 +472,41 @@
     await nativeDb().executeSet({ database: DB_NAME, set, transaction: true, readonly: false });
   }
 
+  async function upsertSyncData(beans, drinkLogs, brewPlans) {
+    const incomingBeans = normalizeBeans(beans);
+    if (!native) {
+      const state = web().loadState();
+      const beanIds = new Set(upsertById(state.beans, incomingBeans).map((bean) => bean.id));
+      const incomingLogs = sanitizeLogs(drinkLogs, beanIds);
+      const incomingPlans = sanitizePlans(brewPlans, beanIds);
+      state.beans = upsertById(state.beans, incomingBeans);
+      state.drinkLogs = upsertById(state.drinkLogs, incomingLogs);
+      state.brewPlans = upsertById(state.brewPlans, incomingPlans);
+      await web().saveState(state);
+      return;
+    }
+    const currentBeans = await nativeDb().query({ database: DB_NAME, statement: 'SELECT * FROM beans', values: [], readonly: false });
+    const beanIds = new Set([...(currentBeans.values || []).map((row) => row.id), ...incomingBeans.map((bean) => bean.id)]);
+    const incomingLogs = sanitizeLogs(drinkLogs, beanIds);
+    const incomingPlans = sanitizePlans(brewPlans, beanIds);
+    const beanSql = upsertStatement(BEAN_COLUMNS, BEAN_NATIVE);
+    const logSql = upsertStatement(LOG_COLUMNS, LOG_NATIVE);
+    const planSql = upsertStatement(PLAN_COLUMNS, PLAN_NATIVE);
+    const set = [
+      ...incomingBeans.map((bean) => ({ statement: `INSERT INTO beans (${beanSql.columns}) VALUES (${beanSql.placeholders}) ON CONFLICT(id) DO UPDATE SET ${beanSql.updates}`, values: beanValues(bean) })),
+      ...incomingPlans.map((plan) => ({ statement: `INSERT INTO brew_plans (${planSql.columns}) VALUES (${planSql.placeholders}) ON CONFLICT(id) DO UPDATE SET ${planSql.updates}`, values: planValues(plan) })),
+      ...incomingLogs.map((log) => ({ statement: `INSERT INTO drink_logs (${logSql.columns}) VALUES (${logSql.placeholders}) ON CONFLICT(id) DO UPDATE SET ${logSql.updates}`, values: logValues(log) }))
+    ];
+    if (set.length) await nativeDb().executeSet({ database: DB_NAME, set, transaction: true, readonly: false });
+  }
+
   async function importData(imported, mode) {
     const scope = normalizeScope(imported && imported.exportScope);
     const merge = mode === 'merge';
-    const currentBeans = await getAll();
-    const currentLogs = await getDrinkLogs();
-    const currentPlans = await getBrewPlans();
+    const currentSync = merge ? await exportForSync() : null;
+    const currentBeans = merge ? currentSync.beans : await getAll();
+    const currentLogs = merge ? currentSync.drinkLogs : await getDrinkLogs();
+    const currentPlans = merge ? currentSync.brewPlans : await getBrewPlans();
     const currentSettings = await getSettings();
     let nextBeans = currentBeans;
     let nextLogs = currentLogs;
@@ -531,7 +576,7 @@
     const beans = (data && data.beans) || [];
     const drinkLogs = (data && data.drinkLogs) || [];
     const brewPlans = (data && data.brewPlans) || [];
-    return writeDataSet(beans, drinkLogs, null, brewPlans, 'all');
+    return upsertSyncData(beans, drinkLogs, brewPlans);
   }
 
   function legacyData() {

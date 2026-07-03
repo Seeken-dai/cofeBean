@@ -115,14 +115,14 @@
       async pull(cursor) {
         const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
         const data = await request(`/sync/pull${query}`);
-        const out = { beans: [], drinkLogs: [], brewPlans: [], cursor: data.cursor || null, protocol: data.protocol };
+        const out = { beans: [], drinkLogs: [], brewPlans: [], cursor: data.cursor || null, hasMore: Boolean(data.hasMore), protocol: data.protocol };
         Object.keys(TYPE_MAP).forEach((bucket) => {
           out[bucket] = (data[bucket] || []).map((record) => fromEnvelope(core, record));
         });
         return out;
       },
-      async push(records) {
-        const body = {};
+      async push(records, cursor) {
+        const body = { cursor: cursor || null };
         Object.keys(TYPE_MAP).forEach((bucket) => {
           body[bucket] = (records && records[bucket] || []).map((record) => toEnvelope(TYPE_MAP[bucket], record));
         });

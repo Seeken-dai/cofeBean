@@ -265,7 +265,7 @@ test('repository contract: local writes stamp stable deviceId and increment revi
   cleanupRepository();
 });
 
-test('repository contract: sync export includes tombstones and applySyncData keeps them hidden', async () => {
+test('repository contract: sync export includes tombstones and applySyncData upserts without deleting absent records', async () => {
   const storage = memoryStorage();
   const repo = await loadRepository(storage);
   await repo.save({ id: 'sync-a', name: '会删除' });
@@ -285,7 +285,26 @@ test('repository contract: sync export includes tombstones and applySyncData kee
     drinkLogs: [],
     brewPlans: []
   });
-  assert.deepEqual((await repo.getAll()).map((bean) => bean.id), ['remote-live']);
-  assert.equal((await repo.exportForSync()).beans.length, 2);
+  assert.deepEqual((await repo.getAll()).map((bean) => bean.id).sort(), ['remote-live', 'sync-b']);
+  assert.equal((await repo.exportForSync()).beans.length, 4);
+  cleanupRepository();
+});
+
+test('repository contract: merge import preserves newer local tombstones', async () => {
+  const storage = memoryStorage();
+  const repo = await loadRepository(storage);
+  await repo.save(core.normalizeBean({ id: 'merge-tomb', name: '已删除豆', updatedAt: '2026-07-03T10:00:00.000Z' }, '2026-07-03T10:00:00.000Z'));
+  await repo.remove('merge-tomb');
+  const tombstone = (await repo.exportForSync()).beans.find((bean) => bean.id === 'merge-tomb');
+  assert.ok(tombstone.deletedAt);
+
+  await repo.importData({
+    exportScope: 'library',
+    beans: [core.normalizeBean({ id: 'merge-tomb', name: '旧备份豆', updatedAt: '2026-07-02T10:00:00.000Z' }, '2026-07-02T10:00:00.000Z')],
+    drinkLogs: []
+  }, 'merge');
+
+  assert.equal((await repo.getAll()).some((bean) => bean.id === 'merge-tomb'), false, '较新的本地墓碑不应被旧备份复活');
+  assert.ok((await repo.exportForSync()).beans.find((bean) => bean.id === 'merge-tomb').deletedAt);
   cleanupRepository();
 });
