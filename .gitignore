@@ -12,9 +12,8 @@ keystore.properties
 .idea/
 *.iml
 local-backups/
-plan/*
-!plan/
-!plan/ARCH_OPT_PROGRESS.md
+plan/
+dist/
 .claude/
 .interface-design/
 mock/
