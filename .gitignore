@@ -13,4 +13,7 @@ keystore.properties
 *.iml
 local-backups/
 plan/
-.claude/settings.local.json
+.claude/
+.interface-design/
+mock/
+scripts/cloud-sync-smoke.js
