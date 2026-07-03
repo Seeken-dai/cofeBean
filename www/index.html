@@ -479,12 +479,12 @@
   <dialog class="sheet compact sync-auth-sheet" id="syncAuthDialog">
     <header class="sheet-header"><div><p class="eyebrow">COFFEE CLOUD</p><h2 id="syncAuthTitle">登录同步账号</h2><p class="sheet-subtitle" id="syncAuthSubtitle">登录后再决定是否开启同步。</p></div><button class="icon-button" id="syncAuthClose" type="button" aria-label="关闭">×</button></header>
     <section class="sync-auth-body">
-      <div class="sync-auth-tabs" role="tablist" aria-label="同步账号操作"><button class="active" id="syncAuthModeLogin" type="button" data-sync-auth-mode="login">登录</button><button id="syncAuthModeRegister" type="button" data-sync-auth-mode="register">注册</button><button id="syncAuthModeRecover" type="button" data-sync-auth-mode="recover">恢复</button></div>
+      <p class="sync-auth-switch" id="syncAuthSwitch">新用户？<button class="text-button" id="syncAuthModeRegister" type="button" data-sync-auth-mode="register">创建账号</button></p>
       <label class="auth-field"><span>邮箱</span><input id="syncAuthEmail" type="email" autocomplete="username" placeholder="you@example.com"></label>
       <label class="auth-field"><span>密码</span><input id="syncAuthPassword" type="password" autocomplete="current-password" minlength="8" placeholder="至少 8 位"></label>
       <label class="auth-field" id="syncRecoveryField" hidden><span>恢复码</span><input id="syncAuthRecovery" type="text" autocomplete="one-time-code" placeholder="注册时保存的恢复码"></label>
       <button class="primary-button sync-auth-submit" id="syncAuthSubmit" type="button">登录</button>
-      <button class="ghost-button sync-auth-alt" id="syncAuthForgot" type="button">忘记密码？用恢复码重设</button>
+      <p class="sync-auth-links"><button class="text-button" id="syncAuthModeLogin" type="button" data-sync-auth-mode="login" hidden>返回登录</button><button class="text-button" id="syncAuthForgot" type="button" data-sync-auth-mode="recover">忘记密码？用恢复码重设</button></p>
       <div class="sync-recovery" id="syncRecoveryBox" hidden><b>恢复码只显示这一次</b><code id="syncRecoveryCode"></code><small>忘记密码时需要它重设密码，请先保存到安全的位置。</small><button class="secondary-button" id="syncCopyRecovery" type="button">复制恢复码</button></div>
     </section>
   </dialog>
