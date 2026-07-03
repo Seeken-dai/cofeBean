@@ -217,13 +217,12 @@
     $('#globalDrinkList').innerHTML = [...groups.entries()].map(([date, logs]) => `<section class="timeline-group"><h2>${esc(date)}</h2>${logs.map((log) => logTemplate(log, false)).join('')}</section>`).join('');
   }
   function renderBrewPlans() {
-    const nonPreset = state.brewPlans.filter((plan) => plan.source !== 'preset');
     const methods = new Set(state.brewPlans.map((plan) => plan.brewMethod).filter(Boolean));
     const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
     const counts = new Map();
     state.drinkLogs.forEach((log) => { if (log.brewPlanName && new Date(log.consumedAt).getTime() >= cutoff) counts.set(log.brewPlanName, (counts.get(log.brewPlanName) || 0) + 1); });
     const popular = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
-    $('#planTotal').textContent = nonPreset.length;
+    $('#planTotal').textContent = state.brewPlans.length;
     $('#planMethods').textContent = methods.size;
     $('#planPopular').textContent = popular ? popular[0].slice(0, 6) : '—';
     renderPlanMethodFilters([...methods]);
