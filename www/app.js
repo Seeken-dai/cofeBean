@@ -970,7 +970,6 @@
     $('#syncEnabled').disabled = !loggedIn || state.syncBusy;
     $('#syncNow').disabled = !loggedIn || state.syncBusy;
     $('#syncNow').classList.toggle('is-syncing', state.syncBusy);
-    els.sync.classList.toggle('is-syncing', state.syncBusy);
     $('#syncLoginOpen').hidden = loggedIn;
     $('#syncLogout').hidden = !loggedIn;
     $('#syncDeleteAccount').disabled = !loggedIn || state.syncBusy;

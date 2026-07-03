@@ -64,15 +64,28 @@
     if (token) headers.Authorization = `Bearer ${token}`;
     return headers;
   }
+  async function fetchWithTimeout(fetchImpl, url, init, timeoutMs) {
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+    try {
+      return await fetchImpl(url, controller ? { ...init, signal: controller.signal } : init);
+    } catch (error) {
+      if (controller && controller.signal.aborted) throw new Error('连接同步服务器超时，请检查网络后重试');
+      if (error instanceof TypeError) throw new Error('无法连接同步服务器，请检查网络');
+      throw error;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
   function createAuthClient(options = {}) {
     const baseUrl = cleanBaseUrl(options.baseUrl);
     const fetchImpl = options.fetch || fetch;
     async function post(path, body) {
-      const response = await fetchImpl(`${baseUrl}${path}`, {
+      const response = await fetchWithTimeout(fetchImpl, `${baseUrl}${path}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body || {})
-      });
+      }, 15000);
       return readJson(response);
     }
     return {
@@ -89,10 +102,10 @@
     const getToken = typeof options.getToken === 'function' ? options.getToken : () => options.token;
 
     async function request(path, init = {}) {
-      const response = await fetchImpl(`${baseUrl}${path}`, {
+      const response = await fetchWithTimeout(fetchImpl, `${baseUrl}${path}`, {
         ...init,
         headers: createHeaders(getToken(), init.headers)
-      });
+      }, 45000);
       return readJson(response);
     }
     return {
@@ -122,20 +135,20 @@
       async uploadImage(blob) {
         const buffer = await toArrayBuffer(blob);
         const sha = await sha256Hex(buffer);
-        const response = await fetchImpl(`${baseUrl}/images/${sha}`, {
+        const response = await fetchWithTimeout(fetchImpl, `${baseUrl}/images/${sha}`, {
           method: 'PUT',
           headers: createHeaders(getToken(), { 'Content-Type': blob && blob.type || 'image/webp' }),
           body: buffer
-        });
+        }, 120000);
         return readJson(response);
       },
       async downloadImage(ref) {
         const sha = String(ref || '').replace(/^r2:/, '');
         if (!/^[a-f0-9]{64}$/.test(sha)) throw new Error('图片引用无效');
-        const response = await fetchImpl(`${baseUrl}/images/${sha}`, {
+        const response = await fetchWithTimeout(fetchImpl, `${baseUrl}/images/${sha}`, {
           method: 'GET',
           headers: createHeaders(getToken())
-        });
+        }, 120000);
         if (!response.ok) await readJson(response);
         if (typeof response.blob === 'function') return response.blob();
         const buffer = await response.arrayBuffer();
