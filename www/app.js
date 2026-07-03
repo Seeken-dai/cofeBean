@@ -206,7 +206,7 @@
       input.click();
     });
   }
-  function imageCard(label, path, role, editable) { return path ? `<article class="vault-image-card" data-preview-image="${esc(path)}" data-preview-label="${esc(label)}" tabindex="0" role="button" aria-label="查看${esc(label)}大图"><img src="${esc(imageSrc(path))}" alt="${esc(label)}"><span>${esc(label)}</span>${editable ? `<button data-add-image-role="${role}" type="button">更换</button>` : ''}</article>` : ''; }
+  function imageCard(label, path, role, editable) { return path ? `<article class="vault-image-card" data-preview-image="${esc(path)}" data-preview-label="${esc(label)}" tabindex="0" role="button" aria-label="查看${esc(label)}大图"><img src="${esc(imageSrc(path))}" alt="${esc(label)}"><span>${esc(label)}</span>${editable ? `<div class="vault-image-actions"><button data-add-image-role="${role}" type="button">更换</button><button class="vault-image-remove" data-remove-image-role="${role}" type="button">删除</button></div>` : ''}</article>` : ''; }
   function imageSlot(label, path, role) { return path ? imageCard(label, path, role, true) : `<button class="vault-image-empty" data-add-image-role="${role}" type="button"><span>${esc(label)}</span><small>拍摄或读取图片</small></button>`; }
   function currentImageBean() { return { bagImagePath: $('#field-bagImagePath').value, labelImagePath: $('#field-labelImagePath').value }; }
   function renderImageVault(bean) { const source = bean || currentImageBean(); $('#editorImageVault').hidden = false; $('#editorImageVault').innerHTML = `<div class="section-heading"><div><span>袋子与标签</span><small>保存前可先预览，图片只留在本机</small></div></div>${imageSlot('咖啡袋', source.bagImagePath, 'bag')}${imageSlot('标签', source.labelImagePath, 'label')}`; }
@@ -694,6 +694,17 @@
     const scanner = capPlugin('CoffeeLabelScanner');
     if (!scanner) return toast('图片留存仅在 Android App 中可用');
     try { const photo = await pickCoffeePhoto({ eyebrow: 'BEAN PHOTO', title: role === 'bag' ? '添加咖啡袋图片' : '添加标签图片', intro: '图片会先显示在编辑页，保存咖啡豆后才正式归档。' }); if (!photo) return; const path = photo.path || photo.webPath; if (!path) throw new Error('没有取得照片路径'); state.pendingImages = state.pendingImages.filter((item) => item.role !== role); state.pendingImages.push({ path, role }); setImageField(role, path); renderImageVault(); toast(role === 'bag' ? '已添加咖啡袋图片' : '已添加标签图片'); } catch (error) { const message = String(error && error.message || error || ''); if (!/cancel|取消/i.test(message)) { console.error(error); toast(/permission|权限/i.test(message) ? '需要相机权限才能拍照或读取图片' : '添加图片失败'); } }
+  }
+  function removeBeanImage(role) {
+    const scanner = capPlugin('CoffeeLabelScanner');
+    state.pendingImages.filter((item) => item.role === role).forEach((item) => {
+      if (item.web) BeanRepository.deleteWebImage(item.ref);
+      else if (scanner && scanner.discardImage) scanner.discardImage({ path: item.path }).catch(() => {});
+    });
+    state.pendingImages = state.pendingImages.filter((item) => item.role !== role);
+    setImageField(role, '');
+    renderImageVault();
+    toast(role === 'bag' ? '已移除咖啡袋图片' : '已移除标签图片');
   }
   async function archivePendingImages(fields) { if (!state.pendingImages.length) return fields; if (!BeanRepository.isNative()) { state.pendingImages = []; return fields; } const scanner = capPlugin('CoffeeLabelScanner'); if (!scanner || !scanner.archiveImage) return fields; let next = { ...fields }; for (const item of state.pendingImages) { const result = await scanner.archiveImage({ path: item.path, role: item.role, deleteSource: true }); next[item.role === 'bag' ? 'bagImagePath' : 'labelImagePath'] = result.path || result.uri || next[item.role === 'bag' ? 'bagImagePath' : 'labelImagePath'] || ''; } state.pendingImages = []; return next; }
   async function openPurchaseUrl(url) {
@@ -1574,7 +1585,7 @@
   }
   function bindEvents() {
     ['addBean', 'scanBean', 'planImportFab'].forEach((id) => $(`#${id}`).addEventListener('click', floatingActionClickGuard, true));
-    $('#addBean').addEventListener('click', () => { expandFloatingActions(); return state.view === 'plans' ? openPlanEditor(null) : openEditor(null); }); $('#scanBean').addEventListener('click', () => { expandFloatingActions(); scanCoffeeLabel(); }); $('#editorClose').addEventListener('click', () => { clearPendingImages(true); setDialog(els.editor, false); }); $('#editorCancel').addEventListener('click', () => { clearPendingImages(true); setDialog(els.editor, false); }); $('#deleteBean').addEventListener('click', removeCurrent); els.form.addEventListener('submit', saveForm); $('#editorImageVault').addEventListener('click', (event) => { const button = event.target.closest('[data-add-image-role]'); if (button) return addBeanImage(button.dataset.addImageRole); const card = event.target.closest('[data-preview-image]'); if (card) openImagePreview(card.dataset.previewImage, card.dataset.previewLabel); });
+    $('#addBean').addEventListener('click', () => { expandFloatingActions(); return state.view === 'plans' ? openPlanEditor(null) : openEditor(null); }); $('#scanBean').addEventListener('click', () => { expandFloatingActions(); scanCoffeeLabel(); }); $('#editorClose').addEventListener('click', () => { clearPendingImages(true); setDialog(els.editor, false); }); $('#editorCancel').addEventListener('click', () => { clearPendingImages(true); setDialog(els.editor, false); }); $('#deleteBean').addEventListener('click', removeCurrent); els.form.addEventListener('submit', saveForm); $('#editorImageVault').addEventListener('click', (event) => { const remove = event.target.closest('[data-remove-image-role]'); if (remove) return removeBeanImage(remove.dataset.removeImageRole); const button = event.target.closest('[data-add-image-role]'); if (button) return addBeanImage(button.dataset.addImageRole); const card = event.target.closest('[data-preview-image]'); if (card) openImagePreview(card.dataset.previewImage, card.dataset.previewLabel); });
     els.empty.addEventListener('click', (event) => {
       const button = event.target.closest('[data-empty-action]');
       if (!button) return;
