@@ -123,15 +123,23 @@
     if (beanSyncAdds) await nativeDb().execute({ database: DB_NAME, statements: beanSyncAdds, transaction: true, readonly: false });
     const logColumns = await nativeDb().query({ database: DB_NAME, statement: 'PRAGMA table_info(drink_logs)', values: [], readonly: false });
     const logNames = (logColumns.values || []).map((column) => column.name);
-    const logAdds = [
-      ['brew_plan_id', "ALTER TABLE drink_logs ADD COLUMN brew_plan_id TEXT;"],
-      ['brew_plan_version', "ALTER TABLE drink_logs ADD COLUMN brew_plan_version INTEGER;"],
-      ['brew_plan_name', "ALTER TABLE drink_logs ADD COLUMN brew_plan_name TEXT NOT NULL DEFAULT '';"],
-      ['brew_plan_snapshot', "ALTER TABLE drink_logs ADD COLUMN brew_plan_snapshot TEXT NOT NULL DEFAULT '';"],
-      ['revision', "ALTER TABLE drink_logs ADD COLUMN revision INTEGER NOT NULL DEFAULT 1;"],
-      ['device_id', "ALTER TABLE drink_logs ADD COLUMN device_id TEXT NOT NULL DEFAULT '';"],
-      ['deleted_at', "ALTER TABLE drink_logs ADD COLUMN deleted_at TEXT;"]
-    ].filter(([name]) => !logNames.includes(name)).map(([, statement]) => statement).join('\n');
+    // 防御式对齐：确保 drink_logs 拥有 LOG_COLUMNS 写入所需的每一列，缺哪列补哪列。
+    // 评分维度等历史列过去只在 CREATE TABLE 里声明、没有单独的 ALTER 兜底；一旦某台设备的表
+    // 因异常升级路径缺了任意一列，saveDrinkLog 的 INSERT 会整条失败（饮用记录“保存不了”）。
+    const logColumnDdl = {
+      bean_id: 'TEXT', bean_name: "TEXT NOT NULL DEFAULT ''", grams: 'REAL NOT NULL DEFAULT 0',
+      brew_method: "TEXT NOT NULL DEFAULT '手冲'", brew_plan_id: 'TEXT', brew_plan_version: 'INTEGER',
+      brew_plan_name: "TEXT NOT NULL DEFAULT ''", brew_plan_snapshot: "TEXT NOT NULL DEFAULT ''",
+      overall_rating: 'INTEGER', aroma: 'INTEGER', acidity: 'INTEGER', sweetness: 'INTEGER',
+      body: 'INTEGER', aftertaste: 'INTEGER', balance: 'INTEGER', bitterness: 'INTEGER',
+      notes: "TEXT NOT NULL DEFAULT ''", consumed_at: "TEXT NOT NULL DEFAULT ''",
+      created_at: "TEXT NOT NULL DEFAULT ''", updated_at: "TEXT NOT NULL DEFAULT ''",
+      revision: 'INTEGER NOT NULL DEFAULT 1', device_id: "TEXT NOT NULL DEFAULT ''", deleted_at: 'TEXT'
+    };
+    const logAdds = Object.entries(logColumnDdl)
+      .filter(([name]) => !logNames.includes(name))
+      .map(([name, type]) => `ALTER TABLE drink_logs ADD COLUMN ${name} ${type};`)
+      .join('\n');
     if (logAdds) await nativeDb().execute({ database: DB_NAME, statements: logAdds, transaction: true, readonly: false });
     await seedPresetPlans();
     await nativeDb().execute({ database: DB_NAME, statements: 'PRAGMA user_version = 8;', transaction: true, readonly: false });
