@@ -293,6 +293,18 @@
     ];
     return `<svg class="bean-thumb-motif" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="${paths[ph.variant] || paths[0]}" transform="rotate(${ph.angle} 50 50)"/></svg>`;
   }
+  // 处理法角标（1.5 方案B 第二期）：生成封面左下角小图形，日晒/水洗/蜜处理/厌氧各一。
+  const PROCESS_ICONS = {
+    natural: '<circle cx="12" cy="12" r="3.8"/><path d="M12 3.6v2.2M12 18.2v2.2M3.6 12h2.2M18.2 12h2.2M6.1 6.1l1.5 1.5M16.4 16.4l1.5 1.5M17.9 6.1l-1.5 1.5M7.6 16.4l-1.5 1.5"/>',
+    washed: '<path d="M12 3.4c2.6 3.5 4.1 5.5 4.1 7.5a4.1 4.1 0 0 1-8.2 0c0-2 1.5-4 4.1-7.5Z"/>',
+    honey: '<path d="M12 3l7 4v8l-7 4-7-4V7l7-4Z"/><path d="M12 8.2l3.3 1.9v3.8L12 15.8l-3.3-1.9v-3.8L12 8.2Z"/>',
+    anaerobic: '<rect x="7.6" y="4" width="8.8" height="16" rx="3"/><path d="M10 9h4M10 12.5h4"/>'
+  };
+  function processBadge(bean) {
+    const kind = BeanCore.beanProcessKind(bean.process);
+    if (!kind) return '';
+    return `<span class="bean-thumb-process" title="${esc(bean.process)}"><svg viewBox="0 0 24 24" aria-hidden="true">${PROCESS_ICONS[kind]}</svg></span>`;
+  }
   // 缩略图容器：设置开启后列表展示封面；有袋图走照片，无袋图走生成式占位。A/B 共用同一 .bean-thumb 容器。
   function beanThumb(bean, options) {
     const config = options || {};
@@ -300,7 +312,7 @@
     if (src && !config.forcePlaceholder) return `<div class="bean-thumb has-photo" aria-hidden="true"><img src="${esc(src)}" alt="" loading="lazy"></div>`;
     const ph = BeanCore.beanPlaceholder(bean);
     const badge = bean.bagImagePath && config.markPhoto ? '<span class="bean-thumb-photo-badge" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8.5 6 10 4h4l1.5 2H19a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3.5Z"/><circle cx="12" cy="12.5" r="3.5"/></svg></span>' : '';
-    return `<div class="bean-thumb generated bean-thumb--${esc(ph.roastKey)}${badge ? ' has-photo-badge' : ''}" aria-hidden="true">${thumbMotif(ph)}<span class="bean-thumb-glyph">${esc(ph.glyph)}</span>${badge}</div>`;
+    return `<div class="bean-thumb generated bean-thumb--${esc(ph.roastKey)}${badge ? ' has-photo-badge' : ''}" aria-hidden="true">${thumbMotif(ph)}<span class="bean-thumb-glyph">${esc(ph.glyph)}</span>${processBadge(bean)}${badge}</div>`;
   }
   function remainingBar(bean, remaining) {
     const initial = Number(bean.initialWeight) || 0;

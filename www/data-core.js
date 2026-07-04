@@ -980,6 +980,23 @@
     return tags;
   }
 
+  // 处理法 → 类别（纯逻辑，可测试）。用于生成封面右下角小角标。顺序即优先级。
+  const PROCESS_LEXICON = [
+    ['anaerobic', ['厌氧', '双厌氧', '酒香', '酵素', 'anaerobic']],
+    ['honey', ['蜜', 'honey', '黑蜜', '红蜜', '黄蜜', '白蜜']],
+    ['natural', ['日晒', '自然', '干处理', 'natural', 'dry']],
+    ['washed', ['水洗', '湿处理', '半水洗', '湿刨', 'washed', 'wet']]
+  ];
+  function beanProcessKind(process) {
+    const text = cleanText(process, 120) || '';
+    if (!text) return null;
+    for (let i = 0; i < PROCESS_LEXICON.length; i += 1) {
+      const words = PROCESS_LEXICON[i][1];
+      for (let j = 0; j < words.length; j += 1) { if (text.indexOf(words[j]) >= 0) return PROCESS_LEXICON[i][0]; }
+    }
+    return null;
+  }
+
   // 赏味期新鲜度 → 档位 + 紧凑标签（纯逻辑，可测试）。快到期自然从绿→琥珀→橙→过期。
   function beanFreshness(bean, today) {
     const daysLeft = bestFlavorDaysLeft(bean, today);
@@ -1019,5 +1036,5 @@
     return series;
   }
 
-  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, prepareBrewAssistSteps, brewAssistStatus, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, flavorTags, beanFreshness, recentDrinkSeries };
+  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, prepareBrewAssistSteps, brewAssistStatus, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, flavorTags, beanFreshness, recentDrinkSeries, beanProcessKind };
 });

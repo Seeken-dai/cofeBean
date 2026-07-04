@@ -56,3 +56,14 @@ test('recentDrinkSeries 空输入返回定长全零序列', () => {
   assert.equal(s.length, 30);
   assert.ok(s.every((d) => d.cups === 0 && d.grams === 0 && d.averageRating === null));
 });
+
+test('beanProcessKind 归类处理法，优先级正确，未知/空返回 null', () => {
+  assert.equal(core.beanProcessKind('日晒'), 'natural');
+  assert.equal(core.beanProcessKind('水洗'), 'washed');
+  assert.equal(core.beanProcessKind('红蜜处理'), 'honey');
+  assert.equal(core.beanProcessKind('厌氧日晒'), 'anaerobic'); // 厌氧优先于日晒
+  assert.equal(core.beanProcessKind('半水洗'), 'washed');
+  assert.equal(core.beanProcessKind(''), null);
+  assert.equal(core.beanProcessKind('湿刨'), 'washed');
+  assert.equal(core.beanProcessKind('某种新处理法'), null);
+});
