@@ -403,12 +403,26 @@
   function renderCalendarRecent() { $('#calendarRecentList').innerHTML = state.drinkLogs.length ? state.drinkLogs.slice(0, 5).map((log) => logTemplate(log, true)).join('') : '<p class="manager-empty">还没有饮用记录。</p>'; }
   function shiftCoffeeMonth(delta) { state.coffeeCalendarDate.setMonth(state.coffeeCalendarDate.getMonth() + delta); state.selectedCoffeeDay = ymd(new Date(state.coffeeCalendarDate.getFullYear(), state.coffeeCalendarDate.getMonth(), 1)); renderCoffeeCalendar(); }
   function shiftCoffeeYear(delta) { const next = new Date(state.coffeeCalendarDate); next.setFullYear(next.getFullYear() + delta); state.coffeeCalendarDate = next; state.selectedCoffeeDay = ymd(next); renderCoffeeCalendar(); }
+  // 详情页 hero（1.5 方案 C）：有图→模糊照片当氛围底 + 右上角清晰缩略图（点击进大图预览）；无图→烘焙度渐变兜底，结构不变。
+  function renderDetailHero(bean) {
+    const bg = $('#detailHeroBg'); const thumbHost = $('#detailHeroThumb');
+    const src = bean.bagImagePath ? imageSrc(bean.bagImagePath) : '';
+    if (src) {
+      bg.className = 'profile-hero-bg has-photo'; bg.style.backgroundImage = `url("${src.replace(/["\\]/g, '\\$&')}")`;
+      thumbHost.innerHTML = `<div class="bean-thumb has-photo" data-preview-image="${esc(bean.bagImagePath)}" data-preview-label="咖啡袋" role="button" tabindex="0" aria-label="查看咖啡袋大图"><img src="${esc(src)}" alt="" loading="lazy"></div>`;
+    } else {
+      const ph = BeanCore.beanPlaceholder(bean);
+      bg.className = `profile-hero-bg bean-thumb--${ph.roastKey}`; bg.style.backgroundImage = '';
+      thumbHost.innerHTML = beanThumb(bean);
+    }
+  }
   function detailFact(label, value, accent, attrs) { return `<div class="profile-fact${accent ? ' accent' : ''}"${attrs || ''}><span>${esc(label)}</span><strong>${esc(value || '未记录')}</strong></div>`; }
   function purchaseFact(bean) {
     return bean.purchaseUrl ? detailFact('购买链接', '点击打开', false, ` data-purchase-url="${esc(bean.purchaseUrl)}" role="button" tabindex="0" aria-label="打开购买链接"`) : '';
   }
   function openDetail(bean) {
     if (!bean) return; state.editingId = bean.id; const logs = state.drinkLogs.filter((log) => log.beanId === bean.id); const remaining = Number(bean.remainingWeight) || 0;
+    renderDetailHero(bean);
     $('#detailName').textContent = bean.name; $('#detailTitle').textContent = bean.name; $('#detailStatus').textContent = bean.status; $('#detailStatus').dataset.status = bean.status;
     $('#detailSubtitle').textContent = [bean.roaster, bean.origin].filter(Boolean).join(' · ') || '尚未记录烘焙商与产地';
     $('#detailFacts').innerHTML = detailFact('剩余克重', formatWeight(remaining), true) + detailFact(unitPriceMeta().label, formatUnitPrice(bean), true) + purchaseFact(bean) + detailFact('最佳赏味期', bestFlavorText(bean) || (bean.bestFlavorDays ? `${bean.bestFlavorDays} 天 · 等待开封日期` : '未记录')) + detailFact('初始克重', bean.initialWeight == null ? '未记录' : formatWeight(bean.initialWeight)) + detailFact('烘焙日期', bean.roastDate) + detailFact('开封日期', bean.openedDate) + detailFact('处理法', bean.process) + detailFact('烘焙度', bean.roastLevel) + detailFact('价格', formatPrice(bean.price));
@@ -1643,6 +1657,8 @@
     attachLongPress($('#brewPlanList'), '.plan-card', longPressDeletePlan);
     $('#brewPlanList').addEventListener('keydown', (event) => { if (!['Enter', ' '].includes(event.key)) return; const card = event.target.closest('[data-plan-id]'); if (card) { event.preventDefault(); openPlanDetail(state.brewPlans.find((plan) => plan.id === card.dataset.planId)); } });
     $('#detailImages').addEventListener('click', (event) => { const card = event.target.closest('[data-preview-image]'); if (card) openImagePreview(card.dataset.previewImage, card.dataset.previewLabel); });
+    $('#detailHero').addEventListener('click', (event) => { const thumb = event.target.closest('[data-preview-image]'); if (thumb) openImagePreview(thumb.dataset.previewImage, thumb.dataset.previewLabel); });
+    $('#detailHero').addEventListener('keydown', (event) => { if (!['Enter', ' '].includes(event.key)) return; const thumb = event.target.closest('[data-preview-image]'); if (thumb) { event.preventDefault(); openImagePreview(thumb.dataset.previewImage, thumb.dataset.previewLabel); } });
     $('#detailFacts').addEventListener('click', (event) => { const item = event.target.closest('[data-purchase-url]'); if (item) openPurchaseUrl(item.dataset.purchaseUrl); });
     $('#detailFacts').addEventListener('keydown', (event) => { if (!['Enter', ' '].includes(event.key)) return; const item = event.target.closest('[data-purchase-url]'); if (item) { event.preventDefault(); openPurchaseUrl(item.dataset.purchaseUrl); } });
     $('#imagePreviewClose').addEventListener('click', () => setDialog(els.imagePreview, false)); $('#imagePreviewCancel').addEventListener('click', () => setDialog(els.imagePreview, false)); $('#imagePreviewSave').addEventListener('click', sharePreviewImage); $('#shareImageChoiceClose').addEventListener('click', () => setDialog(els.shareChoice, false)); $('#shareImageChoiceCancel').addEventListener('click', () => setDialog(els.shareChoice, false)); $('#shareImageChoiceConfirm').addEventListener('click', confirmBeanShareChoice); $('#planShareChoiceClose').addEventListener('click', () => setDialog(els.planShareChoice, false)); $('#planShareChoiceCancel').addEventListener('click', () => setDialog(els.planShareChoice, false)); $('#planShareChoiceConfirm').addEventListener('click', confirmPlanShareChoice); $('#planImportFab').addEventListener('click', () => { expandFloatingActions(); openPlanImport(); }); $('#settingsImportPlan').addEventListener('click', () => { setDialog(els.settings, false); openPlanImport(); }); $('#planImportClose').addEventListener('click', () => setDialog(els.planImport, false)); $('#planImportCancel').addEventListener('click', () => setDialog(els.planImport, false)); $('#planImportCamera').addEventListener('click', () => importQrFromSource('camera')); $('#planImportGallery').addEventListener('click', () => importQrFromSource('photos')); $('#planImportParse').addEventListener('click', parsePastedImportCode); $('#planImportConfirm').addEventListener('click', confirmImportPlan);

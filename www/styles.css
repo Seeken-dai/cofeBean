@@ -163,7 +163,14 @@ body:not(.cap-native) #planImportCamera { display:none; }
 dialog { color:var(--text); }
 dialog::backdrop { background:rgb(8 5 4 / .72); backdrop-filter:blur(4px); }
 .sheet { width:min(100% - 20px,620px); max-height:calc(100dvh - 20px - env(safe-area-inset-top,0px)); margin:auto auto 0; padding:0; overflow:auto; border:1px solid var(--border); border-radius:26px 26px 0 0; background:var(--surface); box-shadow:var(--shadow); }
-.sheet[open] { animation:sheet-in .24s both; }
+/* 弹窗淡入上滑 + 淡出（项6）：@starting-style/allow-discrete，覆盖开与关；旧内核自动降级为瞬开瞬关 */
+.sheet { opacity:1; transform:translateY(0); transition:opacity .24s var(--ease),transform .26s var(--ease),overlay .26s allow-discrete,display .26s allow-discrete; }
+.sheet:not([open]) { opacity:0; transform:translateY(20px); }
+@starting-style { .sheet[open] { opacity:0; transform:translateY(20px); } }
+.sheet::backdrop { opacity:1; transition:opacity .24s var(--ease),overlay .26s allow-discrete,display .26s allow-discrete; }
+.sheet:not([open])::backdrop { opacity:0; }
+@starting-style { .sheet[open]::backdrop { opacity:0; } }
+@media (prefers-reduced-motion:reduce) { .sheet,.sheet::backdrop { transition:none; } .sheet:not([open]) { transform:none; } }
 .sheet form { margin:0; }
 .sheet-header { position:sticky; top:0; z-index:3; display:flex; justify-content:space-between; align-items:center; gap:16px; padding:20px 20px 16px; border-bottom:1px solid color-mix(in srgb,var(--border) 70%,transparent); background:color-mix(in srgb,var(--surface) 94%,transparent); backdrop-filter:blur(14px); }
 .sheet-header h2 { margin:3px 0 0; font:700 23px "Vault Serif",serif; letter-spacing:.025em; }
@@ -171,8 +178,20 @@ dialog::backdrop { background:rgb(8 5 4 / .72); backdrop-filter:blur(4px); }
 .header-actions { display:flex; align-items:center; gap:2px; }.sheet-header .icon-button svg { width:21px; height:21px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
 .detail-sheet { width:min(100% - 20px,560px); }
 .bean-profile { padding:18px 18px calc(28px + env(safe-area-inset-bottom,0px)); }
-.profile-hero { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:18px; border:1px solid color-mix(in srgb,var(--border) 78%,transparent); border-radius:20px; background:linear-gradient(145deg,var(--surface-2),var(--surface)); }
-.profile-hero h3 { margin:8px 0 0; font:700 25px "Vault Serif",serif; letter-spacing:.015em; }.profile-hero p { margin:5px 0 0; color:var(--muted); font-size:11px; }
+.profile-hero { position:relative; display:flex; align-items:center; justify-content:space-between; gap:14px; min-height:104px; padding:16px; border:1px solid color-mix(in srgb,var(--border) 78%,transparent); border-radius:20px; overflow:hidden; background:var(--surface-2); isolation:isolate; }
+.profile-hero-bg { position:absolute; inset:0; z-index:0; background-size:cover; background-position:center; }
+.profile-hero-bg.has-photo { filter:blur(22px) brightness(.6) saturate(.9); transform:scale(1.3); }
+.profile-hero::after { content:""; position:absolute; inset:0; z-index:1; background:linear-gradient(to top,rgb(24 16 11 / .9),rgb(24 16 11 / .52) 55%,rgb(24 16 11 / .34)); pointer-events:none; }
+.profile-hero > :not(.profile-hero-bg) { position:relative; z-index:2; }
+.profile-hero-lead { flex:1; min-width:0; }
+.profile-hero-thumb { flex:0 0 auto; }
+.profile-hero-thumb .bean-thumb { width:56px; height:56px; box-shadow:0 3px 10px rgb(0 0 0 / .3); }
+.profile-hero-thumb .bean-thumb[data-preview-image] { cursor:pointer; transition:transform var(--ease); }
+.profile-hero-thumb .bean-thumb[data-preview-image]:active { transform:scale(.95); }
+.profile-hero h3 { margin:7px 0 0; overflow:hidden; font:700 24px "Vault Serif",serif; letter-spacing:.015em; color:#fff8f0; text-overflow:ellipsis; white-space:nowrap; text-shadow:0 1px 3px rgb(0 0 0 / .38); }.profile-hero p { margin:4px 0 0; overflow:hidden; color:rgb(255 245 235 / .82); font-size:11px; text-overflow:ellipsis; white-space:nowrap; text-shadow:0 1px 2px rgb(0 0 0 / .32); }
+.profile-hero .profile-status { border-color:rgb(255 255 255 / .22); background:rgb(0 0 0 / .32); color:#fff5eb; text-shadow:0 1px 2px rgb(0 0 0 / .4); }
+.profile-hero .profile-drink { border-color:rgb(255 255 255 / .34); background:rgb(255 255 255 / .16); color:#fff6ec; }
+.profile-hero .profile-drink span { border-color:transparent; }
 .profile-status { display:inline-flex; padding:4px 8px; border:1px solid var(--border); border-radius:999px; color:var(--reserve); font-size:9px; }.profile-status[data-status="饮用中"] { color:var(--active); }.profile-status[data-status="已喝完"] { color:var(--faint); }
 .profile-drink { position:relative; flex:0 0 auto; display:grid; place-items:center; width:58px; height:58px; border:1px solid color-mix(in srgb,var(--accent) 48%,var(--border)); border-radius:18px; background:color-mix(in srgb,var(--accent) 10%,var(--surface-2)); color:var(--accent); }.profile-drink svg { width:28px; height:28px; fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }.profile-drink span { position:absolute; right:-3px; bottom:-3px; padding:3px 5px; border:2px solid var(--surface); border-radius:8px; background:var(--accent); color:var(--accent-ink); font-size:8px; font-weight:800; }.profile-drink:disabled { opacity:.45; }
 .profile-facts { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:12px; }.profile-fact { min-width:0; padding:12px; border:1px solid color-mix(in srgb,var(--border) 75%,transparent); border-radius:13px; background:var(--surface); }.profile-fact[data-purchase-url] { cursor:pointer; transition:border-color var(--ease),background var(--ease),transform var(--ease); }.profile-fact[data-purchase-url]:active { transform:scale(.985); border-color:var(--accent); background:color-mix(in srgb,var(--accent) 8%,var(--surface)); }.profile-fact[data-purchase-url]:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }.profile-fact[data-purchase-url] strong { color:var(--accent); }.profile-fact span,.profile-fact strong { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }.profile-fact span { color:var(--faint); font-size:9px; letter-spacing:.06em; }.profile-fact strong { margin-top:5px; font-size:13px; font-weight:600; }.profile-fact.accent strong { color:var(--accent); font-size:19px; }
