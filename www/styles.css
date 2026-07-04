@@ -44,6 +44,10 @@ body.has-floating-actions main { padding-bottom:calc(92px + env(safe-area-inset-
 .view-tabs.two-tabs { grid-template-columns:1fr 1fr; }
 .view-tabs button { min-height:40px; border:0; border-radius:12px; background:transparent; color:var(--faint); font-weight:650; }
 .view-tabs button.active { background:var(--surface-2); color:var(--accent); box-shadow:inset 0 0 0 1px var(--border); }
+/* tab 切换轻动效（项6）：视图从 hidden(display:none) 切显示时重播淡入上移；旧内核无感降级 */
+#beansView, #drinksView, #plansView { animation:view-fade .24s var(--ease) both; }
+@keyframes view-fade { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+@media (prefers-reduced-motion:reduce) { #beansView, #drinksView, #plansView { animation:none; } }
 .search-panel { padding-top:14px; }
 .search-box { display:grid; grid-template-columns:26px 1fr 40px; align-items:center; min-height:50px; padding-left:14px; border:1px solid var(--border); border-radius:16px; background:var(--surface); box-shadow:0 8px 26px rgb(0 0 0 / .08); }
 .search-box > span { color:var(--accent); font-size:20px; }
