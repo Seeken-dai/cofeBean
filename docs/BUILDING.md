@@ -71,7 +71,9 @@ node --check www/repository.js
 
 APK 可使用 Android Build Tools 的 `aapt2 dump badging`、`aapt2 dump permissions` 和 `apksigner verify --print-certs` 检查包信息、权限与签名。
 
-2.1.0 目标 `versionName=2.1.0`、`versionCode=43`，正式签名版 `dist/coffee-vault-2.1.0-release.apk`；本版改版冲煮辅助（圆环突出本段注水量、常驻下一段预览、支持手动结束记录用时、辅助按钮加大、入口移到底部），修复联网时 iOS PWA 黑屏/白屏（Service Worker 外壳改为缓存优先 + 后台再验证）与安卓启动系统栏发白（主题固定系统栏底色）。未新增 Android 权限或默认网络行为。APK 打包与真机验证在合并回 `main` 前完成。
+2.1.1 目标 `versionName=2.1.1`、`versionCode=44`，正式签名版 `dist/coffee-vault-2.1.1-release.apk`；本版新增高级评价多维雷达图（苦度反向、进入动效，详情与列表同步展示），冲煮辅助计时圆环改用 rAF 更顺滑、冲煮中点圆环进入下一段、方案两段间等待时圆环倒计时回退，并修复首次喝一杯未回填开封日期、方案水温（带 °C 文本）无法带入 number 输入的问题。未新增 Android 权限或默认网络行为。APK 打包与真机验证在合并回 `main` 前完成。
+
+2.1.0 release 已验证 `versionName=2.1.0`、`versionCode=43`，正式签名版 `dist/coffee-vault-2.1.0-release.apk`；本版改版冲煮辅助（圆环突出本段注水量、常驻下一段预览、支持手动结束记录用时、辅助按钮加大、入口移到底部），修复联网时 iOS PWA 黑屏/白屏（Service Worker 外壳改为缓存优先 + 后台再验证）与安卓启动系统栏发白（主题固定系统栏底色）。未新增 Android 权限或默认网络行为。
 
 2.0.9 release 已验证 `versionName=2.0.9`、`versionCode=42`，正式签名版 `dist/coffee-vault-2.0.9-release.apk`；本版完成 UI 视觉优化收尾，新增赏味期彩色标签、处理法角标、近 30 天饮用趋势、拍照入口轻推和 tab 切换动效，并优化新增豆子克重默认值、超期文案和未开启列表图片时的保存提示。未新增 Android 权限或默认网络行为。
 

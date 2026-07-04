@@ -194,7 +194,7 @@
     <div class="drink-profile">
       <section class="brew-hero"><div class="brew-cup" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 8h12v7a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5V8Z"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17M8 4c0 1 1 1 1 2M12 3c0 1 1 1 1 2"/></svg></div><div><h3 id="drinkDetailBean"></h3><p id="drinkDetailMeta"></p><div id="drinkDetailStars"></div></div></section>
       <section class="profile-facts" id="drinkDetailFacts"></section>
-      <section class="brew-dimensions" id="drinkDetailDimensions" hidden><div class="section-heading"><div><span>高级评价</span><small>本次风味感受</small></div></div><div id="drinkDetailDimensionList"></div></section>
+      <section class="brew-dimensions" id="drinkDetailDimensions" hidden><div class="section-heading"><div><span>高级评价</span><small>本次风味感受</small></div></div><div id="drinkDetailRadar" class="dimension-radar"></div><div id="drinkDetailDimensionList"></div></section>
       <section class="profile-notes" id="drinkDetailNotesSection" hidden><span>评价备注</span><p id="drinkDetailNotes"></p></section>
       <section class="brew-param-card" id="drinkDetailPlanSection" hidden><div class="section-heading"><div><span>冲煮参数</span><small id="drinkDetailPlanSource"></small></div><button class="manage-button" id="drinkSaveAsPlan" type="button" hidden>存为方案</button></div><div id="drinkDetailPlan"></div></section>
     </div>
@@ -533,8 +533,8 @@
 
   <dialog class="sheet compact" id="aboutDialog">
     <header class="sheet-header"><div><p class="eyebrow">ABOUT</p><h2>关于豆仓</h2></div><button class="icon-button" id="aboutClose" type="button" aria-label="关闭">×</button></header>
-    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 2.1.0</p></section>
-    <section class="about-copy"><h3>一包豆子，一段风味，一页日常。</h3><p>豆仓是一款为咖啡爱好者设计的本地优先记录工具。你可以保存每一包咖啡豆的产地、风味与价格，记录每次饮用和冲煮方案，让日常里喝过的咖啡慢慢有迹可循。</p><h4>2.1.0 最新功能</h4><ul><li>冲煮辅助大改版：圆环突出本段注水量，常驻显示下一段用时与水量，冲煮时一眼看清</li><li>冲煮完成改为手动点「结束」记录，到方案时间不再自动结束，实际用时更准</li><li>「喝一杯」的冲煮辅助入口移到底部工具栏，几个辅助按钮也加大更好点</li><li>修复联网时 iOS PWA 长时间黑屏/白屏，以及安卓启动瞬间系统栏发白的问题</li></ul><div class="privacy-note"><b>离线与隐私</b><p>豆仓默认完全离线使用，数据保存在你的设备中。云同步为可选功能，仅在登录并开启后使用。</p><p>你可以随时退出账号或删除云端副本。</p></div></section>
+    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 2.1.1</p></section>
+    <section class="about-copy"><h3>一包豆子，一段风味，一页日常。</h3><p>豆仓是一款为咖啡爱好者设计的本地优先记录工具。你可以保存每一包咖啡豆的产地、风味与价格，记录每次饮用和冲煮方案，让日常里喝过的咖啡慢慢有迹可循。</p><h4>2.1.1 最新功能</h4><ul><li>高级评价新增多维雷达图（苦度反向、带进入动效），饮用详情与列表都能一眼看出风味轮廓</li><li>冲煮辅助计时圆环更顺滑；冲煮中点圆环即进入下一段（暂停改用底部按钮）</li><li>方案两段之间留有等待时，圆环会倒计时回退，提示当前处于间奏、准备下一段</li><li>首次为某支豆记录喝一杯时，自动把当天记为开封日期；水温现在也能从方案正确带入</li></ul><div class="privacy-note"><b>离线与隐私</b><p>豆仓默认完全离线使用，数据保存在你的设备中。云同步为可选功能，仅在登录并开启后使用。</p><p>你可以随时退出账号或删除云端副本。</p></div></section>
   </dialog>
 
   <dialog class="sheet compact" id="migrationDialog">

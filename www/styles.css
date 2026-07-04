@@ -536,7 +536,20 @@ dialog::backdrop { background:rgb(8 5 4 / .72); backdrop-filter:blur(4px); }
 .drink-meta .brew-icon { flex:0 0 auto; margin-right:4px; }
 .stars { color:var(--accent); letter-spacing:.08em; }.unrated { color:var(--faint); }
 .drink-notes { margin:8px 0 0; color:var(--muted); font-size:11px; line-height:1.55; white-space:pre-wrap; }.dimension-summary { display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }.dimension-summary span { padding:3px 6px; border-radius:7px; background:var(--surface-2); color:var(--faint); font-size:8px; }
-.compact-timeline { gap:7px; }.compact-timeline .timeline-group { gap:7px; }.compact-timeline .drink-entry { padding:10px; }.compact-timeline .dimension-summary { display:none; }
+.compact-timeline { gap:7px; }.compact-timeline .timeline-group { gap:7px; }.compact-timeline .drink-entry { padding:10px; }.compact-timeline .dimension-summary,.compact-timeline .dimension-radar-wrap { display:none; }
+/* 高级评价雷达图（详情大图 + 列表小图）；苦度反向后外圈=更好。 */
+.dimension-radar { display:flex; justify-content:center; padding:8px 0 2px; }
+.dimension-radar-wrap { display:flex; margin-top:8px; }
+.rating-radar { width:min(72vw,236px); height:auto; overflow:visible; }
+.rating-radar--mini { width:78px; }
+.radar-grid,.radar-axis { fill:none; stroke:color-mix(in srgb,var(--border) 66%,transparent); stroke-width:.8; }
+.radar-shape { fill:color-mix(in srgb,var(--accent) 22%,transparent); stroke:var(--accent); stroke-width:2; stroke-linejoin:round; }
+.radar-dot { fill:var(--accent); }
+.radar-label { fill:var(--muted); font-size:11px; font-weight:700; dominant-baseline:middle; }
+.radar-label-val { fill:var(--faint); font-size:9px; }
+@keyframes radar-in { from { opacity:0; transform:scale(.55); } to { opacity:1; transform:scale(1); } }
+.radar-enter { animation:radar-in .5s cubic-bezier(.2,.7,.3,1) both; transform-origin:center; }
+@media (prefers-reduced-motion:reduce) { .radar-enter { animation:none; } }
 .assist-sheet { width:min(100%,520px); max-height:min(100dvh,860px); padding:0; overflow:hidden; background:var(--bg); }
 .assist-sheet[open] { display:flex; flex-direction:column; }
 .assist-header { flex:none; display:grid; grid-template-columns:44px 1fr 44px; gap:8px; align-items:center; min-height:calc(70px + env(safe-area-inset-top,0px)); padding:calc(10px + env(safe-area-inset-top,0px)) 14px 10px; border-bottom:1px solid color-mix(in srgb,var(--border) 72%,transparent); background:color-mix(in srgb,var(--bg) 92%,transparent); }
@@ -557,6 +570,9 @@ dialog::backdrop { background:rgb(8 5 4 / .72); backdrop-filter:blur(4px); }
 .assist-ring-clock { display:flex; align-items:baseline; justify-content:center; gap:7px; margin-top:5px; max-width:100%; }
 .assist-ring-clock b { color:var(--accent); font:700 21px "Vault Serif",serif; font-variant-numeric:tabular-nums; }
 .assist-ring-clock small { overflow:hidden; color:var(--faint); font-size:10px; text-overflow:ellipsis; white-space:nowrap; }
+/* 等待间奏：进度弧与中心数字改用次要色，与正常计时（accent）区分。 */
+.assist-ring--gap { background:conic-gradient(color-mix(in srgb,var(--muted) 55%,transparent) var(--assist-progress), color-mix(in srgb,var(--border) 72%,transparent) 0); }
+.assist-ring--gap span,.assist-ring--gap strong,.assist-ring--gap .assist-ring-clock b { color:var(--muted); }
 .assist-next { flex:none; display:flex; align-items:center; gap:10px; padding:10px 14px; border:1px solid color-mix(in srgb,var(--accent) 32%,var(--border)); border-radius:14px; background:color-mix(in srgb,var(--accent) 7%,var(--surface)); }
 .assist-next span { flex:0 0 auto; padding:3px 9px; border-radius:999px; background:color-mix(in srgb,var(--accent) 18%,transparent); color:var(--accent); font-size:10px; font-weight:800; }
 .assist-next strong { min-width:0; overflow:hidden; color:var(--text); font-size:13px; font-weight:750; text-overflow:ellipsis; white-space:nowrap; }

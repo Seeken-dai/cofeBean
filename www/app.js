@@ -353,9 +353,40 @@
     if (usable.length < 2) return '';
     return `<div class="flavor-chips">${usable.map((tag) => `<span class="flavor-chip flavor-${tag.category}">${esc(tag.label)}</span>`).join('')}</div>`;
   }
+  function radarPoint(cx, cy, r, angleDeg) {
+    const a = angleDeg * Math.PI / 180;
+    return [Math.round((cx + r * Math.cos(a)) * 10) / 10, Math.round((cy + r * Math.sin(a)) * 10) / 10];
+  }
+  // 高级评价雷达图（苦度反向：外圈=更好，越苦越靠内）。坐标轴 = 该记录已评的维度，<3 维返回空串由调用方回退。
+  function buildRatingRadar(log, options) {
+    const opts = options || {};
+    const keys = BeanCore.DIMENSION_KEYS.filter((key) => log[key]);
+    if (keys.length < 3) return '';
+    const labels = opts.labels !== false;
+    const cx = 100, cy = 100, n = keys.length, maxR = labels ? 58 : 84;
+    const angleAt = (i) => -90 + i * 360 / n;
+    const plotR = (key) => { const raw = Math.max(1, Math.min(5, Number(log[key]) || 0)); return maxR * (key === 'bitterness' ? 6 - raw : raw) / 5; };
+    const grid = [1, 2, 3, 4, 5].map((level) => {
+      const pts = keys.map((_, i) => radarPoint(cx, cy, maxR * level / 5, angleAt(i)).join(',')).join(' ');
+      return `<polygon points="${pts}" class="radar-grid"/>`;
+    }).join('');
+    const spokes = keys.map((_, i) => { const [x, y] = radarPoint(cx, cy, maxR, angleAt(i)); return `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" class="radar-axis"/>`; }).join('');
+    const shape = `<polygon points="${keys.map((key, i) => radarPoint(cx, cy, plotR(key), angleAt(i)).join(',')).join(' ')}" class="radar-shape"/>`;
+    const dots = keys.map((key, i) => { const [x, y] = radarPoint(cx, cy, plotR(key), angleAt(i)); return `<circle cx="${x}" cy="${y}" r="2.6" class="radar-dot"/>`; }).join('');
+    const labelSvg = labels ? keys.map((key, i) => {
+      const [x, y] = radarPoint(cx, cy, maxR + 15, angleAt(i));
+      const anchor = Math.abs(x - cx) < 8 ? 'middle' : x > cx ? 'start' : 'end';
+      return `<text x="${x}" y="${y}" text-anchor="${anchor}" class="radar-label">${DIMENSIONS[key]}<tspan class="radar-label-val"> ${log[key]}${key === 'bitterness' ? '☹' : '☺'}</tspan></text>`;
+    }).join('') : '';
+    const cls = `rating-radar${labels ? '' : ' rating-radar--mini'}${opts.animate ? ' radar-enter' : ''}`;
+    return `<svg class="${cls}" viewBox="0 0 200 200" role="img" aria-label="高级评价雷达图">${grid}${spokes}${shape}${dots}${labelSvg}</svg>`;
+  }
   function logTemplate(log, compact) {
-    const advanced = BeanCore.DIMENSION_KEYS.filter((key) => log[key]).map((key) => `<span>${DIMENSIONS[key]} ${key === 'bitterness' ? '☹' : '☺'}${log[key]}</span>`).join('');
-    return `<article class="drink-entry" data-log-id="${esc(log.id)}" tabindex="0" role="button"><div class="drink-dot"></div><div><div class="drink-head"><strong>${esc(log.beanName)}</strong><time>${esc(formatDateTime(log.consumedAt))}</time></div><p class="drink-meta"><span>${esc(formatWeight(log.grams))}</span><span class="method-label">${brewIcon(log.brewMethod)}${esc(log.brewMethod)}</span><span>${stars(log.overallRating)}</span></p>${log.notes ? `<p class="drink-notes">${esc(log.notes)}</p>` : ''}${!compact && advanced ? `<div class="dimension-summary">${advanced}</div>` : ''}</div></article>`;
+    const advancedKeys = BeanCore.DIMENSION_KEYS.filter((key) => log[key]);
+    const radar = !compact && advancedKeys.length >= 3 ? buildRatingRadar(log, { labels: false }) : '';
+    const tags = advancedKeys.map((key) => `<span>${DIMENSIONS[key]} ${key === 'bitterness' ? '☹' : '☺'}${log[key]}</span>`).join('');
+    const advancedBlock = radar ? `<div class="dimension-radar-wrap">${radar}</div>` : (!compact && tags ? `<div class="dimension-summary">${tags}</div>` : '');
+    return `<article class="drink-entry" data-log-id="${esc(log.id)}" tabindex="0" role="button"><div class="drink-dot"></div><div><div class="drink-head"><strong>${esc(log.beanName)}</strong><time>${esc(formatDateTime(log.consumedAt))}</time></div><p class="drink-meta"><span>${esc(formatWeight(log.grams))}</span><span class="method-label">${brewIcon(log.brewMethod)}${esc(log.brewMethod)}</span><span>${stars(log.overallRating)}</span></p>${log.notes ? `<p class="drink-notes">${esc(log.notes)}</p>` : ''}${advancedBlock}</div></article>`;
   }
   // 近 30 天饮用迷你条形图（3c）：每天一根柱，高度按杯数归一；今天高亮，空天留细基线。
   function renderDrinkTrend() {
@@ -514,7 +545,10 @@
     $('#drinkDetailNotesSection').hidden = !log.notes;
     $('#drinkDetailNotes').textContent = log.notes || '';
     const dimensions = BeanCore.DIMENSION_KEYS.filter((key) => log[key]); $('#drinkDetailDimensions').hidden = !dimensions.length;
-    $('#drinkDetailDimensionList').innerHTML = dimensions.map((key) => `<div><span>${DIMENSIONS[key]}</span><strong>${key === 'bitterness' ? '☹' : '☺'} ${log[key]} / 5</strong></div>`).join('');
+    const radar = buildRatingRadar(log, { labels: true, animate: true });
+    $('#drinkDetailRadar').innerHTML = radar;
+    // 画出雷达图时不再重复显示字段式维度列表（分值已标在雷达轴上）；不足 3 维回退到列表。
+    $('#drinkDetailDimensionList').innerHTML = radar ? '' : dimensions.map((key) => `<div><span>${DIMENSIONS[key]}</span><strong>${key === 'bitterness' ? '☹' : '☺'} ${log[key]} / 5</strong></div>`).join('');
     $('#drinkDetailEdit').hidden = !bean; setDialog(els.drinkDetail, true);
   }
 
@@ -557,7 +591,7 @@
     return total ? formatWeight(total) : '未记录';
   }
   function stopAssistTimer() {
-    if (assistTimer) clearInterval(assistTimer);
+    if (assistTimer) cancelAnimationFrame(assistTimer);
     assistTimer = null;
   }
   function showAssistComplete(elapsed) {
@@ -599,7 +633,8 @@
     const assist = state.brewAssist;
     if (!assist) return;
     const ring = $('#brewAssistRing');
-    ring.setAttribute('aria-label', assist.phase === 'ready' ? '开始冲煮辅助' : assist.paused ? '继续冲煮辅助' : '暂停冲煮辅助');
+    ring.classList.remove('assist-ring--gap');
+    ring.setAttribute('aria-label', assist.phase === 'ready' ? '开始冲煮辅助' : '进入下一段');
     $('#brewAssistMeta').textContent = [assist.beanName, assist.plan.name, '手冲'].filter(Boolean).join(' · ');
     if (assist.phase === 'ready') {
       const first = assist.steps[0];
@@ -636,6 +671,26 @@
     }
     const elapsed = assistElapsed();
     const status = BeanCore.brewAssistStatus(assist.steps, elapsed);
+    // 两段之间的等待间奏：主圆环从满到空「回退」倒计时，提示用户此刻处于等待、准备下一段。
+    if (status.phase === 'gap') {
+      const remaining = Math.max(0, status.gapEnd - elapsed);
+      const span = Math.max(1, status.gapEnd - status.gapStart);
+      ring.classList.add('assist-ring--gap');
+      $('#brewAssistPhase').textContent = '等待间奏 · 准备下一段';
+      $('#brewAssistWater').textContent = String(Math.ceil(remaining));
+      $('#brewAssistWaterCaption').textContent = '秒后进入下一段';
+      $('#brewAssistTime').textContent = assistClock(remaining);
+      $('#brewAssistStageMeta').textContent = status.next ? `下一段：${status.next.label}` : '';
+      $('#brewAssistRing').style.setProperty('--assist-progress', `${Math.max(0, Math.min(360, remaining / span * 360))}deg`);
+      setAssistNext(status.next, false);
+      if (renderAssistSteps(status.index + 1)) scrollAssistToStage(status.index + 1);
+      $('#brewAssistPause').hidden = false;
+      $('#brewAssistSkip').hidden = false;
+      $('#brewAssistPause').textContent = assist.paused ? '继续' : '暂停';
+      $('#brewAssistFinish').textContent = '结束';
+      $('#brewAssistFinish').classList.remove('assist-finish-emphasis');
+      return;
+    }
     const current = status.current;
     // 到达方案总时长后不再自动结束：继续为最后一段计时（超时），由用户手动点「结束」记录实际用时。
     const overtime = status.phase === 'done';
@@ -675,7 +730,9 @@
   }
   function startAssistTimer() {
     stopAssistTimer();
-    assistTimer = setInterval(renderAssist, 200);
+    // 用 rAF 逐帧驱动，圆环进度由墙钟计算，做到 60fps 顺滑（进度精度不依赖帧率）。
+    const loop = () => { renderAssist(); if (assistTimer) assistTimer = requestAnimationFrame(loop); };
+    assistTimer = requestAnimationFrame(loop);
   }
   async function requestWakeLock() {
     try {
@@ -737,12 +794,20 @@
     else { assist.elapsed = assistElapsed(); assist.paused = true; assist.startedAt = null; }
     renderAssist();
   }
+  // 冲煮中点圆环 = 进入下一阶段（暂停改由底部按钮）；准备阶段点圆环仍是开始。
+  function tapBrewAssistRing() {
+    const assist = state.brewAssist;
+    if (!assist || assist.completed) return;
+    if (assist.phase === 'ready') return pauseBrewAssist();
+    if (assist.phase !== 'running') return;
+    skipBrewAssistStage();
+  }
   function skipBrewAssistStage() {
     const assist = state.brewAssist;
     if (!assist || assist.completed || assist.phase !== 'running') return;
     const status = BeanCore.brewAssistStatus(assist.steps, assistElapsed());
     const next = assist.steps[status.index + 1];
-    if (!next) return showAssistComplete(assist.total);
+    if (!next) return showAssistComplete(assistElapsed());
     assist.elapsed = next.start;
     assist.startedAt = assist.paused ? null : Date.now();
     renderAssist();
@@ -1037,8 +1102,9 @@
   }
   function fillDrinkParams(source) {
     const data = source || {};
-    DRINK_PARAM_KEYS.forEach((key) => setDrinkParam(key, data[key]));
-    if ($('#drink-param-waterTemp').value) $('#drink-param-waterTemp').value = $('#drink-param-waterTemp').value.replace('°C', '');
+    // 方案里的水温存为文本（可能带 °C，如预置的 "92°C"）；喝一杯的水温是 number 输入，
+    // 必须先净化成纯数字再赋值，否则带单位的字符串会被 number 输入静默丢弃、无法带入。
+    DRINK_PARAM_KEYS.forEach((key) => setDrinkParam(key, key === 'waterTemp' ? String(data[key] == null ? '' : data[key]).replace(/[^\d.]/g, '') : data[key]));
     setRatioControls('drink', data.ratio);
     setDrinkParam('useHotWater', data.useHotWater);
     $('#drink-param-dose').value = $('#drink-grams').value || data.dose || '';
@@ -1778,7 +1844,7 @@
     $('#profileOpen').addEventListener('click', openPersonal); $('#personalClose').addEventListener('click', () => setDialog(els.personal, false)); $('#coffeeCalendarOpen').addEventListener('click', () => openCoffeeCalendar('month')); $('#personalSettingsOpen').addEventListener('click', () => { renderSettings(); setDialog(els.settings, true); }); $('#personalSyncOpen').addEventListener('click', () => { renderSyncSettings(); setDialog(els.sync, true); }); $('#dataBackupOpen').addEventListener('click', () => { syncBackupDialog(); setDialog(els.backup, true); }); $('#dataBackupClose').addEventListener('click', () => setDialog(els.backup, false));
     $('#calendarClose').addEventListener('click', () => setDialog(els.calendar, false)); $('#calendarShare').addEventListener('click', shareCalendarCard); $$('[data-calendar-view]').forEach((button) => button.addEventListener('click', () => { state.coffeeCalendarView = button.dataset.calendarView; renderCoffeeCalendar(); })); $('#calendarPrevMonth').addEventListener('click', () => shiftCoffeeMonth(-1)); $('#calendarNextMonth').addEventListener('click', () => shiftCoffeeMonth(1)); $('#calendarPrevYear').addEventListener('click', () => shiftCoffeeYear(-1)); $('#calendarNextYear').addEventListener('click', () => shiftCoffeeYear(1)); els.calendar.addEventListener('click', (event) => { if (cardPressFired) { cardPressFired = false; return; } const day = event.target.closest('[data-calendar-day]'); if (day) { state.selectedCoffeeDay = day.dataset.calendarDay; state.coffeeCalendarDate = dateFromKey(state.selectedCoffeeDay); renderCoffeeCalendar(); return; } const yearDay = event.target.closest('[data-year-day]'); if (yearDay) { state.selectedCoffeeDay = yearDay.dataset.yearDay; state.coffeeCalendarDate = dateFromKey(state.selectedCoffeeDay); renderCoffeeCalendar(); return; } const logItem = event.target.closest('[data-log-id]'); if (logItem) openDrinkDetail(state.drinkLogs.find((log) => log.id === logItem.dataset.logId)); if (event.target.closest('#calendarSeeLogs')) { setDialog(els.calendar, false); state.view = 'drinks'; state.drinkVisibleLimit = DRINK_PAGE_SIZE; render(); } });
     $('#settingsClose').addEventListener('click', () => setDialog(els.settings, false)); $$('[data-theme-value]').forEach((button) => button.addEventListener('click', () => applyTheme(button.datasetThemeValue || button.dataset.themeValue, true))); $('#settingQuickGrams').addEventListener('change', saveSettingsFromUi); $('#settingFlavorReminderDays').addEventListener('change', saveSettingsFromUi); $('#settingLowStockCups').addEventListener('change', saveSettingsFromUi); $('#settingBrewPlans').addEventListener('change', saveSettingsFromUi); $('#settingBeanPhotos').addEventListener('change', saveSettingsFromUi); $('#settingPriceUnit').addEventListener('change', () => { syncChoiceTrigger($('#settingPriceUnit')); saveSettingsFromUi(); }); $('#settingAdvanced').addEventListener('change', () => { $('#dimensionSection').hidden = !$('#settingAdvanced').checked; saveSettingsFromUi(); }); $('#dimensionSettings').addEventListener('change', saveSettingsFromUi); $('#syncClose').addEventListener('click', () => setDialog(els.sync, false)); $('#syncLoginOpen').addEventListener('click', () => openSyncAuth('login')); $('#syncAuthClose').addEventListener('click', syncAuthBack); $$('[data-sync-auth-mode]').forEach((button) => button.addEventListener('click', () => setSyncAuthMode(button.dataset.syncAuthMode))); $('#syncAuthSubmit').addEventListener('click', syncAuthSubmit); $('#syncLogout').addEventListener('click', syncLogout); $('#syncDeleteAccount').addEventListener('click', syncDeleteAccount); $('#syncEnabled').addEventListener('change', syncToggle); $('#syncNow').addEventListener('click', syncNow); $('#syncCopyRecovery').addEventListener('click', copyRecoveryCode); $('#aboutOpen').addEventListener('click', showAbout); $('#aboutClose').addEventListener('click', () => setDialog(els.about, false)); $$('[data-export-scope]').forEach((button) => button.addEventListener('click', () => exportBackup(button.dataset.exportScope))); $$('[data-import-scope]').forEach((button) => button.addEventListener('click', () => startImport(button.dataset.importScope))); $('#webImportInput').addEventListener('change', webImport); $('#migrationLater').addEventListener('click', () => setDialog(els.migration, false)); $('#migrationNow').addEventListener('click', migrateLegacy);
-    $('#brewAssistStop').addEventListener('click', cancelBrewAssist); $('#brewAssistPause').addEventListener('click', pauseBrewAssist); $('#brewAssistRing').addEventListener('click', pauseBrewAssist); $('#brewAssistRing').addEventListener('keydown', (event) => { if (['Enter', ' '].includes(event.key)) { event.preventDefault(); pauseBrewAssist(); } }); $('#brewAssistSkip').addEventListener('click', skipBrewAssistStage); $('#brewAssistFinish').addEventListener('click', finishBrewAssist);
+    $('#brewAssistStop').addEventListener('click', cancelBrewAssist); $('#brewAssistPause').addEventListener('click', pauseBrewAssist); $('#brewAssistRing').addEventListener('click', tapBrewAssistRing); $('#brewAssistRing').addEventListener('keydown', (event) => { if (['Enter', ' '].includes(event.key)) { event.preventDefault(); tapBrewAssistRing(); } }); $('#brewAssistSkip').addEventListener('click', skipBrewAssistStage); $('#brewAssistFinish').addEventListener('click', finishBrewAssist);
     $('#sharePreviewClose').addEventListener('click', closeSharePreview); $('#sharePreviewCancel').addEventListener('click', closeSharePreview); $('#sharePreviewSave').addEventListener('click', saveShareCard); $('#sharePreviewShare').addEventListener('click', confirmShareCard);
     $('#confirmCancel').addEventListener('click', () => resolveConfirm(false)); $('#confirmAccept').addEventListener('click', () => resolveConfirm(true)); els.confirm.addEventListener('close', () => resolveConfirm(false));
     $('#exitCancel').addEventListener('click', () => setDialog(els.exitConfirm, false)); $('#exitConfirm').addEventListener('click', exitApp);

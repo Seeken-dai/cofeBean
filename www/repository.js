@@ -349,7 +349,7 @@
       log = root.BeanCore.normalizeDrinkLog(markLocal(log, old, stamp), stamp);
       const bean = state.beans[beanIndex]; const delta = log.grams - (old ? old.grams : 0);
       const remaining = root.BeanCore.consumptionResult(bean.remainingWeight, bean.initialWeight, delta);
-      state.beans[beanIndex] = root.BeanCore.normalizeBean(markLocal({ ...bean, remainingWeight: remaining, status: remaining <= 0 ? '已喝完' : '饮用中' }, bean, stamp), stamp);
+      state.beans[beanIndex] = root.BeanCore.normalizeBean(markLocal({ ...bean, remainingWeight: remaining, status: remaining <= 0 ? '已喝完' : '饮用中', openedDate: root.BeanCore.resolveOpenedDate(bean, log) }, bean, stamp), stamp);
       if (oldIndex >= 0) state.drinkLogs[oldIndex] = log; else state.drinkLogs.unshift(log);
       await web().saveState(state); return log;
     }
@@ -370,7 +370,7 @@
     const updates = LOG_COLUMNS.filter((key) => key !== 'id' && key !== 'createdAt').map((key) => `${LOG_NATIVE[key] || key}=excluded.${LOG_NATIVE[key] || key}`).join(',');
     await nativeDb().executeSet({ database: DB_NAME, set: [
       { statement: `INSERT INTO drink_logs (${columns}) VALUES (${placeholders}) ON CONFLICT(id) DO UPDATE SET ${updates}`, values: logValues(log) },
-      { statement: 'UPDATE beans SET remaining_weight = ?, status = ?, updated_at = ?, revision = revision + 1, device_id = ? WHERE id = ?', values: [remaining, remaining <= 0 ? '已喝完' : '饮用中', stamp, getDeviceId(), bean.id] }
+      { statement: 'UPDATE beans SET remaining_weight = ?, status = ?, opened_date = ?, updated_at = ?, revision = revision + 1, device_id = ? WHERE id = ?', values: [remaining, remaining <= 0 ? '已喝完' : '饮用中', root.BeanCore.resolveOpenedDate(bean, log), stamp, getDeviceId(), bean.id] }
     ], transaction: true, readonly: false });
     return log;
   }

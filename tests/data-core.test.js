@@ -149,6 +149,38 @@ test('brew assist prepares pour-over steps and reports active stage', () => {
   assert.equal(core.brewAssistStatus([], 10).phase, 'empty');
 });
 
+test('brew assist reports gap phase between non-contiguous stages', () => {
+  const steps = core.prepareBrewAssistSteps([
+    { label: '闷蒸', water: 30, startTime: '0:10', endTime: '0:40' },
+    { label: '注水', water: 200, startTime: '1:00', endTime: '1:40' }
+  ]);
+  // 前置空档：0–10s
+  const lead = core.brewAssistStatus(steps, 5);
+  assert.equal(lead.phase, 'gap');
+  assert.equal(lead.index, -1);
+  assert.equal(lead.gapStart, 0);
+  assert.equal(lead.gapEnd, 10);
+  assert.equal(lead.next.label, '闷蒸');
+  // 段间空档：40–60s
+  const mid = core.brewAssistStatus(steps, 50);
+  assert.equal(mid.phase, 'gap');
+  assert.equal(mid.index, 0);
+  assert.equal(mid.current.label, '闷蒸');
+  assert.equal(mid.next.label, '注水');
+  assert.equal(mid.gapStart, 40);
+  assert.equal(mid.gapEnd, 60);
+  // 段内仍为 running
+  assert.equal(core.brewAssistStatus(steps, 20).phase, 'running');
+  assert.equal(core.brewAssistStatus(steps, 70).current.label, '注水');
+});
+
+test('resolveOpenedDate backfills only when opened date is empty', () => {
+  assert.equal(core.resolveOpenedDate({ openedDate: '' }, { consumedAt: '2026-07-04 08:30' }), '2026-07-04');
+  assert.equal(core.resolveOpenedDate({ openedDate: '2026-01-01' }, { consumedAt: '2026-07-04 08:30' }), '2026-01-01');
+  assert.equal(core.resolveOpenedDate({}, { consumedAt: '2026-07-04T08:30:00.000Z' }), '2026-07-04');
+  assert.equal(core.resolveOpenedDate({}, {}), '');
+});
+
 test('consumption applies deltas with safe bounds', () => {
   assert.equal(core.consumptionResult(100, 250, 15), 85);
   assert.equal(core.consumptionResult(85, 100, -20), 100);

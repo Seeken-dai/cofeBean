@@ -234,11 +234,23 @@
     const list = prepareBrewAssistSteps(steps);
     const total = list.length ? list[list.length - 1].end : 0;
     const seconds = Math.max(0, Math.round(Number(elapsed) || 0));
-    if (!list.length) return { phase: 'empty', index: -1, total, elapsed: seconds, current: null };
-    if (seconds >= total) return { phase: 'done', index: list.length - 1, total, elapsed: seconds, current: list[list.length - 1] };
+    if (!list.length) return { phase: 'empty', index: -1, total, elapsed: seconds, current: null, next: null };
+    if (seconds >= total) return { phase: 'done', index: list.length - 1, total, elapsed: seconds, current: list[list.length - 1], next: null };
     const index = list.findIndex((step) => seconds >= step.start && seconds < step.end);
-    const safeIndex = index >= 0 ? index : 0;
-    return { phase: 'running', index: safeIndex, total, elapsed: seconds, current: list[safeIndex] };
+    if (index >= 0) return { phase: 'running', index, total, elapsed: seconds, current: list[index], next: list[index + 1] || null };
+    // 不落在任何一段内 = 处于两段之间（或首段之前）的等待间奏（方案显式留了时间空档）。
+    const nextIndex = list.findIndex((step) => step.start > seconds);
+    const prevIndex = nextIndex - 1;
+    return { phase: 'gap', index: prevIndex, total, elapsed: seconds, current: list[prevIndex] || null, next: list[nextIndex], gapStart: prevIndex >= 0 ? list[prevIndex].end : 0, gapEnd: list[nextIndex].start };
+  }
+
+  // 首次为某支豆记录喝一杯时回填开封日期：仅在为空时用「本次饮用时间」的日期，不覆盖已有值。
+  function resolveOpenedDate(bean, log) {
+    const existing = cleanText(bean && bean.openedDate, 40);
+    if (existing) return existing;
+    const consumed = cleanText(log && log.consumedAt, 40);
+    const match = consumed.match(/^(\d{4}-\d{2}-\d{2})/);
+    return match ? match[1] : '';
   }
 
   function normalizeBean(input, now) {
@@ -591,7 +603,7 @@
       exportScope,
       exportedAt: exportedAt || new Date().toISOString(),
       app: '豆仓',
-      appVersion: '2.1.0'
+      appVersion: '2.1.1'
     };
     if (exportScope === 'all' || exportScope === 'library') {
       payload.beans = (beans || []).map((bean) => normalizeBean(bean, bean.updatedAt));
@@ -1036,5 +1048,5 @@
     return series;
   }
 
-  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, prepareBrewAssistSteps, brewAssistStatus, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, flavorTags, beanFreshness, recentDrinkSeries, beanProcessKind };
+  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, prepareBrewAssistSteps, brewAssistStatus, resolveOpenedDate, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, flavorTags, beanFreshness, recentDrinkSeries, beanProcessKind };
 });
