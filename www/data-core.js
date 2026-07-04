@@ -943,5 +943,40 @@
     return { glyph, roastKey, hash, variant: hash % 4, angle: hash % 360, shift: (hash >>> 4) % 100 };
   }
 
-  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, prepareBrewAssistSteps, brewAssistStatus, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder };
+  // 风味笔记 → 彩色风味标签（纯逻辑，可测试）。按分隔符/空白拆词，再按风味轮关键词归类配色。
+  // 顺序即优先级：更具体的类别在前，避免通用词（如「花」「果」）误抢更精确的归类。
+  const FLAVOR_LEXICON = [
+    ['ferment', ['酒', '发酵', '厌氧', '威士忌', '朗姆', '白兰地', '红酒']],
+    ['berry', ['莓', '浆果', '加仑', '覆盆']],
+    ['citrus', ['柠檬', '柑', '橘', '橙', '柚', '青柠', '佛手']],
+    ['floral', ['花', '茉莉', '玫瑰', '桂花', '薰衣草', '甘菊', '接骨木']],
+    ['tea', ['茶', '乌龙', '伯爵', '草本', '香料', '肉桂', '丁香', '豆蔻', '木质', '雪松', '烟草']],
+    ['nutty', ['坚果', '榛', '杏仁', '花生', '核桃', '腰果', '巧克力', '可可']],
+    ['caramel', ['焦糖', '红糖', '蜂蜜', '枫糖', '太妃', '奶油', '香草', '麦芽']],
+    ['fruit', ['桃', '杏', '李', '芒果', '菠萝', '凤梨', '百香果', '荔枝', '瓜', '葡萄', '苹果', '梨', '樱桃', '果']]
+  ];
+  function classifyFlavor(term) {
+    for (let i = 0; i < FLAVOR_LEXICON.length; i += 1) {
+      const words = FLAVOR_LEXICON[i][1];
+      for (let j = 0; j < words.length; j += 1) { if (term.indexOf(words[j]) >= 0) return FLAVOR_LEXICON[i][0]; }
+    }
+    return 'other';
+  }
+  function flavorTags(text) {
+    const raw = cleanText(text, 4000) || '';
+    const parts = raw.split(/[、,，;；/／\\|·。.\s]+/).map((s) => s.trim()).filter(Boolean);
+    const seen = new Set();
+    const tags = [];
+    for (let i = 0; i < parts.length && tags.length < 12; i += 1) {
+      const chars = Array.from(parts[i]);
+      const label = chars.length > 12 ? chars.slice(0, 12).join('') : parts[i];
+      const key = label.toLocaleLowerCase('zh-CN');
+      if (seen.has(key)) continue;
+      seen.add(key);
+      tags.push({ label, category: classifyFlavor(parts[i]) });
+    }
+    return tags;
+  }
+
+  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, prepareBrewAssistSteps, brewAssistStatus, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, flavorTags };
 });

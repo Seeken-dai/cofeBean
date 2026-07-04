@@ -129,6 +129,15 @@ body.has-floating-actions main { padding-bottom:calc(92px + env(safe-area-inset-
 .remaining-bar.is-low i { background:var(--danger); }
 /* 浅色主题下照片压暗略收一档，避免偏灰 */
 [data-theme="frost"] .bean-thumb img,[data-theme="blaze"] .bean-thumb img { --thumb-filter:saturate(.85) sepia(.1) brightness(.99); }
+/* 冲煮方式图标 + 标签 */
+.brew-icon { width:14px; height:14px; margin-right:3px; vertical-align:-2px; fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+.method-label { display:inline-flex; align-items:center; white-space:nowrap; }
+.plan-group h2 .brew-icon,.timeline-group.plan-group h2 .brew-icon { width:15px; height:15px; margin-right:5px; vertical-align:-3px; color:var(--accent); }
+/* 风味标签（按风味轮配色） */
+.flavor-chips { display:flex; flex-wrap:wrap; gap:6px; }
+.flavor-chip { padding:3px 9px; border-radius:999px; border:1px solid color-mix(in srgb,var(--fc) 40%,var(--border)); background:color-mix(in srgb,var(--fc) 15%,var(--surface)); color:color-mix(in srgb,var(--fc) 72%,var(--text)); font-size:11px; font-weight:600; }
+.flavor-floral { --fc:#d98cae; } .flavor-berry { --fc:#d16a7e; } .flavor-citrus { --fc:#e0952f; } .flavor-fruit { --fc:#d97b52; }
+.flavor-nutty { --fc:#a9764b; } .flavor-caramel { --fc:#c9a04e; } .flavor-ferment { --fc:#a07bc0; } .flavor-tea { --fc:#7fa06a; } .flavor-other { --fc:var(--muted); }
 
 .empty-state { padding:64px 24px; text-align:center; color:var(--faint); }
 .empty-bag { display:grid; place-items:center; width:84px; height:84px; margin:0 auto 18px; border:1px dashed var(--border); border-radius:28px; background:var(--surface); }

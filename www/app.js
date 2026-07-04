@@ -306,9 +306,32 @@
     const remaining = Number(bean.remainingWeight) || 0; const grams = Math.min(state.settings.quickGrams, remaining);
     return `<article class="bean-card" data-id="${esc(bean.id)}" data-status="${esc(bean.status)}" tabindex="0" role="button" aria-label="查看 ${esc(bean.name)}" style="animation-delay:${Math.min(index * 28, 180)}ms"><div class="status-rail"></div><div class="bean-thumb-wrap">${beanThumb(bean)}</div><div class="card-body"><div class="card-head"><div class="card-title-wrap"><h2 class="card-title">${esc(bean.name)}</h2><p class="card-subtitle">${esc(subtitle)}</p></div><div class="card-icons">${bean.favorite ? '<span class="favorite">◆</span>' : ''}<button class="quick-drink" data-drink-id="${esc(bean.id)}" type="button" aria-label="喝一杯 ${esc(formatWeight(grams))}" ${remaining <= 0 ? 'disabled' : ''}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h12v7a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5V8Z"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17M8 4c0 1 1 1 1 2M12 3c0 1 1 1 1 2"/></svg><span>${esc(formatWeight(grams))}</span></button></div></div><div class="card-bottom"><div class="tag-row"><span class="tag status">${esc(bean.status)}</span>${tags}</div><div class="compact-meta"><span>${esc(formatDate(bean.roastDate))}</span><strong>${esc(formatWeight(remaining))}</strong></div></div>${remainingBar(bean, remaining)}</div></article>`;
   }
+  // 冲煮方式线性图标（20px 级，与 quick-drink 同风格）。时间线、方案卡、方案分组头共用。
+  const BREW_ICONS = {
+    '手冲': '<path d="M6 6h12l-2.4 6H8.4L6 6Z"/><path d="M12 15v2.5"/><path d="M12 20.5v.5"/>',
+    '冷萃': '<rect x="7.5" y="7" width="9" height="13" rx="2"/><path d="M9.5 7V5h5v2"/><path d="M7.5 11h9"/>',
+    '冰滴': '<path d="M12 3c2.2 3 3.5 4.6 3.5 6.2a3.5 3.5 0 0 1-7 0C8.5 7.6 9.8 6 12 3Z"/><path d="M8 16h8M9.5 19h5"/>',
+    '意式': '<path d="M4 9h9l-1 3.2H5L4 9Z"/><path d="M13 10.2h6"/><path d="M8 13v3M10 13v3"/>',
+    '法压': '<rect x="8" y="7.5" width="8" height="12.5" rx="1.5"/><path d="M12 7.5V3.5"/><path d="M9 5.5h6"/><path d="M8 12.5h8"/>',
+    '摩卡壶': '<path d="M8 12l-1 8h10l-1-8"/><path d="M7.5 12h9l-1-4h-7l-1 4Z"/><path d="M16.5 9l2.5-1v3.2"/>',
+    '爱乐压': '<path d="M9 9h6l-.6 11H9.6L9 9Z"/><path d="M12 9V4"/><path d="M9.6 6h4.8"/>',
+    '聪明杯': '<path d="M6 7h12l-3 8.5H9L6 7Z"/><path d="M12 18.5v1"/>',
+    '虹吸': '<circle cx="12" cy="7.5" r="3.5"/><path d="M12 11v2"/><path d="M8.5 20a3.5 3.5 0 0 0 7 0c0-2-3.5-7-3.5-7S8.5 18 8.5 20Z"/>',
+    '自定义': '<path d="M12 5l1.7 4L18 10.5l-4.3 1.5L12 16l-1.7-4L6 10.5 10.3 9 12 5Z"/>'
+  };
+  function brewIcon(method) {
+    const inner = BREW_ICONS[method] || BREW_ICONS['自定义'];
+    return `<svg class="brew-icon" viewBox="0 0 24 24" aria-hidden="true">${inner}</svg>`;
+  }
+  // 风味笔记 → 彩色 chip；仅当能拆出 ≥2 个短词时才转标签，否则保留原文（避免把整句散文碎成标签）。
+  function flavorChips(text) {
+    const usable = BeanCore.flavorTags(text).filter((tag) => Array.from(tag.label).length <= 6);
+    if (usable.length < 2) return '';
+    return `<div class="flavor-chips">${usable.map((tag) => `<span class="flavor-chip flavor-${tag.category}">${esc(tag.label)}</span>`).join('')}</div>`;
+  }
   function logTemplate(log, compact) {
     const advanced = BeanCore.DIMENSION_KEYS.filter((key) => log[key]).map((key) => `<span>${DIMENSIONS[key]} ${key === 'bitterness' ? '☹' : '☺'}${log[key]}</span>`).join('');
-    return `<article class="drink-entry" data-log-id="${esc(log.id)}" tabindex="0" role="button"><div class="drink-dot"></div><div><div class="drink-head"><strong>${esc(log.beanName)}</strong><time>${esc(formatDateTime(log.consumedAt))}</time></div><p class="drink-meta">${esc(formatWeight(log.grams))} · ${esc(log.brewMethod)} · ${stars(log.overallRating)}</p>${log.notes ? `<p class="drink-notes">${esc(log.notes)}</p>` : ''}${!compact && advanced ? `<div class="dimension-summary">${advanced}</div>` : ''}</div></article>`;
+    return `<article class="drink-entry" data-log-id="${esc(log.id)}" tabindex="0" role="button"><div class="drink-dot"></div><div><div class="drink-head"><strong>${esc(log.beanName)}</strong><time>${esc(formatDateTime(log.consumedAt))}</time></div><p class="drink-meta">${esc(formatWeight(log.grams))} · <span class="method-label">${brewIcon(log.brewMethod)}${esc(log.brewMethod)}</span> · ${stars(log.overallRating)}</p>${log.notes ? `<p class="drink-notes">${esc(log.notes)}</p>` : ''}${!compact && advanced ? `<div class="dimension-summary">${advanced}</div>` : ''}</div></article>`;
   }
   function renderDrinks() {
     const stats = BeanCore.summarizeDrinkLogs(state.drinkLogs); $('#drinkCups').textContent = stats.cups; $('#drinkGrams').textContent = formatWeight(stats.grams); $('#drinkAverage').textContent = stats.averageRating ? `${stats.averageRating}★` : '—';
@@ -339,7 +362,7 @@
     if (state.view === 'plans') els.count.textContent = (q || state.planMethod !== '全部') ? `显示 ${visible.length} / 共 ${state.brewPlans.length} 个方案` : `共 ${state.brewPlans.length} 个冲煮方案`;
     const groups = new Map();
     visible.forEach((plan) => { if (!groups.has(plan.brewMethod)) groups.set(plan.brewMethod, []); groups.get(plan.brewMethod).push(plan); });
-    $('#brewPlanList').innerHTML = [...groups.entries()].map(([method, plans]) => `<section class="timeline-group plan-group"><h2>${esc(method)}</h2>${plans.map((plan) => planCardTemplate(plan)).join('')}</section>`).join('');
+    $('#brewPlanList').innerHTML = [...groups.entries()].map(([method, plans]) => `<section class="timeline-group plan-group"><h2>${brewIcon(method)}${esc(method)}</h2>${plans.map((plan) => planCardTemplate(plan)).join('')}</section>`).join('');
   }
   function renderPlanMethodFilters(methods) {
     const values = ['全部', ...methods.filter(Boolean).sort((a, b) => BREW_METHODS.indexOf(a) - BREW_METHODS.indexOf(b) || a.localeCompare(b, 'zh-CN'))];
@@ -352,7 +375,7 @@
   function planCardTemplate(plan) {
     const bound = plan.beanIds.length ? `${plan.beanIds.length} 款豆` : '未绑定豆子';
     const facts = planFactList(plan).slice(0, 3).map((item) => `<span>${esc(item.label)} ${esc(item.value)}</span>`).join('');
-    return `<article class="plan-card" data-plan-id="${esc(plan.id)}" tabindex="0" role="button" aria-label="查看 ${esc(plan.name)}"><div class="plan-card-head"><div><h3>${esc(plan.name)}</h3><p>${esc(plan.brewMethod)} · v${esc(plan.version)} · ${esc(bound)}</p></div>${plan.source === 'preset' ? '<span class="tag status">预置</span>' : ''}</div><div class="dimension-summary">${facts || '<span>等待补充参数</span>'}</div></article>`;
+    return `<article class="plan-card" data-plan-id="${esc(plan.id)}" tabindex="0" role="button" aria-label="查看 ${esc(plan.name)}"><div class="plan-card-head"><div><h3>${esc(plan.name)}</h3><p><span class="method-label">${brewIcon(plan.brewMethod)}${esc(plan.brewMethod)}</span> · v${esc(plan.version)} · ${esc(bound)}</p></div>${plan.source === 'preset' ? '<span class="tag status">预置</span>' : ''}</div><div class="dimension-summary">${facts || '<span>等待补充参数</span>'}</div></article>`;
   }
   function planFactList(plan, methodOverride) {
     const method = methodOverride || plan.brewMethod;
@@ -427,7 +450,7 @@
     $('#detailSubtitle').textContent = [bean.roaster, bean.origin].filter(Boolean).join(' · ') || '尚未记录烘焙商与产地';
     $('#detailFacts').innerHTML = detailFact('剩余克重', formatWeight(remaining), true) + detailFact(unitPriceMeta().label, formatUnitPrice(bean), true) + purchaseFact(bean) + detailFact('最佳赏味期', bestFlavorText(bean) || (bean.bestFlavorDays ? `${bean.bestFlavorDays} 天 · 等待开封日期` : '未记录')) + detailFact('初始克重', bean.initialWeight == null ? '未记录' : formatWeight(bean.initialWeight)) + detailFact('烘焙日期', bean.roastDate) + detailFact('开封日期', bean.openedDate) + detailFact('处理法', bean.process) + detailFact('烘焙度', bean.roastLevel) + detailFact('价格', formatPrice(bean.price));
     const detailImages = imageCard('咖啡袋', bean.bagImagePath) + imageCard('标签', bean.labelImagePath); $('#detailImages').hidden = !detailImages; $('#detailImages').innerHTML = detailImages ? `<div class="section-heading"><div><span>袋子与标签</span><small>本机留存图片</small></div></div>${detailImages}` : '';
-    $('#detailNotes').textContent = bean.tastingNotes || '还没有记录风味笔记。'; $('#detailNotesSection').classList.toggle('muted', !bean.tastingNotes);
+    const chips = flavorChips(bean.tastingNotes); $('#detailNotes').innerHTML = chips || esc(bean.tastingNotes || '还没有记录风味笔记。'); $('#detailNotesSection').classList.toggle('muted', !bean.tastingNotes);
     $('#detailDrink').dataset.beanId = bean.id; $('#detailDrink').disabled = remaining <= 0; $('#detailDrinkGrams').textContent = formatWeight(Math.min(state.settings.quickGrams, remaining));
     $('#detailHistorySummary').textContent = logs.length ? `${logs.length} 杯 · ${formatWeight(logs.reduce((sum, log) => sum + log.grams, 0))}` : '还没有饮用记录';
     $('#detailDrinkHistory').innerHTML = logs.length ? logs.map((log) => logTemplate(log, true)).join('') : '<p class="manager-empty">还没有喝过这款豆子。</p>';
