@@ -3,7 +3,7 @@
 ## 项目背景
 
 - 豆仓 Coffee Vault 是本地优先的个人咖啡豆管理 App，含 Android 与 Web 两端：默认完全离线、本地存储；同步线（2.0.0）提供可选的跨设备云同步（默认关闭、登录后启用）。1.x 本地优先线作为独立 `release/1.x-local-first` 分支继续维护，不联网、便于免备案分发。
-- 当前版本为 `2.0.7`，Android `versionCode 40`，正式产物路径为 `dist/coffee-vault-2.0.7-release.apk`。
+- 当前版本为 `2.0.8`，Android `versionCode 41`，正式产物路径为 `dist/coffee-vault-2.0.8-release.apk`。
 - 正式数据保存在应用私有 SQLite 数据库；Web 预览只用于开发，不代表真实设备存储行为。
 - 默认离线使用不需要账号、网络、相册或存储权限；拍照识别只应申请相机权限。同步线的 Android 版本如接入云同步，需要新增 `INTERNET` 权限并在阶段 5 真机验证。
 - 数据安全优先于功能速度：导入失败必须回滚，数据库升级必须保留旧数据。
@@ -71,6 +71,45 @@ $env:ANDROID_SDK_ROOT='C:\tmp\android-sdk'
 - `www/index.html` 关于页 `#aboutVersion` 文案与「最新功能」列表
 - `www/data-core.js` 备份的 `appVersion`
 - `AGENTS.md` 的当前版本、`versionCode` 与正式产物路径
+
+
+### 多 Agent 协作与 APK 验证流程
+
+由于个人开发过程中会同时使用多个 AI/Agent 工具协助开发，且不同工具可能存在会话上下文或限额中断，所有 Agent 均需遵循以下统一流程，避免版本、分支、APK 产物和远端状态不一致。
+
+核心原则：
+
+- 子分支负责开发、打测试包和真机验收；`main` 只承载已验收通过、可发布、可回溯的稳定代码。
+- `debug` 包用于开发验收和问题定位，`release` 包用于正式验收、留档和发布。
+- 测试验证包可以从 `release/<x.y.z>` 子分支构建；正式发布包必须在合并回 `main` 后，从 `main` 的发布 commit 构建。
+- 合并、打 tag、push 到远端属于对外状态变更，执行前必须获得用户明确确认。
+
+推荐执行顺序：
+
+1. 确认 `main` 是最新状态：`git checkout main && git pull origin main`。
+2. 从 `main` 创建版本分支：`git checkout -b release/<x.y.z>`。
+3. 在版本分支完成开发、修复、版本号同步、文档更新和必要测试。
+4. 在版本分支构建测试 APK，并安装到真机验证；如发现问题，继续留在该版本分支修复并重复验证。
+5. 真机验收通过后，将版本分支改动 `commit` 到本地；如用户确认需要远端备份，再 push 版本分支。
+6. 经用户确认后，切回 `main` 并 fast-forward 合并版本分支：`git checkout main && git merge --ff-only release/<x.y.z>`。
+7. 在 `main` 上重新构建正式 `release` APK，复制为 `dist/coffee-vault-<x.y.z>-release.apk`。
+8. 安装 `main` 构建出的正式包做最终冒烟测试，重点确认可安装、可覆盖升级、可启动、核心路径可用、版本号正确。
+9. 冒烟测试通过后，在 `main` 当前发布 commit 上打 tag：`git tag -a v<x.y.z> -m "Release <x.y.z>"`。
+10. 经用户确认后推送远端：`git push origin main release/<x.y.z> v<x.y.z>`；如不需要保留远端版本分支，可改为只推 `main` 和 tag。
+
+关于 APK 构建：
+
+- 开发阶段允许从 `release/<x.y.z>` 分支反复构建测试包，用于真机验证，不视为最终发布物。
+- 正式发布物必须来自 `main`，且应能通过 tag 回溯到唯一 commit。
+- 如果 `debug` 与 `release` 使用相同 `applicationId`，通常不能稳定共存；如需同机同时安装，应给 debug 配置独立 `applicationIdSuffix`，并确保名称可区分。
+- 包名不同会导致本地数据库、缓存、登录态和权限授权完全隔离；这有利于保护正式数据，但测试时需单独准备数据。
+
+中断恢复规则：
+
+- 如果工具限额或会话中断，新的 Agent 必须先执行只读检查：`git status`、`git branch`、`git log --oneline -5`，确认当前分支、staged/unstaged 状态、最后 commit 和是否已打 tag。
+- 发现改动已 staged 但未 commit 时，不要切换分支、merge、tag 或 push；应先向用户确认 commit 信息后再继续。
+- 不确定某一步是否已经执行时，优先检查状态，不要重复执行 tag、push、构建覆盖或删除分支。
+- 任何 Agent 接手时都要明确区分：当前是在“开发验收阶段”“合并发布阶段”还是“发布后远端同步阶段”。
 
 Git 约定：
 

@@ -35,7 +35,7 @@ const BREW_PLAN_FIELDS = [
 ];
 const SETTINGS_FIELDS = [
   'quickGrams', 'enableBrewPlans', 'advancedRatings', 'enabledDimensions',
-  'lastBrewMethod', 'priceUnit', 'theme', 'flavorReminderDays', 'lowStockCups'
+  'lastBrewMethod', 'priceUnit', 'theme', 'showBeanPhotosInList', 'flavorReminderDays', 'lowStockCups'
 ];
 
 test('contract: 各实体字段集合稳定', () => {
@@ -118,6 +118,7 @@ test('contract: settings 默认值与取值范围', () => {
   assert.equal(s.enableBrewPlans, false);
   assert.equal(s.priceUnit, 'g');
   assert.equal(s.theme, 'dark-roast');
+  assert.equal(s.showBeanPhotosInList, false);
   assert.equal(s.flavorReminderDays, 7);
   assert.equal(s.lowStockCups, 4);
   assert.deepEqual(s.enabledDimensions, ['aroma', 'acidity', 'sweetness', 'body', 'aftertaste', 'balance', 'bitterness']);
@@ -132,6 +133,7 @@ test('contract: settings 默认值与取值范围', () => {
   assert.equal(core.normalizeSettings({ priceUnit: '两' }).priceUnit, 'g');
   assert.equal(core.normalizeSettings({ theme: '彩虹' }).theme, 'dark-roast');
   assert.equal(core.normalizeSettings({ priceUnit: 'jin' }).priceUnit, 'jin');
+  assert.equal(core.normalizeSettings({ showBeanPhotosInList: '1' }).showBeanPhotosInList, true);
 
   // enabledDimensions 过滤非法维度
   assert.deepEqual(core.normalizeSettings({ enabledDimensions: ['aroma', '假维度'] }).enabledDimensions, ['aroma']);

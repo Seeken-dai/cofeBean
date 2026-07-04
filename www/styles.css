@@ -84,7 +84,8 @@ body.has-floating-actions main { padding-bottom:calc(92px + env(safe-area-inset-
 .settings-feature-hint { margin:0 0 14px; }
 
 .bean-list { display:grid; grid-template-columns:1fr; gap:8px; }
-.bean-card { position:relative; display:grid; grid-template-columns:4px auto 1fr; min-height:112px; overflow:hidden; border:1px solid color-mix(in srgb,var(--border) 78%,transparent); border-radius:16px; background:var(--surface); box-shadow:0 5px 18px rgb(0 0 0 / .08); cursor:pointer; animation:fade-up .26s both; transition:transform var(--ease),border-color var(--ease); }
+.bean-card { position:relative; display:grid; grid-template-columns:4px 1fr; min-height:112px; overflow:hidden; border:1px solid color-mix(in srgb,var(--border) 78%,transparent); border-radius:16px; background:var(--surface); box-shadow:0 5px 18px rgb(0 0 0 / .08); cursor:pointer; animation:fade-up .26s both; transition:transform var(--ease),border-color var(--ease); }
+.bean-card.has-thumb { grid-template-columns:4px auto 1fr; }
 .bean-card:active { transform:scale(.988); border-color:var(--accent); }
 .bean-thumb-wrap { display:flex; align-items:center; padding:12px 0 12px 12px; }
 .bean-thumb { position:relative; flex:0 0 auto; width:64px; height:64px; border-radius:14px; overflow:hidden; background:var(--surface-3); }
@@ -93,6 +94,8 @@ body.has-floating-actions main { padding-bottom:calc(92px + env(safe-area-inset-
 .bean-thumb::after { content:""; position:absolute; inset:0; border-radius:inherit; box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--border) 60%,transparent),inset 0 -14px 20px -12px rgb(0 0 0 / .55); pointer-events:none; }
 .bean-thumb-glyph { position:absolute; inset:0; display:grid; place-items:center; font-family:"Vault Serif",serif; font-size:30px; font-weight:700; color:var(--ph-ink,rgb(255 248 240 / .9)); text-shadow:0 1px 2px rgb(0 0 0 / .18); }
 .bean-thumb-motif { position:absolute; inset:0; width:100%; height:100%; fill:none; stroke:var(--ph-ink,rgb(255 248 240 / .9)); stroke-width:6; opacity:.16; }
+.bean-thumb-photo-badge { position:absolute; right:5px; bottom:5px; z-index:1; display:grid; place-items:center; width:19px; height:19px; border:1px solid color-mix(in srgb,var(--ph-ink) 34%,transparent); border-radius:7px; background:color-mix(in srgb,var(--surface) 78%,transparent); color:var(--ph-ink); box-shadow:0 2px 8px rgb(0 0 0 / .18); backdrop-filter:blur(8px); }
+.bean-thumb-photo-badge svg { width:12px; height:12px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
 /* 烘焙度 → 底色档位（真实咖啡棕，轻掺主题 accent 保持四主题一致的暖调） */
 .bean-thumb--light { background:linear-gradient(135deg,#dcbd8e,#c69a63); --ph-ink:rgb(74 46 25 / .82); }
 .bean-thumb--medium-light { background:linear-gradient(135deg,#c99c66,#ac7a49); --ph-ink:rgb(60 36 18 / .84); }
@@ -499,13 +502,21 @@ dialog::backdrop { background:rgb(8 5 4 / .72); backdrop-filter:blur(4px); }
 .plan-card-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
 .plan-card h3 { margin:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:700 18px "Vault Serif",serif; letter-spacing:.015em; }
 .plan-card p { margin:3px 0 0; color:var(--faint); font-size:10px; }
+.plan-card-meta { display:flex; flex-wrap:wrap; align-items:center; gap:4px 7px; }
+.plan-card-meta > span { display:inline-flex; align-items:center; min-height:16px; line-height:16px; }
+.plan-card-meta > span + span::before { content:""; width:2px; height:2px; margin-right:7px; border-radius:50%; background:currentColor; opacity:.8; }
 .plan-card .dimension-summary { margin-top:0; }
 .plan-hero .brew-cup { font-size:25px; }
 .drink-entry { position:relative; display:grid; grid-template-columns:16px 1fr; gap:9px; padding:13px 14px; border:1px solid var(--border); border-radius:15px; background:var(--surface); cursor:pointer; }
 .timeline-more { width:100%; min-height:46px; border:1px solid color-mix(in srgb,var(--accent) 40%,var(--border)); border-radius:12px; background:color-mix(in srgb,var(--accent) 8%,var(--surface)); color:var(--accent); font-weight:750; cursor:pointer; }
 .drink-dot { width:9px; height:9px; margin-top:5px; border:2px solid var(--accent); border-radius:50%; box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 11%,transparent); }
 .drink-head { display:flex; justify-content:space-between; gap:10px; }.drink-head strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:700 15px "Vault Serif",serif; }.drink-head time { flex:0 0 auto; color:var(--faint); font-size:9px; }
-.drink-meta { margin:6px 0 0; color:var(--muted); font-size:11px; }.stars { color:var(--accent); letter-spacing:.08em; }.unrated { color:var(--faint); }
+.drink-meta { display:flex; flex-wrap:wrap; align-items:center; gap:4px 7px; margin:6px 0 0; color:var(--muted); font-size:11px; }
+.drink-meta > span { display:inline-flex; align-items:center; min-height:17px; line-height:17px; }
+.drink-meta > span + span::before { content:""; width:2px; height:2px; margin-right:7px; border-radius:50%; background:currentColor; opacity:.8; }
+.drink-meta .method-label { min-height:17px; }
+.drink-meta .brew-icon { flex:0 0 auto; margin-right:4px; }
+.stars { color:var(--accent); letter-spacing:.08em; }.unrated { color:var(--faint); }
 .drink-notes { margin:8px 0 0; color:var(--muted); font-size:11px; line-height:1.55; white-space:pre-wrap; }.dimension-summary { display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }.dimension-summary span { padding:3px 6px; border-radius:7px; background:var(--surface-2); color:var(--faint); font-size:8px; }
 .compact-timeline { gap:7px; }.compact-timeline .timeline-group { gap:7px; }.compact-timeline .drink-entry { padding:10px; }.compact-timeline .dimension-summary { display:none; }
 .assist-sheet { width:min(100%,520px); max-height:min(100dvh,860px); padding:0; overflow:hidden; background:var(--bg); }
