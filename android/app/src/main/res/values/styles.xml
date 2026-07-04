@@ -13,10 +13,16 @@
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
+        <!-- 固定窗口与系统栏底色为品牌深色，避免启动时状态栏/导航栏出现白色闪烁。 -->
+        <item name="android:windowBackground">@color/brandBackground</item>
+        <item name="android:statusBarColor">@color/brandBackground</item>
+        <item name="android:navigationBarColor">@color/brandBackground</item>
     </style>
 
 
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
+        <item name="android:statusBarColor">@color/brandBackground</item>
+        <item name="android:navigationBarColor">@color/brandBackground</item>
     </style>
 </resources>

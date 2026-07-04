@@ -367,7 +367,7 @@
         <section class="advanced-ratings full" id="advancedRatingSection" hidden><div class="section-heading"><div><span>高级评价</span><small>笑脸越多越满意；苦涩感的哭脸越多越明显</small></div></div><div id="dimensionRatings"></div></section>
         <label class="field full"><span>评价备注</span><textarea id="drink-notes" name="notes" maxlength="2000" rows="4" placeholder="这杯的香气、风味变化，或下次想调整的参数…"></textarea></label>
       </div>
-      <footer class="sheet-footer"><button class="danger-button" id="deleteDrink" type="button">删除记录</button><div><button class="secondary-button" id="drinkCancel" type="button">取消</button><button class="primary-button" id="saveDrink" type="submit">保存并扣量</button></div></footer>
+      <footer class="sheet-footer"><button class="danger-button" id="deleteDrink" type="button">删除记录</button><div><button class="secondary-button" id="drinkCancel" type="button">取消</button><button class="secondary-button assist-footer-button" id="drinkStartAssist" type="button" hidden>冲煮辅助</button><button class="primary-button" id="saveDrink" type="submit">保存并扣量</button></div></footer>
     </form>
   </dialog>
 
@@ -504,11 +504,12 @@
       <div class="assist-ring" id="brewAssistRing" role="button" tabindex="0" aria-label="开始冲煮辅助" style="--assist-progress:0deg">
         <div>
           <span id="brewAssistPhase">准备</span>
-          <b id="brewAssistStageName">准备器具</b>
-          <strong id="brewAssistTime">00:00</strong>
-          <small id="brewAssistStageMeta">确认粉量、水量和器具后开始</small>
+          <strong id="brewAssistWater">准备器具</strong>
+          <small id="brewAssistWaterCaption">确认粉量、水量和器具后开始</small>
+          <div class="assist-ring-clock"><b id="brewAssistTime">00:00</b><small id="brewAssistStageMeta"></small></div>
         </div>
       </div>
+      <div class="assist-next" id="brewAssistNext"><span id="brewAssistNextLabel">下一段</span><strong id="brewAssistNextText">准备开始后自动引导</strong></div>
       <div class="assist-scroll" id="brewAssistScroll">
         <section class="assist-steps" id="brewAssistSteps" aria-label="冲煮步骤"></section>
       </div>
@@ -532,8 +533,8 @@
 
   <dialog class="sheet compact" id="aboutDialog">
     <header class="sheet-header"><div><p class="eyebrow">ABOUT</p><h2>关于豆仓</h2></div><button class="icon-button" id="aboutClose" type="button" aria-label="关闭">×</button></header>
-    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 2.0.9</p></section>
-    <section class="about-copy"><h3>一包豆子，一段风味，一页日常。</h3><p>豆仓是一款为咖啡爱好者设计的本地优先记录工具。你可以保存每一包咖啡豆的产地、风味与价格，记录每次饮用和冲煮方案，让日常里喝过的咖啡慢慢有迹可循。</p><h4>2.0.9 最新功能</h4><ul><li>豆卡新增赏味期彩色标签、处理法角标和近 30 天饮用迷你趋势，列表信息更好扫读</li><li>拍照识别入口、tab 切换和弹窗动效继续打磨，首次新增豆子时初始克重会自动带出剩余克重</li><li>赏味期超过后改用“超期”提示；已喝完豆子不再显示超期标签，未开启列表图片时保存不再提醒补拍袋图</li></ul><div class="privacy-note"><b>离线与隐私</b><p>豆仓默认完全离线使用，数据保存在你的设备中。云同步为可选功能，仅在登录并开启后使用。</p><p>你可以随时退出账号或删除云端副本。</p></div></section>
+    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 2.1.0</p></section>
+    <section class="about-copy"><h3>一包豆子，一段风味，一页日常。</h3><p>豆仓是一款为咖啡爱好者设计的本地优先记录工具。你可以保存每一包咖啡豆的产地、风味与价格，记录每次饮用和冲煮方案，让日常里喝过的咖啡慢慢有迹可循。</p><h4>2.1.0 最新功能</h4><ul><li>冲煮辅助大改版：圆环突出本段注水量，常驻显示下一段用时与水量，冲煮时一眼看清</li><li>冲煮完成改为手动点「结束」记录，到方案时间不再自动结束，实际用时更准</li><li>「喝一杯」的冲煮辅助入口移到底部工具栏，几个辅助按钮也加大更好点</li><li>修复联网时 iOS PWA 长时间黑屏/白屏，以及安卓启动瞬间系统栏发白的问题</li></ul><div class="privacy-note"><b>离线与隐私</b><p>豆仓默认完全离线使用，数据保存在你的设备中。云同步为可选功能，仅在登录并开启后使用。</p><p>你可以随时退出账号或删除云端副本。</p></div></section>
   </dialog>
 
   <dialog class="sheet compact" id="migrationDialog">

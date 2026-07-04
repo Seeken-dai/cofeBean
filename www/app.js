@@ -576,6 +576,24 @@
     $('#brewAssistPause').hidden = true;
     $('#brewAssistSkip').hidden = true;
     $('#brewAssistFinish').textContent = assist.source === 'drink' ? '回填并继续记录' : '完成';
+    $('#brewAssistFinish').classList.remove('assist-finish-emphasis');
+  }
+  // 圆环中心突出「本段注水量」；无水量时回退显示占位。
+  function setAssistWater(step) {
+    const hasWater = step && step.water;
+    $('#brewAssistWater').textContent = hasWater ? formatWeight(step.water) : (step ? '—' : '准备器具');
+    $('#brewAssistWaterCaption').textContent = hasWater ? '本段目标注水' : (step ? '本段未记录水量' : '确认粉量、水量和器具后开始');
+  }
+  function assistNextBrief(step) {
+    return `${step.label} · ${durationText(step.duration, 'minute')}${step.water ? ` · ${formatWeight(step.water)}` : ''}`;
+  }
+  // 圆环下方常驻「下一段」预览，避免临近换段时还要去列表里翻找。
+  function setAssistNext(step, overtime) {
+    const label = $('#brewAssistNextLabel');
+    const text = $('#brewAssistNextText');
+    if (overtime) { label.textContent = '手动结束'; text.textContent = '已到方案时间，点「结束」记录实际用时'; return; }
+    if (step) { label.textContent = '下一段'; text.textContent = assistNextBrief(step); }
+    else { label.textContent = '最后一段'; text.textContent = '完成后点「结束」记录用时'; }
   }
   function renderAssist() {
     const assist = state.brewAssist;
@@ -584,23 +602,27 @@
     ring.setAttribute('aria-label', assist.phase === 'ready' ? '开始冲煮辅助' : assist.paused ? '继续冲煮辅助' : '暂停冲煮辅助');
     $('#brewAssistMeta').textContent = [assist.beanName, assist.plan.name, '手冲'].filter(Boolean).join(' · ');
     if (assist.phase === 'ready') {
-      $('#brewAssistPhase').textContent = '准备就绪';
+      const first = assist.steps[0];
+      $('#brewAssistPhase').textContent = `准备就绪 · 共 ${assist.steps.length} 段`;
+      setAssistWater(first);
       $('#brewAssistTime').textContent = assistClock(0);
-      $('#brewAssistStageName').textContent = assist.steps[0] ? assist.steps[0].label : '等待开始';
-      $('#brewAssistStageMeta').textContent = assist.steps[0] ? `${assist.steps[0].time} · ${assist.steps[0].water ? `目标 ${formatWeight(assist.steps[0].water)}` : '目标水量未记录'}` : `全程 ${durationText(assist.total, 'minute')}`;
+      $('#brewAssistStageMeta').textContent = first ? `${first.time} · 点圆环开始` : `全程 ${durationText(assist.total, 'minute')}`;
       $('#brewAssistRing').style.setProperty('--assist-progress', '0deg');
+      setAssistNext(assist.steps[1], false);
       renderAssistSteps(-1);
       $('#brewAssistPause').textContent = '开始';
       $('#brewAssistSkip').hidden = true;
+      $('#brewAssistFinish').classList.remove('assist-finish-emphasis');
       return;
     }
     if (assist.phase === 'countdown') {
       const left = Math.max(0, 3 - (Date.now() - assist.countdownStartedAt) / 1000);
       $('#brewAssistPhase').textContent = '准备开始';
+      setAssistWater(assist.steps[0]);
       $('#brewAssistTime').textContent = `00:0${Math.ceil(left) || 0}`;
-      $('#brewAssistStageName').textContent = '准备器具';
-      $('#brewAssistStageMeta').textContent = '倒计时结束后自动进入第一段';
+      $('#brewAssistStageMeta').textContent = '倒计时结束进入第一段';
       $('#brewAssistRing').style.setProperty('--assist-progress', `${Math.min(360, (3 - left) / 3 * 360)}deg`);
+      setAssistNext(assist.steps[1], false);
       renderAssistSteps(-1);
       $('#brewAssistPause').hidden = true;
       $('#brewAssistSkip').hidden = true;
@@ -614,18 +636,23 @@
     }
     const elapsed = assistElapsed();
     const status = BeanCore.brewAssistStatus(assist.steps, elapsed);
-    if (status.phase === 'done') return showAssistComplete(elapsed);
     const current = status.current;
+    // 到达方案总时长后不再自动结束：继续为最后一段计时（超时），由用户手动点「结束」记录实际用时。
+    const overtime = status.phase === 'done';
+    const next = assist.steps[status.index + 1];
     const stageElapsed = Math.max(0, elapsed - current.start);
-    $('#brewAssistPhase').textContent = `当前阶段 · 第 ${status.index + 1}/${assist.steps.length} 段`;
+    $('#brewAssistPhase').textContent = overtime ? `最后一段 · ${current.label}` : `第 ${status.index + 1}/${assist.steps.length} 段 · ${current.label}`;
+    setAssistWater(current);
     $('#brewAssistTime').textContent = assistClock(stageElapsed);
-    $('#brewAssistStageName').textContent = current.label;
-    $('#brewAssistStageMeta').textContent = `${current.time} · ${current.water ? `目标 ${formatWeight(current.water)}` : '目标水量未记录'}`;
-    $('#brewAssistRing').style.setProperty('--assist-progress', `${Math.min(360, stageElapsed / current.duration * 360)}deg`);
+    $('#brewAssistStageMeta').textContent = overtime ? `已超出方案 ${durationText(Math.max(0, elapsed - assist.total), 'minute')}` : current.time;
+    $('#brewAssistRing').style.setProperty('--assist-progress', `${overtime ? 360 : Math.min(360, stageElapsed / current.duration * 360)}deg`);
+    setAssistNext(next, overtime);
     if (renderAssistSteps(status.index)) scrollAssistToStage(status.index);
     $('#brewAssistPause').hidden = false;
-    $('#brewAssistSkip').hidden = false;
+    $('#brewAssistSkip').hidden = !next;
     $('#brewAssistPause').textContent = assist.paused ? '继续' : '暂停';
+    $('#brewAssistFinish').textContent = overtime ? '结束记录' : '结束';
+    $('#brewAssistFinish').classList.toggle('assist-finish-emphasis', overtime);
   }
   function renderAssistSteps(activeIndex) {
     const assist = state.brewAssist;
@@ -674,6 +701,7 @@
     $('#brewAssistSkip').hidden = true;
     $('#brewAssistPause').textContent = '开始';
     $('#brewAssistFinish').textContent = '退出';
+    $('#brewAssistFinish').classList.remove('assist-finish-emphasis');
     if (source === 'drink') setDialog(els.drink, false);
     if (source === 'plan') setDialog(els.planDetail, false);
     renderAssist();
@@ -1062,6 +1090,7 @@
       const editor = `<div class="drink-step-head"><button type="button" data-drink-step-open="${index}"><span><b>${esc(stage)}</b><small>正在编辑</small></span></button><button type="button" data-remove-drink-step="${index}" aria-label="删除这一段">×</button></div><div class="drink-step-grid"><label><span>名称</span><input data-drink-step-label type="text" maxlength="80" value="${esc(step.label || stage)}" placeholder="${esc(stage)}"></label><label><span>水量</span><div class="input-unit"><input data-drink-step-water type="number" min="0" step="0.1" inputmode="decimal" value="${step.water == null ? '' : esc(step.water)}"><em>g</em></div></label><label><span>开始</span>${drinkStepTimeControl('start', step.startTime)}</label><label><span>结束</span>${drinkStepTimeControl('end', step.endTime)}</label><label class="full"><span>备注</span><input data-drink-step-note type="text" maxlength="200" value="${esc(step.note)}" placeholder="可选"></label></div>`;
       return `<article class="drink-step-card${active ? ' active' : ''}" data-drink-step-index="${index}" ${data}>${active ? editor : collapsed}</article>`;
     }).join('') : '<p class="manager-empty compact-empty">当前没有注水步骤，可以从方案带入或手动添加。</p>';
+    updateDrinkAssistEntry();
   }
   function readDrinkSteps() {
     return $$('.drink-step-card', $('#drinkStepList')).map((row, index) => {
@@ -1124,9 +1153,16 @@
     const hints = [currentMethod || '当前方式'];
     if (last) hints.push('当前豆子的上次使用');
     hints.push('已绑定方案优先');
-    const assistPlan = plans.find((plan) => plan.id === currentId && plan.brewMethod === '手冲' && BeanCore.prepareBrewAssistSteps(plan.steps).length);
-    const assistButton = assistPlan ? `<button class="assist-entry" data-start-brew-assist="drink" type="button"><span>开始辅助冲煮</span><strong>${esc(assistPlan.name)} · 自动分段计时</strong></button>` : '';
-    $('#drinkPlanPicker').innerHTML = `<div class="section-heading"><div><span>方案选择</span><small>${esc(hints.join(' · '))}</small></div></div><div class="drink-plan-options"><button type="button" data-drink-plan="" class="${!currentId ? 'active' : ''}"><span>不使用方案</span><small>手填本次参数</small></button>${lastManualButton}${planButtons}${plans.length || lastManual ? '' : '<p class="manager-empty compact-empty">当前冲煮方式暂无方案。</p>'}</div>${assistButton}`;
+    $('#drinkPlanPicker').innerHTML = `<div class="section-heading"><div><span>方案选择</span><small>${esc(hints.join(' · '))}</small></div></div><div class="drink-plan-options"><button type="button" data-drink-plan="" class="${!currentId ? 'active' : ''}"><span>不使用方案</span><small>手填本次参数</small></button>${lastManualButton}${planButtons}${plans.length || lastManual ? '' : '<p class="manager-empty compact-empty">当前冲煮方式暂无方案。</p>'}</div>`;
+    updateDrinkAssistEntry();
+  }
+  // 冲煮辅助入口移动到底部工具栏：手冲方式且本次有可计时的分段步骤时显示。
+  function updateDrinkAssistEntry() {
+    const button = $('#drinkStartAssist');
+    if (!button) return;
+    const available = brewPlansEnabled() && !$('#saveDrink').hidden && currentDrinkMethod() === '手冲'
+      && BeanCore.prepareBrewAssistSteps(readDrinkSteps()).length > 0;
+    button.hidden = !available;
   }
   function applyLastBrew(log, bean) {
     if (!log) return;
@@ -1736,7 +1772,7 @@
     $$('[data-view]').forEach((button) => button.addEventListener('click', () => { state.view = button.dataset.view; if (state.view === 'drinks') state.drinkVisibleLimit = DRINK_PAGE_SIZE; render(); }));
     $('#planDetailClose').addEventListener('click', () => setDialog(els.planDetail, false)); $('#planShare').addEventListener('click', sharePlanCard); $('#planShareCopyCode').addEventListener('click', copyCurrentPlanShareCode); $('#planAssistStart').addEventListener('click', openPlanBrewAssist);
     $('#planDetailEdit').addEventListener('click', () => { const plan = state.brewPlans.find((item) => item.id === state.viewingPlanId); setDialog(els.planDetail, false); openPlanEditor(plan); }); $('#planDuplicate').addEventListener('click', duplicateCurrentPlan); $('#planEditorDelete').addEventListener('click', deleteCurrentPlan); $('#planEditorClose').addEventListener('click', () => setDialog(els.planEditor, false)); $('#planEditorCancel').addEventListener('click', () => setDialog(els.planEditor, false)); els.planForm.addEventListener('submit', savePlan); $('#plan-method').addEventListener('change', () => { syncPlanMethodFields(); syncPlanTotalWater(); fillTemplateOptions($('#plan-method').value); syncChoiceTrigger($('#plan-method')); }); $('#plan-dose').addEventListener('input', syncPlanTotalWater); $('#plan-totalWater').addEventListener('input', syncPlanRatioFromWater); ['plan-ratio-left', 'plan-ratio-right'].forEach((id) => $(`#${id}`).addEventListener('input', () => { syncRatioValue('plan'); syncPlanTotalWater(); })); $$('.duration-field', els.planForm).forEach((field) => field.addEventListener('input', () => syncDurationField(field))); $('#addPourStep').addEventListener('click', addPourStepFromLast); $('#pourStepList').addEventListener('click', (event) => { const remove = event.target.closest('[data-remove-pour-step]'); if (!remove) return; const rows = readPourSteps(); rows.splice(Number(remove.dataset.removePourStep), 1); renderPourSteps(rows); }); $('#plan-template').addEventListener('change', applySelectedTemplate);
-    $('#drinkClose').addEventListener('click', () => setDialog(els.drink, false)); $('#drinkCancel').addEventListener('click', () => setDialog(els.drink, false)); $('#deleteDrink').addEventListener('click', removeDrink); els.drinkForm.addEventListener('submit', saveDrink); els.drinkForm.addEventListener('click', (event) => { if (event.target.closest('[data-drink-feature-dismiss]')) { writeLocalFlag('coffee-vault-hint-drink-features'); return renderDrinkFeatureHint(state.editingDrinkId ? state.drinkLogs.find((item) => item.id === state.editingDrinkId) : null); } const assistButton = event.target.closest('[data-start-brew-assist]'); if (assistButton) return openDrinkBrewAssist(); const lastButton = event.target.closest('[data-use-last-brew]'); if (lastButton) { const bean = state.beans.find((item) => item.id === $('#drink-beanId').value); return applyLastBrew(state.drinkLogs.find((log) => log.id === lastButton.dataset.useLastBrew), bean); } const planButton = event.target.closest('[data-drink-plan]'); if (planButton) { const bean = state.beans.find((item) => item.id === $('#drink-beanId').value); return chooseDrinkPlan(planButton.dataset.drinkPlan, bean); } const openStep = event.target.closest('[data-drink-step-open]'); if (openStep) { state.activeDrinkStepIndex = Number(openStep.dataset.drinkStepOpen); return renderDrinkSteps(readDrinkSteps()); } const removeStep = event.target.closest('[data-remove-drink-step]'); if (removeStep) { const rows = readDrinkSteps(); rows.splice(Number(removeStep.dataset.removeDrinkStep), 1); state.activeDrinkStepIndex = Math.max(0, Math.min(state.activeDrinkStepIndex, rows.length - 1)); return renderDrinkSteps(rows); } const button = event.target.closest('[data-rate]'); if (!button) return; const row = button.parentElement; const clicked = Number(button.dataset.rate); const next = Number(row.dataset.value) === clicked ? null : clicked; renderRating(row, row.dataset.ratingName, next, row.dataset.ratingName === 'bitterness'); }); $('#addDrinkStep').addEventListener('click', addDrinkStep); $('#drink-grams').addEventListener('input', () => { $('#drink-param-dose').value = $('#drink-grams').value; syncDrinkTotalWater(); }); $('#drink-param-dose').addEventListener('input', syncDrinkTotalWater); $('#drink-param-totalWater').addEventListener('input', syncDrinkRatioFromWater); ['drink-ratio-left', 'drink-ratio-right'].forEach((id) => $(`#${id}`).addEventListener('input', () => { syncRatioValue('drink'); syncDrinkTotalWater(); })); $$('.duration-field', els.drinkForm).forEach((field) => field.addEventListener('input', () => syncDurationField(field))); $('#drink-method').addEventListener('change', () => { const custom = $('#drink-method-custom'); custom.hidden = $('#drink-method').value !== '__custom__'; if (!custom.hidden) custom.focus(); syncChoiceTrigger($('#drink-method')); $('#drink-plan-id').value = ''; syncDrinkParamFields(); syncDrinkTotalWater(); const bean = state.beans.find((item) => item.id === $('#drink-beanId').value); if (bean) renderDrinkPlanPicker(bean, null); });
+    $('#drinkClose').addEventListener('click', () => setDialog(els.drink, false)); $('#drinkCancel').addEventListener('click', () => setDialog(els.drink, false)); $('#drinkStartAssist').addEventListener('click', openDrinkBrewAssist); $('#deleteDrink').addEventListener('click', removeDrink); els.drinkForm.addEventListener('submit', saveDrink); els.drinkForm.addEventListener('click', (event) => { if (event.target.closest('[data-drink-feature-dismiss]')) { writeLocalFlag('coffee-vault-hint-drink-features'); return renderDrinkFeatureHint(state.editingDrinkId ? state.drinkLogs.find((item) => item.id === state.editingDrinkId) : null); } const assistButton = event.target.closest('[data-start-brew-assist]'); if (assistButton) return openDrinkBrewAssist(); const lastButton = event.target.closest('[data-use-last-brew]'); if (lastButton) { const bean = state.beans.find((item) => item.id === $('#drink-beanId').value); return applyLastBrew(state.drinkLogs.find((log) => log.id === lastButton.dataset.useLastBrew), bean); } const planButton = event.target.closest('[data-drink-plan]'); if (planButton) { const bean = state.beans.find((item) => item.id === $('#drink-beanId').value); return chooseDrinkPlan(planButton.dataset.drinkPlan, bean); } const openStep = event.target.closest('[data-drink-step-open]'); if (openStep) { state.activeDrinkStepIndex = Number(openStep.dataset.drinkStepOpen); return renderDrinkSteps(readDrinkSteps()); } const removeStep = event.target.closest('[data-remove-drink-step]'); if (removeStep) { const rows = readDrinkSteps(); rows.splice(Number(removeStep.dataset.removeDrinkStep), 1); state.activeDrinkStepIndex = Math.max(0, Math.min(state.activeDrinkStepIndex, rows.length - 1)); return renderDrinkSteps(rows); } const button = event.target.closest('[data-rate]'); if (!button) return; const row = button.parentElement; const clicked = Number(button.dataset.rate); const next = Number(row.dataset.value) === clicked ? null : clicked; renderRating(row, row.dataset.ratingName, next, row.dataset.ratingName === 'bitterness'); }); $('#addDrinkStep').addEventListener('click', addDrinkStep); $('#drink-grams').addEventListener('input', () => { $('#drink-param-dose').value = $('#drink-grams').value; syncDrinkTotalWater(); }); $('#drink-param-dose').addEventListener('input', syncDrinkTotalWater); $('#drink-param-totalWater').addEventListener('input', syncDrinkRatioFromWater); ['drink-ratio-left', 'drink-ratio-right'].forEach((id) => $(`#${id}`).addEventListener('input', () => { syncRatioValue('drink'); syncDrinkTotalWater(); })); $$('.duration-field', els.drinkForm).forEach((field) => field.addEventListener('input', () => syncDurationField(field))); $('#drink-method').addEventListener('change', () => { const custom = $('#drink-method-custom'); custom.hidden = $('#drink-method').value !== '__custom__'; if (!custom.hidden) custom.focus(); syncChoiceTrigger($('#drink-method')); $('#drink-plan-id').value = ''; syncDrinkParamFields(); syncDrinkTotalWater(); const bean = state.beans.find((item) => item.id === $('#drink-beanId').value); if (bean) renderDrinkPlanPicker(bean, null); });
     $('#statusFilters').addEventListener('click', (event) => { const chip = event.target.closest('.chip'); if (!chip) return; $$('.chip', $('#statusFilters')).forEach((node) => node.classList.remove('active')); chip.classList.add('active'); state.status = chip.dataset.value; renderBeans(); }); $('#planMethodFilters').addEventListener('click', (event) => { const chip = event.target.closest('.chip'); if (!chip) return; state.planMethod = chip.dataset.value; renderBrewPlans(); }); $$('.sort-button').forEach((button) => button.addEventListener('click', () => { $$('.sort-button').forEach((node) => node.classList.remove('active')); button.classList.add('active'); state.sort = button.dataset.sort; renderBeans(); })); $('#sortDirection').addEventListener('click', () => { state.direction = state.direction === 'desc' ? 'asc' : 'desc'; $('#sortDirection').textContent = state.direction === 'desc' ? '↓' : '↑'; renderBeans(); }); $('#searchToggle').addEventListener('click', () => { els.searchPanel.hidden = !els.searchPanel.hidden; if (!els.searchPanel.hidden) els.search.focus(); }); els.search.addEventListener('input', () => { state.query = els.search.value; state.drinkVisibleLimit = DRINK_PAGE_SIZE; render(); }); $('#searchClear').addEventListener('click', () => { els.search.value = ''; state.query = ''; state.drinkVisibleLimit = DRINK_PAGE_SIZE; render(); });
     setupSmartSelects(); setupPlanSmartSelects(); syncAllChoiceTriggers(); $$('.picker-control').forEach((input) => input.addEventListener('click', () => openDatePicker(input))); $('#choiceList').addEventListener('click', chooseOption); $('#choiceClose').addEventListener('click', () => setDialog(els.choice, false)); $('#datePickerClose').addEventListener('click', () => setDialog(els.datePicker, false)); $('#datePickerCancel').addEventListener('click', () => setDialog(els.datePicker, false)); $('#datePickerConfirm').addEventListener('click', confirmDatePicker); $('#datePickerClear').addEventListener('click', clearDatePicker); $('#calendarPrev').addEventListener('click', () => shiftCalendar(-1)); $('#calendarNext').addEventListener('click', () => shiftCalendar(1)); $('#calendarDays').addEventListener('click', chooseCalendarDay); $$('[data-manage]').forEach((button) => button.addEventListener('click', () => openManager(button.dataset.manage))); $('#managerClose').addEventListener('click', () => setDialog(els.manager, false)); $('#managerList').addEventListener('click', managerAction);
     $('#profileOpen').addEventListener('click', openPersonal); $('#personalClose').addEventListener('click', () => setDialog(els.personal, false)); $('#coffeeCalendarOpen').addEventListener('click', () => openCoffeeCalendar('month')); $('#personalSettingsOpen').addEventListener('click', () => { renderSettings(); setDialog(els.settings, true); }); $('#personalSyncOpen').addEventListener('click', () => { renderSyncSettings(); setDialog(els.sync, true); }); $('#dataBackupOpen').addEventListener('click', () => { syncBackupDialog(); setDialog(els.backup, true); }); $('#dataBackupClose').addEventListener('click', () => setDialog(els.backup, false));

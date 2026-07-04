@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 品牌启动/系统栏底色，与 capacitor.config.json 的 backgroundColor 保持一致。 -->
+    <color name="brandBackground">#1a1412</color>
+</resources>
