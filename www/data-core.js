@@ -591,7 +591,7 @@
       exportScope,
       exportedAt: exportedAt || new Date().toISOString(),
       app: '豆仓',
-      appVersion: '2.0.8'
+      appVersion: '2.0.9'
     };
     if (exportScope === 'all' || exportScope === 'library') {
       payload.beans = (beans || []).map((bean) => normalizeBean(bean, bean.updatedAt));
@@ -1001,7 +1001,7 @@
   function beanFreshness(bean, today) {
     const daysLeft = bestFlavorDaysLeft(bean, today);
     if (daysLeft == null) return null;
-    if (daysLeft < 0) return { daysLeft, level: 'expired', label: '已过期' };
+    if (daysLeft < 0) return { daysLeft, level: 'expired', label: '超期' };
     if (daysLeft === 0) return { daysLeft, level: 'soon', label: '今天' };
     if (daysLeft <= 3) return { daysLeft, level: 'soon', label: `${daysLeft}天` };
     if (daysLeft <= 14) return { daysLeft, level: 'good', label: `${daysLeft}天` };

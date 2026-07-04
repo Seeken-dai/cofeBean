@@ -264,7 +264,7 @@
   function bestFlavorText(bean) {
     const days = BeanCore.bestFlavorDaysLeft(bean);
     if (days == null) return '';
-    if (days < 0) return `赏味期已过 ${Math.abs(days)} 天`;
+    if (days < 0) return `超过赏味期 ${Math.abs(days)} 天`;
     if (days === 0) return '今天到达赏味期';
     return `赏味期 ${days} 天`;
   }
@@ -272,7 +272,8 @@
   function freshPill(bean) {
     const fresh = BeanCore.beanFreshness(bean);
     if (!fresh) return '';
-    const title = fresh.daysLeft < 0 ? `赏味期已过 ${Math.abs(fresh.daysLeft)} 天` : fresh.daysLeft === 0 ? '今天到达赏味期' : `赏味期还有 ${fresh.daysLeft} 天`;
+    if (bean.status === '已喝完' && fresh.daysLeft < 0) return '';
+    const title = fresh.daysLeft < 0 ? `超过赏味期 ${Math.abs(fresh.daysLeft)} 天` : fresh.daysLeft === 0 ? '今天到达赏味期' : `赏味期还有 ${fresh.daysLeft} 天`;
     return `<span class="fresh-pill fresh-${fresh.level}" title="${esc(title)}"><i></i>${esc(fresh.label)}</span>`;
   }
   function renderBeanReminders() {
@@ -758,9 +759,12 @@
 
   async function openEditor(bean, scanResult) {
     state.editingId = bean ? bean.id : null; if (!scanResult) clearPendingImages(true); $('#editorTitle').textContent = bean ? '编辑咖啡豆' : '新增咖啡豆'; $('#deleteBean').hidden = !bean; els.form.reset(); $$('.field', els.form).forEach((field) => field.classList.remove('needs-review')); els.scanResult.hidden = true; els.scanResult.innerHTML = ''; SMART_FIELDS.forEach((field) => { $(`#field-${field}`).value = ''; });
-    if (bean) fillForm(bean); else if (scanResult) fillForm(scanResult.fields); else { $('#field-status').value = '未开封'; renderImageVault(); } await initSmartSelects(); syncAllChoiceTriggers(); if (scanResult) showScanResult(scanResult); setDialog(els.editor, true); setTimeout(() => $('#field-name').focus(), 120);
+    $('#field-remainingWeight').dataset.userEdited = bean ? '1' : '';
+    if (bean) fillForm(bean); else if (scanResult) { fillForm(scanResult.fields); $('#field-remainingWeight').dataset.userEdited = $('#field-remainingWeight').value ? '1' : ''; syncInitialWeightToRemaining(); } else { $('#field-status').value = '未开封'; renderImageVault(); } await initSmartSelects(); syncAllChoiceTriggers(); if (scanResult) showScanResult(scanResult); setDialog(els.editor, true); setTimeout(() => $('#field-name').focus(), 120);
   }
   function fillForm(bean) { Object.entries(bean).forEach(([key, value]) => { const control = els.form.elements[key]; if (!control) return; if (control.type === 'checkbox') control.checked = Boolean(value); else control.value = value == null ? '' : value; }); SMART_FIELDS.forEach((field) => { $(`#field-${field}`).value = bean[field] || ''; }); renderImageVault(bean); }
+  function syncInitialWeightToRemaining() { const remaining = $('#field-remainingWeight'); if (state.editingId || remaining.dataset.userEdited || remaining.value) return; remaining.value = $('#field-initialWeight').value; }
+  function markRemainingWeightEdited() { if (!state.editingId) $('#field-remainingWeight').dataset.userEdited = '1'; }
   function showScanResult(result) { const count = result.recognizedFields.length; const low = result.lowConfidenceFields.map((field) => FIELD_LABELS[field] || field); els.scanResult.innerHTML = `<strong>${count ? `已离线识别 ${count} 个字段` : '没有识别出可靠字段'}</strong>${count ? '请核对后再保存。' : '可以重新拍摄，或继续手动填写。'}${low.length ? ` 黄色字段需要重点确认：${esc(low.join('、'))}` : ''}`; els.scanResult.hidden = false; result.lowConfidenceFields.forEach((field) => { const control = els.form.elements[field]; if (control && control.closest('.field')) control.closest('.field').classList.add('needs-review'); }); }
   async function askPhotoSource(options) { return new Promise((resolve) => { $('#photoSourceEyebrow').textContent = (options && options.eyebrow) || 'PHOTO'; $('#photoSourceTitle').textContent = (options && options.title) || '选择图片来源'; $('#photoSourceIntro').textContent = (options && options.intro) || '选择拍摄新照片，或从系统图片选择器读取已有照片。'; const finish = (source) => { cleanup(); setDialog(els.photoSource, false); resolve(source); }; const choose = (event) => { const button = event.target.closest('[data-photo-source]'); if (button) finish(button.dataset.photoSource); }; const skip = () => finish(null); const cleanup = () => { $('#photoSourceClose').removeEventListener('click', skip); els.photoSource.removeEventListener('close', skip); els.photoSource.removeEventListener('click', choose); }; $('#photoSourceClose').addEventListener('click', skip); els.photoSource.addEventListener('click', choose); els.photoSource.addEventListener('close', skip); setDialog(els.photoSource, true); }); }
   async function pickCoffeePhoto(options) { const camera = capPlugin('Camera'); if (!BeanRepository.isNative() || !camera) throw new Error('图片功能仅在 Android App 中可用'); const source = await askPhotoSource(options); if (!source) return null; return camera.getPhoto({ quality: 92, width: 2200, correctOrientation: true, allowEditing: false, resultType: 'uri', source: source === 'camera' ? 'CAMERA' : 'PHOTOS', saveToGallery: false }); }
@@ -821,7 +825,7 @@
       toast('无法打开购买链接');
     }
   }
-  async function saveForm(event) { event.preventDefault(); const fd = new FormData(els.form); const old = state.editingId ? state.beans.find((bean) => bean.id === state.editingId) : null; const stamp = new Date().toISOString(); if (!String(fd.get('name') || '').trim()) return toast('请先填写豆名'); try { const fields = await archivePendingImages(Object.fromEntries(fd.entries())); const payload = BeanCore.normalizeBean({ ...(old || {}), ...fields, id: state.editingId || undefined, favorite: $('#field-favorite').checked, createdAt: old ? old.createdAt : stamp, updatedAt: stamp }, stamp); await BeanRepository.save(payload); setDialog(els.editor, false); state.editingId = null; await reload(); let savedMsg = old ? '记录已更新' : '咖啡豆已入仓'; const nudgeKey = `coffee-vault-photo-nudge:${payload.id}`; if (!payload.bagImagePath && !readLocalFlag(nudgeKey)) { savedMsg += ' · 拍张袋子照，列表更好认'; writeLocalFlag(nudgeKey); } toast(savedMsg); } catch (error) { console.error(error); toast('保存失败，请稍后重试'); } }
+  async function saveForm(event) { event.preventDefault(); const fd = new FormData(els.form); const old = state.editingId ? state.beans.find((bean) => bean.id === state.editingId) : null; const stamp = new Date().toISOString(); if (!String(fd.get('name') || '').trim()) return toast('请先填写豆名'); try { const fields = await archivePendingImages(Object.fromEntries(fd.entries())); const payload = BeanCore.normalizeBean({ ...(old || {}), ...fields, id: state.editingId || undefined, favorite: $('#field-favorite').checked, createdAt: old ? old.createdAt : stamp, updatedAt: stamp }, stamp); await BeanRepository.save(payload); setDialog(els.editor, false); state.editingId = null; await reload(); let savedMsg = old ? '记录已更新' : '咖啡豆已入仓'; const nudgeKey = `coffee-vault-photo-nudge:${payload.id}`; if (state.settings.showBeanPhotosInList && !payload.bagImagePath && !readLocalFlag(nudgeKey)) { savedMsg += ' · 拍张袋子照，列表更好认'; writeLocalFlag(nudgeKey); } toast(savedMsg); } catch (error) { console.error(error); toast('保存失败，请稍后重试'); } }
   async function removeCurrent() {
     if (!state.editingId) return;
     const bean = state.beans.find((item) => item.id === state.editingId);
@@ -1701,7 +1705,7 @@
   }
   function bindEvents() {
     ['addBean', 'scanBean', 'planImportFab'].forEach((id) => $(`#${id}`).addEventListener('click', floatingActionClickGuard, true));
-    $('#addBean').addEventListener('click', () => { expandFloatingActions(); return state.view === 'plans' ? openPlanEditor(null) : openEditor(null); }); $('#scanBean').addEventListener('click', () => { expandFloatingActions(); scanCoffeeLabel(); }); $('#editorClose').addEventListener('click', () => { clearPendingImages(true); setDialog(els.editor, false); }); $('#editorCancel').addEventListener('click', () => { clearPendingImages(true); setDialog(els.editor, false); }); $('#deleteBean').addEventListener('click', removeCurrent); els.form.addEventListener('submit', saveForm); $('#editorImageVault').addEventListener('click', (event) => { const remove = event.target.closest('[data-remove-image-role]'); if (remove) return removeBeanImage(remove.dataset.removeImageRole); const button = event.target.closest('[data-add-image-role]'); if (button) return addBeanImage(button.dataset.addImageRole); const card = event.target.closest('[data-preview-image]'); if (card) openImagePreview(card.dataset.previewImage, card.dataset.previewLabel); });
+    $('#addBean').addEventListener('click', () => { expandFloatingActions(); return state.view === 'plans' ? openPlanEditor(null) : openEditor(null); }); $('#scanBean').addEventListener('click', () => { expandFloatingActions(); scanCoffeeLabel(); }); $('#editorClose').addEventListener('click', () => { clearPendingImages(true); setDialog(els.editor, false); }); $('#editorCancel').addEventListener('click', () => { clearPendingImages(true); setDialog(els.editor, false); }); $('#deleteBean').addEventListener('click', removeCurrent); els.form.addEventListener('submit', saveForm); $('#field-initialWeight').addEventListener('input', syncInitialWeightToRemaining); $('#field-remainingWeight').addEventListener('input', markRemainingWeightEdited); $('#editorImageVault').addEventListener('click', (event) => { const remove = event.target.closest('[data-remove-image-role]'); if (remove) return removeBeanImage(remove.dataset.removeImageRole); const button = event.target.closest('[data-add-image-role]'); if (button) return addBeanImage(button.dataset.addImageRole); const card = event.target.closest('[data-preview-image]'); if (card) openImagePreview(card.dataset.previewImage, card.dataset.previewLabel); });
     els.empty.addEventListener('click', (event) => {
       const button = event.target.closest('[data-empty-action]');
       if (!button) return;

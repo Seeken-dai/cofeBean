@@ -23,10 +23,10 @@ test('beanFreshness 按剩余天数分档', () => {
   assert.equal(core.beanFreshness(bean('2026-06-20', 16), TODAY).level, 'soon');
   // 今天到期 → soon / 今天
   assert.deepEqual(core.beanFreshness(bean('2026-06-04', 30), TODAY), { daysLeft: 0, level: 'soon', label: '今天' });
-  // 已过期 → expired
+  // 超过赏味期 → expired 档位，但文案不说「过期」
   const past = core.beanFreshness(bean('2026-05-01', 30), TODAY);
   assert.equal(past.level, 'expired');
-  assert.equal(past.label, '已过期');
+  assert.equal(past.label, '超期');
   assert.ok(past.daysLeft < 0);
 });
 

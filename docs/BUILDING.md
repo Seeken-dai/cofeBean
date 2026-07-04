@@ -71,6 +71,8 @@ node --check www/repository.js
 
 APK 可使用 Android Build Tools 的 `aapt2 dump badging`、`aapt2 dump permissions` 和 `apksigner verify --print-certs` 检查包信息、权限与签名。
 
+2.0.9 release 已验证 `versionName=2.0.9`、`versionCode=42`，正式签名版 `dist/coffee-vault-2.0.9-release.apk`；本版完成 UI 视觉优化收尾，新增赏味期彩色标签、处理法角标、近 30 天饮用趋势、拍照入口轻推和 tab 切换动效，并优化新增豆子克重默认值、超期文案和未开启列表图片时的保存提示。未新增 Android 权限或默认网络行为。
+
 2.0.8 release 已验证 `versionName=2.0.8`、`versionCode=41`，已生成正式签名版 `dist/coffee-vault-2.0.8-release.apk`；本版完成列表/详情/冲煮方案/咖啡日历的一轮 UI 优化，新增列表咖啡袋封面开关、余量进度条、冲煮方式图标、风味标签和详情页袋图去重，并修复饮用记录/方案卡片 meta 行对齐。未新增 Android 权限或默认网络行为。
 
 2.0.5 release 已验证 `versionName=2.0.5`、`versionCode=38`，已生成正式签名版 `dist/coffee-vault-2.0.5-release.apk`；本版新增空豆仓首屏引导、“喝一杯”发现提示、进阶功能轻提示，并让豆仓/冲煮方案右下浮动按钮空闲后自动收起以减少遮挡。未新增 Android 权限或网络能力。
