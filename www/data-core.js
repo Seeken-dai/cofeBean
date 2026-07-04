@@ -980,5 +980,44 @@
     return tags;
   }
 
-  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, prepareBrewAssistSteps, brewAssistStatus, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, flavorTags };
+  // 赏味期新鲜度 → 档位 + 紧凑标签（纯逻辑，可测试）。快到期自然从绿→琥珀→橙→过期。
+  function beanFreshness(bean, today) {
+    const daysLeft = bestFlavorDaysLeft(bean, today);
+    if (daysLeft == null) return null;
+    if (daysLeft < 0) return { daysLeft, level: 'expired', label: '已过期' };
+    if (daysLeft === 0) return { daysLeft, level: 'soon', label: '今天' };
+    if (daysLeft <= 3) return { daysLeft, level: 'soon', label: `${daysLeft}天` };
+    if (daysLeft <= 14) return { daysLeft, level: 'good', label: `${daysLeft}天` };
+    return { daysLeft, level: 'fresh', label: `${daysLeft}天` };
+  }
+
+  // 饮用记录近 N 天日序列（纯逻辑）：每天杯数/克数/均分，用于迷你图。today 可注入便于测试。
+  function recentDrinkSeries(logs, days, today) {
+    const span = Math.max(1, Math.round(Number(days) || 30));
+    const base = today ? new Date(today) : new Date();
+    const end = new Date(base.getFullYear(), base.getMonth(), base.getDate());
+    const buckets = new Map();
+    (logs || []).forEach((log) => {
+      if (!log || log.deletedAt || !log.consumedAt) return;
+      const when = new Date(log.consumedAt);
+      if (Number.isNaN(when.getTime())) return;
+      const key = dateKey(when);
+      const bucket = buckets.get(key) || { cups: 0, grams: 0, ratingSum: 0, rated: 0 };
+      bucket.cups += 1;
+      bucket.grams += Number(log.grams) || 0;
+      const rating = Number(log.overallRating);
+      if (rating > 0) { bucket.ratingSum += rating; bucket.rated += 1; }
+      buckets.set(key, bucket);
+    });
+    const series = [];
+    for (let i = span - 1; i >= 0; i -= 1) {
+      const day = new Date(end.getFullYear(), end.getMonth(), end.getDate() - i);
+      const key = dateKey(day);
+      const bucket = buckets.get(key) || { cups: 0, grams: 0, ratingSum: 0, rated: 0 };
+      series.push({ date: key, cups: bucket.cups, grams: Math.round(bucket.grams * 10) / 10, averageRating: bucket.rated ? Math.round(bucket.ratingSum / bucket.rated * 10) / 10 : null });
+    }
+    return series;
+  }
+
+  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, prepareBrewAssistSteps, brewAssistStatus, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, flavorTags, beanFreshness, recentDrinkSeries };
 });

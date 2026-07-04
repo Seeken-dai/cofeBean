@@ -113,11 +113,15 @@ body.has-floating-actions main { padding-bottom:calc(92px + env(safe-area-inset-
 .card-title { margin:0; overflow:hidden; font-family:"Vault Serif",serif; font-size:18px; font-weight:700; letter-spacing:.015em; text-overflow:ellipsis; white-space:nowrap; }
 .card-subtitle { margin:3px 0 0; overflow:hidden; color:var(--muted); font-size:10px; text-overflow:ellipsis; white-space:nowrap; }
 .favorite { flex:0 0 auto; color:var(--accent); font-size:18px; line-height:1; }
-.tag-row { display:flex; min-width:0; flex-wrap:nowrap; gap:5px; margin-top:9px; overflow:hidden; }
+.tag-row { display:flex; min-width:0; flex-wrap:wrap; gap:5px; margin-top:9px; }
 .tag { flex:0 0 auto; padding:3px 7px; border-radius:999px; background:var(--surface-2); color:var(--muted); font-size:9px; }
 .tag.status { border:1px solid color-mix(in srgb,var(--reserve) 52%,var(--border)); background:transparent; color:var(--reserve); }
 .bean-card[data-status="饮用中"] .tag.status { border-color:color-mix(in srgb,var(--active) 55%,var(--border)); color:var(--active); }
 .bean-card[data-status="已喝完"] .tag.status { border-color:var(--border); color:var(--faint); }
+/* 赏味期紧凑彩色标签（3b）：小圆点表档位 + 紧凑天数，快到期绿→琥珀→橙→过期灰红 */
+.fresh-pill { display:inline-flex; align-items:center; gap:4px; flex:0 0 auto; padding:3px 8px 3px 6px; border-radius:999px; border:1px solid color-mix(in srgb,var(--fresh) 40%,var(--border)); background:color-mix(in srgb,var(--fresh) 14%,var(--surface)); color:color-mix(in srgb,var(--fresh) 70%,var(--text)); font-size:9px; font-variant-numeric:tabular-nums; }
+.fresh-pill i { width:5px; height:5px; border-radius:50%; background:var(--fresh); }
+.fresh-fresh { --fresh:#5fa463; } .fresh-good { --fresh:#c9a04e; } .fresh-soon { --fresh:#e0842f; } .fresh-expired { --fresh:#c66b5e; }
 .card-icons { display:flex; align-items:center; gap:7px; }
 .card-bottom { display:flex; align-items:end; justify-content:space-between; gap:10px; }
 .compact-meta { display:flex; flex:0 0 auto; align-items:baseline; gap:8px; color:var(--faint); font-size:9px; }

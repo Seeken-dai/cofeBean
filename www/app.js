@@ -268,6 +268,13 @@
     if (days === 0) return '今天到达赏味期';
     return `赏味期 ${days} 天`;
   }
+  // 赏味期紧凑彩色标签（3b）：替代豆卡上冗长的「赏味期 X 天」文字 tag，省横向空间并加颜色档位。
+  function freshPill(bean) {
+    const fresh = BeanCore.beanFreshness(bean);
+    if (!fresh) return '';
+    const title = fresh.daysLeft < 0 ? `赏味期已过 ${Math.abs(fresh.daysLeft)} 天` : fresh.daysLeft === 0 ? '今天到达赏味期' : `赏味期还有 ${fresh.daysLeft} 天`;
+    return `<span class="fresh-pill fresh-${fresh.level}" title="${esc(title)}"><i></i>${esc(fresh.label)}</span>`;
+  }
   function renderBeanReminders() {
     const panel = $('#beanReminderPanel');
     const reminders = BeanCore.beanReminders(state.beans, state.settings).slice(0, 4);
@@ -304,11 +311,11 @@
   }
   function cardTemplate(bean, index) {
     const subtitle = [bean.roaster, bean.origin].filter(Boolean).join(' · ') || '等待补充烘焙商与产地';
-    const tags = [bean.roastLevel, bean.process, bestFlavorText(bean)].filter(Boolean).map((tag) => `<span class="tag">${esc(tag)}</span>`).join('');
+    const tags = [bean.roastLevel, bean.process].filter(Boolean).map((tag) => `<span class="tag">${esc(tag)}</span>`).join('');
     const remaining = Number(bean.remainingWeight) || 0; const grams = Math.min(state.settings.quickGrams, remaining);
     const showThumb = state.settings.showBeanPhotosInList;
     const thumb = showThumb ? `<div class="bean-thumb-wrap">${beanThumb(bean)}</div>` : '';
-    return `<article class="bean-card ${showThumb ? 'has-thumb' : 'no-thumb'}" data-id="${esc(bean.id)}" data-status="${esc(bean.status)}" tabindex="0" role="button" aria-label="查看 ${esc(bean.name)}" style="animation-delay:${Math.min(index * 28, 180)}ms"><div class="status-rail"></div>${thumb}<div class="card-body"><div class="card-head"><div class="card-title-wrap"><h2 class="card-title">${esc(bean.name)}</h2><p class="card-subtitle">${esc(subtitle)}</p></div><div class="card-icons">${bean.favorite ? '<span class="favorite">◆</span>' : ''}<button class="quick-drink" data-drink-id="${esc(bean.id)}" type="button" aria-label="喝一杯 ${esc(formatWeight(grams))}" ${remaining <= 0 ? 'disabled' : ''}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h12v7a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5V8Z"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17M8 4c0 1 1 1 1 2M12 3c0 1 1 1 1 2"/></svg><span>${esc(formatWeight(grams))}</span></button></div></div><div class="card-bottom"><div class="tag-row"><span class="tag status">${esc(bean.status)}</span>${tags}</div><div class="compact-meta"><span>${esc(formatDate(bean.roastDate))}</span><strong>${esc(formatWeight(remaining))}</strong></div></div>${remainingBar(bean, remaining)}</div></article>`;
+    return `<article class="bean-card ${showThumb ? 'has-thumb' : 'no-thumb'}" data-id="${esc(bean.id)}" data-status="${esc(bean.status)}" tabindex="0" role="button" aria-label="查看 ${esc(bean.name)}" style="animation-delay:${Math.min(index * 28, 180)}ms"><div class="status-rail"></div>${thumb}<div class="card-body"><div class="card-head"><div class="card-title-wrap"><h2 class="card-title">${esc(bean.name)}</h2><p class="card-subtitle">${esc(subtitle)}</p></div><div class="card-icons">${bean.favorite ? '<span class="favorite">◆</span>' : ''}<button class="quick-drink" data-drink-id="${esc(bean.id)}" type="button" aria-label="喝一杯 ${esc(formatWeight(grams))}" ${remaining <= 0 ? 'disabled' : ''}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h12v7a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5V8Z"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17M8 4c0 1 1 1 1 2M12 3c0 1 1 1 1 2"/></svg><span>${esc(formatWeight(grams))}</span></button></div></div><div class="card-bottom"><div class="tag-row"><span class="tag status">${esc(bean.status)}</span>${tags}${freshPill(bean)}</div><div class="compact-meta"><span>${esc(formatDate(bean.roastDate))}</span><strong>${esc(formatWeight(remaining))}</strong></div></div>${remainingBar(bean, remaining)}</div></article>`;
   }
   // 冲煮方式线性图标（20px 级，与 quick-drink 同风格）。时间线、方案卡、方案分组头共用。
   const BREW_ICONS = {
