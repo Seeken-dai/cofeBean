@@ -924,5 +924,24 @@
     return (plans || []).filter((plan) => plan && plan.source !== 'preset');
   }
 
-  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, prepareBrewAssistSteps, brewAssistStatus, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans };
+  // 无图豆子的生成式占位参数（纯函数，双端一致）。只用豆子已有数据，不新增字段。
+  // roastKey → 底色档位；glyph → 豆名首字字纹；hash 派生 variant/angle/shift → 每颗豆确定性微差异（类 identicon）。
+  const ROAST_TIER = { '浅烘': 'light', '中浅烘': 'medium-light', '中烘': 'medium', '中深烘': 'medium-dark', '深烘': 'dark' };
+  function hashString(value) {
+    let hash = 2166136261;
+    const text = String(value == null ? '' : value);
+    for (let i = 0; i < text.length; i += 1) { hash ^= text.charCodeAt(i); hash = Math.imul(hash, 16777619); }
+    return hash >>> 0;
+  }
+  function beanPlaceholder(bean) {
+    const source = bean && typeof bean === 'object' ? bean : {};
+    const name = cleanText(source.name, 120) || '';
+    const chars = Array.from(name.trim());
+    const glyph = chars.length ? chars[0] : '豆';
+    const roastKey = ROAST_TIER[source.roastLevel] || 'neutral';
+    const hash = hashString(source.id || name || 'bean');
+    return { glyph, roastKey, hash, variant: hash % 4, angle: hash % 360, shift: (hash >>> 4) % 100 };
+  }
+
+  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, prepareBrewAssistSteps, brewAssistStatus, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder };
 });

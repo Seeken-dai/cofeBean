@@ -276,11 +276,35 @@
     const counts = reminders.reduce((acc, item) => { acc[item.type] = (acc[item.type] || 0) + 1; return acc; }, {});
     panel.innerHTML = `<div><b>本机提醒</b><span>${counts.flavor || 0} 个赏味期 · ${counts.stock || 0} 个余量</span></div><div>${reminders.map((item) => `<button type="button" data-reminder-bean="${esc(item.beanId)}"><strong>${esc(item.beanName)}</strong><small>${esc(item.message)}</small></button>`).join('')}</div>`;
   }
+  function thumbMotif(ph) {
+    const y = 24 + (ph.shift % 56);
+    const paths = [
+      `M-8 ${y} Q 50 ${y - 34} 108 ${y}`,
+      `M${20 + (ph.shift % 60)} -8 Q ${44 + (ph.shift % 40)} 50 ${20 + (ph.shift % 60)} 108`,
+      `M-8 ${y} L 108 ${y - 24}`,
+      `M50 50 m -42 0 a 42 42 0 1 0 84 0 a 42 42 0 1 0 -84 0`
+    ];
+    return `<svg class="bean-thumb-motif" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="${paths[ph.variant] || paths[0]}" transform="rotate(${ph.angle} 50 50)"/></svg>`;
+  }
+  // 缩略图容器：有图走照片（统一滤镜+暗角），无图走生成式占位；A/B 共用同一 .bean-thumb 容器（同尺寸/圆角），混排看不出谁没拍照。
+  function beanThumb(bean) {
+    const src = bean.bagImagePath ? imageSrc(bean.bagImagePath) : '';
+    if (src) return `<div class="bean-thumb has-photo" aria-hidden="true"><img src="${esc(src)}" alt="" loading="lazy"></div>`;
+    const ph = BeanCore.beanPlaceholder(bean);
+    return `<div class="bean-thumb bean-thumb--${esc(ph.roastKey)}" aria-hidden="true">${thumbMotif(ph)}<span class="bean-thumb-glyph">${esc(ph.glyph)}</span></div>`;
+  }
+  function remainingBar(bean, remaining) {
+    const initial = Number(bean.initialWeight) || 0;
+    if (!(initial > 0)) return '';
+    const pct = Math.max(0, Math.min(100, Math.round(remaining / initial * 100)));
+    const level = pct <= 12 ? ' is-low' : pct <= 30 ? ' is-mid' : '';
+    return `<div class="remaining-bar${level}" role="presentation" aria-hidden="true"><i style="width:${pct}%"></i></div>`;
+  }
   function cardTemplate(bean, index) {
     const subtitle = [bean.roaster, bean.origin].filter(Boolean).join(' · ') || '等待补充烘焙商与产地';
     const tags = [bean.roastLevel, bean.process, bestFlavorText(bean)].filter(Boolean).map((tag) => `<span class="tag">${esc(tag)}</span>`).join('');
     const remaining = Number(bean.remainingWeight) || 0; const grams = Math.min(state.settings.quickGrams, remaining);
-    return `<article class="bean-card" data-id="${esc(bean.id)}" data-status="${esc(bean.status)}" tabindex="0" role="button" aria-label="查看 ${esc(bean.name)}" style="animation-delay:${Math.min(index * 28, 180)}ms"><div class="status-rail"></div><div class="card-body"><div class="card-head"><div class="card-title-wrap"><h2 class="card-title">${esc(bean.name)}</h2><p class="card-subtitle">${esc(subtitle)}</p></div><div class="card-icons">${bean.favorite ? '<span class="favorite">◆</span>' : ''}<button class="quick-drink" data-drink-id="${esc(bean.id)}" type="button" aria-label="喝一杯 ${esc(formatWeight(grams))}" ${remaining <= 0 ? 'disabled' : ''}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h12v7a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5V8Z"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17M8 4c0 1 1 1 1 2M12 3c0 1 1 1 1 2"/></svg><span>${esc(formatWeight(grams))}</span></button></div></div><div class="card-bottom"><div class="tag-row"><span class="tag status">${esc(bean.status)}</span>${tags}</div><div class="compact-meta"><span>${esc(formatDate(bean.roastDate))}</span><strong>${esc(formatWeight(remaining))}</strong></div></div></div></article>`;
+    return `<article class="bean-card" data-id="${esc(bean.id)}" data-status="${esc(bean.status)}" tabindex="0" role="button" aria-label="查看 ${esc(bean.name)}" style="animation-delay:${Math.min(index * 28, 180)}ms"><div class="status-rail"></div><div class="bean-thumb-wrap">${beanThumb(bean)}</div><div class="card-body"><div class="card-head"><div class="card-title-wrap"><h2 class="card-title">${esc(bean.name)}</h2><p class="card-subtitle">${esc(subtitle)}</p></div><div class="card-icons">${bean.favorite ? '<span class="favorite">◆</span>' : ''}<button class="quick-drink" data-drink-id="${esc(bean.id)}" type="button" aria-label="喝一杯 ${esc(formatWeight(grams))}" ${remaining <= 0 ? 'disabled' : ''}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h12v7a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5V8Z"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17M8 4c0 1 1 1 1 2M12 3c0 1 1 1 1 2"/></svg><span>${esc(formatWeight(grams))}</span></button></div></div><div class="card-bottom"><div class="tag-row"><span class="tag status">${esc(bean.status)}</span>${tags}</div><div class="compact-meta"><span>${esc(formatDate(bean.roastDate))}</span><strong>${esc(formatWeight(remaining))}</strong></div></div>${remainingBar(bean, remaining)}</div></article>`;
   }
   function logTemplate(log, compact) {
     const advanced = BeanCore.DIMENSION_KEYS.filter((key) => log[key]).map((key) => `<span>${DIMENSIONS[key]} ${key === 'bitterness' ? '☹' : '☺'}${log[key]}</span>`).join('');

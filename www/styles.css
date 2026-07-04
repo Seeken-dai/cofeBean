@@ -84,8 +84,23 @@ body.has-floating-actions main { padding-bottom:calc(92px + env(safe-area-inset-
 .settings-feature-hint { margin:0 0 14px; }
 
 .bean-list { display:grid; grid-template-columns:1fr; gap:8px; }
-.bean-card { position:relative; display:grid; grid-template-columns:4px 1fr; min-height:112px; overflow:hidden; border:1px solid color-mix(in srgb,var(--border) 78%,transparent); border-radius:16px; background:var(--surface); box-shadow:0 5px 18px rgb(0 0 0 / .08); cursor:pointer; animation:fade-up .26s both; transition:transform var(--ease),border-color var(--ease); }
+.bean-card { position:relative; display:grid; grid-template-columns:4px auto 1fr; min-height:112px; overflow:hidden; border:1px solid color-mix(in srgb,var(--border) 78%,transparent); border-radius:16px; background:var(--surface); box-shadow:0 5px 18px rgb(0 0 0 / .08); cursor:pointer; animation:fade-up .26s both; transition:transform var(--ease),border-color var(--ease); }
 .bean-card:active { transform:scale(.988); border-color:var(--accent); }
+.bean-thumb-wrap { display:flex; align-items:center; padding:12px 0 12px 12px; }
+.bean-thumb { position:relative; flex:0 0 auto; width:64px; height:64px; border-radius:14px; overflow:hidden; background:var(--surface-3); }
+.bean-thumb img { width:100%; height:100%; object-fit:cover; display:block; filter:var(--thumb-filter,saturate(.82) sepia(.12) brightness(.96)); }
+/* 暗角收边：内阴影+细边，避免照片亮部顶到卡片边缘，也给占位图统一收口 */
+.bean-thumb::after { content:""; position:absolute; inset:0; border-radius:inherit; box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--border) 60%,transparent),inset 0 -14px 20px -12px rgb(0 0 0 / .55); pointer-events:none; }
+.bean-thumb-glyph { position:absolute; inset:0; display:grid; place-items:center; font-family:"Vault Serif",serif; font-size:30px; font-weight:700; color:var(--ph-ink,rgb(255 248 240 / .9)); text-shadow:0 1px 2px rgb(0 0 0 / .18); }
+.bean-thumb-motif { position:absolute; inset:0; width:100%; height:100%; fill:none; stroke:var(--ph-ink,rgb(255 248 240 / .9)); stroke-width:6; opacity:.16; }
+/* 烘焙度 → 底色档位（真实咖啡棕，轻掺主题 accent 保持四主题一致的暖调） */
+.bean-thumb--light { background:linear-gradient(135deg,#dcbd8e,#c69a63); --ph-ink:rgb(74 46 25 / .82); }
+.bean-thumb--medium-light { background:linear-gradient(135deg,#c99c66,#ac7a49); --ph-ink:rgb(60 36 18 / .84); }
+.bean-thumb--medium { background:linear-gradient(135deg,#a9773f,#87552d); --ph-ink:rgb(255 244 230 / .9); }
+.bean-thumb--medium-dark { background:linear-gradient(135deg,#794c2b,#57351d); --ph-ink:rgb(255 240 224 / .9); }
+.bean-thumb--dark { background:linear-gradient(135deg,#4a2c19,#2c1a0e); --ph-ink:rgb(240 224 206 / .88); }
+.bean-thumb--neutral { background:linear-gradient(135deg,#8a7059,#63503f); --ph-ink:rgb(255 246 236 / .86); }
+.bean-thumb--light::before,.bean-thumb--medium-light::before,.bean-thumb--medium::before,.bean-thumb--medium-dark::before,.bean-thumb--dark::before,.bean-thumb--neutral::before { content:""; position:absolute; inset:0; background:color-mix(in srgb,var(--accent) 12%,transparent); mix-blend-mode:overlay; pointer-events:none; }
 .status-rail { background:var(--reserve); }
 .bean-card[data-status="饮用中"] .status-rail { background:var(--active); }
 .bean-card[data-status="已喝完"] .status-rail { background:var(--done); }
@@ -108,6 +123,12 @@ body.has-floating-actions main { padding-bottom:calc(92px + env(safe-area-inset-
 .quick-drink svg { width:21px; height:21px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
 .quick-drink span { position:absolute; right:-3px; bottom:-3px; min-width:23px; padding:2px 4px; border:2px solid var(--surface); border-radius:7px; background:var(--accent); color:var(--accent-ink); font-size:7px; font-weight:800; line-height:1; }
 .quick-drink:disabled { border-color:var(--border); color:var(--faint); opacity:.55; }
+.remaining-bar { position:relative; height:3px; margin-top:9px; border-radius:999px; background:color-mix(in srgb,var(--border) 55%,transparent); overflow:hidden; }
+.remaining-bar i { display:block; height:100%; border-radius:inherit; background:var(--accent); transition:width var(--ease); }
+.remaining-bar.is-mid i { background:color-mix(in srgb,var(--accent) 60%,#e0a13c); }
+.remaining-bar.is-low i { background:var(--danger); }
+/* 浅色主题下照片压暗略收一档，避免偏灰 */
+[data-theme="frost"] .bean-thumb img,[data-theme="blaze"] .bean-thumb img { --thumb-filter:saturate(.85) sepia(.1) brightness(.99); }
 
 .empty-state { padding:64px 24px; text-align:center; color:var(--faint); }
 .empty-bag { display:grid; place-items:center; width:84px; height:84px; margin:0 auto 18px; border:1px dashed var(--border); border-radius:28px; background:var(--surface); }

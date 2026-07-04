@@ -1,7 +1,7 @@
 // 豆仓 Web Service Worker。
 // 策略：应用外壳网络优先 + 缓存回退；vendor/图标等稳定资源 cache-first。
 // 这样保留 Web 热更新，同时避免每次打开都重新下载较大的 vendor 文件。
-const CACHE = 'coffee-vault-shell-v7';
+const CACHE = 'coffee-vault-shell-v8';
 const SHELL = [
   './',
   './index.html',
