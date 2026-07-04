@@ -71,5 +71,6 @@
 - `resources/`、`assets/`：图标和启动画面源文件
 - `docs/BUILDING.md`：构建、签名与版本升级说明
 - `docs/CHANGELOG.md`：版本更新记录
+- `docs/SYNC.md`：云同步架构（LWW 合并、增量游标、图片内容寻址、后端接口）
 
 当前包信息：`com.coffeebean.vault`，版本 `2.0.8`（versionCode `41`），最低 Android 7/API 24，目标 Android 16/API 36。
