@@ -344,8 +344,26 @@
     const advanced = BeanCore.DIMENSION_KEYS.filter((key) => log[key]).map((key) => `<span>${DIMENSIONS[key]} ${key === 'bitterness' ? '☹' : '☺'}${log[key]}</span>`).join('');
     return `<article class="drink-entry" data-log-id="${esc(log.id)}" tabindex="0" role="button"><div class="drink-dot"></div><div><div class="drink-head"><strong>${esc(log.beanName)}</strong><time>${esc(formatDateTime(log.consumedAt))}</time></div><p class="drink-meta"><span>${esc(formatWeight(log.grams))}</span><span class="method-label">${brewIcon(log.brewMethod)}${esc(log.brewMethod)}</span><span>${stars(log.overallRating)}</span></p>${log.notes ? `<p class="drink-notes">${esc(log.notes)}</p>` : ''}${!compact && advanced ? `<div class="dimension-summary">${advanced}</div>` : ''}</div></article>`;
   }
+  // 近 30 天饮用迷你条形图（3c）：每天一根柱，高度按杯数归一；今天高亮，空天留细基线。
+  function renderDrinkTrend() {
+    const host = $('#drinkTrend'); if (!host) return;
+    const series = BeanCore.recentDrinkSeries(state.drinkLogs, 30);
+    const total = series.reduce((sum, day) => sum + day.cups, 0);
+    host.hidden = total === 0;
+    if (host.hidden) { host.innerHTML = ''; return; }
+    const max = Math.max(1, ...series.map((day) => day.cups));
+    const todayKey = BeanCore.dateKey(new Date());
+    const activeDays = series.filter((day) => day.cups).length;
+    const bars = series.map((day) => {
+      const cls = `${day.date === todayKey ? ' is-today' : ''}${day.cups ? '' : ' is-empty'}`;
+      const style = day.cups ? ` style="height:${Math.max(14, Math.round(day.cups / max * 100))}%"` : '';
+      return `<i class="${cls.trim()}"${style} title="${esc(`${day.date}：${day.cups} 杯${day.grams ? ' · ' + formatWeight(day.grams) : ''}`)}"></i>`;
+    }).join('');
+    host.innerHTML = `<div class="section-heading"><div><span>近 ${series.length} 天</span><small>${total} 杯 · ${activeDays} 天有记录</small></div></div><div class="drink-trend-bars">${bars}</div>`;
+  }
   function renderDrinks() {
     const stats = BeanCore.summarizeDrinkLogs(state.drinkLogs); $('#drinkCups').textContent = stats.cups; $('#drinkGrams').textContent = formatWeight(stats.grams); $('#drinkAverage').textContent = stats.averageRating ? `${stats.averageRating}★` : '—';
+    renderDrinkTrend();
     const q = String(state.query || '').trim().toLocaleLowerCase('zh-CN');
     const visible = q ? state.drinkLogs.filter((log) => [log.beanName, log.brewMethod, log.notes, formatWeight(log.grams), formatDateTime(log.consumedAt)].some((value) => String(value || '').toLocaleLowerCase('zh-CN').includes(q))) : state.drinkLogs;
     $('#drinkEmpty').hidden = visible.length > 0;
