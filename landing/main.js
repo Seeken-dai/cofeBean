@@ -12,8 +12,6 @@
     { id: 'obsidian',   zh: '火山灰绿', en: 'Ash Green', grad: ['#aeb98d', '#6f7d54'] },
     { id: 'blaze',      zh: '生豆', en: 'Green Bean', grad: ['#8fb877', '#4a6b3f'] }
   ];
-  var SCREENS = ['home', 'records', 'calendar'];
-
   var currentLang = 'zh';
   var currentTheme = 'dark-roast';
   var toggle = document.getElementById('langToggle');
