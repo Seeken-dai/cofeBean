@@ -150,10 +150,10 @@
 |同步 pull / push|45s|
 |图片上传 / 下载|120s|
 
-服务端默认地址 `DEFAULT\_BASE\_URL` 为 `https://sync.cofevault.top`（Cloudflare Worker 自定义域名，绑定同一个 `cofebean-sync` Worker）。旧地址 `https://cofebean-sync.nick-lim-a40.workers.dev` 仍指向同一 Worker 与同一份数据，已发布的旧版本继续可用。
+服务端默认地址 `DEFAULT\_BASE\_URL` 为 Cloudflare Worker 自定义域名（具体值见本地 `privateDocs/INFRA.md`，不入公有仓）。旧的 `*.workers.dev` 地址仍指向同一 Worker 与同一份数据，已发布的旧版本继续可用。
 
 ## 已知问题与后续
 
-* **大陆 DNS 污染（已缓解）**：`\*.workers.dev` 泛域在中国大陆网络下遭间歇性 DNS 污染（系统解析返回非 Cloudflare 假 IP），导致直连的手机端登录/同步连不上。已通过绑定自定义域名 `sync.cofevault.top` 缓解——自定义域解析走独立 DNS、落 Cloudflare 全球 anycast 边缘，绕开针对 `workers.dev` 的定向投毒（标准做法，高成功率，非绝对保证；未备案域名不走 Cloudflare 中国网络，偶有慢速波动）。
-* **切换记录**：`www/sync-transport.js` `DEFAULT\_BASE\_URL` 已从 `workers.dev` 改为 `https://sync.cofevault.top`；Worker 侧 Custom Domain 绑定由控制台完成，`worker/wrangler.toml` 无需改动（自定义域名不通过 route 配置）。新旧地址并存，无数据迁移。
+* **大陆 DNS 污染（已缓解）**：`\*.workers.dev` 泛域在中国大陆网络下遭间歇性 DNS 污染（系统解析返回非 Cloudflare 假 IP），导致直连的手机端登录/同步连不上。已通过绑定自定义域名缓解——自定义域解析走独立 DNS、落 Cloudflare 全球 anycast 边缘，绕开针对 `workers.dev` 的定向投毒（标准做法，高成功率，非绝对保证；未备案域名不走 Cloudflare 中国网络，偶有慢速波动）。
+* **切换记录**：`www/sync-transport.js` `DEFAULT\_BASE\_URL` 已从 `*.workers.dev` 改为自定义域名（具体值见本地 `privateDocs/INFRA.md`）；Worker 侧 Custom Domain 绑定由控制台完成，`worker/wrangler.toml` 无需改动（自定义域名不通过 route 配置）。新旧地址并存，无数据迁移。
 
