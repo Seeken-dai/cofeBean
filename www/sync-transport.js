@@ -5,7 +5,7 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
 
-  const DEFAULT_BASE_URL = 'https://cofebean-sync.nick-lim-a40.workers.dev';
+  const DEFAULT_BASE_URL = 'https://sync.cofevault.top';
   const TYPE_MAP = { beans: 'bean', drinkLogs: 'drinkLog', brewPlans: 'brewPlan' };
   const BUCKET_MAP = { bean: 'beans', drinkLog: 'drinkLogs', brewPlan: 'brewPlans' };
   const SYNC_KEYS = new Set(['id', 'revision', 'updatedAt', 'deletedAt', 'deviceId']);

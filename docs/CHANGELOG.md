@@ -14,11 +14,12 @@
 
 - 冲煮辅助圆环在段末/间奏开始处的跳切：`brewAssistStatus` 原本把 elapsed 取整判定段落，而圆环进度按原始秒计算，临界点相差约 0.5 秒导致圆环快满时被提前截断。改为用原始秒判定段落，仅显示用的 elapsed 取整。
 - 每次发新版后 Web 打开报错：原 Service Worker 用 stale-while-revalidate 且缓存名固定，各外壳文件独立更新，弱网下会出现新旧文件错配（如新 index.html 配旧 app.js）。改为按版本原子化预缓存（`addAll` 全成功才启用、激活时清旧缓存、cache-first），缓存名随版本变化（由 `bump-version.mjs` 同步），并移除「非导航请求回退 index.html」以免把 HTML 当脚本返回。
+- 同步服务器改用自定义域名 `https://sync.cofevault.top`（Cloudflare Worker Custom Domain，绑定同一 `cofebean-sync` Worker 与同一份数据），缓解 `*.workers.dev` 泛域在部分国内网络下被 DNS 污染导致的登录/同步连不上。仅改动客户端 `www/sync-transport.js` 的 `DEFAULT_BASE_URL`；旧地址仍指向同一后端，已发布旧版本继续可用，无数据迁移。（版本号不变，重新出包生效。）
 
 ### 发布
 
-- Android 版本更新为 `versionName 2.1.2`、`versionCode 45`；正式签名版 `dist/coffee-vault-2.1.2-release.apk`。
-- 构建前通过 `node --check www/app.js`、`node --check www/data-core.js`、`node --check www/repository.js`、`node --check www/sw.js` 与 `npm.cmd test`（117/117）。
+- Android 版本保持 `versionName 2.1.2`、`versionCode 45`；正式签名版 `dist/coffee-vault-2.1.2-release.apk`（含同步自定义域名修复，重新出包覆盖）。
+- 构建前通过 `node --check www/app.js`、`node --check www/data-core.js`、`node --check www/repository.js`、`node --check www/sw.js`、`node --check www/sync-transport.js` 与 `npm.cmd test`（117/117）。
 
 ## [2.1.1] - 2026-07-04
 
