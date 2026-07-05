@@ -73,7 +73,13 @@
       </div>
       <div class="hero-visual">
         <div class="device device-lg">
-          <img src="assets/screens/01-home.png" alt="豆仓首页豆仓列表" loading="eager" width="390" height="844" />
+          <div class="carousel" id="heroCarousel" aria-label="应用界面轮播">
+            <img class="carousel-slide is-active" src="assets/screens/dark-roast/home.webp" alt="首页豆仓列表" width="390" height="844" />
+            <img class="carousel-slide" src="assets/screens/dark-roast/detail.webp" alt="咖啡豆详情" width="390" height="844" loading="lazy" />
+            <img class="carousel-slide" src="assets/screens/dark-roast/records.webp" alt="饮用记录与风味雷达图" width="390" height="844" loading="lazy" />
+            <img class="carousel-slide" src="assets/screens/dark-roast/calendar.webp" alt="咖啡日历" width="390" height="844" loading="lazy" />
+            <img class="carousel-slide" src="assets/screens/dark-roast/assist.webp" alt="冲煮辅助计时" width="390" height="844" loading="lazy" />
+          </div>
         </div>
       </div>
     </section>
@@ -144,26 +150,30 @@
 
     <!-- ===== Screens ===== -->
     <section id="screens" class="section">
-      <header class="section-head">
+      <header class="section-head section-head--wide">
         <p class="eyebrow" data-i18n data-zh="界面一览" data-en="A look inside">界面一览</p>
-        <h2 data-i18n data-zh="温润的深烘配色，四套主题" data-en="Warm dark-roast palette, four themes">温润的深烘配色，四套主题</h2>
+        <h2 class="theme-title" id="themeTitle"
+            data-tpl-zh="温润的 {theme} 配色，四套主题随心切换"
+            data-tpl-en="A warm {theme} palette — four themes, your pick">温润的 深烘 配色，四套主题随心切换</h2>
+        <div class="theme-switch" id="themeSwitch" role="tablist" aria-label="主题预览切换">
+          <button class="theme-pill is-active" type="button" role="tab" aria-selected="true" data-theme-id="dark-roast" data-i18n data-zh="深烘" data-en="Dark Roast">深烘</button>
+          <button class="theme-pill" type="button" role="tab" aria-selected="false" data-theme-id="frost" data-i18n data-zh="澳白" data-en="Flat White">澳白</button>
+          <button class="theme-pill" type="button" role="tab" aria-selected="false" data-theme-id="obsidian" data-i18n data-zh="火山灰绿" data-en="Ash Green">火山灰绿</button>
+          <button class="theme-pill" type="button" role="tab" aria-selected="false" data-theme-id="blaze" data-i18n data-zh="生豆" data-en="Green Bean">生豆</button>
+        </div>
       </header>
-      <div class="screens-rail">
+      <div class="screens-rail" id="themeScreens">
         <figure class="device">
-          <img src="assets/screens/02-detail.png" alt="咖啡豆详情" loading="lazy" width="390" height="844" />
-          <figcaption data-i18n data-zh="豆子详情" data-en="Bean profile">豆子详情</figcaption>
+          <img data-screen="home" src="assets/screens/dark-roast/home.webp" alt="首页豆仓列表" loading="lazy" width="390" height="844" />
+          <figcaption data-i18n data-zh="首页豆仓" data-en="Bean vault">首页豆仓</figcaption>
         </figure>
         <figure class="device">
-          <img src="assets/screens/05-records.png" alt="饮用记录与风味雷达图" loading="lazy" width="390" height="844" />
+          <img data-screen="records" src="assets/screens/dark-roast/records.webp" alt="饮用记录与风味雷达图" loading="lazy" width="390" height="844" />
           <figcaption data-i18n data-zh="记录与雷达图" data-en="Logs & flavor radar">记录与雷达图</figcaption>
         </figure>
         <figure class="device">
-          <img src="assets/screens/03-calendar.png" alt="咖啡日历" loading="lazy" width="390" height="844" />
+          <img data-screen="calendar" src="assets/screens/dark-roast/calendar.webp" alt="咖啡日历" loading="lazy" width="390" height="844" />
           <figcaption data-i18n data-zh="咖啡日历" data-en="Coffee calendar">咖啡日历</figcaption>
-        </figure>
-        <figure class="device">
-          <img src="assets/screens/04-assist.png" alt="冲煮辅助计时" loading="lazy" width="390" height="844" />
-          <figcaption data-i18n data-zh="冲煮辅助" data-en="Brew assistant">冲煮辅助</figcaption>
         </figure>
       </div>
     </section>
@@ -221,7 +231,7 @@
       <a href="https://github.com/Seeken-dai/cofeBean/blob/main/docs/SYNC.md" rel="noopener" data-i18n data-zh="同步说明" data-en="Sync docs">同步说明</a>
     </nav>
     <p class="foot-meta">
-      <span data-i18n data-zh="当前版本" data-en="Version">当前版本</span> 2.1.3 ·
+      <span data-i18n data-zh="当前版本" data-en="Version">当前版本</span> <span id="appVersion">2.1.3</span> ·
       <span>© <span id="year">2026</span> 豆仓 Coffee Vault</span>
     </p>
   </footer>
