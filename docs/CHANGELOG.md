@@ -2,6 +2,17 @@
 
 本项目采用 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式，并遵循语义化版本。
 
+## [2.1.3] - 2026-07-05
+
+### 修复
+
+- 冲煮辅助两段之间「等待间奏」倒计时：圆环中央大数字用 `Math.ceil`，下方 `mm:ss` 却经 `assistClock` 内部 `Math.round`，两者取整方式不一致，临界处会差约 1 秒（如大数字显示 9、下方显示 00:08）。改为两处统一使用同一个 `Math.ceil` 后的值。
+
+### 发布
+
+- Android 版本更新为 `versionName 2.1.3`、`versionCode 46`。
+- 构建前通过 `node --check www/app.js` 与 `npm.cmd test`。
+
 ## [2.1.2] - 2026-07-05
 
 ### 改进

@@ -693,10 +693,12 @@
       const remaining = Math.max(0, status.gapEnd - elapsed);
       const span = Math.max(1, status.gapEnd - status.gapStart);
       ring.classList.add('assist-ring--gap');
+      // 大数字与下方计时用同一个 ceil 值，避免 ceil 与 assistClock 内部 round 不一致导致两处差 1 秒。
+      const gapShown = Math.ceil(remaining);
       $('#brewAssistPhase').textContent = '等待间奏 · 准备下一段';
-      $('#brewAssistWater').textContent = String(Math.ceil(remaining));
+      $('#brewAssistWater').textContent = String(gapShown);
       $('#brewAssistWaterCaption').textContent = '秒后进入下一段';
-      $('#brewAssistTime').textContent = assistClock(remaining);
+      $('#brewAssistTime').textContent = assistClock(gapShown);
       $('#brewAssistStageMeta').textContent = status.next ? `下一段：${status.next.label}` : '';
       $('#brewAssistRing').style.setProperty('--assist-progress', `${Math.max(0, Math.min(360, remaining / span * 360))}deg`);
       setAssistNext(status.next, false);
