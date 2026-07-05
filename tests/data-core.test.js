@@ -147,6 +147,11 @@ test('brew assist prepares pour-over steps and reports active stage', () => {
   assert.equal(core.brewAssistStatus(steps, 80).current.label, '等待滤完');
   assert.equal(core.brewAssistStatus(steps, 110).phase, 'done');
   assert.equal(core.brewAssistStatus([], 10).phase, 'empty');
+  // 小数秒不取整判定：29.6s 仍属第 1 段（圆环平滑填满），不提前切段造成跳切。
+  assert.equal(core.brewAssistStatus(steps, 29.6).index, 0);
+  assert.equal(core.brewAssistStatus(steps, 30.4).current.label, '连续注水');
+  assert.equal(core.brewAssistStatus(steps, 109.9).phase, 'running');
+  assert.equal(core.brewAssistStatus(steps, 29.6).elapsed, 30);
 });
 
 test('brew assist reports gap phase between non-contiguous stages', () => {

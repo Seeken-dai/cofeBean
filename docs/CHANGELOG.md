@@ -2,6 +2,24 @@
 
 本项目采用 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式，并遵循语义化版本。
 
+## [2.1.2] - 2026-07-05
+
+### 改进
+
+- 退出应用改为轻提示：主界面再次返回（约 2 秒内）才退出，先 toast 提示「再次操作退出程序」，移除原来的整块退出确认弹窗。
+- 高级评价每个维度新增「?」说明浮窗（点击显示，Popover API 轻触关闭，不支持时回退 toast），告知该维度含义与打分方式；饮用记录编辑与设置的评价维度配置处均有。
+- 饮用列表的高级评价雷达图移到卡片右侧（填补原本右侧空白），并加上单字轴标签（香/酸/甜/醇/余/衡/苦），更易读；不足 3 维仍回退为标签行。
+
+### 修复
+
+- 冲煮辅助圆环在段末/间奏开始处的跳切：`brewAssistStatus` 原本把 elapsed 取整判定段落，而圆环进度按原始秒计算，临界点相差约 0.5 秒导致圆环快满时被提前截断。改为用原始秒判定段落，仅显示用的 elapsed 取整。
+- 每次发新版后 Web 打开报错：原 Service Worker 用 stale-while-revalidate 且缓存名固定，各外壳文件独立更新，弱网下会出现新旧文件错配（如新 index.html 配旧 app.js）。改为按版本原子化预缓存（`addAll` 全成功才启用、激活时清旧缓存、cache-first），缓存名随版本变化（由 `bump-version.mjs` 同步），并移除「非导航请求回退 index.html」以免把 HTML 当脚本返回。
+
+### 发布
+
+- Android 版本更新为 `versionName 2.1.2`、`versionCode 45`；正式签名版 `dist/coffee-vault-2.1.2-release.apk`。
+- 构建前通过 `node --check www/app.js`、`node --check www/data-core.js`、`node --check www/repository.js`、`node --check www/sw.js` 与 `npm.cmd test`（117/117）。
+
 ## [2.1.1] - 2026-07-04
 
 ### 新增

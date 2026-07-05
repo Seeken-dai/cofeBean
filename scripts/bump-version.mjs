@@ -43,6 +43,8 @@ replaceExact('android/app/build.gradle', /versionName\s+"[^"]+"/, `versionName "
 replaceExact('www/index.html', /<p id="aboutVersion">版本 [^<]+<\/p>/, `<p id="aboutVersion">版本 ${version}</p>`);
 replaceExact('www/index.html', /<h4>\d+\.\d+\.\d+ 最新功能<\/h4>/, `<h4>${version} 最新功能</h4>`);
 replaceExact('www/data-core.js', /appVersion:\s*'\d+\.\d+\.\d+'/g, `appVersion: '${version}'`);
+// SW 缓存名随版本变化：每次发版都触发 Service Worker 重新原子化预缓存整套外壳，避免旧缓存与新外壳错配。
+replaceExact('www/sw.js', /const CACHE = 'coffee-vault-shell-[^']+';/, `const CACHE = 'coffee-vault-shell-${version}';`);
 replaceExact('AGENTS.md', /当前版本为 `[^`]+`，Android `versionCode \d+`，正式产物路径为 `dist\/coffee-vault-[^`]+-release\.apk`。/, `当前版本为 \`${version}\`，Android \`versionCode ${versionCode}\`，正式产物路径为 \`dist/coffee-vault-${version}-release.apk\`。`);
 
 console.log(`${dryRun ? '检查完成' : '已更新'}：${version} / versionCode ${versionCode}`);

@@ -233,13 +233,16 @@
   function brewAssistStatus(steps, elapsed) {
     const list = prepareBrewAssistSteps(steps);
     const total = list.length ? list[list.length - 1].end : 0;
-    const seconds = Math.max(0, Math.round(Number(elapsed) || 0));
+    // 用原始秒数（不取整）判定所处段落：圆环进度按原始 elapsed 计算，若这里取整会在临界点提前约
+    // 0.5 秒切段，导致圆环快到满时被截断、跳切。仅把对外的 elapsed 取整用于文本显示。
+    const raw = Math.max(0, Number(elapsed) || 0);
+    const seconds = Math.round(raw);
     if (!list.length) return { phase: 'empty', index: -1, total, elapsed: seconds, current: null, next: null };
-    if (seconds >= total) return { phase: 'done', index: list.length - 1, total, elapsed: seconds, current: list[list.length - 1], next: null };
-    const index = list.findIndex((step) => seconds >= step.start && seconds < step.end);
+    if (raw >= total) return { phase: 'done', index: list.length - 1, total, elapsed: seconds, current: list[list.length - 1], next: null };
+    const index = list.findIndex((step) => raw >= step.start && raw < step.end);
     if (index >= 0) return { phase: 'running', index, total, elapsed: seconds, current: list[index], next: list[index + 1] || null };
     // 不落在任何一段内 = 处于两段之间（或首段之前）的等待间奏（方案显式留了时间空档）。
-    const nextIndex = list.findIndex((step) => step.start > seconds);
+    const nextIndex = list.findIndex((step) => step.start > raw);
     const prevIndex = nextIndex - 1;
     return { phase: 'gap', index: prevIndex, total, elapsed: seconds, current: list[prevIndex] || null, next: list[nextIndex], gapStart: prevIndex >= 0 ? list[prevIndex].end : 0, gapEnd: list[nextIndex].start };
   }
@@ -603,7 +606,7 @@
       exportScope,
       exportedAt: exportedAt || new Date().toISOString(),
       app: '豆仓',
-      appVersion: '2.1.1'
+      appVersion: '2.1.2'
     };
     if (exportScope === 'all' || exportScope === 'library') {
       payload.beans = (beans || []).map((bean) => normalizeBean(bean, bean.updatedAt));

@@ -451,6 +451,13 @@ dialog::backdrop { background:rgb(8 5 4 / .72); backdrop-filter:blur(4px); }
 .dimension-panel > span { display:block; color:var(--faint); font-size:10px; font-weight:700; }
 .dimension-settings { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:10px; }
 .dimension-settings label { display:flex; align-items:center; gap:8px; padding:10px; border:1px solid var(--border); border-radius:11px; background:var(--surface-2); color:var(--muted); font-size:11px; }.dimension-settings input { accent-color:var(--accent); }
+/* 维度说明「?」按钮 + 浮窗 */
+.dimension-rating legend { display:flex; align-items:center; gap:7px; }
+.dim-info-btn { display:inline-grid; place-items:center; flex:0 0 auto; width:17px; height:17px; padding:0; border:1px solid color-mix(in srgb,var(--muted) 45%,var(--border)); border-radius:50%; background:transparent; color:var(--muted); font:800 11px/1 system-ui; cursor:pointer; }
+.dimension-settings label .dim-info-btn { margin-left:auto; }
+.dim-info-popover { position:fixed; inset:auto; width:max-content; max-width:min(80vw,300px); margin:0; padding:12px 14px; border:1px solid color-mix(in srgb,var(--border) 80%,transparent); border-radius:13px; background:var(--surface); color:var(--text); box-shadow:0 12px 32px rgb(0 0 0 / .3); }
+.dim-info-popover strong { display:block; margin-bottom:5px; color:var(--accent); font-size:13px; }
+.dim-info-popover p { margin:0; color:var(--muted); font-size:12px; line-height:1.6; }
 .bean-bind { display:grid; gap:8px; padding:14px; border:1px solid var(--border); border-radius:15px; background:var(--surface-2); }
 .bean-bind-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
 .bean-bind-grid label { display:flex; align-items:center; gap:8px; min-width:0; min-height:42px; padding:8px 10px; border:1px solid color-mix(in srgb,var(--border) 80%,transparent); border-radius:11px; background:var(--surface); color:var(--muted); font-size:11px; }
@@ -526,6 +533,8 @@ dialog::backdrop { background:rgb(8 5 4 / .72); backdrop-filter:blur(4px); }
 .plan-card .dimension-summary { margin-top:0; }
 .plan-hero .brew-cup { font-size:25px; }
 .drink-entry { position:relative; display:grid; grid-template-columns:16px 1fr; gap:9px; padding:13px 14px; border:1px solid var(--border); border-radius:15px; background:var(--surface); cursor:pointer; }
+.drink-entry.has-radar { grid-template-columns:16px minmax(0,1fr) auto; }
+.drink-entry-main { min-width:0; }
 .timeline-more { width:100%; min-height:46px; border:1px solid color-mix(in srgb,var(--accent) 40%,var(--border)); border-radius:12px; background:color-mix(in srgb,var(--accent) 8%,var(--surface)); color:var(--accent); font-weight:750; cursor:pointer; }
 .drink-dot { width:9px; height:9px; margin-top:5px; border:2px solid var(--accent); border-radius:50%; box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 11%,transparent); }
 .drink-head { display:flex; justify-content:space-between; gap:10px; }.drink-head strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:700 15px "Vault Serif",serif; }.drink-head time { flex:0 0 auto; color:var(--faint); font-size:9px; }
@@ -539,13 +548,14 @@ dialog::backdrop { background:rgb(8 5 4 / .72); backdrop-filter:blur(4px); }
 .compact-timeline { gap:7px; }.compact-timeline .timeline-group { gap:7px; }.compact-timeline .drink-entry { padding:10px; }.compact-timeline .dimension-summary,.compact-timeline .dimension-radar-wrap { display:none; }
 /* 高级评价雷达图（详情大图 + 列表小图）；苦度反向后外圈=更好。 */
 .dimension-radar { display:flex; justify-content:center; padding:8px 0 2px; }
-.dimension-radar-wrap { display:flex; margin-top:8px; }
+.dimension-radar-wrap { display:flex; align-self:center; }
 .rating-radar { width:min(72vw,236px); height:auto; overflow:visible; }
-.rating-radar--mini { width:78px; }
+.rating-radar--mini { width:112px; }
 .radar-grid,.radar-axis { fill:none; stroke:color-mix(in srgb,var(--border) 66%,transparent); stroke-width:.8; }
 .radar-shape { fill:color-mix(in srgb,var(--accent) 22%,transparent); stroke:var(--accent); stroke-width:2; stroke-linejoin:round; }
 .radar-dot { fill:var(--accent); }
 .radar-label { fill:var(--muted); font-size:11px; font-weight:700; dominant-baseline:middle; }
+.radar-label--short { fill:var(--muted); font-size:14px; font-weight:800; }
 .radar-label-val { fill:var(--faint); font-size:9px; }
 @keyframes radar-in { from { opacity:0; transform:scale(.55); } to { opacity:1; transform:scale(1); } }
 .radar-enter { animation:radar-in .5s cubic-bezier(.2,.7,.3,1) both; transform-origin:center; }

@@ -101,6 +101,7 @@
   </button>
   <button class="fab" id="addBean" type="button" aria-label="新增咖啡豆">＋</button>
   <div class="toast" id="toast" role="status" aria-live="polite" popover="manual"></div>
+  <div class="dim-info-popover" id="dimInfoPopover" popover="auto" role="tooltip"></div>
 
   <dialog class="sheet compact personal-sheet" id="personalDialog">
     <header class="sheet-header"><div><p class="eyebrow">PERSONAL BREW</p><h2>个人中心</h2><p class="sheet-subtitle">你的咖啡日常和数据工具</p></div><button class="icon-button" id="personalClose" type="button" aria-label="关闭">×</button></header>
@@ -533,8 +534,8 @@
 
   <dialog class="sheet compact" id="aboutDialog">
     <header class="sheet-header"><div><p class="eyebrow">ABOUT</p><h2>关于豆仓</h2></div><button class="icon-button" id="aboutClose" type="button" aria-label="关闭">×</button></header>
-    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 2.1.1</p></section>
-    <section class="about-copy"><h3>一包豆子，一段风味，一页日常。</h3><p>豆仓是一款为咖啡爱好者设计的本地优先记录工具。你可以保存每一包咖啡豆的产地、风味与价格，记录每次饮用和冲煮方案，让日常里喝过的咖啡慢慢有迹可循。</p><h4>2.1.1 最新功能</h4><ul><li>高级评价新增多维雷达图（苦度反向、带进入动效），饮用详情与列表都能一眼看出风味轮廓</li><li>冲煮辅助计时圆环更顺滑；冲煮中点圆环即进入下一段（暂停改用底部按钮）</li><li>方案两段之间留有等待时，圆环会倒计时回退，提示当前处于间奏、准备下一段</li><li>首次为某支豆记录喝一杯时，自动把当天记为开封日期；水温现在也能从方案正确带入</li></ul><div class="privacy-note"><b>离线与隐私</b><p>豆仓默认完全离线使用，数据保存在你的设备中。云同步为可选功能，仅在登录并开启后使用。</p><p>你可以随时退出账号或删除云端副本。</p></div></section>
+    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 2.1.2</p></section>
+    <section class="about-copy"><h3>一包豆子，一段风味，一页日常。</h3><p>豆仓是一款为咖啡爱好者设计的本地优先记录工具。你可以保存每一包咖啡豆的产地、风味与价格，记录每次饮用和冲煮方案，让日常里喝过的咖啡慢慢有迹可循。</p><h4>2.1.2 最新功能</h4><ul><li>退出应用改为轻提示：主界面再次返回即退出，不再弹出整块确认窗</li><li>高级评价每个维度加了「?」说明，点一下浮窗告诉你这个维度指什么、怎么打分（编辑与设置里都有）</li><li>饮用列表的雷达图移到卡片右侧并加了单字标签（香/酸/甜/醇/余/衡/苦），更好认也不再左侧堆一坨</li><li>修复冲煮辅助圆环在段末/间奏处的跳切，转动更连贯</li><li>修复每次更新后 Web 打开偶发报错：按版本整套预缓存外壳，不再出现新旧文件错配</li></ul><div class="privacy-note"><b>离线与隐私</b><p>豆仓默认完全离线使用，数据保存在你的设备中。云同步为可选功能，仅在登录并开启后使用。</p><p>你可以随时退出账号或删除云端副本。</p></div></section>
   </dialog>
 
   <dialog class="sheet compact" id="migrationDialog">
@@ -549,11 +550,6 @@
     <footer class="sheet-footer"><span></span><div><button class="secondary-button" id="confirmCancel" type="button">取消</button><button class="danger-fill-button" id="confirmAccept" type="button">确认</button></div></footer>
   </dialog>
 
-  <dialog class="sheet compact" id="exitConfirmDialog">
-    <header class="sheet-header"><div><p class="eyebrow">EXIT</p><h2>退出豆仓？</h2></div></header>
-    <p class="sheet-intro">再次按返回键或点击“退出”即可关闭应用。</p>
-    <footer class="sheet-footer"><span></span><div><button class="ghost-button" id="exitCancel" type="button">取消</button><button class="primary-button" id="exitConfirm" type="button">退出</button></div></footer>
-  </dialog>
 
   <script src="vendor/qrcode-generator.js"></script>
   <script src="vendor/jsQR.js"></script>
