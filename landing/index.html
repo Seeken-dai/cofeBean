@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>豆仓 Coffee Vault · 本地优先的咖啡豆管理 App</title>
+  <meta name="description" content="豆仓 Coffee Vault 是一款本地优先的咖啡豆管理与冲煮记录 App，支持 Android 与 Web。默认离线、无需账号，可选加密云同步。" />
+  <meta name="theme-color" content="#1a1412" />
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="assets/icon-512.png" />
+
+  <!-- Open Graph / social -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://cofevault.top/" />
+  <meta property="og:title" content="豆仓 Coffee Vault · 本地优先的咖啡豆管理 App" />
+  <meta property="og:description" content="保存每包豆子的产地、风味与价格，记录每次冲煮与饮用。默认离线、无需账号，可选云同步。" />
+  <meta property="og:image" content="https://cofevault.top/assets/icon-512.png" />
+  <meta property="og:locale" content="zh_CN" />
+  <meta property="og:locale:alternate" content="en_US" />
+  <meta name="twitter:card" content="summary" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- ===== Header ===== -->
+  <header class="site-header">
+    <a class="brand" href="#top" aria-label="豆仓 Coffee Vault">
+      <img class="brand-logo" src="assets/logo.svg" alt="豆仓 logo" width="40" height="40" />
+      <span class="brand-name">
+        <b>豆仓</b>
+        <small>Coffee Vault</small>
+      </span>
+    </a>
+    <nav class="site-nav" aria-label="导航">
+      <a href="#features" data-i18n data-zh="功能" data-en="Features">功能</a>
+      <a href="#screens" data-i18n data-zh="截图" data-en="Screens">截图</a>
+      <a href="#privacy" data-i18n data-zh="隐私" data-en="Privacy">隐私</a>
+      <a class="nav-cta" href="#download" data-i18n data-zh="下载" data-en="Get it">下载</a>
+      <button id="langToggle" class="lang-toggle" type="button" aria-label="切换语言 / Switch language">EN</button>
+    </nav>
+  </header>
+
+  <main id="top">
+    <!-- ===== Hero ===== -->
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow" data-i18n data-zh="本地优先 · Android 与 Web" data-en="Local-first · Android & Web">本地优先 · Android 与 Web</p>
+        <h1 class="hero-title">豆仓 <span>Coffee Vault</span></h1>
+        <p class="slogan" data-i18n data-zh="一包豆子 · 一段风味 · 一页日常" data-en="One bag of beans. One flavor journey. One page of daily life.">一包豆子 · 一段风味 · 一页日常</p>
+        <p class="hero-sub" data-i18n
+           data-zh="为咖啡爱好者设计的本地优先记录工具。保存每包豆子的产地、风味与价格，记录每次冲煮与饮用，让日常里喝过的咖啡慢慢有迹可循。"
+           data-en="A local-first companion for coffee lovers. Save every bag's origin, flavor and price, log every brew and cup, and watch your daily coffee slowly leave a trace.">
+          为咖啡爱好者设计的本地优先记录工具。保存每包豆子的产地、风味与价格，记录每次冲煮与饮用，让日常里喝过的咖啡慢慢有迹可循。
+        </p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="https://github.com/Seeken-dai/cofeBean/releases/latest" rel="noopener">
+            <span class="btn-ic" aria-hidden="true">▼</span>
+            <span data-i18n data-zh="下载 Android APK" data-en="Download Android APK">下载 Android APK</span>
+          </a>
+          <a class="btn btn-ghost" href="https://app.cofevault.top" rel="noopener">
+            <span class="btn-ic" aria-hidden="true">◷</span>
+            <span data-i18n data-zh="打开 Web 版" data-en="Open the web app">打开 Web 版</span>
+          </a>
+        </div>
+        <ul class="trust">
+          <li data-i18n data-zh="默认离线" data-en="Offline by default">默认离线</li>
+          <li data-i18n data-zh="无需账号" data-en="No account">无需账号</li>
+          <li data-i18n data-zh="开源 · 可选同步" data-en="Open source · optional sync">开源 · 可选同步</li>
+        </ul>
+      </div>
+      <div class="hero-visual">
+        <div class="device device-lg">
+          <img src="assets/screens/01-home.png" alt="豆仓首页豆仓列表" loading="eager" width="390" height="844" />
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Features ===== -->
+    <section id="features" class="section">
+      <header class="section-head">
+        <p class="eyebrow" data-i18n data-zh="功能" data-en="Features">功能</p>
+        <h2 data-i18n data-zh="从一包豆子到一杯咖啡，都记下来" data-en="From the bag to the cup — all in one place">从一包豆子到一杯咖啡，都记下来</h2>
+      </header>
+      <div class="feature-grid">
+        <article class="feature">
+          <div class="feature-ic">☕</div>
+          <h3 data-i18n data-zh="咖啡豆管理" data-en="Bean library">咖啡豆管理</h3>
+          <p data-i18n
+             data-zh="产地、处理法、烘焙度、每克单价与赏味期倒计时；按状态筛选、多维度排序，赏味将至与余量不足自动提醒。"
+             data-en="Origin, process, roast, price-per-gram and a freshness countdown. Filter by status, sort any way, get nudged before beans go stale or run low.">
+            产地、处理法、烘焙度、每克单价与赏味期倒计时；按状态筛选、多维度排序，赏味将至与余量不足自动提醒。
+          </p>
+        </article>
+        <article class="feature">
+          <div class="feature-ic">📷</div>
+          <h3 data-i18n data-zh="拍照识别（离线）" data-en="Offline label scan">拍照识别（离线）</h3>
+          <p data-i18n
+             data-zh="APK 内置 ML Kit 模型，离线识别中英文包装标签，自动解析日期、克重、处理法、烘焙度与风味，低可信字段高亮待确认。"
+             data-en="The APK bundles ML Kit to read CN/EN bags offline — date, weight, process, roast and notes are parsed for you, with low-confidence fields flagged.">
+            APK 内置 ML Kit 模型，离线识别中英文包装标签，自动解析日期、克重、处理法、烘焙度与风味，低可信字段高亮待确认。
+          </p>
+        </article>
+        <article class="feature">
+          <div class="feature-ic">📅</div>
+          <h3 data-i18n data-zh="饮用记录与统计" data-en="Logs & stats">饮用记录与统计</h3>
+          <p data-i18n
+             data-zh="「喝一杯」自动扣减余量；多维风味雷达图，咖啡日历提供月历详情与年度格子热力图，当天花费与评分一目了然。"
+             data-en="One-tap logging deducts stock. A multi-axis flavor radar, a monthly calendar and a yearly heatmap show what you drank, spent and scored.">
+            「喝一杯」自动扣减余量；多维风味雷达图，咖啡日历提供月历详情与年度格子热力图，当天花费与评分一目了然。
+          </p>
+        </article>
+        <article class="feature">
+          <div class="feature-ic">⏱️</div>
+          <h3 data-i18n data-zh="冲煮方案与辅助" data-en="Brew plans & assist">冲煮方案与辅助</h3>
+          <p data-i18n
+             data-zh="按冲煮方式管理方案，饮用参数可另存为新方案；冲煮辅助按步骤自动计时，突出本段注水量并常驻下一段预览。"
+             data-en="Organize recipes by method and save brews as new plans. The brew assistant times each step, highlighting this pour and previewing the next.">
+            按冲煮方式管理方案，饮用参数可另存为新方案；冲煮辅助按步骤自动计时，突出本段注水量并常驻下一段预览。
+          </p>
+        </article>
+        <article class="feature">
+          <div class="feature-ic">🎫</div>
+          <h3 data-i18n data-zh="分享" data-en="Share cards">分享</h3>
+          <p data-i18n
+             data-zh="咖啡豆、冲煮方案、咖啡日历生成统一票据风分享卡片；方案还能生成离线分享码（DC1-）与二维码，扫码即可导入。"
+             data-en="Beans, recipes and the calendar become unified receipt-style cards. Recipes also export an offline DC1- share code with a QR to import in a scan.">
+            咖啡豆、冲煮方案、咖啡日历生成统一票据风分享卡片；方案还能生成离线分享码（DC1-）与二维码，扫码即可导入。
+          </p>
+        </article>
+        <article class="feature">
+          <div class="feature-ic">☁️</div>
+          <h3 data-i18n data-zh="云同步（可选）" data-en="Optional cloud sync">云同步（可选）</h3>
+          <p data-i18n
+             data-zh="默认关闭，不登录不联网。登录后在 Android 与 Web 间同步豆子、记录、方案与图片，合并采用 last-write-wins，可随时删除云端。"
+             data-en="Off by default — no login, no network. Sign in to sync beans, logs, plans and images across Android & Web with last-write-wins merging; delete the cloud copy anytime.">
+            默认关闭，不登录不联网。登录后在 Android 与 Web 间同步豆子、记录、方案与图片，合并采用 last-write-wins，可随时删除云端。
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <!-- ===== Screens ===== -->
+    <section id="screens" class="section">
+      <header class="section-head">
+        <p class="eyebrow" data-i18n data-zh="界面一览" data-en="A look inside">界面一览</p>
+        <h2 data-i18n data-zh="温润的深烘配色，四套主题" data-en="Warm dark-roast palette, four themes">温润的深烘配色，四套主题</h2>
+      </header>
+      <div class="screens-rail">
+        <figure class="device">
+          <img src="assets/screens/02-detail.png" alt="咖啡豆详情" loading="lazy" width="390" height="844" />
+          <figcaption data-i18n data-zh="豆子详情" data-en="Bean profile">豆子详情</figcaption>
+        </figure>
+        <figure class="device">
+          <img src="assets/screens/05-records.png" alt="饮用记录与风味雷达图" loading="lazy" width="390" height="844" />
+          <figcaption data-i18n data-zh="记录与雷达图" data-en="Logs & flavor radar">记录与雷达图</figcaption>
+        </figure>
+        <figure class="device">
+          <img src="assets/screens/03-calendar.png" alt="咖啡日历" loading="lazy" width="390" height="844" />
+          <figcaption data-i18n data-zh="咖啡日历" data-en="Coffee calendar">咖啡日历</figcaption>
+        </figure>
+        <figure class="device">
+          <img src="assets/screens/04-assist.png" alt="冲煮辅助计时" loading="lazy" width="390" height="844" />
+          <figcaption data-i18n data-zh="冲煮辅助" data-en="Brew assistant">冲煮辅助</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- ===== Privacy ===== -->
+    <section id="privacy" class="section privacy">
+      <div class="privacy-card">
+        <p class="eyebrow" data-i18n data-zh="离线与隐私" data-en="Offline & privacy">离线与隐私</p>
+        <h2 data-i18n data-zh="你的咖啡数据，先属于你" data-en="Your coffee data is yours first">你的咖啡数据，先属于你</h2>
+        <p data-i18n
+           data-zh="默认完全离线：数据保存在你的设备（Android SQLite / Web IndexedDB），不需要账号或网络，拍照识别只申请相机权限。云同步是可选功能，仅在登录并开启后使用；数据经 HTTPS 传输、仅你自己可见，你可以随时退出账号或删除云端副本。"
+           data-en="Fully offline by default: data lives on your device (Android SQLite / Web IndexedDB), with no account or network required and label scanning only asking for the camera. Cloud sync is optional and only runs once you sign in — sent over HTTPS, visible to you alone, and deletable anytime.">
+          默认完全离线：数据保存在你的设备（Android SQLite / Web IndexedDB），不需要账号或网络，拍照识别只申请相机权限。云同步是可选功能，仅在登录并开启后使用；数据经 HTTPS 传输、仅你自己可见，你可以随时退出账号或删除云端副本。
+        </p>
+      </div>
+    </section>
+
+    <!-- ===== Download ===== -->
+    <section id="download" class="section download">
+      <h2 data-i18n data-zh="开始记录你的咖啡日常" data-en="Start tracing your coffee days">开始记录你的咖啡日常</h2>
+      <p class="download-sub" data-i18n
+         data-zh="Android 7 及以上安装 APK；任何现代浏览器打开 Web 版即可使用，可添加到主屏当作 App。"
+         data-en="Install the APK on Android 7+, or just open the web app in any modern browser and add it to your home screen.">
+        Android 7 及以上安装 APK；任何现代浏览器打开 Web 版即可使用，可添加到主屏当作 App。
+      </p>
+      <div class="cta-row cta-center">
+        <a class="btn btn-primary" href="https://github.com/Seeken-dai/cofeBean/releases/latest" rel="noopener">
+          <span class="btn-ic" aria-hidden="true">▼</span>
+          <span data-i18n data-zh="下载 Android APK" data-en="Download Android APK">下载 Android APK</span>
+        </a>
+        <a class="btn btn-ghost" href="https://app.cofevault.top" rel="noopener">
+          <span class="btn-ic" aria-hidden="true">◷</span>
+          <span data-i18n data-zh="打开 Web 版" data-en="Open the web app">打开 Web 版</span>
+        </a>
+      </div>
+      <p class="download-note" data-i18n
+         data-zh="APK 通过 GitHub Releases 分发（正式签名版）。"
+         data-en="The signed APK is distributed via GitHub Releases.">
+        APK 通过 GitHub Releases 分发（正式签名版）。
+      </p>
+    </section>
+  </main>
+
+  <!-- ===== Footer ===== -->
+  <footer class="site-footer">
+    <div class="foot-brand">
+      <img src="assets/logo.svg" alt="" width="28" height="28" />
+      <span><b>豆仓</b> Coffee Vault</span>
+    </div>
+    <nav class="foot-links" aria-label="页脚链接">
+      <a href="https://app.cofevault.top" rel="noopener" data-i18n data-zh="Web 版" data-en="Web app">Web 版</a>
+      <a href="https://github.com/Seeken-dai/cofeBean" rel="noopener">GitHub</a>
+      <a href="https://github.com/Seeken-dai/cofeBean/releases/latest" rel="noopener" data-i18n data-zh="下载" data-en="Download">下载</a>
+      <a href="https://github.com/Seeken-dai/cofeBean/blob/main/docs/CHANGELOG.md" rel="noopener" data-i18n data-zh="更新日志" data-en="Changelog">更新日志</a>
+      <a href="https://github.com/Seeken-dai/cofeBean/blob/main/docs/SYNC.md" rel="noopener" data-i18n data-zh="同步说明" data-en="Sync docs">同步说明</a>
+    </nav>
+    <p class="foot-meta">
+      <span data-i18n data-zh="当前版本" data-en="Version">当前版本</span> 2.1.3 ·
+      <span>© <span id="year">2026</span> 豆仓 Coffee Vault</span>
+    </p>
+  </footer>
+
+  <script src="main.js"></script>
+</body>
+</html>

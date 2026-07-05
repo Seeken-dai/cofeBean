@@ -1,0 +1,2 @@
+# Canonicalize www -> apex (Cloudflare Pages)
+https://www.cofevault.top/* https://cofevault.top/:splat 301

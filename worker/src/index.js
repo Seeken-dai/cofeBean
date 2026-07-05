@@ -15,7 +15,7 @@ import {
 
 const SYNC_PROTOCOL = 1;
 const TYPES = ['bean', 'drinkLog', 'brewPlan'];
-const ALLOWED_ORIGINS = ['https://cofebean.pages.dev', 'http://localhost:4173', 'http://127.0.0.1:4173', 'http://localhost:4178', 'http://127.0.0.1:4178', 'http://localhost', 'capacitor://localhost'];
+const ALLOWED_ORIGINS = ['https://app.cofevault.top', 'https://cofebean.pages.dev', 'http://localhost:4173', 'http://127.0.0.1:4173', 'http://localhost:4178', 'http://127.0.0.1:4178', 'http://localhost', 'capacitor://localhost'];
 const SESSION_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 const AUTH_WINDOW_MS = 15 * 60 * 1000;
 const AUTH_MAX_ATTEMPTS = 12;
