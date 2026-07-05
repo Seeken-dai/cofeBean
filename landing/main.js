@@ -90,23 +90,41 @@
     pill.addEventListener('click', function () { switchTheme(pill.getAttribute('data-theme-id')); });
   });
 
-  // ----- hero carousel -----
+  // ----- hero carousel (horizontal slide, seamless forward loop) -----
   (function initCarousel() {
     var root = document.getElementById('heroCarousel');
-    if (!root) return;
-    var slides = root.querySelectorAll('.carousel-slide');
-    if (slides.length < 2) return;
-    var i = 0, paused = false, timer = null;
-    function go(n) {
-      slides[i].classList.remove('is-active');
-      i = (n + slides.length) % slides.length;
-      slides[i].classList.add('is-active');
+    var track = document.getElementById('heroTrack');
+    if (!root || !track) return;
+    var real = track.querySelectorAll('.carousel-slide').length;
+    if (real < 2) return;
+
+    // clone the first slide at the end so the wrap-around slides forward, not back
+    var clone = track.firstElementChild.cloneNode(true);
+    clone.setAttribute('aria-hidden', 'true');
+    track.appendChild(clone);
+
+    var i = 0, paused = false;
+    function place(animate) {
+      track.style.transition = animate ? '' : 'none';
+      track.style.transform = 'translateX(-' + (i * 100) + '%)';
     }
+    function next() { i += 1; place(true); }
+
+    track.addEventListener('transitionend', function () {
+      if (i >= real) {            // landed on the clone (looks like slide 0)
+        i = 0;
+        place(false);            // jump back with no animation
+        void track.offsetWidth;  // force reflow so the next move animates
+        track.style.transition = '';
+      }
+    });
+
     root.addEventListener('mouseenter', function () { paused = true; });
     root.addEventListener('mouseleave', function () { paused = false; });
     document.addEventListener('visibilitychange', function () { paused = document.hidden; });
+
     if (!window.matchMedia || !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      timer = setInterval(function () { if (!paused) go(i + 1); }, 2800);
+      setInterval(function () { if (!paused) next(); }, 4000);
     }
   })();
 

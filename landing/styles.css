@@ -155,16 +155,21 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 700; line-height: 1.2; marg
 .device img { width: 100%; height: auto; border-radius: 26px; display: block; }
 .device-lg { width: min(300px, 78vw); }
 
-/* Hero carousel: crossfading stack */
+/* Hero carousel: horizontal sliding track */
 .carousel { position: relative; width: 100%; aspect-ratio: 390 / 844; border-radius: 26px; overflow: hidden; background: var(--bg); }
+.carousel-track {
+  display: flex;
+  height: 100%;
+  transition: transform .6s cubic-bezier(.4, 0, .2, 1);
+  will-change: transform;
+}
 .carousel-slide {
-  position: absolute; inset: 0;
+  flex: 0 0 100%;
   width: 100%; height: 100%;
-  object-fit: cover; border-radius: 26px;
-  opacity: 0; transition: opacity .7s ease;
+  object-fit: cover;
+  border-radius: 26px;
   pointer-events: none;
 }
-.carousel-slide.is-active { opacity: 1; }
 .device figcaption {
   margin-top: 14px;
   text-align: center;
