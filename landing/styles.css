@@ -215,22 +215,36 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 700; line-height: 1.2; marg
 }
 .theme-switch { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
 .theme-pill {
-  padding: 9px 18px;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 9px 16px 9px 12px;
   border: 1px solid var(--border);
   border-radius: 999px;
   background: color-mix(in srgb, var(--surface) 70%, transparent);
   color: var(--muted);
   font: inherit; font-size: 14px; font-weight: 600;
   cursor: pointer;
-  transition: color .18s, border-color .18s, background .18s, transform .12s;
+  transition: color .2s, border-color .2s, background .2s, transform .12s;
 }
-.theme-pill:hover { color: var(--text); border-color: color-mix(in srgb, var(--accent) 46%, var(--border)); }
+/* per-theme accent for the swatch + active state */
+.theme-pill[data-theme-id="dark-roast"] { --pc: #d4a574; }
+.theme-pill[data-theme-id="frost"]      { --pc: #cf9f70; }
+.theme-pill[data-theme-id="obsidian"]   { --pc: #98a07f; }
+.theme-pill[data-theme-id="blaze"]      { --pc: #7ea86a; }
+.pill-dot {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--pc), color-mix(in srgb, var(--pc) 52%, #000));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--pc) 22%, transparent);
+  transition: box-shadow .2s;
+  flex: 0 0 auto;
+}
+.theme-pill:hover { color: var(--text); border-color: color-mix(in srgb, var(--pc) 50%, var(--border)); }
 .theme-pill:active { transform: translateY(1px); }
 .theme-pill.is-active {
-  color: var(--accent-ink);
-  background: var(--accent);
-  border-color: var(--accent);
+  color: var(--text);
+  border-color: var(--pc);
+  background: color-mix(in srgb, var(--pc) 16%, var(--surface));
 }
+.theme-pill.is-active .pill-dot { box-shadow: 0 0 0 3px color-mix(in srgb, var(--pc) 38%, transparent); }
 
 /* ===== Screens rail ===== */
 .screens-rail {
@@ -244,8 +258,8 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 700; line-height: 1.2; marg
   -webkit-overflow-scrolling: touch;
 }
 .screens-rail .device { scroll-snap-align: center; padding: 7px; border-radius: 30px; }
-.screens-rail .device img { border-radius: 23px; transition: opacity .3s ease; }
-.screens-rail .device img.img-fade { opacity: 0; }
+.screens-rail .shot { position: relative; width: 100%; aspect-ratio: 390 / 844; border-radius: 23px; overflow: hidden; background: var(--bg); }
+.screens-rail .shot img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 23px; transition: opacity .55s ease; }
 
 /* ===== Privacy ===== */
 .privacy-card {

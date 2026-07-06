@@ -154,31 +154,29 @@
     <section id="screens" class="section">
       <header class="section-head section-head--wide">
         <p class="eyebrow" data-i18n data-zh="界面一览" data-en="A look inside">界面一览</p>
-        <h2 class="theme-title" id="themeTitle"
-            data-tpl-zh="温润的 {theme} 配色，四套主题随心切换"
-            data-tpl-en="A warm {theme} palette — four themes, your pick">温润的 深烘 配色，四套主题随心切换</h2>
+        <h2 class="theme-title" id="themeTitle">温润深邃的 <span class="theme-word">深烘</span>，像深夜里的一杯手冲</h2>
         <div class="theme-switch" id="themeSwitch" role="tablist" aria-label="主题预览切换">
-          <button class="theme-pill is-active" type="button" role="tab" aria-selected="true" data-theme-id="dark-roast" data-i18n data-zh="深烘" data-en="Dark Roast">深烘</button>
-          <button class="theme-pill" type="button" role="tab" aria-selected="false" data-theme-id="frost" data-i18n data-zh="澳白" data-en="Flat White">澳白</button>
-          <button class="theme-pill" type="button" role="tab" aria-selected="false" data-theme-id="obsidian" data-i18n data-zh="火山灰绿" data-en="Ash Green">火山灰绿</button>
-          <button class="theme-pill" type="button" role="tab" aria-selected="false" data-theme-id="blaze" data-i18n data-zh="生豆" data-en="Green Bean">生豆</button>
+          <button class="theme-pill is-active" type="button" role="tab" aria-selected="true" data-theme-id="dark-roast"><span class="pill-dot" aria-hidden="true"></span><span class="pill-label" data-i18n data-zh="深烘" data-en="Dark Roast">深烘</span></button>
+          <button class="theme-pill" type="button" role="tab" aria-selected="false" data-theme-id="frost"><span class="pill-dot" aria-hidden="true"></span><span class="pill-label" data-i18n data-zh="澳白" data-en="Flat White">澳白</span></button>
+          <button class="theme-pill" type="button" role="tab" aria-selected="false" data-theme-id="obsidian"><span class="pill-dot" aria-hidden="true"></span><span class="pill-label" data-i18n data-zh="火山灰绿" data-en="Ash Green">火山灰绿</span></button>
+          <button class="theme-pill" type="button" role="tab" aria-selected="false" data-theme-id="blaze"><span class="pill-dot" aria-hidden="true"></span><span class="pill-label" data-i18n data-zh="生豆" data-en="Green Bean">生豆</span></button>
         </div>
       </header>
       <div class="screens-rail" id="themeScreens">
         <figure class="device">
-          <img data-screen="home" src="assets/screens/dark-roast/home.webp" alt="首页豆仓列表" loading="lazy" width="390" height="844" />
+          <div class="shot" data-screen="home"><img class="shot-img" src="assets/screens/dark-roast/home.webp" alt="首页豆仓列表" width="390" height="844" /></div>
           <figcaption data-i18n data-zh="首页豆仓" data-en="Bean vault">首页豆仓</figcaption>
         </figure>
         <figure class="device">
-          <img data-screen="records" src="assets/screens/dark-roast/records.webp" alt="饮用记录与风味雷达图" loading="lazy" width="390" height="844" />
+          <div class="shot" data-screen="records"><img class="shot-img" src="assets/screens/dark-roast/records.webp" alt="饮用记录与风味雷达图" width="390" height="844" /></div>
           <figcaption data-i18n data-zh="记录与雷达图" data-en="Logs & flavor radar">记录与雷达图</figcaption>
         </figure>
         <figure class="device">
-          <img data-screen="calendar" src="assets/screens/dark-roast/calendar.webp" alt="咖啡日历" loading="lazy" width="390" height="844" />
+          <div class="shot" data-screen="calendar"><img class="shot-img" src="assets/screens/dark-roast/calendar.webp" alt="咖啡日历" width="390" height="844" /></div>
           <figcaption data-i18n data-zh="咖啡日历" data-en="Coffee calendar">咖啡日历</figcaption>
         </figure>
         <figure class="device">
-          <img data-screen="assist" src="assets/screens/dark-roast/assist.webp" alt="冲煮辅助计时" loading="lazy" width="390" height="844" />
+          <div class="shot" data-screen="assist"><img class="shot-img" src="assets/screens/dark-roast/assist.webp" alt="冲煮辅助计时" width="390" height="844" /></div>
           <figcaption data-i18n data-zh="冲煮辅助" data-en="Brew assistant">冲煮辅助</figcaption>
         </figure>
       </div>
