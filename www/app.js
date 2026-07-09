@@ -24,8 +24,11 @@
   const PRICE_UNITS = { g: { label: '每克单价', grams: 1, suffix: '/ g' }, '50g': { label: '每 50g 单价', grams: 50, suffix: '/ 50g' }, '100g': { label: '每 100g 单价', grams: 100, suffix: '/ 100g' }, jin: { label: '每斤单价', grams: 500, suffix: '/ 斤' } };
   const MONTH_NAMES = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
   const DRINK_PAGE_SIZE = 60;
+  const RELEASES_URL = 'https://github.com/Seeken-dai/cofeBean/releases';
+  const LATEST_RELEASE_API = 'https://api.github.com/repos/Seeken-dai/cofeBean/releases/latest';
+  const UPDATE_TIMEOUT_MS = 15000;
   const themeColors = { 'dark-roast': '#1a1412', frost: '#f7f1e8', obsidian: '#1e2320', blaze: '#f5f3ea' };
-  const state = { beans: [], drinkLogs: [], brewPlans: [], settings: BeanCore.normalizeSettings({}), view: 'beans', status: '全部', planMethod: '全部', query: '', sort: 'roastDate', direction: 'desc', drinkVisibleLimit: DRINK_PAGE_SIZE, editingId: null, editingDrinkId: null, viewingDrinkId: null, editingPlanId: null, viewingPlanId: null, managerField: null, choiceTarget: null, dateTarget: null, calendarDate: null, coffeeCalendarDate: new Date(), coffeeCalendarView: 'month', selectedCoffeeDay: BeanCore.dateKey(new Date()), activeDrinkStepIndex: -1, brewAssist: null, pendingImages: [], previewImage: null, shareBeanId: null, shareCardPreview: null, importScope: 'all', syncAuthMode: 'login', syncBusy: false, initialized: false, resuming: false };
+  const state = { beans: [], drinkLogs: [], brewPlans: [], settings: BeanCore.normalizeSettings({}), view: 'beans', status: '全部', planMethod: '全部', query: '', sort: 'roastDate', direction: 'desc', drinkVisibleLimit: DRINK_PAGE_SIZE, editingId: null, editingDrinkId: null, viewingDrinkId: null, editingPlanId: null, viewingPlanId: null, managerField: null, choiceTarget: null, dateTarget: null, calendarDate: null, coffeeCalendarDate: new Date(), coffeeCalendarView: 'month', selectedCoffeeDay: BeanCore.dateKey(new Date()), activeDrinkStepIndex: -1, brewAssist: null, pendingImages: [], previewImage: null, shareBeanId: null, shareCardPreview: null, importScope: 'all', syncAuthMode: 'login', syncBusy: false, updateBusy: false, updateResult: null, appInfo: null, initialized: false, resuming: false };
   const cloudSync = window.BeanCloudSync ? window.BeanCloudSync.createSyncService() : null;
   let toastTimer = null;
   let confirmResolver = null;
@@ -926,7 +929,7 @@
     toast(role === 'bag' ? '已移除咖啡袋图片' : '已移除标签图片');
   }
   async function archivePendingImages(fields) { if (!state.pendingImages.length) return fields; if (!BeanRepository.isNative()) { state.pendingImages = []; return fields; } const scanner = capPlugin('CoffeeLabelScanner'); if (!scanner || !scanner.archiveImage) return fields; let next = { ...fields }; for (const item of state.pendingImages) { const result = await scanner.archiveImage({ path: item.path, role: item.role, deleteSource: true }); next[item.role === 'bag' ? 'bagImagePath' : 'labelImagePath'] = result.path || result.uri || next[item.role === 'bag' ? 'bagImagePath' : 'labelImagePath'] || ''; } state.pendingImages = []; return next; }
-  async function openPurchaseUrl(url) {
+  async function openExternalUrl(url, errorText) {
     if (!url) return;
     try {
       const opener = capPlugin('ExternalLinkOpener');
@@ -934,9 +937,10 @@
       else window.open(url, '_blank', 'noopener');
     } catch (error) {
       console.error(error);
-      toast('无法打开购买链接');
+      toast(errorText || '无法打开链接');
     }
   }
+  async function openPurchaseUrl(url) { return openExternalUrl(url, '无法打开购买链接'); }
   async function saveForm(event) { event.preventDefault(); const fd = new FormData(els.form); const old = state.editingId ? state.beans.find((bean) => bean.id === state.editingId) : null; const stamp = new Date().toISOString(); if (!String(fd.get('name') || '').trim()) return toast('请先填写豆名'); try { const fields = await archivePendingImages(Object.fromEntries(fd.entries())); const payload = BeanCore.normalizeBean({ ...(old || {}), ...fields, id: state.editingId || undefined, favorite: $('#field-favorite').checked, createdAt: old ? old.createdAt : stamp, updatedAt: stamp }, stamp); await BeanRepository.save(payload); setDialog(els.editor, false); state.editingId = null; await reload(); let savedMsg = old ? '记录已更新' : '咖啡豆已入仓'; const nudgeKey = `coffee-vault-photo-nudge:${payload.id}`; if (state.settings.showBeanPhotosInList && !payload.bagImagePath && !readLocalFlag(nudgeKey)) { savedMsg += ' · 拍张袋子照，列表更好认'; writeLocalFlag(nudgeKey); } toast(savedMsg); } catch (error) { console.error(error); toast('保存失败，请稍后重试'); } }
   async function removeCurrent() {
     if (!state.editingId) return;
@@ -1324,7 +1328,111 @@
   }
   function renderSettings() { $('#settingQuickGrams').value = state.settings.quickGrams; $('#settingFlavorReminderDays').value = state.settings.flavorReminderDays; $('#settingLowStockCups').value = state.settings.lowStockCups; $('#settingBrewPlans').checked = brewPlansEnabled(); $('#settingBeanPhotos').checked = state.settings.showBeanPhotosInList; $('#settingPriceUnit').value = state.settings.priceUnit || 'g'; enhanceSelect($('#settingPriceUnit')); syncChoiceTrigger($('#settingPriceUnit')); $('#settingAdvanced').checked = state.settings.advancedRatings; $('#dimensionSettings').innerHTML = BeanCore.DIMENSION_KEYS.map((key) => `<label><input type="checkbox" data-dimension="${key}" ${state.settings.enabledDimensions.includes(key) ? 'checked' : ''}><span>${DIMENSIONS[key]} ${key === 'bitterness' ? '☹' : '☺'}</span>${dimInfoButton(key)}</label>`).join(''); $('#dimensionSection').hidden = !state.settings.advancedRatings; }
   async function saveSettingsFromUi() { state.settings = BeanCore.normalizeSettings({ ...state.settings, quickGrams: $('#settingQuickGrams').value, flavorReminderDays: $('#settingFlavorReminderDays').value, lowStockCups: $('#settingLowStockCups').value, enableBrewPlans: $('#settingBrewPlans').checked, showBeanPhotosInList: $('#settingBeanPhotos').checked, priceUnit: $('#settingPriceUnit').value, advancedRatings: $('#settingAdvanced').checked, enabledDimensions: $$('[data-dimension]:checked').map((node) => node.dataset.dimension) }); syncBackupDialog(); await BeanRepository.saveSettings(state.settings); render(); if (els.detail.open && state.editingId) openDetail(state.beans.find((bean) => bean.id === state.editingId)); }
-  async function showAbout() { setDialog(els.about, true); const app = capPlugin('App'); if (app && app.getInfo) { try { const info = await app.getInfo(); $('#aboutVersion').textContent = `版本 ${info.version} · 构建 ${info.build}`; } catch (_) {} } }
+  function currentAppVersion() {
+    if (state.appInfo && state.appInfo.version) return state.appInfo.version;
+    const match = String($('#aboutVersion') && $('#aboutVersion').textContent || '').match(/版本\s+([^\s·]+)/);
+    return match ? match[1] : '';
+  }
+  function formatDownloadSize(bytes) {
+    const size = Number(bytes) || 0;
+    if (!size) return '';
+    if (size >= 1024 * 1024) return `约 ${Math.round(size / 1024 / 1024)} MB`;
+    if (size >= 1024) return `约 ${Math.round(size / 1024)} KB`;
+    return `${size} B`;
+  }
+  function releaseNotesHtml(text) {
+    const lines = String(text || '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean).slice(0, 8);
+    if (!lines.length) return '<p>这次发布没有填写更新说明，可打开发布页查看详情。</p>';
+    return '<ul>' + lines.map((line) => `<li>${esc(line.replace(/^[-*]\s*/, '').replace(/^#+\s*/, ''))}</li>`).join('') + '</ul>';
+  }
+  function renderUpdatePanel() {
+    const panel = $('#updateStatus');
+    const check = $('#aboutCheckUpdate');
+    const download = $('#aboutDownloadUpdate');
+    if (!panel || !check || !download) return;
+    check.disabled = state.updateBusy;
+    check.textContent = state.updateBusy ? '检查中...' : '检查更新';
+    download.hidden = true;
+    panel.hidden = !state.updateBusy && !state.updateResult;
+    if (state.updateBusy) {
+      panel.dataset.state = 'loading';
+      panel.innerHTML = '<b>正在检查更新</b><p>正在连接 GitHub Releases。</p>';
+      return;
+    }
+    const result = state.updateResult;
+    if (!result) return;
+    panel.dataset.state = result.state || 'info';
+    if (result.state === 'available') {
+      const size = formatDownloadSize(result.asset && result.asset.size);
+      panel.innerHTML = `<b>发现新版本 ${esc(result.version)}</b><div class="update-notes">${releaseNotesHtml(result.body)}</div>${size ? `<p>安装包大小：${esc(size)}</p>` : ''}`;
+      download.hidden = !result.asset;
+      download.textContent = '前往下载';
+      return;
+    }
+    panel.innerHTML = `<b>${esc(result.title)}</b><p>${esc(result.message)}</p>`;
+  }
+  async function fetchLatestRelease() {
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), UPDATE_TIMEOUT_MS) : null;
+    try {
+      const response = await fetch(LATEST_RELEASE_API, {
+        headers: { Accept: 'application/vnd.github+json' },
+        signal: controller && controller.signal
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.json();
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+  async function checkForUpdates() {
+    if (state.updateBusy) return;
+    state.updateBusy = true;
+    state.updateResult = null;
+    renderUpdatePanel();
+    try {
+      const release = await fetchLatestRelease();
+      const remoteVersion = String(release && release.tag_name || '').trim();
+      const localVersion = currentAppVersion();
+      const compare = BeanCore.compareAppVersions(remoteVersion, localVersion);
+      const releaseUrl = release && release.html_url || RELEASES_URL;
+      if (compare == null) {
+        state.updateResult = { state: 'error', title: '无法判断版本', message: '版本信息格式异常，可打开发布页手动查看最新版本。', releaseUrl };
+      } else if (compare <= 0) {
+        state.updateResult = { state: 'current', title: '当前已是最新版本', message: `本机版本 ${localVersion}，发布页最新版本 ${remoteVersion}。`, releaseUrl };
+      } else {
+        const asset = BeanCore.selectReleaseApkAsset(release && release.assets);
+        state.updateResult = asset
+          ? { state: 'available', version: remoteVersion, body: release && release.body, releaseUrl, asset }
+          : { state: 'warning', title: `发现新版本 ${remoteVersion}`, message: '当前版本暂未提供可下载的 release APK，可打开发布页查看详情。', releaseUrl };
+      }
+    } catch (error) {
+      console.error(error);
+      state.updateResult = { state: 'error', title: '无法连接更新服务器', message: '请检查网络后重试，也可以直接打开发布页手动查看最新版本。', releaseUrl: RELEASES_URL };
+    } finally {
+      state.updateBusy = false;
+      renderUpdatePanel();
+    }
+  }
+  async function showAbout() {
+    setDialog(els.about, true);
+    const app = capPlugin('App');
+    if (app && app.getInfo) {
+      try {
+        state.appInfo = await app.getInfo();
+        $('#aboutVersion').textContent = `版本 ${state.appInfo.version} · 构建 ${state.appInfo.build}`;
+      } catch (_) {}
+    }
+    renderUpdatePanel();
+  }
+  function openReleasePage() {
+    const url = state.updateResult && state.updateResult.releaseUrl || RELEASES_URL;
+    return openExternalUrl(url, '无法打开发布页');
+  }
+  function openUpdateDownload() {
+    const asset = state.updateResult && state.updateResult.asset;
+    return openExternalUrl(asset && asset.url || RELEASES_URL, '无法打开下载链接');
+  }
   function openImagePreview(path, label) { if (!path) return; state.previewImage = { path, label: label || '图片预览' }; $('#imagePreviewTitle').textContent = state.previewImage.label; $('#imagePreviewPhoto').src = imageSrc(path); setDialog(els.imagePreview, true); }
   async function sharePreviewImage() { if (!state.previewImage) return; try { const share = capPlugin('Share'); if (BeanRepository.isNative() && share) { await share.share({ title: state.previewImage.label, text: `${state.previewImage.label} · 豆仓`, files: [state.previewImage.path], dialogTitle: '保存或分享图片' }); } else { const link = document.createElement('a'); link.href = imageSrc(state.previewImage.path); link.download = `${state.previewImage.label || '豆仓图片'}.jpg`; link.click(); } toast('已打开保存面板'); } catch (error) { console.error(error); toast('保存图片失败'); } }
   function shareFilename(payload) { return `豆仓-${String(payload.title || '分享卡片').replace(/[\\/:*?"<>|]/g, '').slice(0, 24) || '分享卡片'}-${Date.now()}.png`; }
@@ -1881,7 +1989,7 @@
     setupSmartSelects(); setupPlanSmartSelects(); syncAllChoiceTriggers(); $$('.picker-control').forEach((input) => input.addEventListener('click', () => openDatePicker(input))); $('#choiceList').addEventListener('click', chooseOption); $('#choiceClose').addEventListener('click', () => setDialog(els.choice, false)); $('#datePickerClose').addEventListener('click', () => setDialog(els.datePicker, false)); $('#datePickerCancel').addEventListener('click', () => setDialog(els.datePicker, false)); $('#datePickerConfirm').addEventListener('click', confirmDatePicker); $('#datePickerClear').addEventListener('click', clearDatePicker); $('#calendarPrev').addEventListener('click', () => shiftCalendar(-1)); $('#calendarNext').addEventListener('click', () => shiftCalendar(1)); $('#calendarDays').addEventListener('click', chooseCalendarDay); $$('[data-manage]').forEach((button) => button.addEventListener('click', () => openManager(button.dataset.manage))); $('#managerClose').addEventListener('click', () => setDialog(els.manager, false)); $('#managerList').addEventListener('click', managerAction);
     $('#profileOpen').addEventListener('click', openPersonal); $('#personalClose').addEventListener('click', () => setDialog(els.personal, false)); $('#coffeeCalendarOpen').addEventListener('click', () => openCoffeeCalendar('month')); $('#personalSettingsOpen').addEventListener('click', () => { renderSettings(); setDialog(els.settings, true); }); $('#personalSyncOpen').addEventListener('click', () => { renderSyncSettings(); setDialog(els.sync, true); }); $('#dataBackupOpen').addEventListener('click', () => { syncBackupDialog(); setDialog(els.backup, true); }); $('#dataBackupClose').addEventListener('click', () => setDialog(els.backup, false));
     $('#calendarClose').addEventListener('click', () => setDialog(els.calendar, false)); $('#calendarShare').addEventListener('click', shareCalendarCard); $$('[data-calendar-view]').forEach((button) => button.addEventListener('click', () => { state.coffeeCalendarView = button.dataset.calendarView; renderCoffeeCalendar(); })); $('#calendarPrevMonth').addEventListener('click', () => shiftCoffeeMonth(-1)); $('#calendarNextMonth').addEventListener('click', () => shiftCoffeeMonth(1)); $('#calendarPrevYear').addEventListener('click', () => shiftCoffeeYear(-1)); $('#calendarNextYear').addEventListener('click', () => shiftCoffeeYear(1)); els.calendar.addEventListener('click', (event) => { if (cardPressFired) { cardPressFired = false; return; } const day = event.target.closest('[data-calendar-day]'); if (day) { state.selectedCoffeeDay = day.dataset.calendarDay; state.coffeeCalendarDate = dateFromKey(state.selectedCoffeeDay); renderCoffeeCalendar(); return; } const yearDay = event.target.closest('[data-year-day]'); if (yearDay) { state.selectedCoffeeDay = yearDay.dataset.yearDay; state.coffeeCalendarDate = dateFromKey(state.selectedCoffeeDay); renderCoffeeCalendar(); return; } const logItem = event.target.closest('[data-log-id]'); if (logItem) openDrinkDetail(state.drinkLogs.find((log) => log.id === logItem.dataset.logId)); if (event.target.closest('#calendarSeeLogs')) { setDialog(els.calendar, false); state.view = 'drinks'; state.drinkVisibleLimit = DRINK_PAGE_SIZE; render(); } });
-    $('#settingsClose').addEventListener('click', () => setDialog(els.settings, false)); $$('[data-theme-value]').forEach((button) => button.addEventListener('click', () => applyTheme(button.datasetThemeValue || button.dataset.themeValue, true))); $('#settingQuickGrams').addEventListener('change', saveSettingsFromUi); $('#settingFlavorReminderDays').addEventListener('change', saveSettingsFromUi); $('#settingLowStockCups').addEventListener('change', saveSettingsFromUi); $('#settingBrewPlans').addEventListener('change', saveSettingsFromUi); $('#settingBeanPhotos').addEventListener('change', saveSettingsFromUi); $('#settingPriceUnit').addEventListener('change', () => { syncChoiceTrigger($('#settingPriceUnit')); saveSettingsFromUi(); }); $('#settingAdvanced').addEventListener('change', () => { $('#dimensionSection').hidden = !$('#settingAdvanced').checked; saveSettingsFromUi(); }); $('#dimensionSettings').addEventListener('click', (event) => { const dimInfo = event.target.closest('[data-dim-info]'); if (dimInfo) { event.preventDefault(); showDimInfo(dimInfo.dataset.dimInfo, dimInfo); } }); $('#dimensionSettings').addEventListener('change', saveSettingsFromUi); $('#syncClose').addEventListener('click', () => setDialog(els.sync, false)); $('#syncLoginOpen').addEventListener('click', () => openSyncAuth('login')); $('#syncAuthClose').addEventListener('click', syncAuthBack); $$('[data-sync-auth-mode]').forEach((button) => button.addEventListener('click', () => setSyncAuthMode(button.dataset.syncAuthMode))); $('#syncAuthSubmit').addEventListener('click', syncAuthSubmit); $('#syncLogout').addEventListener('click', syncLogout); $('#syncDeleteAccount').addEventListener('click', syncDeleteAccount); $('#syncEnabled').addEventListener('change', syncToggle); $('#syncNow').addEventListener('click', syncNow); $('#syncCopyRecovery').addEventListener('click', copyRecoveryCode); $('#aboutOpen').addEventListener('click', showAbout); $('#aboutClose').addEventListener('click', () => setDialog(els.about, false)); $$('[data-export-scope]').forEach((button) => button.addEventListener('click', () => exportBackup(button.dataset.exportScope))); $$('[data-import-scope]').forEach((button) => button.addEventListener('click', () => startImport(button.dataset.importScope))); $('#webImportInput').addEventListener('change', webImport); $('#migrationLater').addEventListener('click', () => setDialog(els.migration, false)); $('#migrationNow').addEventListener('click', migrateLegacy);
+    $('#settingsClose').addEventListener('click', () => setDialog(els.settings, false)); $$('[data-theme-value]').forEach((button) => button.addEventListener('click', () => applyTheme(button.datasetThemeValue || button.dataset.themeValue, true))); $('#settingQuickGrams').addEventListener('change', saveSettingsFromUi); $('#settingFlavorReminderDays').addEventListener('change', saveSettingsFromUi); $('#settingLowStockCups').addEventListener('change', saveSettingsFromUi); $('#settingBrewPlans').addEventListener('change', saveSettingsFromUi); $('#settingBeanPhotos').addEventListener('change', saveSettingsFromUi); $('#settingPriceUnit').addEventListener('change', () => { syncChoiceTrigger($('#settingPriceUnit')); saveSettingsFromUi(); }); $('#settingAdvanced').addEventListener('change', () => { $('#dimensionSection').hidden = !$('#settingAdvanced').checked; saveSettingsFromUi(); }); $('#dimensionSettings').addEventListener('click', (event) => { const dimInfo = event.target.closest('[data-dim-info]'); if (dimInfo) { event.preventDefault(); showDimInfo(dimInfo.dataset.dimInfo, dimInfo); } }); $('#dimensionSettings').addEventListener('change', saveSettingsFromUi); $('#syncClose').addEventListener('click', () => setDialog(els.sync, false)); $('#syncLoginOpen').addEventListener('click', () => openSyncAuth('login')); $('#syncAuthClose').addEventListener('click', syncAuthBack); $$('[data-sync-auth-mode]').forEach((button) => button.addEventListener('click', () => setSyncAuthMode(button.dataset.syncAuthMode))); $('#syncAuthSubmit').addEventListener('click', syncAuthSubmit); $('#syncLogout').addEventListener('click', syncLogout); $('#syncDeleteAccount').addEventListener('click', syncDeleteAccount); $('#syncEnabled').addEventListener('change', syncToggle); $('#syncNow').addEventListener('click', syncNow); $('#syncCopyRecovery').addEventListener('click', copyRecoveryCode); $('#aboutOpen').addEventListener('click', showAbout); $('#aboutClose').addEventListener('click', () => setDialog(els.about, false)); $('#aboutCheckUpdate').addEventListener('click', checkForUpdates); $('#aboutOpenReleases').addEventListener('click', openReleasePage); $('#aboutDownloadUpdate').addEventListener('click', openUpdateDownload); $$('[data-export-scope]').forEach((button) => button.addEventListener('click', () => exportBackup(button.dataset.exportScope))); $$('[data-import-scope]').forEach((button) => button.addEventListener('click', () => startImport(button.dataset.importScope))); $('#webImportInput').addEventListener('change', webImport); $('#migrationLater').addEventListener('click', () => setDialog(els.migration, false)); $('#migrationNow').addEventListener('click', migrateLegacy);
     $('#brewAssistStop').addEventListener('click', cancelBrewAssist); $('#brewAssistPause').addEventListener('click', pauseBrewAssist); $('#brewAssistRing').addEventListener('click', tapBrewAssistRing); $('#brewAssistRing').addEventListener('keydown', (event) => { if (['Enter', ' '].includes(event.key)) { event.preventDefault(); tapBrewAssistRing(); } }); $('#brewAssistSkip').addEventListener('click', skipBrewAssistStage); $('#brewAssistFinish').addEventListener('click', finishBrewAssist);
     $('#sharePreviewClose').addEventListener('click', closeSharePreview); $('#sharePreviewCancel').addEventListener('click', closeSharePreview); $('#sharePreviewSave').addEventListener('click', saveShareCard); $('#sharePreviewShare').addEventListener('click', confirmShareCard);
     $('#confirmCancel').addEventListener('click', () => resolveConfirm(false)); $('#confirmAccept').addEventListener('click', () => resolveConfirm(true)); els.confirm.addEventListener('close', () => resolveConfirm(false));

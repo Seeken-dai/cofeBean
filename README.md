@@ -84,6 +84,6 @@
 
 ## 技术信息
 
-- 包名 `com.coffeebean.vault`，版本 `2.1.2`（versionCode `45`）
+- 包名 `com.coffeebean.vault`，版本 `2.1.4`（versionCode `47`）
 - 最低 Android 7 / API 24，目标 Android 16 / API 36
 - 前端原生 HTML/CSS/JS，无构建步骤；Android 壳为 Capacitor 8

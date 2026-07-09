@@ -71,6 +71,8 @@ node --check www/repository.js
 
 APK 可使用 Android Build Tools 的 `aapt2 dump badging`、`aapt2 dump permissions` 和 `apksigner verify --print-certs` 检查包信息、权限与签名。
 
+2.1.4 目标 `versionName=2.1.4`、`versionCode=47`，正式签名版 `dist/coffee-vault-2.1.4-release.apk` 待合并回 `main` 后构建；本版在关于页新增手动「检查更新」，通过 GitHub Releases latest API 获取最新版本和 release APK 下载入口，下载与安装交给系统浏览器和 Android 系统处理。未新增 `REQUEST_INSTALL_PACKAGES`、存储或相册权限；仅用户主动点击检查更新时联网。
+
 2.1.2 目标 `versionName=2.1.2`、`versionCode=45`，正式签名版 `dist/coffee-vault-2.1.2-release.apk`；本版把退出确认弹窗改为「再次返回即退出」的轻提示，高级评价每个维度新增「?」说明浮窗（编辑与设置），把饮用列表的雷达图移到卡片右侧、加上单字轴标签，并修复冲煮辅助圆环段末/间奏处的跳切、以及每次更新后 Web 打开偶发报错（Service Worker 改为按版本原子化预缓存外壳，缓存名随版本变化）。未新增 Android 权限或默认网络行为。APK 打包与真机验证在合并回 `main` 前完成。
 
 2.1.1 release 已验证 `versionName=2.1.1`、`versionCode=44`，正式签名版 `dist/coffee-vault-2.1.1-release.apk`；本版新增高级评价多维雷达图（苦度反向、进入动效，详情与列表同步展示），冲煮辅助计时圆环改用 rAF 更顺滑、冲煮中点圆环进入下一段、方案两段间等待时圆环倒计时回退，并修复首次喝一杯未回填开封日期、方案水温（带 °C 文本）无法带入 number 输入的问题。未新增 Android 权限或默认网络行为。

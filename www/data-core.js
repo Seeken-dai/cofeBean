@@ -159,6 +159,52 @@
     return cleanText(url, 1000);
   }
 
+  function parseAppVersion(value) {
+    const text = cleanText(value, 80).replace(/^[vV]\s*/, '');
+    if (!/^\d+(?:\.\d+){0,2}$/.test(text)) return null;
+    const parts = text.split('.').map((part) => Number(part));
+    while (parts.length < 3) parts.push(0);
+    return parts;
+  }
+
+  function compareAppVersions(left, right) {
+    const a = parseAppVersion(left);
+    const b = parseAppVersion(right);
+    if (!a || !b) return null;
+    for (let index = 0; index < 3; index += 1) {
+      if (a[index] > b[index]) return 1;
+      if (a[index] < b[index]) return -1;
+    }
+    return 0;
+  }
+
+  function isAppVersionNewer(remoteVersion, localVersion) {
+    return compareAppVersions(remoteVersion, localVersion) > 0;
+  }
+
+  function selectReleaseApkAsset(assets) {
+    const candidates = (Array.isArray(assets) ? assets : []).filter((asset) => {
+      const name = cleanText(asset && asset.name, 240);
+      const url = cleanText(asset && asset.browser_download_url, 1000);
+      return name && url && /\.apk$/i.test(name) && !/debug/i.test(name);
+    });
+    if (!candidates.length) return null;
+    candidates.sort((a, b) => {
+      const aName = cleanText(a.name, 240);
+      const bName = cleanText(b.name, 240);
+      const aRelease = /release/i.test(aName) ? 1 : 0;
+      const bRelease = /release/i.test(bName) ? 1 : 0;
+      if (aRelease !== bRelease) return bRelease - aRelease;
+      return aName.localeCompare(bName, 'zh-CN');
+    });
+    const picked = candidates[0];
+    return {
+      name: cleanText(picked.name, 240),
+      url: cleanText(picked.browser_download_url, 1000),
+      size: Math.max(0, Math.round(Number(picked.size) || 0))
+    };
+  }
+
   function safeJson(value, fallback) {
     if (value == null || value === '') return fallback;
     if (typeof value === 'string') {
@@ -606,7 +652,7 @@
       exportScope,
       exportedAt: exportedAt || new Date().toISOString(),
       app: '豆仓',
-      appVersion: '2.1.3'
+      appVersion: '2.1.4'
     };
     if (exportScope === 'all' || exportScope === 'library') {
       payload.beans = (beans || []).map((bean) => normalizeBean(bean, bean.updatedAt));
@@ -1051,5 +1097,5 @@
     return series;
   }
 
-  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, prepareBrewAssistSteps, brewAssistStatus, resolveOpenedDate, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, flavorTags, beanFreshness, recentDrinkSeries, beanProcessKind };
+  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, prepareBrewAssistSteps, brewAssistStatus, resolveOpenedDate, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareAppVersions, isAppVersionNewer, selectReleaseApkAsset, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, flavorTags, beanFreshness, recentDrinkSeries, beanProcessKind };
 });

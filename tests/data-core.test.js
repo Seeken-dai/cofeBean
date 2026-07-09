@@ -21,6 +21,28 @@ test('normalizeBean extracts generic purchase urls from links and share text', (
   assert.equal(core.normalizeBean({ name: '私有协议豆', purchaseUrl: 'taobao://item?id=1' }).purchaseUrl, '');
 });
 
+test('app version comparison handles semantic versions and invalid inputs safely', () => {
+  assert.equal(core.isAppVersionNewer('2.1.4', '2.1.3'), true);
+  assert.equal(core.isAppVersionNewer('2.1.10', '2.1.9'), true);
+  assert.equal(core.isAppVersionNewer('2.1.4', '2.1.4'), false);
+  assert.equal(core.isAppVersionNewer('v2.1.4', '2.1.4'), false);
+  assert.equal(core.isAppVersionNewer('2.1.0', '2.1'), false);
+  assert.equal(core.isAppVersionNewer('2.1.3', '2.1.4'), false);
+  assert.equal(core.compareAppVersions('bad', '2.1.4'), null);
+  assert.equal(core.isAppVersionNewer('2.1.4', 'bad'), false);
+});
+
+test('selectReleaseApkAsset prefers release apk and ignores debug artifacts', () => {
+  const picked = core.selectReleaseApkAsset([
+    { name: 'cofebean-v2.1.4-debug.apk', browser_download_url: 'https://example.com/debug.apk', size: 10 },
+    { name: 'cofebean-v2.1.4-universal.apk', browser_download_url: 'https://example.com/universal.apk', size: 20 },
+    { name: 'cofebean-v2.1.4-release.apk', browser_download_url: 'https://example.com/release.apk', size: 73400320 },
+    { name: 'notes.txt', browser_download_url: 'https://example.com/notes.txt', size: 5 }
+  ]);
+  assert.deepEqual(picked, { name: 'cofebean-v2.1.4-release.apk', url: 'https://example.com/release.apk', size: 73400320 });
+  assert.equal(core.selectReleaseApkAsset([{ name: 'only-debug.apk', browser_download_url: 'https://example.com/debug.apk' }]), null);
+});
+
 test('filterAndSort searches multiple fields and sorts remaining weight or unit price', () => {
   const beans = [
     core.normalizeBean({ name: 'A', origin: '埃塞俄比亚', remainingWeight: 80, status: '饮用中', price: 100, initialWeight: 200 }),
