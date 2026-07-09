@@ -38,6 +38,7 @@
     priceUnit: 'g',
     theme: 'dark-roast',
     showBeanPhotosInList: false,
+    photoJournal: false,
     flavorReminderDays: 7,
     lowStockCups: 4
   });
@@ -560,6 +561,7 @@
       priceUnit: ['g', '50g', '100g', 'jin'].includes(source.priceUnit) ? source.priceUnit : DEFAULT_SETTINGS.priceUnit,
       theme: ['dark-roast', 'frost', 'obsidian', 'blaze'].includes(source.theme) ? source.theme : DEFAULT_SETTINGS.theme,
       showBeanPhotosInList: source.showBeanPhotosInList === true || source.showBeanPhotosInList === 1 || source.showBeanPhotosInList === '1',
+      photoJournal: cleanBoolean(source.photoJournal),
       flavorReminderDays: cleanNumber(source.flavorReminderDays) == null ? DEFAULT_SETTINGS.flavorReminderDays : Math.min(60, Math.max(0, Math.round(Number(source.flavorReminderDays)))),
       lowStockCups: cleanNumber(source.lowStockCups) == null ? DEFAULT_SETTINGS.lowStockCups : Math.min(20, Math.max(1, Math.round(Number(source.lowStockCups))))
     };
@@ -652,7 +654,7 @@
       exportScope,
       exportedAt: exportedAt || new Date().toISOString(),
       app: '豆仓',
-      appVersion: '2.1.4'
+      appVersion: '2.2.0'
     };
     if (exportScope === 'all' || exportScope === 'library') {
       payload.beans = (beans || []).map((bean) => normalizeBean(bean, bean.updatedAt));
