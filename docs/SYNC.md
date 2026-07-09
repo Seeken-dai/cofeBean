@@ -93,7 +93,7 @@
 * **push 前** `idb → r2`：读本地 blob，上传到 Worker，用返回的 sha 换成 `r2:` 引用；
 * **pull 后** `r2 → idb`：下载 blob 存本地，换回 `idb:` 引用（同次同步内用 `Map` 缓存去重）。
 
-仅咖啡豆携带图片字段（`bagImagePath` / `labelImagePath`）。云端把图片存在 R2 的 `userId/sha256` 下，相同内容用 `image\_refs.ref\_count` 去重；单张上限 5MB。
+咖啡豆携带图片字段（`bagImagePath` / `labelImagePath`）；饮用记录自 2.2.1 起携带 `photos`（最多 3 张引用）。云端把图片存在 R2 的 `userId/sha256` 下，相同内容用 `image\_refs.ref\_count` 去重；单张上限 5MB。映射层在 push/pull 时统一处理豆图与饮用照片的本地引用 ↔ r2 引用。
 
 ## 账号与鉴权
 

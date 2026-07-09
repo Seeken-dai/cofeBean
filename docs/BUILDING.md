@@ -71,11 +71,11 @@ node --check www/repository.js
 
 APK 可使用 Android Build Tools 的 `aapt2 dump badging`、`aapt2 dump permissions` 和 `apksigner verify --print-certs` 检查包信息、权限与签名。
 
-2.2.1 目标 `versionName=2.2.1`、`versionCode=49`，正式签名版 `dist/coffee-vault-2.2.1-release.apk` 待合并回 `main` 后构建；本版新增饮用记录照片贴图、饮用页直接记一杯入口与外饮记录，SQLite 升级至 user_version 9，备份 schema 升级至 6。未新增 Android 权限或默认网络行为。
+2.2.1 release 已验证 `versionName=2.2.1`、`versionCode=49`，正式签名版 `dist/coffee-vault-2.2.1-release.apk`（GitHub Release `v2.2.1`）；本版新增饮用记录照片贴图（最多 3 张，相册可一次多选）、饮用页直接「记一杯」入口与外饮记录，SQLite 升级至 user_version 9，备份 schema 升级至 6。未新增 Android 权限或默认网络行为。
 
-2.2.0 目标 `versionName=2.2.0`、`versionCode=48`，正式签名版 `dist/coffee-vault-2.2.0-release.apk` 待合并回 `main` 后构建；本版新增默认关闭的「照片手账滤镜」设置，开启后列表缩略图、详情 hero 与图库照片随主题统一色调并添加相纸/纸纹装饰，Web 端新上传图片会做轻度中性归一化，大图预览不叠加展示滤镜。未新增 Android 权限或默认网络行为。
+2.2.0 已随 `main` 发布链路合入（功能见 CHANGELOG；未单独打 `v2.2.0` tag），`versionName=2.2.0`、`versionCode=48` 对应提交在 2.2.1 之前；本版新增默认关闭的「照片手账滤镜」设置，开启后列表缩略图、详情 hero 与图库照片随主题统一色调并添加相纸/纸纹装饰，Web 端新上传图片会做轻度中性归一化，大图预览不叠加展示滤镜。未新增 Android 权限或默认网络行为。
 
-2.1.4 目标 `versionName=2.1.4`、`versionCode=47`，正式签名版 `dist/coffee-vault-2.1.4-release.apk` 待合并回 `main` 后构建；本版在关于页新增手动「检查更新」，通过 GitHub Releases latest API 获取最新版本和 release APK 下载入口，下载与安装交给系统浏览器和 Android 系统处理。未新增 `REQUEST_INSTALL_PACKAGES`、存储或相册权限；仅用户主动点击检查更新时联网。
+2.1.4 已随 `main` 发布链路合入（功能见 CHANGELOG；未单独打 `v2.1.4` tag），`versionName=2.1.4`、`versionCode=47`；本版在关于页新增手动「检查更新」，通过 GitHub Releases latest API 获取最新版本和 release APK 下载入口，下载与安装交给系统浏览器和 Android 系统处理。未新增 `REQUEST_INSTALL_PACKAGES`、存储或相册权限；仅用户主动点击检查更新时联网。
 
 2.1.2 目标 `versionName=2.1.2`、`versionCode=45`，正式签名版 `dist/coffee-vault-2.1.2-release.apk`；本版把退出确认弹窗改为「再次返回即退出」的轻提示，高级评价每个维度新增「?」说明浮窗（编辑与设置），把饮用列表的雷达图移到卡片右侧、加上单字轴标签，并修复冲煮辅助圆环段末/间奏处的跳切、以及每次更新后 Web 打开偶发报错（Service Worker 改为按版本原子化预缓存外壳，缓存名随版本变化）。未新增 Android 权限或默认网络行为。APK 打包与真机验证在合并回 `main` 前完成。
 
