@@ -96,7 +96,7 @@ public class CoffeeLabelScannerPlugin extends Plugin {
         Uri parsedUri = Uri.parse(path);
         Uri source = parsedUri.getScheme() == null ? Uri.fromFile(new File(path)) : parsedUri;
         String role = call.getString("role", "bag");
-        String prefix = "label".equals(role) ? "label" : "bag";
+        String prefix = imagePrefix(role);
 
         File dir = new File(getContext().getFilesDir(), "bean-images");
         if (!dir.exists() && !dir.mkdirs()) {
@@ -199,6 +199,29 @@ public class CoffeeLabelScannerPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void deleteArchivedImage(PluginCall call) {
+        String path = call.getString("path");
+        if (path == null || path.trim().isEmpty()) {
+            call.resolve();
+            return;
+        }
+        Uri parsedUri = Uri.parse(path);
+        Uri uri = parsedUri.getScheme() == null ? Uri.fromFile(new File(path)) : parsedUri;
+        if (!"file".equalsIgnoreCase(uri.getScheme())) {
+            call.resolve();
+            return;
+        }
+        try {
+            File file = new File(uri.getPath());
+            File archiveDir = new File(getContext().getFilesDir(), "bean-images");
+            String archivePath = archiveDir.getCanonicalPath();
+            String filePath = file.getCanonicalPath();
+            if (filePath.startsWith(archivePath + File.separator) && file.exists()) file.delete();
+        } catch (IOException | SecurityException ignored) {}
+        call.resolve();
+    }
+
+    @PluginMethod
     public void readArchivedImage(PluginCall call) {
         String path = call.getString("path");
         if (path == null || path.trim().isEmpty()) {
@@ -243,7 +266,7 @@ public class CoffeeLabelScannerPlugin extends Plugin {
             return;
         }
         String role = call.getString("role", "bag");
-        String prefix = "label".equals(role) ? "label" : "bag";
+        String prefix = imagePrefix(role);
         String extension = call.getString("extension", ".jpg");
         if (!".png".equals(extension) && !".webp".equals(extension)) extension = ".jpg";
         File dir = new File(getContext().getFilesDir(), "bean-images");
@@ -334,6 +357,11 @@ public class CoffeeLabelScannerPlugin extends Plugin {
             if (lower.endsWith(".webp")) return ".webp";
         }
         return ".jpg";
+    }
+
+    private String imagePrefix(String role) {
+        if ("label".equals(role) || "drink".equals(role)) return role;
+        return "bag";
     }
 
     private String safePngFilename(String value) {

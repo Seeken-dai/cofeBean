@@ -59,7 +59,7 @@ Set-Location android
 
 Git 流程：每个版本从 `main` 切 `release/<version>` 分支进行迭代与打包；APK 装机验证通过后用 `git merge --ff-only` 合并回 `main` 并打 `v<version>` tag，再从更新后的 `main` 进入下一版。`git push` 等对外操作需用户确认。完整说明见根目录 `AGENTS.md` 的「版本发布与 Git 流程」。
 
-数据库当前 `PRAGMA user_version = 8`。以后改变表结构时，在 `www/repository.js` 中增加顺序迁移，禁止删除数据库或清空旧表。
+数据库当前 `PRAGMA user_version = 9`。以后改变表结构时，在 `www/repository.js` 中增加顺序迁移，禁止删除数据库或清空旧表。
 
 ## 校验
 
@@ -70,6 +70,8 @@ node --check www/repository.js
 ```
 
 APK 可使用 Android Build Tools 的 `aapt2 dump badging`、`aapt2 dump permissions` 和 `apksigner verify --print-certs` 检查包信息、权限与签名。
+
+2.2.1 目标 `versionName=2.2.1`、`versionCode=49`，正式签名版 `dist/coffee-vault-2.2.1-release.apk` 待合并回 `main` 后构建；本版新增饮用记录照片贴图、饮用页直接记一杯入口与外饮记录，SQLite 升级至 user_version 9，备份 schema 升级至 6。未新增 Android 权限或默认网络行为。
 
 2.2.0 目标 `versionName=2.2.0`、`versionCode=48`，正式签名版 `dist/coffee-vault-2.2.0-release.apk` 待合并回 `main` 后构建；本版新增默认关闭的「照片手账滤镜」设置，开启后列表缩略图、详情 hero 与图库照片随主题统一色调并添加相纸/纸纹装饰，Web 端新上传图片会做轻度中性归一化，大图预览不叠加展示滤镜。未新增 Android 权限或默认网络行为。
 

@@ -5,7 +5,7 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
 
-  const SCHEMA_VERSION = 5;
+  const SCHEMA_VERSION = 6;
   const DIMENSION_KEYS = ['aroma', 'acidity', 'sweetness', 'body', 'aftertaste', 'balance', 'bitterness'];
   const BREW_METHODS = ['手冲', '冷萃', '冰滴', '意式', '法压', '摩卡壶', '爱乐压', '聪明杯', '虹吸', '自定义'];
   const PLAN_SOURCES = new Set(['user', 'preset', 'copy']);
@@ -339,16 +339,24 @@
   function normalizeDrinkLog(input, now) {
     const source = input && typeof input === 'object' ? input : {};
     const stamp = now || new Date().toISOString();
+    const logSource = source.source === 'external' ? 'external' : 'bean';
+    const photos = safeJson(source.photos, []);
     const log = {
       id: cleanText(source.id, 100) || makeId(),
-      beanId: cleanText(source.beanId, 100) || null,
+      beanId: logSource === 'external' ? null : (cleanText(source.beanId, 100) || null),
       beanName: cleanText(source.beanName, 120) || '已删除的咖啡豆',
-      grams: cleanNumber(source.grams),
-      brewMethod: cleanText(source.brewMethod, 80) || '手冲',
+      grams: logSource === 'external' ? 0 : cleanNumber(source.grams),
+      brewMethod: logSource === 'external' ? '' : (cleanText(source.brewMethod, 80) || '手冲'),
       brewPlanId: cleanText(source.brewPlanId, 100) || null,
       brewPlanVersion: cleanNumber(source.brewPlanVersion),
       brewPlanName: cleanText(source.brewPlanName, 120),
       brewPlanSnapshot: normalizePlanSnapshot(source.brewPlanSnapshot),
+      photos: (Array.isArray(photos) ? photos : []).map((path) => cleanText(path, 1000)).filter(Boolean).slice(0, 3),
+      source: logSource,
+      cafeName: cleanText(source.cafeName, 120),
+      drinkName: cleanText(source.drinkName, 120),
+      price: cleanNumber(source.price),
+      location: cleanText(source.location, 120),
       overallRating: cleanRating(source.overallRating),
       notes: cleanText(source.notes, 2000),
       consumedAt: cleanText(source.consumedAt, 40) || stamp,
@@ -358,6 +366,13 @@
       deviceId: cleanText(source.deviceId, 100),
       deletedAt: cleanText(source.deletedAt, 40) || null
     };
+    if (log.source === 'external') {
+      log.beanName = log.drinkName || log.cafeName || '外饮咖啡';
+      log.brewPlanId = null;
+      log.brewPlanVersion = null;
+      log.brewPlanName = '';
+      log.brewPlanSnapshot = null;
+    }
     DIMENSION_KEYS.forEach((key) => { log[key] = cleanRating(source[key]); });
     return log;
   }
@@ -612,7 +627,7 @@
     const logIds = new Set();
     const drinkLogs = rawLogs.map((raw) => {
       const log = normalizeDrinkLog(raw, raw && raw.updatedAt);
-      if (!(log.grams > 0)) throw new Error('饮用记录克数必须大于 0');
+      if (log.source !== 'external' && !(log.grams > 0)) throw new Error('饮用记录克数必须大于 0');
       if (logIds.has(log.id)) throw new Error('备份包含重复饮用记录 ID');
       logIds.add(log.id);
       return log;
@@ -644,7 +659,23 @@
         if (next.bag || next.label) beanImages[bean.id] = next;
       });
     }
-    return { schemaVersion: SCHEMA_VERSION, exportScope, beans, drinkLogs, brewPlans, settings: exportScope === 'all' ? normalizeSettings(payload.settings) : null, beanImages };
+    const drinkImages = {};
+    if (payload.drinkImages && typeof payload.drinkImages === 'object' && !Array.isArray(payload.drinkImages)) {
+      drinkLogs.forEach((log) => {
+        const entry = payload.drinkImages[log.id];
+        if (!Array.isArray(entry)) return;
+        const images = entry.map((image) => {
+          if (!image || typeof image !== 'object' || !cleanText(image.data, 20000000)) return null;
+          return {
+            data: cleanText(image.data, 20000000),
+            extension: ['.jpg', '.png', '.webp'].includes(image.extension) ? image.extension : '.jpg',
+            mimeType: cleanText(image.mimeType, 80) || 'image/jpeg'
+          };
+        }).filter(Boolean).slice(0, 3);
+        if (images.length) drinkImages[log.id] = images;
+      });
+    }
+    return { schemaVersion: SCHEMA_VERSION, exportScope, beans, drinkLogs, brewPlans, settings: exportScope === 'all' ? normalizeSettings(payload.settings) : null, beanImages, drinkImages };
   }
 
   function createBackup(beans, drinkLogs, settings, exportedAt, brewPlans, options) {
@@ -654,7 +685,7 @@
       exportScope,
       exportedAt: exportedAt || new Date().toISOString(),
       app: '豆仓',
-      appVersion: '2.2.0'
+      appVersion: '2.2.1'
     };
     if (exportScope === 'all' || exportScope === 'library') {
       payload.beans = (beans || []).map((bean) => normalizeBean(bean, bean.updatedAt));
@@ -663,6 +694,7 @@
     if (exportScope === 'all' || exportScope === 'brewPlans') payload.brewPlans = (brewPlans || []).map((plan) => normalizeBrewPlan(plan, plan.updatedAt));
     if (exportScope === 'all') payload.settings = normalizeSettings(settings);
     if ((exportScope === 'all' || exportScope === 'library') && options && options.beanImages) payload.beanImages = options.beanImages;
+    if ((exportScope === 'all' || exportScope === 'library') && options && options.drinkImages) payload.drinkImages = options.drinkImages;
     return payload;
   }
 
@@ -748,6 +780,10 @@
   }
 
   function estimateDrinkCost(log, beans) {
+    if (log && log.source === 'external') {
+      const p = Number(log.price);
+      return p > 0 ? Math.round(p * 100) / 100 : 0;
+    }
     const bean = (beans || []).find((item) => item.id && item.id === log.beanId);
     const price = Number(bean && bean.price);
     const initialWeight = Number(bean && bean.initialWeight);
@@ -920,8 +956,8 @@
         cells: buildMonthCells(year, month, days, selectedDate)
       },
       logs: (selectedDay.logs || []).slice(0, 4).map((log) => ({
-        title: log.beanName || '咖啡',
-        meta: [log.brewMethod, formatShareWeight(log.grams), log.overallRating ? `${log.overallRating}★` : '未评分'].filter(Boolean).join(' · ')
+        title: log.source === 'external' ? (log.drinkName || log.cafeName || log.beanName || '外饮咖啡') : (log.beanName || '咖啡'),
+        meta: (log.source === 'external' ? ['外饮', log.price > 0 ? formatShareMoney(log.price) : '', log.location, log.overallRating ? `${log.overallRating}★` : '未评分'] : [log.brewMethod, formatShareWeight(log.grams), log.overallRating ? `${log.overallRating}★` : '未评分']).filter(Boolean).join(' · ')
       })),
       footer: '本地记录 · 私人豆仓'
     };

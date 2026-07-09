@@ -116,20 +116,21 @@
         if (!image || !image.data) return null;
         return base64ToBlob(image.data, image.mimeType);
       },
-      saveImage: async (blob, field) => {
+      saveImage: async (blob, roleOrField) => {
         if (!scanner || typeof scanner.restoreArchivedImage !== 'function') return '';
+        const role = ['bag', 'label', 'drink'].includes(roleOrField) ? roleOrField : imageRole(roleOrField);
         const result = await scanner.restoreArchivedImage({
           data: await blobToBase64(blob),
           mimeType: blob && blob.type || 'image/webp',
           extension: extensionForMime(blob && blob.type),
-          role: imageRole(field)
+          role
         });
         return result && (result.path || result.uri) || '';
       }
     };
   }
   // 图片映射 transport：让引擎/合并始终在本地图片空间，wire 上用云端 r2:。
-  // Web 使用 idb:；Android 使用原生私有目录 file:。仅 bean 带图片字段。
+  // Web 使用 idb:；Android 使用原生私有目录 file:。bean 图片字段与 drinkLog.photos 都走同一映射。
   function createImageMappingTransport(baseTransport, imageDeps) {
     const getImage = imageDeps.getImage;
     const saveImage = imageDeps.saveImage;
@@ -196,8 +197,47 @@
       }
       return next || bean;
     }
+    async function logPhotosToR2(log) {
+      const photos = Array.isArray(log && log.photos) ? log.photos : [];
+      let next = null;
+      const mapped = [];
+      for (const ref of photos) {
+        if (!isUploadableRef(ref)) { mapped.push(ref); continue; }
+        try {
+          const r2 = await uploadRef(ref);
+          mapped.push(r2 || ref);
+          if (r2) next = next || { ...log };
+        } catch (_) { mapped.push(ref); }
+      }
+      if (next) { next.photos = mapped; next.revision = (Number(next.revision) || 0) + 1; }
+      return next || log;
+    }
+    async function logPhotosToLocal(log) {
+      const photos = Array.isArray(log && log.photos) ? log.photos : [];
+      let next = null;
+      const mapped = [];
+      for (const ref of photos) {
+        if (!isR2Ref(ref)) { mapped.push(ref); continue; }
+        try {
+          let localRef = restored.get(ref);
+          if (!localRef) {
+            const blob = await baseTransport.downloadImage(ref);
+            if (!blob) { mapped.push(ref); continue; }
+            localRef = await saveImage(blob, 'drink');
+          }
+          confirm(localRef, ref);
+          mapped.push(localRef);
+          next = next || { ...log };
+        } catch (_) { mapped.push(ref); }
+      }
+      if (next) next.photos = mapped;
+      return next || log;
+    }
     function beanHasUnsyncedImage(bean) {
       return IMAGE_FIELDS.some((field) => isUploadableRef(bean[field]) && !syncedMap[bean[field]]);
+    }
+    function logHasUnsyncedImage(log) {
+      return (log.photos || []).some((ref) => isUploadableRef(ref) && !syncedMap[ref]);
     }
     return {
       hello: () => baseTransport.hello(),
@@ -205,15 +245,23 @@
       async pull(cursor) {
         const data = await baseTransport.pull(cursor);
         const beans = [];
+        const drinkLogs = [];
         for (const bean of data.beans || []) beans.push(await beanR2ToIdb(bean));
-        return { ...data, beans };
+        for (const log of data.drinkLogs || []) drinkLogs.push(await logPhotosToLocal(log));
+        return { ...data, beans, drinkLogs };
       },
       async push(records, cursor, allRecords) {
         const beans = [];
+        const drinkLogs = [];
         const seen = new Set();
+        const seenLogs = new Set();
         for (const bean of (records && records.beans) || []) {
           beans.push(await beanIdbToR2(bean));
           if (bean && bean.id != null) seen.add(bean.id);
+        }
+        for (const log of (records && records.drinkLogs) || []) {
+          drinkLogs.push(await logPhotosToR2(log));
+          if (log && log.id != null) seenLogs.add(log.id);
         }
         // 补推：本地仍有未上传到云端的图片（多为旧版本存量图，记录本身没变、
         // 不在增量集里）。只上传/补推“图片尚未映射到 r2”的豆，一次修复后即稳定。
@@ -226,7 +274,16 @@
           beans.push(converted);
           seen.add(bean.id);
         }
-        return baseTransport.push({ ...records, beans }, cursor);
+        for (const log of (allRecords && allRecords.drinkLogs) || []) {
+          if (!log || log.id == null || seenLogs.has(log.id)) continue;
+          if (log.deletedAt) continue;
+          if (!logHasUnsyncedImage(log)) continue;
+          const converted = await logPhotosToR2(log);
+          if (converted === log) continue;
+          drinkLogs.push(converted);
+          seenLogs.add(log.id);
+        }
+        return baseTransport.push({ ...records, beans, drinkLogs }, cursor);
       }
     };
   }

@@ -62,7 +62,7 @@ test('backup round trip validates schema and duplicate ids', () => {
   const backup = core.createBackup(beans, logs, { quickGrams: 18 }, '2026-01-01T00:00:00.000Z', plans);
   const imported = core.validateImport(backup);
   assert.equal(backup.appVersion, pkg.version);
-  assert.equal(backup.schemaVersion, 5);
+  assert.equal(backup.schemaVersion, 6);
   assert.equal(imported.exportScope, 'all');
   assert.equal(imported.beans[0].name, '豆一');
   assert.equal(imported.beans[0].labelImagePath, 'file:///label.jpg');
@@ -102,6 +102,33 @@ test('backup can include bean images when requested', () => {
   assert.deepEqual(backup.beanImages, beanImages);
   const imported = core.validateImport(backup);
   assert.equal(imported.beanImages['image-bean'].bag.data, 'abc');
+});
+
+test('drink logs support external records and photos', () => {
+  const external = core.normalizeDrinkLog({
+    source: 'external',
+    beanId: 'bean-ignored',
+    beanName: '旧快照',
+    grams: 18,
+    brewMethod: '手冲',
+    cafeName: '小巷咖啡',
+    drinkName: 'Dirty',
+    price: 32.567,
+    location: '上海',
+    photos: JSON.stringify(['file:///1.webp', 'idb:2', '', 'r2:3', 'too-many'])
+  });
+  assert.equal(external.source, 'external');
+  assert.equal(external.beanId, null);
+  assert.equal(external.grams, 0);
+  assert.equal(external.brewMethod, '');
+  assert.equal(external.beanName, 'Dirty');
+  assert.deepEqual(external.photos, ['file:///1.webp', 'idb:2', 'r2:3']);
+  assert.equal(core.estimateDrinkCost(external, []), 32.57);
+
+  const imported = core.validateImport(core.createBackup([], [external], {}, '2026-01-01T00:00:00.000Z', [], { scope: 'library', drinkImages: { [external.id]: [{ data: 'abc', extension: '.webp', mimeType: 'image/webp' }] } }));
+  assert.equal(imported.drinkLogs[0].source, 'external');
+  assert.equal(imported.drinkImages[external.id][0].data, 'abc');
+  assert.throws(() => core.validateImport({ schemaVersion: 6, beans: [], drinkLogs: [{ id: 'bad', source: 'bean', grams: 0 }] }), /克数/);
 });
 
 test('scoped backups include only selected data and keep old imports compatible', () => {

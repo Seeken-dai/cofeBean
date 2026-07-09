@@ -2,13 +2,13 @@
   'use strict';
 
   const DB_NAME = 'coffee_vault';
-  const DB_VERSION = 8;
+  const DB_VERSION = 9;
   const DEVICE_KEY = 'coffee-vault-device-id';
   const LEGACY_KEYS = ['coffee-vault-data', 'beans-data', 'bean-data'];
   const BEAN_COLUMNS = ['id', 'name', 'roaster', 'origin', 'process', 'roastLevel', 'roastDate', 'openedDate', 'purchaseDate', 'purchaseUrl', 'initialWeight', 'remainingWeight', 'price', 'bestFlavorDays', 'tastingNotes', 'status', 'favorite', 'bagImagePath', 'labelImagePath', 'createdAt', 'updatedAt', 'revision', 'deviceId', 'deletedAt'];
   const BEAN_NATIVE = { roastLevel: 'roast_level', roastDate: 'roast_date', openedDate: 'opened_date', purchaseDate: 'purchase_date', purchaseUrl: 'purchase_url', initialWeight: 'initial_weight', remainingWeight: 'remaining_weight', bestFlavorDays: 'best_flavor_days', tastingNotes: 'tasting_notes', bagImagePath: 'bag_image_path', labelImagePath: 'label_image_path', createdAt: 'created_at', updatedAt: 'updated_at', deviceId: 'device_id', deletedAt: 'deleted_at' };
-  const LOG_COLUMNS = ['id', 'beanId', 'beanName', 'grams', 'brewMethod', 'brewPlanId', 'brewPlanVersion', 'brewPlanName', 'brewPlanSnapshot', 'overallRating', 'aroma', 'acidity', 'sweetness', 'body', 'aftertaste', 'balance', 'bitterness', 'notes', 'consumedAt', 'createdAt', 'updatedAt', 'revision', 'deviceId', 'deletedAt'];
-  const LOG_NATIVE = { beanId: 'bean_id', beanName: 'bean_name', brewMethod: 'brew_method', brewPlanId: 'brew_plan_id', brewPlanVersion: 'brew_plan_version', brewPlanName: 'brew_plan_name', brewPlanSnapshot: 'brew_plan_snapshot', overallRating: 'overall_rating', consumedAt: 'consumed_at', createdAt: 'created_at', updatedAt: 'updated_at', deviceId: 'device_id', deletedAt: 'deleted_at' };
+  const LOG_COLUMNS = ['id', 'beanId', 'beanName', 'grams', 'brewMethod', 'brewPlanId', 'brewPlanVersion', 'brewPlanName', 'brewPlanSnapshot', 'photos', 'source', 'cafeName', 'drinkName', 'price', 'location', 'overallRating', 'aroma', 'acidity', 'sweetness', 'body', 'aftertaste', 'balance', 'bitterness', 'notes', 'consumedAt', 'createdAt', 'updatedAt', 'revision', 'deviceId', 'deletedAt'];
+  const LOG_NATIVE = { beanId: 'bean_id', beanName: 'bean_name', brewMethod: 'brew_method', brewPlanId: 'brew_plan_id', brewPlanVersion: 'brew_plan_version', brewPlanName: 'brew_plan_name', brewPlanSnapshot: 'brew_plan_snapshot', cafeName: 'cafe_name', drinkName: 'drink_name', overallRating: 'overall_rating', consumedAt: 'consumed_at', createdAt: 'created_at', updatedAt: 'updated_at', deviceId: 'device_id', deletedAt: 'deleted_at' };
   const PLAN_COLUMNS = ['id', 'name', 'brewMethod', 'version', 'source', 'beanIds', 'payload', 'createdAt', 'updatedAt'];
   const PLAN_NATIVE = { brewMethod: 'brew_method', beanIds: 'bean_ids', createdAt: 'created_at', updatedAt: 'updated_at' };
   let native = false;
@@ -83,6 +83,8 @@
         id TEXT PRIMARY KEY NOT NULL, bean_id TEXT, bean_name TEXT NOT NULL, grams REAL NOT NULL,
         brew_method TEXT NOT NULL DEFAULT '手冲', brew_plan_id TEXT, brew_plan_version INTEGER,
         brew_plan_name TEXT NOT NULL DEFAULT '', brew_plan_snapshot TEXT NOT NULL DEFAULT '', overall_rating INTEGER,
+        photos TEXT NOT NULL DEFAULT '[]', source TEXT NOT NULL DEFAULT 'bean',
+        cafe_name TEXT NOT NULL DEFAULT '', drink_name TEXT NOT NULL DEFAULT '', price REAL, location TEXT NOT NULL DEFAULT '',
         aroma INTEGER, acidity INTEGER, sweetness INTEGER, body INTEGER, aftertaste INTEGER,
         balance INTEGER, bitterness INTEGER, notes TEXT NOT NULL DEFAULT '', consumed_at TEXT NOT NULL,
         created_at TEXT NOT NULL, updated_at TEXT NOT NULL
@@ -130,6 +132,9 @@
       bean_id: 'TEXT', bean_name: "TEXT NOT NULL DEFAULT ''", grams: 'REAL NOT NULL DEFAULT 0',
       brew_method: "TEXT NOT NULL DEFAULT '手冲'", brew_plan_id: 'TEXT', brew_plan_version: 'INTEGER',
       brew_plan_name: "TEXT NOT NULL DEFAULT ''", brew_plan_snapshot: "TEXT NOT NULL DEFAULT ''",
+      photos: "TEXT NOT NULL DEFAULT '[]'", source: "TEXT NOT NULL DEFAULT 'bean'",
+      cafe_name: "TEXT NOT NULL DEFAULT ''", drink_name: "TEXT NOT NULL DEFAULT ''",
+      price: 'REAL', location: "TEXT NOT NULL DEFAULT ''",
       overall_rating: 'INTEGER', aroma: 'INTEGER', acidity: 'INTEGER', sweetness: 'INTEGER',
       body: 'INTEGER', aftertaste: 'INTEGER', balance: 'INTEGER', bitterness: 'INTEGER',
       notes: "TEXT NOT NULL DEFAULT ''", consumed_at: "TEXT NOT NULL DEFAULT ''",
@@ -142,7 +147,7 @@
       .join('\n');
     if (logAdds) await nativeDb().execute({ database: DB_NAME, statements: logAdds, transaction: true, readonly: false });
     await seedPresetPlans();
-    await nativeDb().execute({ database: DB_NAME, statements: 'PRAGMA user_version = 8;', transaction: true, readonly: false });
+    await nativeDb().execute({ database: DB_NAME, statements: 'PRAGMA user_version = 9;', transaction: true, readonly: false });
   }
 
   function fromBeanRow(row) {
@@ -166,7 +171,7 @@
 
   function logValues(log) {
     const l = root.BeanCore.normalizeDrinkLog(log, log.updatedAt);
-    return [l.id, l.beanId, l.beanName, l.grams, l.brewMethod, l.brewPlanId, l.brewPlanVersion, l.brewPlanName, l.brewPlanSnapshot ? JSON.stringify(l.brewPlanSnapshot) : '', l.overallRating, l.aroma, l.acidity, l.sweetness, l.body, l.aftertaste, l.balance, l.bitterness, l.notes, l.consumedAt, l.createdAt, l.updatedAt, l.revision, l.deviceId, l.deletedAt];
+    return [l.id, l.beanId, l.beanName, l.grams, l.brewMethod, l.brewPlanId, l.brewPlanVersion, l.brewPlanName, l.brewPlanSnapshot ? JSON.stringify(l.brewPlanSnapshot) : '', JSON.stringify(l.photos || []), l.source, l.cafeName, l.drinkName, l.price, l.location, l.overallRating, l.aroma, l.acidity, l.sweetness, l.body, l.aftertaste, l.balance, l.bitterness, l.notes, l.consumedAt, l.createdAt, l.updatedAt, l.revision, l.deviceId, l.deletedAt];
   }
 
   function planValues(plan) {
@@ -336,38 +341,48 @@
   async function saveDrinkLog(input) {
     const stamp = new Date().toISOString();
     let log = root.BeanCore.normalizeDrinkLog({ ...input, updatedAt: stamp }, stamp);
-    if (!(log.grams > 0)) throw new Error('本次用量必须大于 0');
-    if (!log.beanId) throw new Error('请选择咖啡豆');
+    const external = log.source === 'external';
+    if (!external && !(log.grams > 0)) throw new Error('本次用量必须大于 0');
+    if (!external && !log.beanId) throw new Error('请选择咖啡豆');
+    const columns = LOG_COLUMNS.map((key) => LOG_NATIVE[key] || key).join(',');
+    const placeholders = LOG_COLUMNS.map(() => '?').join(',');
+    const updates = LOG_COLUMNS.filter((key) => key !== 'id' && key !== 'createdAt').map((key) => `${LOG_NATIVE[key] || key}=excluded.${LOG_NATIVE[key] || key}`).join(',');
 
     if (!native) {
       const state = web().loadState(); const beanIndex = state.beans.findIndex((bean) => bean.id === log.beanId);
-      if (beanIndex < 0) throw new Error('找不到对应的咖啡豆');
+      if (!external && beanIndex < 0) throw new Error('找不到对应的咖啡豆');
       const oldIndex = state.drinkLogs.findIndex((item) => item.id === log.id);
       const old = oldIndex >= 0 ? state.drinkLogs[oldIndex] : null;
-      if (old && old.beanId !== log.beanId) throw new Error('不能更改饮用记录所属豆子');
+      if (old && old.source !== log.source) throw new Error('不能更改记录类型');
+      if (!external && old && old.beanId !== log.beanId) throw new Error('不能更改饮用记录所属豆子');
       if (old) log = root.BeanCore.normalizeDrinkLog({ ...old, ...log, createdAt: old.createdAt }, stamp);
       log = root.BeanCore.normalizeDrinkLog(markLocal(log, old, stamp), stamp);
-      const bean = state.beans[beanIndex]; const delta = log.grams - (old ? old.grams : 0);
-      const remaining = root.BeanCore.consumptionResult(bean.remainingWeight, bean.initialWeight, delta);
-      state.beans[beanIndex] = root.BeanCore.normalizeBean(markLocal({ ...bean, remainingWeight: remaining, status: remaining <= 0 ? '已喝完' : '饮用中', openedDate: root.BeanCore.resolveOpenedDate(bean, log) }, bean, stamp), stamp);
+      if (!external) {
+        const bean = state.beans[beanIndex]; const delta = log.grams - (old ? old.grams : 0);
+        const remaining = root.BeanCore.consumptionResult(bean.remainingWeight, bean.initialWeight, delta);
+        log.beanName = bean.name;
+        state.beans[beanIndex] = root.BeanCore.normalizeBean(markLocal({ ...bean, remainingWeight: remaining, status: remaining <= 0 ? '已喝完' : '饮用中', openedDate: root.BeanCore.resolveOpenedDate(bean, log) }, bean, stamp), stamp);
+      }
       if (oldIndex >= 0) state.drinkLogs[oldIndex] = log; else state.drinkLogs.unshift(log);
       await web().saveState(state); return log;
     }
 
+    const oldResult = await nativeDb().query({ database: DB_NAME, statement: 'SELECT * FROM drink_logs WHERE id = ?', values: [log.id], readonly: false });
+    const old = (oldResult.values || []).length ? fromLogRow(oldResult.values[0]) : null;
+    if (old && old.source !== log.source) throw new Error('不能更改记录类型');
+    if (!external && old && old.beanId !== log.beanId) throw new Error('不能更改饮用记录所属豆子');
+    if (old) log = root.BeanCore.normalizeDrinkLog({ ...old, ...log, createdAt: old.createdAt }, stamp);
+    log = root.BeanCore.normalizeDrinkLog(markLocal(log, old, stamp), stamp);
+    if (external) {
+      await nativeDb().run({ database: DB_NAME, statement: `INSERT INTO drink_logs (${columns}) VALUES (${placeholders}) ON CONFLICT(id) DO UPDATE SET ${updates}`, values: logValues(log), transaction: true, readonly: false });
+      return log;
+    }
     const beanResult = await nativeDb().query({ database: DB_NAME, statement: 'SELECT * FROM beans WHERE id = ?', values: [log.beanId], readonly: false });
     if (!(beanResult.values || []).length) throw new Error('找不到对应的咖啡豆');
     const bean = fromBeanRow(beanResult.values[0]);
-    const oldResult = await nativeDb().query({ database: DB_NAME, statement: 'SELECT * FROM drink_logs WHERE id = ?', values: [log.id], readonly: false });
-    const old = (oldResult.values || []).length ? fromLogRow(oldResult.values[0]) : null;
-    if (old && old.beanId !== log.beanId) throw new Error('不能更改饮用记录所属豆子');
-    if (old) log = root.BeanCore.normalizeDrinkLog({ ...old, ...log, createdAt: old.createdAt }, stamp);
-    log = root.BeanCore.normalizeDrinkLog(markLocal(log, old, stamp), stamp);
     log.beanName = bean.name;
     const delta = log.grams - (old ? old.grams : 0);
     const remaining = root.BeanCore.consumptionResult(bean.remainingWeight, bean.initialWeight, delta);
-    const columns = LOG_COLUMNS.map((key) => LOG_NATIVE[key] || key).join(',');
-    const placeholders = LOG_COLUMNS.map(() => '?').join(',');
-    const updates = LOG_COLUMNS.filter((key) => key !== 'id' && key !== 'createdAt').map((key) => `${LOG_NATIVE[key] || key}=excluded.${LOG_NATIVE[key] || key}`).join(',');
     await nativeDb().executeSet({ database: DB_NAME, set: [
       { statement: `INSERT INTO drink_logs (${columns}) VALUES (${placeholders}) ON CONFLICT(id) DO UPDATE SET ${updates}`, values: logValues(log) },
       { statement: 'UPDATE beans SET remaining_weight = ?, status = ?, opened_date = ?, updated_at = ?, revision = revision + 1, device_id = ? WHERE id = ?', values: [remaining, remaining <= 0 ? '已喝完' : '饮用中', root.BeanCore.resolveOpenedDate(bean, log), stamp, getDeviceId(), bean.id] }
@@ -433,7 +448,13 @@
   }
   function normalizeBeans(beans) { return (beans || []).map((bean) => root.BeanCore.normalizeBean(bean, bean.updatedAt)); }
   function sanitizeLogs(logs, beanIds) {
-    return (logs || []).map((log) => root.BeanCore.normalizeDrinkLog({ ...log, beanId: beanIds.has(log.beanId) ? log.beanId : null }, log.updatedAt));
+    return (logs || []).map((log) => {
+      const normalized = root.BeanCore.normalizeDrinkLog(log, log && log.updatedAt);
+      return root.BeanCore.normalizeDrinkLog({
+        ...normalized,
+        beanId: normalized.source === 'external' || beanIds.has(normalized.beanId) ? normalized.beanId : null
+      }, normalized.updatedAt);
+    });
   }
   function sanitizePlans(plans, beanIds) {
     return withPresetPlans(plans || []).map((plan) => root.BeanCore.normalizeBrewPlan({ ...plan, beanIds: plan.beanIds.filter((id) => beanIds.has(id)) }, plan.updatedAt));

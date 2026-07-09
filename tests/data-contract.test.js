@@ -22,7 +22,8 @@ const BEAN_FIELDS = [
 ];
 const DRINK_LOG_FIELDS = [
   'id', 'beanId', 'beanName', 'grams', 'brewMethod', 'brewPlanId', 'brewPlanVersion',
-  'brewPlanName', 'brewPlanSnapshot', 'overallRating', 'notes', 'consumedAt', 'createdAt', 'updatedAt',
+  'brewPlanName', 'brewPlanSnapshot', 'photos', 'source', 'cafeName', 'drinkName', 'price', 'location',
+  'overallRating', 'notes', 'consumedAt', 'createdAt', 'updatedAt',
   'aroma', 'acidity', 'sweetness', 'body', 'aftertaste', 'balance', 'bitterness',
   'revision', 'deviceId', 'deletedAt'
 ];
@@ -79,6 +80,8 @@ test('contract: drinkLog 默认值与评分范围', () => {
   const log = core.normalizeDrinkLog({});
   assert.equal(log.beanId, null);
   assert.equal(log.beanName, '已删除的咖啡豆');
+  assert.equal(log.source, 'bean');
+  assert.deepEqual(log.photos, []);
   assert.equal(log.brewMethod, '手冲');
   assert.equal(log.overallRating, null);
   assert.equal(log.aroma, null);
@@ -88,6 +91,13 @@ test('contract: drinkLog 默认值与评分范围', () => {
   assert.equal(core.normalizeDrinkLog({ overallRating: 6 }).overallRating, null);
   assert.equal(core.normalizeDrinkLog({ overallRating: 0 }).overallRating, null);
   assert.equal(core.normalizeDrinkLog({ aroma: 4 }).aroma, 4);
+
+  const external = core.normalizeDrinkLog({ source: 'external', beanId: 'b1', grams: 18, brewMethod: '手冲', cafeName: '街角店', drinkName: 'Flat White', price: 28, photos: ['a', 'b', 'c', 'd'] });
+  assert.equal(external.beanId, null);
+  assert.equal(external.grams, 0);
+  assert.equal(external.brewMethod, '');
+  assert.equal(external.beanName, 'Flat White');
+  assert.deepEqual(external.photos, ['a', 'b', 'c']);
 });
 
 test('contract: brewPlan 默认值、beanIds 去重、totalWater 推导', () => {

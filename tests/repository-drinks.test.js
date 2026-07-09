@@ -55,6 +55,33 @@ test('insufficient inventory rolls back and deleting bean preserves snapshot his
   delete global.window; delete global.localStorage;
 });
 
+test('external drink logs do not touch inventory and keep photos', async () => {
+  const repo = loadRepository();
+  const bean = core.normalizeBean({ id: 'bean-external', name: '库存豆', initialWeight: 100, remainingWeight: 100 });
+  await repo.save(bean);
+  const log = await repo.saveDrinkLog({
+    source: 'external',
+    cafeName: '街角咖啡',
+    drinkName: '拿铁',
+    price: 26,
+    location: '杭州',
+    photos: ['idb:one', 'idb:two'],
+    overallRating: 4
+  });
+  assert.equal(log.beanId, null);
+  assert.equal(log.grams, 0);
+  assert.equal(log.beanName, '拿铁');
+  assert.deepEqual(log.photos, ['idb:one', 'idb:two']);
+  assert.equal((await repo.getAll())[0].remainingWeight, 100);
+  await repo.saveDrinkLog({ ...log, cafeName: '新店名', photos: ['idb:two'] });
+  assert.equal((await repo.getDrinkLogs())[0].cafeName, '新店名');
+  await assert.rejects(repo.saveDrinkLog({ ...log, source: 'bean', beanId: bean.id, grams: 10 }), /记录类型/);
+  await repo.deleteDrinkLog(log.id);
+  assert.equal((await repo.getAll())[0].remainingWeight, 100);
+  assert.equal((await repo.getDrinkLogs()).length, 0);
+  delete global.window; delete global.localStorage;
+});
+
 test('brew plans save, copy, bind and snapshot drink history in web fallback', async () => {
   const repo = loadRepository();
   const bean = core.normalizeBean({ id: 'bean-plan', name: '方案豆', initialWeight: 100, remainingWeight: 100 });
