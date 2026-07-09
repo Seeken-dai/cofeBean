@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="dark-roast">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -156,10 +156,11 @@
         <p class="eyebrow" data-i18n data-zh="界面一览" data-en="A look inside">界面一览</p>
         <h2 class="theme-title" id="themeTitle">温润深邃的 <span class="theme-word">深烘</span>，像深夜里的一杯手冲</h2>
         <div class="theme-switch" id="themeSwitch" role="tablist" aria-label="主题预览切换">
-          <button class="theme-pill is-active" type="button" role="tab" aria-selected="true" data-theme-id="dark-roast"><span class="pill-dot" aria-hidden="true"></span><span class="pill-label" data-i18n data-zh="深烘" data-en="Dark Roast">深烘</span></button>
-          <button class="theme-pill" type="button" role="tab" aria-selected="false" data-theme-id="frost"><span class="pill-dot" aria-hidden="true"></span><span class="pill-label" data-i18n data-zh="澳白" data-en="Flat White">澳白</span></button>
-          <button class="theme-pill" type="button" role="tab" aria-selected="false" data-theme-id="obsidian"><span class="pill-dot" aria-hidden="true"></span><span class="pill-label" data-i18n data-zh="火山灰绿" data-en="Ash Green">火山灰绿</span></button>
-          <button class="theme-pill" type="button" role="tab" aria-selected="false" data-theme-id="blaze"><span class="pill-dot" aria-hidden="true"></span><span class="pill-label" data-i18n data-zh="生豆" data-en="Green Bean">生豆</span></button>
+          <button class="theme-tab is-active" type="button" role="tab" aria-selected="true" data-theme-id="dark-roast"><span data-i18n data-zh="深烘" data-en="Dark Roast">深烘</span></button>
+          <button class="theme-tab" type="button" role="tab" aria-selected="false" data-theme-id="frost"><span data-i18n data-zh="澳白" data-en="Flat White">澳白</span></button>
+          <button class="theme-tab" type="button" role="tab" aria-selected="false" data-theme-id="obsidian"><span data-i18n data-zh="火山灰绿" data-en="Ash Green">火山灰绿</span></button>
+          <button class="theme-tab" type="button" role="tab" aria-selected="false" data-theme-id="blaze"><span data-i18n data-zh="生豆" data-en="Green Bean">生豆</span></button>
+          <span class="theme-indicator" id="themeIndicator" aria-hidden="true"></span>
         </div>
       </header>
       <div class="screens-rail" id="themeScreens">
