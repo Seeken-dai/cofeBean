@@ -71,6 +71,8 @@ node --check www/repository.js
 
 APK 可使用 Android Build Tools 的 `aapt2 dump badging`、`aapt2 dump permissions` 和 `apksigner verify --print-certs` 检查包信息、权限与签名。
 
+2.2.2 release 构建自 `main` 的发布 commit，已用 `aapt2 dump badging` 核对 `versionName=2.2.2`、`versionCode=50`，`aapt2 dump permissions` 与 2.2.1 逐行一致（仅 `CAMERA`、`INTERNET`，未新增权限），`apksigner verify --print-certs` 证书 SHA-256 与 2.2.1 相同，因此可覆盖升级并保留数据库；正式签名版 `dist/coffee-vault-2.2.2-release.apk`。本版为移动端数字输入优化（滚轮面板 + 步进器 + 摩卡壶规格选择），无数据库迁移、无备份/同步字段变更。**真机覆盖升级冒烟测试尚未执行**，装机后需确认可安装、可启动、关于页显示 2.2.2、旧记录完整。
+
 2.2.1 release 已验证 `versionName=2.2.1`、`versionCode=49`，正式签名版 `dist/coffee-vault-2.2.1-release.apk`（GitHub Release `v2.2.1`）；本版新增饮用记录照片贴图（最多 3 张，相册可一次多选）、饮用页直接「记一杯」入口与外饮记录，SQLite 升级至 user_version 9，备份 schema 升级至 6。未新增 Android 权限或默认网络行为。
 
 2.2.0 已随 `main` 发布链路合入（功能见 CHANGELOG；未单独打 `v2.2.0` tag），`versionName=2.2.0`、`versionCode=48` 对应提交在 2.2.1 之前；本版新增默认关闭的「照片手账滤镜」设置，开启后列表缩略图、详情 hero 与图库照片随主题统一色调并添加相纸/纸纹装饰，Web 端新上传图片会做轻度中性归一化，大图预览不叠加展示滤镜。未新增 Android 权限或默认网络行为。
