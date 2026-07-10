@@ -24,6 +24,9 @@
 - `www/app-format.js`：从 app.js 拆出的无状态格式化/解析工具(拆分第一批);新拆文件要同步 `index.html`、`sw.js` SHELL 与 `eslint.config.mjs` 全局名,`tests/shell-manifest.test.js` 会强制前两者。
 - `www/app-share-card.js`：分享卡片(收据风)画布渲染(拆分第二批),`AppShareCard.create(deps)` 工厂注入 `imageSrc`/`monthNames`,只做 payload→canvas 纯绘制。
 - `www/app-sync-ui.js`：云同步账号 UI(拆分第二批),`AppSyncUi.create(deps)` 工厂注入 `$`/`state`/`els`/`cloudSync` 等;后续继续拆 app.js 时照这个工厂模式。
+- `www/app-brew-assist.js`：手冲冲煮辅助(拆分第三批),计时器/WakeLock 为模块私有,进行态在共享 `state.brewAssist`。
+- `www/app-backup.js`：备份导出/导入与旧版迁移(拆分第三批),`confirmFn` 注入以便测试替换;导入回滚仍由 repository 保证。
+- `www/app-update.js`：关于页与 GitHub Releases 更新检查(拆分第三批),`fetchFn` 可注入以便测试。
 - `www/data-core.js`：可测试的纯数据规范化、筛选、排序、备份和统计逻辑。
 - `www/sync-compare.js`：同步 LWW 裁决的唯一实现,客户端与云端 Worker 共用;禁止两侧各写一份。
 - `www/repository.js`：SQLite/Web 存储适配、迁移、备份导入导出。
