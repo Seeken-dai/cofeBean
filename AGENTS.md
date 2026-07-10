@@ -73,13 +73,17 @@ $env:ANDROID_SDK_ROOT='C:\tmp\android-sdk'
 4. APK 验证无误后合并回主线并打 tag：`git checkout main && git merge --ff-only release/<x.y.z> && git tag -a v<x.y.z> -m "..."`。
 5. 下一个版本从更新后的 `main` 重新切分支，循环往复；旧版本分支合并后可删除（内容已在 `main` 中）。
 
-版本号需同步修改的位置（缺一不可）：
+版本号需同步修改的位置（缺一不可）。除「最新功能」列表的正文外，其余都由 `npm.cmd run bump-version -- <x.y.z> <versionCode>` 自动完成，不要手改：
 
 - `package.json`、`package-lock.json` 的 `version`
 - `android/app/build.gradle` 的 `versionName` 与 `versionCode`（每次发布 `versionCode` 加一）
-- `www/index.html` 关于页 `#aboutVersion` 文案与「最新功能」列表
+- `www/index.html` 关于页 `#aboutVersion` 文案与「最新功能」列表（列表正文需人工撰写）
 - `www/data-core.js` 备份的 `appVersion`
+- `www/sw.js` 的 `CACHE` 常量
+- `www/index.html` 与 `www/sw.js` SHELL 中 `styles.css?v=` 的版本参数（两处必须逐字一致）
 - `AGENTS.md` 的当前版本、`versionCode` 与正式产物路径
+
+`tests/shell-manifest.test.js` 会校验 `styles.css?v=` 两处一致、且与 `package.json` 版本一致，漏改会直接测试失败。
 
 
 ### 多 Agent 协作与 APK 验证流程

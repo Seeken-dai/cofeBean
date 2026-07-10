@@ -53,3 +53,14 @@ test('styles.css 的 ?v= 版本参数在 index.html 与 sw.js 一致', () => {
   assert.ok(htmlStyle && swStyle, '两处都应带 ?v= 版本参数');
   assert.equal(htmlStyle[1], swStyle[1], 'styles.css 版本参数不一致会导致缓存错配');
 });
+
+// 上面那条只保证两边「一样」，两边可以一致地停在旧版本号上而不被发现：浏览器 HTTP 缓存
+// 会继续沿用旧 styles.css，表现为升级后新功能配旧界面。这里把它钉死到 package.json 的版本。
+test('styles.css 的 ?v= 与 sw.js CACHE 都跟随 package.json 版本', () => {
+  const version = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8')).version;
+  const buster = html.match(/href="styles\.css\?v=([^"]+)"/);
+  const cache = sw.match(/const CACHE = 'coffee-vault-shell-([^']+)';/);
+  assert.ok(buster && cache, 'index.html 应有 ?v=，sw.js 应有 CACHE 常量');
+  assert.equal(buster[1], version, `styles.css?v= 应为 ${version}（发版请跑 npm run bump-version）`);
+  assert.equal(cache[1], version, `sw.js CACHE 应为 coffee-vault-shell-${version}`);
+});

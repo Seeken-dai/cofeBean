@@ -45,6 +45,10 @@ replaceExact('www/index.html', /<h4>\d+\.\d+\.\d+ 最新功能<\/h4>/, `<h4>${ve
 replaceExact('www/data-core.js', /appVersion:\s*'\d+\.\d+\.\d+'/g, `appVersion: '${version}'`);
 // SW 缓存名随版本变化：每次发版都触发 Service Worker 重新原子化预缓存整套外壳，避免旧缓存与新外壳错配。
 replaceExact('www/sw.js', /const CACHE = 'coffee-vault-shell-[^']+';/, `const CACHE = 'coffee-vault-shell-${version}';`);
+// styles.css 的 ?v= 用于击穿浏览器自身的 HTTP 缓存（SW 之外的那一层）。index.html 与 sw.js SHELL
+// 必须逐字一致，否则 cache-first 会在缓存里找不到实际请求的地址；shell-manifest 测试强制这一点。
+replaceExact('www/index.html', /href="styles\.css\?v=[^"]+"/, `href="styles.css?v=${version}"`);
+replaceExact('www/sw.js', /'\.\/styles\.css\?v=[^']+'/, `'./styles.css?v=${version}'`);
 replaceExact('AGENTS.md', /当前版本为 `[^`]+`，Android `versionCode \d+`，正式产物路径为 `dist\/coffee-vault-[^`]+-release\.apk`。/, `当前版本为 \`${version}\`，Android \`versionCode ${versionCode}\`，正式产物路径为 \`dist/coffee-vault-${version}-release.apk\`。`);
 
 console.log(`${dryRun ? '检查完成' : '已更新'}：${version} / versionCode ${versionCode}`);
