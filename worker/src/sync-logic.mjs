@@ -1,15 +1,17 @@
+// LWW 裁决与客户端共用同一份实现(www/sync-compare.js),wrangler 打包时会一并内联。
+// 禁止在这里另写一份比较逻辑:两端分歧会导致设备间数据永不收敛。
+import syncCompare from '../../www/sync-compare.js';
+
 export const PULL_LIMIT = 1000;
 export const TYPE_BUCKET = { bean: 'beans', drinkLog: 'drinkLogs', brewPlan: 'brewPlans' };
 export const REQUEST_BUCKET = { beans: 'bean', drinkLogs: 'drinkLog', brewPlans: 'brewPlan' };
 
+// D1 行是 snake_case,先映射到信封字段再裁决。
 export function isNewer(a, b) {
-  const ta = Date.parse(a.updated_at) || 0;
-  const tb = Date.parse(b.updated_at) || 0;
-  if (ta !== tb) return ta > tb;
-  const ra = Number(a.revision) || 0;
-  const rb = Number(b.revision) || 0;
-  if (ra !== rb) return ra > rb;
-  return String(a.device_id || '') > String(b.device_id || '');
+  return syncCompare.compareSyncRecords(
+    { updatedAt: a.updated_at, revision: a.revision, deviceId: a.device_id },
+    { updatedAt: b.updated_at, revision: b.revision, deviceId: b.device_id }
+  ) > 0;
 }
 
 export function rowToEnvelope(row) {

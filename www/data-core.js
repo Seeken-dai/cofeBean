@@ -1,9 +1,15 @@
 (function (root, factory) {
-  const api = factory();
-  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  const isCommonJs = typeof module !== 'undefined' && module.exports;
+  const syncCompare = isCommonJs ? require('./sync-compare.js') : root.BeanSyncCompare;
+  const api = factory(syncCompare);
+  if (isCommonJs) module.exports = api;
   root.BeanCore = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (syncCompare) {
   'use strict';
+
+  if (!syncCompare || typeof syncCompare.compareSyncRecords !== 'function') {
+    throw new Error('缺少 BeanSyncCompare:sync-compare.js 必须先于 data-core.js 加载');
+  }
 
   const SCHEMA_VERSION = 6;
   const DIMENSION_KEYS = ['aroma', 'acidity', 'sweetness', 'body', 'aftertaste', 'balance', 'bitterness'];
@@ -999,15 +1005,8 @@
   // 合并：按 (updatedAt, revision, deviceId) 的 last-write-wins；胜者的 deletedAt 即最终删除态（墓碑）。
   // 删除必须写墓碑（deletedAt 非空且刷新 updatedAt），否则会被对端当作缺失而复活。
   // 详见 plan/SYNC_PROTOCOL_DESIGN.md §4/§5。
-  function compareSyncRecords(a, b) {
-    const ta = Date.parse(a && a.updatedAt) || 0;
-    const tb = Date.parse(b && b.updatedAt) || 0;
-    if (ta !== tb) return ta - tb;
-    const ra = Number(a && a.revision) || 0;
-    const rb = Number(b && b.revision) || 0;
-    if (ra !== rb) return ra - rb;
-    return String((a && a.deviceId) || '').localeCompare(String((b && b.deviceId) || ''));
-  }
+  // 裁决实现与云端 Worker 共用 sync-compare.js,禁止在此另写一份(两端分歧 = 数据不收敛)。
+  const compareSyncRecords = syncCompare.compareSyncRecords;
   function mergeSyncRecords(local, remote) {
     const winners = new Map();
     [].concat(local || [], remote || []).forEach((record) => {

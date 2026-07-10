@@ -62,6 +62,12 @@ class Statement {
       if (row) row.last_seen = v[0];
       return {};
     }
+    if (sql.startsWith('UPDATE sessions SET token = ? WHERE token = ?')) {
+      // 明文会话就地升级为哈希存储:换 key、保留行内容
+      const row = this.db.sessions.get(v[1]);
+      if (row) { this.db.sessions.delete(v[1]); this.db.sessions.set(v[0], row); }
+      return {};
+    }
     if (sql.startsWith('INSERT INTO user_seq (user_id, seq) VALUES (?,0) ON CONFLICT')) {
       if (!this.db.userSeq.has(v[0])) this.db.userSeq.set(v[0], 0);
       return {};
@@ -164,4 +170,25 @@ test('worker integration: duplicate image upload increments image ref without re
   const ref = env.DB.imageRefs.get(`user-1/${sha}`);
   assert.equal(ref.ref_count, 2);
   assert.equal(env.IMAGES.putCount, 1);
+});
+
+test('worker integration: 明文历史会话首次命中即升级为哈希存储且仍可鉴权', async () => {
+  const worker = await loadWorker();
+  const env = createEnv();
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('token-1'));
+  const hash = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+
+  // 第一次请求走明文兜底路径并就地升级
+  const first = await worker.fetch(new Request('https://sync.test/sync/pull?cursor=0', { headers: { Authorization: 'Bearer token-1' } }), env);
+  assert.equal(first.status, 200);
+  assert.equal(env.DB.sessions.has('token-1'), false, '明文行应已被升级删除');
+  assert.equal(env.DB.sessions.has(hash), true, '应改为按 sha256(token) 存储');
+
+  // 第二次请求直接命中哈希行
+  const second = await worker.fetch(new Request('https://sync.test/sync/pull?cursor=0', { headers: { Authorization: 'Bearer token-1' } }), env);
+  assert.equal(second.status, 200);
+
+  // 错误 token 仍拒绝
+  const denied = await worker.fetch(new Request('https://sync.test/sync/pull?cursor=0', { headers: { Authorization: 'Bearer wrong' } }), env);
+  assert.equal(denied.status, 401);
 });

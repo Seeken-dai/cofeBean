@@ -60,20 +60,11 @@
       if (els.toast.hidePopover && els.toast.matches(':popover-open')) els.toast.hidePopover();
     }, 2600);
   }
-  function esc(value) { return String(value == null ? '' : value).replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]); }
-  function formatWeight(value) { const n = Number(value) || 0; return n >= 1000 ? `${(n / 1000).toFixed(n % 1000 ? 1 : 0)}kg` : `${Math.round(n * 10) / 10}g`; }
-  function formatPrice(value) { const n = Number(value); return Number.isFinite(n) && n >= 0 ? `¥${Math.round(n * 100) / 100}` : '未记录'; }
+  // 无状态格式化/解析工具在 app-format.js(app.js 拆分第一批,便于 Node 单测)。
+  const { esc, formatWeight, formatPrice, formatDate, formatDateTime, localDateTime, dateTimeValue, waterFromRatio, ratioFromWater, parseRatio, secondsFromText, durationText, stars } = window.AppFormat;
   function unitPriceMeta() { return PRICE_UNITS[state.settings.priceUnit] || PRICE_UNITS.g; }
   function formatUnitPrice(bean) { const price = Number(bean.price); const grams = Number(bean.initialWeight); const unit = unitPriceMeta(); return Number.isFinite(price) && price > 0 && Number.isFinite(grams) && grams > 0 ? `¥${(price / grams * unit.grams).toFixed(2)} ${unit.suffix}` : '未记录'; }
-  function formatDate(value) { if (!value) return '未记录'; const date = new Date(value); return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit' }).format(date); }
-  function formatDateTime(value) { const date = new Date(value); return Number.isNaN(date.getTime()) ? '' : new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(date); }
-  function localDateTime(value) { const d = value ? new Date(value) : new Date(); const shifted = new Date(d.getTime() - d.getTimezoneOffset() * 60000); return shifted.toISOString().slice(0, 16).replace('T', ' '); }
-  function dateTimeValue(value) { return String(value || '').trim().replace(' ', 'T'); }
-  function waterFromRatio(dose, ratio) { const match = String(ratio || '').match(/1\s*[:：]\s*(\d+(?:\.\d+)?)/); const n = match ? Number(match[1]) : null; return n && Number(dose) > 0 ? Math.round(Number(dose) * n * 10) / 10 : null; }
-  function trimNumber(value) { return Number.isInteger(value) ? String(value) : String(Math.round(value * 10) / 10).replace(/\.0$/, ''); }
-  function ratioFromWater(dose, water) { const grams = Number(dose); const total = Number(water); return grams > 0 && total > 0 ? trimNumber(total / grams) : ''; }
   function brewPlansEnabled() { return Boolean(state.settings && state.settings.enableBrewPlans); }
-  function parseRatio(value) { const match = String(value || '').match(/(\d+(?:\.\d+)?)\s*[:：]\s*(\d+(?:\.\d+)?)/); return match ? [match[1], match[2]] : ['1', '']; }
   function setRatioControls(prefix, ratio) { const [left, right] = parseRatio(ratio); $(`#${prefix}-ratio-left`).value = left || '1'; $(`#${prefix}-ratio-right`).value = right || ''; syncRatioValue(prefix); }
   function syncRatioValue(prefix) { const left = $(`#${prefix}-ratio-left`); const right = $(`#${prefix}-ratio-right`); const hidden = prefix === 'plan' ? $('#plan-ratio') : $('#drink-param-ratio'); if (hidden) hidden.value = right && right.value ? `${left.value || 1}:${right.value}` : ''; }
   function syncRatioFromTotal(prefix) {
@@ -84,24 +75,6 @@
     $(`#${prefix}-ratio-left`).value = '1';
     $(`#${prefix}-ratio-right`).value = right;
     syncRatioValue(prefix);
-  }
-  function secondsFromText(value) {
-    const text = String(value || '').trim();
-    if (!text) return null;
-    const h = text.match(/(\d+(?:\.\d+)?)\s*h/i) || text.match(/(\d+(?:\.\d+)?)\s*时/);
-    const m = text.match(/(\d+(?:\.\d+)?)\s*m(?!s)/i) || text.match(/(\d+(?:\.\d+)?)\s*分/);
-    const s = text.match(/(\d+(?:\.\d+)?)\s*s/i) || text.match(/(\d+(?:\.\d+)?)\s*秒/);
-    const colon = text.match(/^(\d+):(\d{1,2})(?::(\d{1,2}))?/);
-    if (colon) return (colon[3] ? Number(colon[1]) * 3600 + Number(colon[2]) * 60 + Number(colon[3]) : Number(colon[1]) * 60 + Number(colon[2]));
-    if (h || m || s) return (h ? Number(h[1]) * 3600 : 0) + (m ? Number(m[1]) * 60 : 0) + (s ? Number(s[1]) : 0);
-    const n = Number(text);
-    return Number.isFinite(n) ? n : null;
-  }
-  function durationText(seconds, mode) {
-    if (!(seconds >= 0)) return '';
-    const h = Math.floor(seconds / 3600); const m = Math.floor((seconds % 3600) / 60); const s = Math.round(seconds % 60);
-    if (mode === 'hour') return `${h}h${m ? `${m}m` : ''}`;
-    return `${m + h * 60}:${String(s).padStart(2, '0')}`;
   }
   function setDurationControl(field, value) {
     const seconds = secondsFromText(value);
@@ -185,7 +158,6 @@
     setTimeout(() => $('#confirmCancel').focus(), 40);
     return new Promise((resolve) => { confirmResolver = resolve; });
   }
-  function stars(value) { return value ? `<span class="stars" aria-label="${value} 星">${'★'.repeat(value)}${'☆'.repeat(5 - value)}</span>` : '<span class="unrated">未评分</span>'; }
   const webImageUrls = new Map(); // idb:<id> -> objectURL，渲染前由 resolveWebImages 预取
   function imageSrc(path) {
     if (path && String(path).indexOf('idb:') === 0) return webImageUrls.get(path) || '';

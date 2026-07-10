@@ -17,8 +17,12 @@ const SYNC_PROTOCOL = 1;
 const TYPES = ['bean', 'drinkLog', 'brewPlan'];
 const ALLOWED_ORIGINS = ['https://app.cofevault.top', 'https://cofebean.pages.dev', 'http://localhost:4173', 'http://127.0.0.1:4173', 'http://localhost:4178', 'http://127.0.0.1:4178', 'http://localhost', 'capacitor://localhost'];
 const SESSION_TTL_MS = 90 * 24 * 60 * 60 * 1000;
+// last_seen 只用于 90 天 TTL 滑动,按小时粒度刷新即可;避免每个同步请求都写一次 D1。
+const LAST_SEEN_REFRESH_MS = 60 * 60 * 1000;
 const AUTH_WINDOW_MS = 15 * 60 * 1000;
 const AUTH_MAX_ATTEMPTS = 12;
+// 注意:内存 Map 限流只在单个 isolate 内生效 —— isolate 随时回收、多 PoP 各自计数,
+// 它只是「聊胜于无」的减速带。若要真正限流需落 D1 或 Durable Object,当前个人规模暂不做。
 const authAttempts = new Map();
 
 function isCorsAllowed(request) {
@@ -56,6 +60,7 @@ async function pbkdf2(secret, saltHex, pepper) {
   return bytesToHex(bits);
 }
 async function sha256Hex(buffer) { return bytesToHex(await crypto.subtle.digest('SHA-256', buffer)); }
+async function sha256HexText(text) { return sha256Hex(new TextEncoder().encode(String(text))); }
 function normEmail(email) { return String(email || '').trim().toLowerCase(); }
 function clientIp(request) { return request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || 'unknown'; }
 function checkAuthRateLimit(request, key) {
@@ -72,24 +77,33 @@ function checkAuthRateLimit(request, key) {
 }
 
 // ---- 鉴权 ----
+// 会话 token 客户端持有明文,D1 只存 sha256(token):库泄露时会话不可直接盗用。
+// 历史明文会话在首次命中时就地升级为哈希行,用户无感、不强制重新登录。
 async function currentUser(request, env) {
   const auth = request.headers.get('Authorization') || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
   if (!token) return null;
-  const row = await env.DB.prepare('SELECT user_id, created_at, last_seen FROM sessions WHERE token = ?').bind(token).first();
-  if (!row) return null;
+  const tokenHash = await sha256HexText(token);
+  let row = await env.DB.prepare('SELECT user_id, created_at, last_seen FROM sessions WHERE token = ?').bind(tokenHash).first();
+  if (!row) {
+    row = await env.DB.prepare('SELECT user_id, created_at, last_seen FROM sessions WHERE token = ?').bind(token).first();
+    if (!row) return null;
+    await env.DB.prepare('UPDATE sessions SET token = ? WHERE token = ?').bind(tokenHash, token).run();
+  }
   const lastSeen = Date.parse(row.last_seen || row.created_at) || 0;
   if (!lastSeen || Date.now() - lastSeen > SESSION_TTL_MS) {
-    await env.DB.prepare('DELETE FROM sessions WHERE token = ?').bind(token).run();
+    await env.DB.prepare('DELETE FROM sessions WHERE token = ?').bind(tokenHash).run();
     return null;
   }
-  await env.DB.prepare('UPDATE sessions SET last_seen = ? WHERE token = ?').bind(new Date().toISOString(), token).run();
+  if (Date.now() - lastSeen > LAST_SEEN_REFRESH_MS) {
+    await env.DB.prepare('UPDATE sessions SET last_seen = ? WHERE token = ?').bind(new Date().toISOString(), tokenHash).run();
+  }
   return row.user_id;
 }
 async function createSession(env, userId) {
   const token = randomHex(32);
   await env.DB.prepare('INSERT INTO sessions (token, user_id, created_at, last_seen) VALUES (?,?,?,?)')
-    .bind(token, userId, new Date().toISOString(), new Date().toISOString()).run();
+    .bind(await sha256HexText(token), userId, new Date().toISOString(), new Date().toISOString()).run();
   return token;
 }
 

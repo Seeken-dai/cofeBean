@@ -5,6 +5,7 @@
   "description": "豆仓 - 本地优先的咖啡豆管理 Android App",
   "scripts": {
     "test": "node --test tests/*.test.js",
+    "lint": "eslint www worker/src tests scripts eslint.config.mjs",
     "bump-version": "node scripts/bump-version.mjs",
     "cap:sync": "cap sync android",
     "android:debug": "cap sync android && cd android && .\\gradlew.bat assembleDebug",
@@ -27,6 +28,8 @@
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
-    "@capacitor/cli": "8.4.1"
+    "@capacitor/cli": "8.4.1",
+    "eslint": "^10.6.0",
+    "globals": "^17.7.0"
   }
 }

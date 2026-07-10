@@ -21,7 +21,9 @@
 - `www/index.html`：页面结构和对话框骨架。
 - `www/styles.css`：全部界面样式和主题。
 - `www/app.js`：界面状态、交互、渲染和 Capacitor 插件调用。
+- `www/app-format.js`：从 app.js 拆出的无状态格式化/解析工具(拆分第一批);新拆文件要同步 `index.html`、`sw.js` SHELL 与 `eslint.config.mjs` 全局名,`tests/shell-manifest.test.js` 会强制前两者。
 - `www/data-core.js`：可测试的纯数据规范化、筛选、排序、备份和统计逻辑。
+- `www/sync-compare.js`：同步 LWW 裁决的唯一实现,客户端与云端 Worker 共用;禁止两侧各写一份。
 - `www/repository.js`：SQLite/Web 存储适配、迁移、备份导入导出。
 - `www/coffee-parser.js`：咖啡标签文本解析。
 - `tests/`：Node 测试，优先覆盖纯逻辑、仓储和备份兼容。
@@ -49,6 +51,7 @@ $env:ANDROID_SDK_ROOT='C:\tmp\android-sdk'
 ## 测试命令
 
 - 全量 JS 测试：`npm.cmd test`
+- 静态检查：`npm.cmd run lint`(ESLint,覆盖 `www/`、`worker/src/`、`tests/`、`scripts/`;新增 UMD 全局名要同步到 `eslint.config.mjs` 的 projectGlobals)
 - 语法检查：`node --check www/app.js`
 - 仓储语法检查：`node --check www/repository.js`
 - 修改 `www/data-core.js`、`www/repository.js`、备份格式、筛选排序、统计、迁移时，必须补充或更新 `tests/`。

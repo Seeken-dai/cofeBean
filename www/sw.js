@@ -13,6 +13,7 @@ const CACHE = 'coffee-vault-shell-2.2.1-drink-choice-pad';
 const SHELL = [
   './',
   './styles.css?v=2.2.1-drink-choice-pad',
+  './sync-compare.js',
   './data-core.js',
   './coffee-parser.js',
   './repository-web-adapter.js',
@@ -21,6 +22,7 @@ const SHELL = [
   './sync-transport.js',
   './sync-service.js',
   './photo-tone.js',
+  './app-format.js',
   './app.js',
   './vendor/qrcode-generator.js',
   './vendor/jsQR.js',
