@@ -19,3 +19,6 @@ dist/
 .interface-design/
 mock/
 scripts/cloud-sync-smoke.js
+
+# wrangler 本地缓存（dev/deploy 生成）
+worker/.wrangler/
