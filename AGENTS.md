@@ -22,6 +22,8 @@
 - `www/styles.css`：全部界面样式和主题。
 - `www/app.js`：界面状态、交互、渲染和 Capacitor 插件调用。
 - `www/app-format.js`：从 app.js 拆出的无状态格式化/解析工具(拆分第一批);新拆文件要同步 `index.html`、`sw.js` SHELL 与 `eslint.config.mjs` 全局名,`tests/shell-manifest.test.js` 会强制前两者。
+- `www/app-share-card.js`：分享卡片(收据风)画布渲染(拆分第二批),`AppShareCard.create(deps)` 工厂注入 `imageSrc`/`monthNames`,只做 payload→canvas 纯绘制。
+- `www/app-sync-ui.js`：云同步账号 UI(拆分第二批),`AppSyncUi.create(deps)` 工厂注入 `$`/`state`/`els`/`cloudSync` 等;后续继续拆 app.js 时照这个工厂模式。
 - `www/data-core.js`：可测试的纯数据规范化、筛选、排序、备份和统计逻辑。
 - `www/sync-compare.js`：同步 LWW 裁决的唯一实现,客户端与云端 Worker 共用;禁止两侧各写一份。
 - `www/repository.js`：SQLite/Web 存储适配、迁移、备份导入导出。

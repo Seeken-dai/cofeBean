@@ -13,6 +13,8 @@ const projectGlobals = {
   BeanWebRepositoryAdapter: 'readonly',
   CoffeeParser: 'readonly',
   AppFormat: 'readonly',
+  AppShareCard: 'readonly',
+  AppSyncUi: 'readonly',
   PhotoTone: 'readonly',
   Capacitor: 'readonly',
   qrcode: 'readonly',

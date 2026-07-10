@@ -23,6 +23,8 @@ const SHELL = [
   './sync-service.js',
   './photo-tone.js',
   './app-format.js',
+  './app-share-card.js',
+  './app-sync-ui.js',
   './app.js',
   './vendor/qrcode-generator.js',
   './vendor/jsQR.js',
