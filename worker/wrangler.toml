@@ -12,7 +12,11 @@ binding = "DB"
 database_name = "cofebean-sync"
 database_id = "5d148034-39ce-439d-88a2-a3afe536271c"
 
-# R2：图片 blob（key = 内容 sha256，内容寻址去重）
+# R2：图片 blob（key = userId/内容 sha256，内容寻址去重）
 [[r2_buckets]]
 binding = "IMAGES"
 bucket_name = "cofebean-images"
+
+# 每天 04:17 UTC 全量兜底回收孤儿图片。主路径是 push 后的增量回收，这里只补漏。
+[triggers]
+crons = ["17 4 * * *"]

@@ -43,12 +43,20 @@ CREATE TABLE IF NOT EXISTS user_seq (
   seq INTEGER NOT NULL DEFAULT 0
 );
 
--- 图片引用：R2 key = sha256，内容寻址去重；ref_count 供延迟清理。
+-- 图片引用：R2 key = userId/sha256，内容寻址去重。
+-- 回收采用标记-清除（worker/src/image-gc.mjs）：存活集从 records 的未删除 payload 推导，
+-- 不依赖引用计数 —— push 会重放、一图可多引，计数一旦漂移就会泄漏对象或误删在用的图。
+-- last_put：最近一次上传时间，GC 宽限期的依据（图先传、记录后 push，窗口内不可回收）。
+-- ref_count：历史遗留列，不再维护；保留仅为兼容既有行。
 CREATE TABLE IF NOT EXISTS image_refs (
   user_id TEXT NOT NULL,
   sha256 TEXT NOT NULL,
   bytes INTEGER,
   mime TEXT,
   ref_count INTEGER NOT NULL DEFAULT 1,
+  last_put TEXT,
   PRIMARY KEY (user_id, sha256)
 );
+CREATE INDEX IF NOT EXISTS idx_image_refs_last_put ON image_refs(user_id, last_put);
+-- 已有库补列（新库由上面的 CREATE 直接带上）：
+--   npx wrangler d1 execute cofebean-sync --remote --file=./migrations/001-image-gc.sql

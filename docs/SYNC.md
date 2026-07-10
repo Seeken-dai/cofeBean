@@ -129,9 +129,23 @@
 |`sessions`|`token`|会话 token，可撤销|
 |`records`|`(user\_id, type, id)`|同步记录，含 `payload\_json` 与 `server\_seq`|
 |`user\_seq`|`user\_id`|每用户单调递增序列，push 时分配 `server\_seq`|
-|`image\_refs`|`(user\_id, sha256)`|图片内容寻址去重，`ref\_count` 供延迟清理|
+|`image\_refs`|`(user\_id, sha256)`|图片内容寻址去重，`last\_put` 供 GC 划宽限期（`ref\_count` 为遗留列，不再维护）|
 
 所有查询都以 `user\_id` 作用域隔离，保证用户间数据不互通。
+
+### 图片回收
+
+R2 对象 key 为 `userId/sha256`。回收采用**标记-清除**而非引用计数：存活集从 `records` 中
+`deleted\_at IS NULL` 的 payload 推导（`bagImagePath`、`labelImagePath`、`drinkLog.photos[]`）。
+不用计数的原因是 push 会重试重放、一张图可被多条记录引用，计数一旦漂移就会永久泄漏对象或删掉在用的图；
+标记-清除则是幂等的，重复执行无副作用。
+
+两条路径：
+
+* **增量**（`/sync/push` 之后）：只考察本次被解引用的 sha，不做全量 list；经 `waitUntil` 异步执行，不拖慢 push，失败也不影响已落库的 push。
+* **兜底**（每日 cron）：全量扫 R2，清掉上传成功但记录从未 push 的孤儿，以及已注销用户遗留的整个前缀。
+
+图片先上传、记录后 push，中间存在窗口。GC 跳过 `last\_put` 在 **7 天**宽限期内的 sha，避免删掉马上就要被引用的对象。
 
 ## 隐私与安全边界
 

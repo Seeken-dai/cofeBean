@@ -12,6 +12,7 @@ import {
   shouldAcceptRecord,
   assignServerSeq
 } from './sync-logic.mjs';
+import { collectGarbage, parsePayloadShas, purgeUserPrefix, sweepOrphanImages } from './image-gc.mjs';
 
 const SYNC_PROTOCOL = 1;
 const TYPES = ['bean', 'drinkLog', 'brewPlan'];
@@ -181,7 +182,7 @@ async function loadStoredRecords(env, userId, incoming) {
     const clauses = chunk.map(() => '(type = ? AND id = ?)').join(' OR ');
     const params = [userId];
     chunk.forEach(({ type, rec }) => { params.push(type, rec.id); });
-    const result = await env.DB.prepare(`SELECT type, id, updated_at, revision, device_id FROM records WHERE user_id = ? AND (${clauses})`).bind(...params).all();
+    const result = await env.DB.prepare(`SELECT type, id, updated_at, revision, device_id, payload_json FROM records WHERE user_id = ? AND (${clauses})`).bind(...params).all();
     (result.results || []).forEach((row) => stored.set(recordKey(row.type, row.id), row));
   }
   return stored;
@@ -195,7 +196,7 @@ async function reserveServerSeq(env, userId, count) {
   return { startSeq: endSeq - count + 1, endSeq };
 }
 
-async function handlePush(request, env, userId) {
+async function handlePush(request, env, userId, ctx) {
   const body = await request.json().catch(() => ({}));
   const clientCursor = Number(body.cursor) || 0;
   const incoming = collectIncoming(body);
@@ -211,6 +212,20 @@ async function handlePush(request, env, userId) {
     ).bind(userId, type, rec.id, rec.revision || 1, rec.updatedAt, rec.deletedAt || null, rec.deviceId || '', JSON.stringify(rec.payload || {}), serverSeq));
   }
   if (stmts.length) await env.DB.batch(stmts);
+
+  // 被覆盖记录的旧 payload 里引用过的图 —— 换图、删图、以及墓碑覆盖都落在这里。
+  // 只是「候选」：同一张图可能仍被别的记录引用，由 collectGarbage 查存活集裁定。
+  const candidates = new Set();
+  for (const { type, rec } of acceptedWithSeq) {
+    const previous = stored.get(recordKey(type, rec.id));
+    if (previous) parsePayloadShas(previous.payload_json, candidates);
+  }
+  if (candidates.size) {
+    // 回收不该拖慢 push；失败也不该让已落库的 push 报错 —— cron 全量兜底会再捡一次。
+    const gc = collectGarbage(env, userId, candidates).catch((error) => console.error('image gc', error));
+    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(gc); else await gc;
+  }
+
   return json({
     accepted: acceptedWithSeq.length,
     cursor: clientCursor || null,
@@ -232,8 +247,10 @@ async function handleImagePut(request, env, userId, sha) {
   if (!existing) {
     await env.IMAGES.put(key, buf, { httpMetadata: { contentType: mime } });
   }
-  await env.DB.prepare('INSERT INTO image_refs (user_id, sha256, bytes, mime, ref_count) VALUES (?,?,?,?,1) ON CONFLICT(user_id, sha256) DO UPDATE SET ref_count = ref_count + 1, bytes = excluded.bytes, mime = excluded.mime')
-    .bind(userId, actual, buf.byteLength, mime).run();
+  // last_put 是 GC 的宽限期依据：图先传、记录后 push,这段窗口内不能回收。
+  // ref_count 是历史遗留列（回收已改为标记-清除,见 image-gc.mjs），不再维护。
+  await env.DB.prepare('INSERT INTO image_refs (user_id, sha256, bytes, mime, last_put) VALUES (?,?,?,?,?) ON CONFLICT(user_id, sha256) DO UPDATE SET bytes = excluded.bytes, mime = excluded.mime, last_put = excluded.last_put')
+    .bind(userId, actual, buf.byteLength, mime, new Date().toISOString()).run();
   return json({ key: `r2:${actual}`, sha256: actual, deduped: Boolean(existing) }, 200, request);
 }
 async function handleImageGet(request, env, userId, sha) {
@@ -243,13 +260,11 @@ async function handleImageGet(request, env, userId, sha) {
 }
 
 // 删号：清空该用户的 R2 图片 + D1 所有数据（记录/会话/序列/图片引用/用户）。不可撤销。
+// R2 先删、D1 后删:反过来的话中途失败就丢了 userId,再也找不到那批对象。
+// 即便这里删到一半失败,users 行仍在 → 下次重试可继续;若 users 行已没了,
+// cron 全量兜底会把这个无主前缀整个清掉。
 async function handleDeleteAccount(request, env, userId) {
-  let cursor;
-  do {
-    const listed = await env.IMAGES.list({ prefix: `${userId}/`, cursor });
-    for (const obj of (listed.objects || [])) await env.IMAGES.delete(obj.key);
-    cursor = listed.truncated ? listed.cursor : undefined;
-  } while (cursor);
+  await purgeUserPrefix(env, userId);
   await env.DB.batch([
     env.DB.prepare('DELETE FROM records WHERE user_id = ?').bind(userId),
     env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(userId),
@@ -261,7 +276,16 @@ async function handleDeleteAccount(request, env, userId) {
 }
 
 export default {
-  async fetch(request, env) {
+  // 每天一次全量兜底回收：捡增量回收漏掉的孤儿图（上传成功但记录从未 push）、
+  // 本次改动之前就已泄漏的存量图,以及注销中途失败留下的无主前缀。
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(sweepOrphanImages(env).then(
+      (deleted) => console.log(`image sweep: deleted ${deleted} objects`),
+      (error) => console.error('image sweep', error)
+    ));
+  },
+
+  async fetch(request, env, ctx) {
     if (!isCorsAllowed(request)) return new Response(null, { status: request.method === 'OPTIONS' ? 403 : 403, headers: { 'Vary': 'Origin' } });
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders(request) });
     const url = new URL(request.url);
@@ -278,7 +302,7 @@ export default {
       if (!userId) return bad('未登录', 401, request);
 
       if (request.method === 'GET' && path === '/sync/pull') return await handlePull(request, env, userId);
-      if (request.method === 'POST' && path === '/sync/push') return await handlePush(request, env, userId);
+      if (request.method === 'POST' && path === '/sync/push') return await handlePush(request, env, userId, ctx);
       if (request.method === 'POST' && path === '/auth/delete') return await handleDeleteAccount(request, env, userId);
 
       const imageMatch = path.match(/^\/images\/([a-f0-9]{64})$/);
