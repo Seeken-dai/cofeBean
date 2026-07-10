@@ -326,7 +326,9 @@ body.photo-journal .vault-image-actions { z-index:3; right:15px; bottom:15px; }
 .field .number-stepper input,.settings-number .number-stepper input { width:100%; min-width:0; min-height:46px; padding:8px 6px; border:0; border-radius:0; background:transparent; box-shadow:none; text-align:center; font-variant-numeric:tabular-nums; }
 .number-stepper button { min-width:44px; min-height:46px; padding:0; border:0; background:color-mix(in srgb,var(--accent) 7%,transparent); color:var(--accent); font-size:22px; font-weight:650; }
 .number-stepper button + input,.number-stepper input + button { border-left:1px solid color-mix(in srgb,var(--border) 72%,transparent); }
-.number-stepper button:not(.is-limit):active { background:color-mix(in srgb,var(--accent) 15%,var(--surface-2)); }
+/* 用 .is-pressed 而不是 :active：按钮在 <label class="field"> 内,label 激活态会传播到
+   两个按钮上,:active 会让 − 和 + 同时高亮(见 app-number-input.js 的 onPointerDown)。 */
+.number-stepper button.is-pressed:not(.is-limit) { background:color-mix(in srgb,var(--accent) 15%,var(--surface-2)); }
 /* 边界态用 .is-limit 而非 :disabled——按住时被 disable 会让 :active 卡住不释放(见 app-number-input.js)。
    同时去掉铜色背景底,让「不可用」一眼可辨,而不是看起来像「未点亮」。 */
 .number-stepper button.is-limit { background:transparent; color:var(--faint); opacity:.3; cursor:default; }

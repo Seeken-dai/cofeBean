@@ -412,12 +412,16 @@
     function stopHold() {
       clearTimeout(holdDelay); clearInterval(holdInterval);
       holdDelay = null; holdInterval = null; heldButton = null;
+      document.querySelectorAll('.number-stepper button.is-pressed').forEach((button) => button.classList.remove('is-pressed'));
     }
 
     function onPointerDown(event) {
       const button = event.target.closest('[data-number-step]');
       if (!button || atLimit(button)) return;
       stopHold(); heldButton = button;
+      // 按下高亮不能用 :active——步进器嵌在 <label class="field"> 里,label 的激活态会传播,
+      // 导致 .number-stepper button:active 同时命中 − 和 +,看起来像「点 + 把 − 也点亮了」。
+      button.classList.add('is-pressed');
       holdDelay = setTimeout(() => {
         if (!heldButton) return;
         suppressClickButton = heldButton; applyStepButton(heldButton);
