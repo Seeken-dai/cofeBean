@@ -71,7 +71,7 @@ node --check www/repository.js
 
 APK 可使用 Android Build Tools 的 `aapt2 dump badging`、`aapt2 dump permissions` 和 `apksigner verify --print-certs` 检查包信息、权限与签名。
 
-2.2.2 release 构建自 `main` 的发布 commit，已用 `aapt2 dump badging` 核对 `versionName=2.2.2`、`versionCode=50`，`aapt2 dump permissions` 与 2.2.1 逐行一致（仅 `CAMERA`、`INTERNET`，未新增权限），`apksigner verify --print-certs` 证书 SHA-256 与 2.2.1 相同，因此可覆盖升级并保留数据库；正式签名版 `dist/coffee-vault-2.2.2-release.apk`。本版为移动端数字输入优化（滚轮面板 + 步进器 + 摩卡壶规格选择），无数据库迁移、无备份/同步字段变更。交互已在 Web 预览中验收（含步进器按下高亮、滚轮精确输入、双列时长、克重联动）。**真机覆盖升级冒烟测试尚未执行**，装机后需确认可安装、可启动、关于页显示 2.2.2、旧记录完整。
+2.2.2 release 构建自 `main` 的发布 commit，已用 `aapt2 dump badging` 核对 `versionName=2.2.2`、`versionCode=50`，`aapt2 dump permissions` 与 2.2.1 逐行一致（仅 `CAMERA`、`INTERNET`，未新增权限），`apksigner verify --print-certs` 证书 SHA-256 与 2.2.1 相同，因此可覆盖升级并保留数据库；正式签名版 `dist/coffee-vault-2.2.2-release.apk`。本版为移动端数字输入优化（滚轮面板 + 步进器 + 摩卡壶规格选择），无数据库迁移、无备份/同步字段变更。交互已在 Web 预览中验收（含步进器按下高亮、滚轮精确输入、双列时长、克重联动），并已通过真机覆盖升级冒烟测试；已发布 GitHub Release `v2.2.2`。
 
 注意：步进器按钮位于 `<label>` 内，按下高亮不能用 `:active`（label 激活态会传播，导致 `−` 与 `+` 同时高亮）。此类交互问题用合成 `element.click()` 复现不出，必须用真实鼠标/触摸事件（`pointerdown`/`mousedown`）验证。
 
