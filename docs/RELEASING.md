@@ -35,9 +35,7 @@
 |`cofebean`|`www/`|`www/*`|`app.cofevault.top`、`cofebean.pages.dev`|
 |`cofebean-landing`|`landing/`|`landing/*`|`cofevault.top`、`www.cofevault.top`|
 
-构建监视路径在 Dashboard 配置（Workers & Pages → 项目 → 设置 → 构建 → 构建监视路径），`wrangler` 改不了。配置正确时，只改 `worker/`、`docs/`、`android/` 的提交不会触发这两个站重建。
-
-服务端真实配置存在项目的 `source.config.path_includes` / `path_excludes`（不在 `build_config` 里）。用 API 核对实际生效值：
+构建监视路径在 Dashboard 配置（Workers & Pages → 项目 → 设置 → 构建 → 构建监视路径），`wrangler` 改不了。服务端真实值存在项目的 `source.config.path_includes` / `path_excludes`（不在 `build_config` 里），用 API 核对：
 
 ```bash
 curl -s -H "Authorization: Bearer $TOKEN" \
@@ -45,7 +43,7 @@ curl -s -H "Authorization: Bearer $TOKEN" \
   | python -c "import sys,json;c=json.load(sys.stdin)['result']['source']['config'];print(c['path_includes'],c['path_excludes'])"
 ```
 
-注意保存配置后有传播延迟：紧挨着保存推上去的提交可能仍按旧规则（默认 `*`）构建。验证时以「配置确认保存后的下一次提交是否跳过」为准，别用保存前后几分钟内的提交下结论。
+**⚠️ 已知未解决：监视路径当前未生效。** 两个项目的 `path_includes` 经 API 确认分别为 `www/*`、`landing/*`（`excludes` 为空），构建镜像 v3，但连续三个纯文档提交仍触发了两站全量重建。已排除配置错误、传播延迟、绕过阈值（单提交单文件）。疑为 Cloudflare 侧未 honor 该项目的 git push 变更路径判定，需向 Cloudflare 反馈或换用受控部署（关闭自动部署，改由 `wrangler pages deploy` 或 CI 显式触发）。在此之前，**push `main` 仍会重建 Web App 与落地页**，与本节开头描述一致。
 
 几个反直觉点：wildcard `*` **会跨越 `/`**，所以 `www/*` 已覆盖 `www/icons/…` 等嵌套文件，不必写 `www/**`。但一次 push 若含 **20+ commit 或 3000+ 文件变更**，Pages 会**绕过路径过滤无条件构建**——攒一大批提交一次推上去时过滤会失效。
 
