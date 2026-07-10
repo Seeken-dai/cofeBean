@@ -33,6 +33,8 @@
 - `www/repository.js`：SQLite/Web 存储适配、迁移、备份导入导出。
 - `www/coffee-parser.js`：咖啡标签文本解析。
 - `tests/`：Node 测试，优先覆盖纯逻辑、仓储和备份兼容。
+- `worker/`：云同步后端（Cloudflare Worker + D1 + R2）。架构见 `docs/SYNC.md`，部署见 `docs/RELEASING.md`；**不受 git 触发，需手动 `wrangler deploy`**。
+- `landing/`：产品落地页（`cofevault.top`），push `main` 后由 Cloudflare Pages 自动部署。
 - `android/`：Capacitor Android 工程和原生插件代码。
 - `resources/`、`assets/`：图标和启动图源文件/生成产物。
 - `dist/`：APK 产物，不作为源码修改入口。
@@ -65,70 +67,37 @@ $env:ANDROID_SDK_ROOT='C:\tmp\android-sdk'
 
 ## 版本发布与 Git 流程
 
-采用 release 分支流程：每个版本独立分支，验证通过后合并回 `main`；`main` 始终代表最新已发布状态。
+**完整的发布流程见 [`docs/RELEASING.md`](docs/RELEASING.md)。** 本仓库有四个可独立发布的产物（Web App、落地页、Sync Worker、Android APK），触发方式和回滚代价各不相同；版本号同步位置、D1 迁移顺序、cron 触发方式也都在那份文档里。本节只保留 Agent 必须遵守的行为约束。
 
-1. 从最新 `main` 切版本分支：`git checkout main && git checkout -b release/<x.y.z>`。
-2. 在该分支迭代：改代码、补测试，把版本号同步到下列所有位置，并更新 `README.md`、`docs/CHANGELOG.md`、`docs/BUILDING.md`、`AGENTS.md`。
-3. 在该分支用 `npm.cmd run android:release` 打正式签名 APK，复制为 `dist/coffee-vault-<x.y.z>-release.apk`，装到保留数据的设备验证覆盖升级。
-4. APK 验证无误后合并回主线并打 tag：`git checkout main && git merge --ff-only release/<x.y.z> && git tag -a v<x.y.z> -m "..."`。
-5. 下一个版本从更新后的 `main` 重新切分支，循环往复；旧版本分支合并后可删除（内容已在 `main` 中）。
+采用 release 分支流程：每个版本独立分支，验证通过后合并回 `main`。`main` 不只是「最新已发布状态」的记录——**push 到 `main` 会自动部署 Web App 和落地页**，所以合并即上线。
 
-版本号需同步修改的位置（缺一不可）。除「最新功能」列表的正文外，其余都由 `npm.cmd run bump-version -- <x.y.z> <versionCode>` 自动完成，不要手改：
+### 多 Agent 协作规则
 
-- `package.json`、`package-lock.json` 的 `version`
-- `android/app/build.gradle` 的 `versionName` 与 `versionCode`（每次发布 `versionCode` 加一）
-- `www/index.html` 关于页 `#aboutVersion` 文案与「最新功能」列表（列表正文需人工撰写）
-- `www/data-core.js` 备份的 `appVersion`
-- `www/sw.js` 的 `CACHE` 常量
-- `www/index.html` 与 `www/sw.js` SHELL 中 `styles.css?v=` 的版本参数（两处必须逐字一致）
-- `AGENTS.md` 的当前版本、`versionCode` 与正式产物路径
+由于开发过程中会同时使用多个 AI/Agent 工具，且不同工具可能存在会话上下文或限额中断，所有 Agent 均需遵循以下约束，避免版本、分支、APK 产物和远端状态不一致。
 
-`tests/shell-manifest.test.js` 会校验 `styles.css?v=` 两处一致、且与 `package.json` 版本一致，漏改会直接测试失败。
+必须获得用户明确确认才能执行的动作：
 
+- `git push`、合并到 `main`、打 tag（`git commit` 只写本地，不在此列）。
+- `npx wrangler deploy`、`wrangler d1 execute --remote`、`wrangler secret put`、触发 cron。
+- 发布 GitHub Release（App 的「检查更新」会读取它，等同于向所有用户广播）。
+- 任何删除生产数据的操作；删除前先用只读查询确认影响范围。
 
-### 多 Agent 协作与 APK 验证流程
-
-由于个人开发过程中会同时使用多个 AI/Agent 工具协助开发，且不同工具可能存在会话上下文或限额中断，所有 Agent 均需遵循以下统一流程，避免版本、分支、APK 产物和远端状态不一致。
-
-核心原则：
+分支与产物：
 
 - 子分支负责开发、打测试包和真机验收；`main` 只承载已验收通过、可发布、可回溯的稳定代码。
 - `debug` 包用于开发验收和问题定位，`release` 包用于正式验收、留档和发布。
-- 测试验证包可以从 `release/<x.y.z>` 子分支构建；正式发布包必须在合并回 `main` 后，从 `main` 的发布 commit 构建。
-- 合并、打 tag、push 到远端属于对外状态变更，执行前必须获得用户明确确认。
-
-推荐执行顺序：
-
-1. 确认 `main` 是最新状态：`git checkout main && git pull origin main`。
-2. 从 `main` 创建版本分支：`git checkout -b release/<x.y.z>`。
-3. 在版本分支完成开发、修复、版本号同步、文档更新和必要测试。
-4. 在版本分支构建测试 APK，并安装到真机验证；如发现问题，继续留在该版本分支修复并重复验证。
-5. 真机验收通过后，将版本分支改动 `commit` 到本地；如用户确认需要远端备份，再 push 版本分支。
-6. 经用户确认后，切回 `main` 并 fast-forward 合并版本分支：`git checkout main && git merge --ff-only release/<x.y.z>`。
-7. 在 `main` 上重新构建正式 `release` APK，复制为 `dist/coffee-vault-<x.y.z>-release.apk`。
-8. 安装 `main` 构建出的正式包做最终冒烟测试，重点确认可安装、可覆盖升级、可启动、核心路径可用、版本号正确。
-9. 冒烟测试通过后，在 `main` 当前发布 commit 上打 tag：`git tag -a v<x.y.z> -m "Release <x.y.z>"`。
-10. 经用户确认后推送远端：`git push origin main release/<x.y.z> v<x.y.z>`；如不需要保留远端版本分支，可改为只推 `main` 和 tag。
-
-关于 APK 构建：
-
-- 开发阶段允许从 `release/<x.y.z>` 分支反复构建测试包，用于真机验证，不视为最终发布物。
-- 正式发布物必须来自 `main`，且应能通过 tag 回溯到唯一 commit。
-- 如果 `debug` 与 `release` 使用相同 `applicationId`，通常不能稳定共存；如需同机同时安装，应给 debug 配置独立 `applicationIdSuffix`，并确保名称可区分。
-- 包名不同会导致本地数据库、缓存、登录态和权限授权完全隔离；这有利于保护正式数据，但测试时需单独准备数据。
+- 测试验证包可以从 `release/<x.y.z>` 子分支构建；正式发布包必须在合并回 `main` 后，从 `main` 的发布 commit 构建，并能通过 tag 回溯到唯一 commit。
+- 如果 `debug` 与 `release` 使用相同 `applicationId`，通常不能稳定共存；如需同机同时安装，应给 debug 配置独立 `applicationIdSuffix`。包名不同会导致本地数据库、缓存、登录态和权限授权完全隔离。
+- APK、`*.jks` / `keystore.properties` / `release-keystore/`、构建产物已在 `.gitignore` 忽略，禁止提交；APK 通过本地 `dist/` 或 GitHub Releases 分发。
+- 合并优先 fast-forward。
 
 中断恢复规则：
 
 - 如果工具限额或会话中断，新的 Agent 必须先执行只读检查：`git status`、`git branch`、`git log --oneline -5`，确认当前分支、staged/unstaged 状态、最后 commit 和是否已打 tag。
+- 代码合并进 `main` 不代表 Worker 已部署（Worker 不受 git 触发）。接手时若涉及 `worker/`，用 `/sync/hello` 或 `npx wrangler deployments list` 确认线上状态，不要假设。
 - 发现改动已 staged 但未 commit 时，不要切换分支、merge、tag 或 push；应先向用户确认 commit 信息后再继续。
 - 不确定某一步是否已经执行时，优先检查状态，不要重复执行 tag、push、构建覆盖或删除分支。
 - 任何 Agent 接手时都要明确区分：当前是在“开发验收阶段”“合并发布阶段”还是“发布后远端同步阶段”。
-
-Git 约定：
-
-- `git commit` 只写入本地仓库；`git push` 才会推送到远程 `origin`（GitHub）。push、合并到远程默认分支等对外动作必须先获得用户明确同意。
-- APK、`*.jks` / `keystore.properties` / `release-keystore/`、构建产物已在 `.gitignore` 忽略，禁止提交；APK 通过本地 `dist/` 或 GitHub Releases 分发。
-- 合并优先 fast-forward；发布提交打 `v<x.y.z>` tag 便于回溯。
 
 ## 代码风格
 
@@ -161,7 +130,7 @@ Git 约定：
 - 涉及 Android 构建时，同步 Capacitor，并确认 versionName/versionCode、权限和签名说明没有被破坏。
 - 没有特殊说明时只打正式 release 包；debug 包仅用于开发验收或定位问题。
 - 涉及 UI 时，在移动端尺寸下检查文本不溢出、按钮可点、弹窗可关闭、空状态可用。
-- README、BUILDING、CHANGELOG 只在行为、构建或发布信息变化时更新。
+- README、BUILDING、CHANGELOG、RELEASING 只在行为、构建或发布信息变化时更新；各文档职责边界见 `docs/RELEASING.md` 开头的索引，同一内容不要在多处重复，用引用代替复制。
 
 ## Review 标准
 

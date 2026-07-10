@@ -49,17 +49,15 @@ Set-Location android
 
 ## 发布新版本
 
-在 `android/app/build.gradle` 中：
+**完整的发布流程（分支、版本号同步、验收、tag、GitHub Release）见 [`RELEASING.md`](RELEASING.md)。** 本文只覆盖构建本身。
 
-1. 每次发布将 `versionCode` 加一。
-2. 将 `versionName` 改为用户可见版本，例如 `1.1.0`。
-3. 始终使用 `release-keystore/coffee-vault-release.jks` 和同一别名签名。
-4. 构建前运行测试和同步，再安装到保留数据的设备上验证覆盖升级。
-5. 没有特殊说明时只执行正式版构建，并把产物命名为 `dist/coffee-vault-<version>-release.apk`。
+构建正式包时需注意：
 
-Git 流程：每个版本从 `main` 切 `release/<version>` 分支进行迭代与打包；APK 装机验证通过后用 `git merge --ff-only` 合并回 `main` 并打 `v<version>` tag，再从更新后的 `main` 进入下一版。`git push` 等对外操作需用户确认。完整说明见根目录 `AGENTS.md` 的「版本发布与 Git 流程」。
+- 始终使用 `release-keystore/coffee-vault-release.jks` 和同一别名签名，否则无法覆盖升级。
+- 构建前先运行测试和 `cap sync`，产物命名为 `dist/coffee-vault-<version>-release.apk`。
+- 没有特殊说明时只执行正式版构建。
 
-数据库当前 `PRAGMA user_version = 9`。以后改变表结构时，在 `www/repository.js` 中增加顺序迁移，禁止删除数据库或清空旧表。
+数据库当前 `PRAGMA user_version = 9`。以后改变表结构时，在 `www/repository.js` 中增加顺序迁移，禁止删除数据库或清空旧表。（本地 SQLite 迁移与云端 D1 迁移是两回事，后者见 `RELEASING.md`。）
 
 ## 校验
 

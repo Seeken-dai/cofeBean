@@ -76,10 +76,12 @@
 
 - `www/`：界面、交互与数据适配层（`data-core.js` 纯逻辑，`repository.js` 存储与迁移，`sync-*.js` 云同步）
 - `worker/`：Cloudflare Worker 同步后端（D1 + R2）
+- `landing/`：产品落地页（`cofevault.top`）
 - `android/`：Capacitor Android 工程
 - `tests/`：数据规范化、筛选排序、备份与同步逻辑测试
 - `resources/`、`assets/`：图标与启动画面源文件
-- `docs/BUILDING.md`：构建、签名与版本升级说明
+- `docs/BUILDING.md`：构建、签名与校验说明
+- `docs/RELEASING.md`：四个发布物（Web / 落地页 / Worker / APK）各自的发布流程
 - `docs/CHANGELOG.md`：版本更新记录
 - `docs/SYNC.md`：云同步架构（LWW 合并、增量游标、图片内容寻址、后端接口）
 - `AGENTS.md`：项目约定与协作规范（含分享卡片的内容 / 渲染分离等架构约定）

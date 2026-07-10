@@ -107,6 +107,8 @@
 
 后端为单个 Worker，数据在 D1（SQLite），图片在 R2。合并规则与客户端一致（LWW + 墓碑）。
 
+本节描述架构；部署方式、D1 迁移顺序与 cron 触发见 [`RELEASING.md`](RELEASING.md)。Worker 不受 git 触发，代码合进 `main` 不等于线上已更新。
+
 ### 端点
 
 |方法|路径|鉴权|说明|
