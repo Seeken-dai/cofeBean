@@ -35,7 +35,7 @@
 |`cofebean`|`www/`|`www/*`|`app.cofevault.top`、`cofebean.pages.dev`|
 |`cofebean-landing`|`landing/`|`landing/*`|`cofevault.top`、`www.cofevault.top`|
 
-构建监视路径在 Dashboard 配置（Workers & Pages → 项目 → 设置 → 构建 → 构建监视路径），`wrangler` 改不了。只改 `worker/`、`docs/`、`android/` 时两个站都不会重建。
+构建监视路径在 Dashboard 配置（Workers & Pages → 项目 → 设置 → 构建 → 构建监视路径），`wrangler` 改不了。只改 `worker/`、`docs/`、`android/` 时两个站都不会重建（已用纯文档提交实测：两个项目均跳过构建）。
 
 几个反直觉点：wildcard `*` **会跨越 `/`**，所以 `www/*` 已覆盖 `www/icons/…` 等嵌套文件，不必写 `www/**`。但一次 push 若含 **20+ commit 或 3000+ 文件变更**，Pages 会**绕过路径过滤无条件构建**——攒一大批提交一次推上去时过滤会失效。
 
