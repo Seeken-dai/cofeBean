@@ -35,7 +35,17 @@
 |`cofebean`|`www/`|`www/*`|`app.cofevault.top`、`cofebean.pages.dev`|
 |`cofebean-landing`|`landing/`|`landing/*`|`cofevault.top`、`www.cofevault.top`|
 
-构建监视路径在 Dashboard 配置（Workers & Pages → 项目 → 设置 → 构建 → 构建监视路径），`wrangler` 改不了。只改 `worker/`、`docs/`、`android/` 时两个站都不会重建（已用纯文档提交实测：两个项目均跳过构建）。
+构建监视路径在 Dashboard 配置（Workers & Pages → 项目 → 设置 → 构建 → 构建监视路径），`wrangler` 改不了。配置正确时，只改 `worker/`、`docs/`、`android/` 的提交不会触发这两个站重建。
+
+服务端真实配置存在项目的 `source.config.path_includes` / `path_excludes`（不在 `build_config` 里）。用 API 核对实际生效值：
+
+```bash
+curl -s -H "Authorization: Bearer $TOKEN" \
+  "https://api.cloudflare.com/client/v4/accounts/<account>/pages/projects/<name>" \
+  | python -c "import sys,json;c=json.load(sys.stdin)['result']['source']['config'];print(c['path_includes'],c['path_excludes'])"
+```
+
+注意保存配置后有传播延迟：紧挨着保存推上去的提交可能仍按旧规则（默认 `*`）构建。验证时以「配置确认保存后的下一次提交是否跳过」为准，别用保存前后几分钟内的提交下结论。
 
 几个反直觉点：wildcard `*` **会跨越 `/`**，所以 `www/*` 已覆盖 `www/icons/…` 等嵌套文件，不必写 `www/**`。但一次 push 若含 **20+ commit 或 3000+ 文件变更**，Pages 会**绕过路径过滤无条件构建**——攒一大批提交一次推上去时过滤会失效。
 
