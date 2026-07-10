@@ -3,7 +3,7 @@
 ## 项目背景
 
 - 豆仓 Coffee Vault 是本地优先的个人咖啡豆管理 App，含 Android 与 Web 两端：默认完全离线、本地存储；同步线（2.0.0）提供可选的跨设备云同步（默认关闭、登录后启用）。1.x 本地优先线作为独立 `release/1.x-local-first` 分支继续维护，不联网、便于免备案分发。
-- 当前版本为 `2.2.1`，Android `versionCode 49`，正式产物路径为 `dist/coffee-vault-2.2.1-release.apk`。
+- 当前版本为 `2.2.2`，Android `versionCode 50`，正式产物路径为 `dist/coffee-vault-2.2.2-release.apk`。
 - 正式数据保存在应用私有 SQLite 数据库；Web 预览只用于开发，不代表真实设备存储行为。
 - 默认离线使用不需要账号、网络、相册或存储权限；拍照识别只应申请相机权限。同步线的 Android 版本如接入云同步，需要新增 `INTERNET` 权限并在阶段 5 真机验证。
 - 数据安全优先于功能速度：导入失败必须回滚，数据库升级必须保留旧数据。
@@ -27,6 +27,7 @@
 - `www/app-brew-assist.js`：手冲冲煮辅助(拆分第三批),计时器/WakeLock 为模块私有,进行态在共享 `state.brewAssist`。
 - `www/app-backup.js`：备份导出/导入与旧版迁移(拆分第三批),`confirmFn` 注入以便测试替换;导入回滚仍由 repository 保证。
 - `www/app-update.js`：关于页与 GitHub Releases 更新检查(拆分第三批),`fetchFn` 可注入以便测试。
+- `www/app-number-input.js`：移动端数字输入增强(2.2.2)。`stepValue`/`buildWheelWindow`/`rankSuggestions` 是可在 Node 直接测的纯函数;`enhance(root, profiles)` 按 profile 数组声明式绑定字段,所有字段共用 `#numberPickerDialog` 一个滚轮面板,不为每个输入建弹窗。滚轮刻度以当前值为中心窗口化生成、不吸附到步长网格(所以键盘输入的 255.5 在 1g 步长下也能原样保留);新增字段只加 profile,不改模块。
 - `www/data-core.js`：可测试的纯数据规范化、筛选、排序、备份和统计逻辑。
 - `www/sync-compare.js`：同步 LWW 裁决的唯一实现,客户端与云端 Worker 共用;禁止两侧各写一份。
 - `www/repository.js`：SQLite/Web 存储适配、迁移、备份导入导出。

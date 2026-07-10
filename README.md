@@ -57,7 +57,7 @@
 
 ## 安装
 
-推荐安装正式签名版：`dist/coffee-vault-2.2.1-release.apk`  
+推荐安装正式签名版：`dist/coffee-vault-2.2.2-release.apk`  
 也可从 [GitHub Releases](https://github.com/Seeken-dai/cofeBean/releases/latest) 下载（关于页「检查更新」同源）。
 
 把 APK 发送到 Android 手机，打开并按系统提示允许本次「安装未知应用」。已安装旧版时，只要沿用同一发布密钥并提高 `versionCode`，即可覆盖升级并保留数据库。
@@ -88,6 +88,6 @@
 
 ## 技术信息
 
-- 包名 `com.coffeebean.vault`，版本 `2.2.1`（versionCode `49`）
+- 包名 `com.coffeebean.vault`，版本 `2.2.2`（versionCode `50`）
 - 最低 Android 7 / API 24，目标 Android 16 / API 36
 - 前端原生 HTML/CSS/JS，无构建步骤；Android 壳为 Capacitor 8

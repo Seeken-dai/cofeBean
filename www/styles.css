@@ -313,11 +313,54 @@ body.photo-journal .vault-image-actions { z-index:3; right:15px; bottom:15px; }
 .input-unit.currency input { padding-right:12px; padding-left:34px; }
 .input-unit.currency em { left:13px; right:auto; color:var(--accent); }
 .ratio-control,.duration-control { display:grid; align-items:center; gap:7px; min-height:48px; padding:6px 10px; border:1px solid var(--border); border-radius:var(--radius-md); background:var(--surface-2); }
-.ratio-control { grid-template-columns:1fr auto 1fr; }
+.ratio-control { grid-template-columns:auto 1fr; }
 .duration-control { grid-template-columns:1fr auto 1fr auto; }
 .duration-control input:only-child { grid-column:1/-1; }
 .ratio-control input,.duration-control input { min-height:34px; padding:6px 4px; border:0; background:transparent; color:var(--text); text-align:center; font-weight:750; }
 .ratio-control b,.duration-control b { color:var(--accent); font-size:12px; font-weight:800; }
+.number-picker-source { cursor:pointer; caret-color:transparent; font-variant-numeric:tabular-nums; }
+.number-picker-source:read-only { color:var(--text); }
+.number-picker-group { cursor:pointer; outline:0; }
+.number-picker-group:focus-visible { border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 16%,transparent); }
+.number-stepper { display:grid; grid-template-columns:44px minmax(0,1fr) 44px; align-items:stretch; width:100%; min-height:48px; overflow:hidden; border:1px solid var(--border); border-radius:var(--radius-md); background:var(--surface-2); }
+.field .number-stepper input,.settings-number .number-stepper input { width:100%; min-width:0; min-height:46px; padding:8px 6px; border:0; border-radius:0; background:transparent; box-shadow:none; text-align:center; font-variant-numeric:tabular-nums; }
+.number-stepper button { min-width:44px; min-height:46px; padding:0; border:0; background:color-mix(in srgb,var(--accent) 7%,transparent); color:var(--accent); font-size:22px; font-weight:650; }
+.number-stepper button + input,.number-stepper input + button { border-left:1px solid color-mix(in srgb,var(--border) 72%,transparent); }
+.number-stepper button:active { background:color-mix(in srgb,var(--accent) 15%,var(--surface-2)); }
+.number-stepper button:disabled { color:var(--faint); opacity:.45; }
+.input-unit.has-number-stepper > em { right:55px; }
+.input-unit.currency.has-number-stepper > em { left:55px; right:auto; z-index:2; }
+.input-unit.currency.has-number-stepper .number-stepper-input { padding-left:20px; }
+.settings-number > span.has-number-stepper:last-child { width:min(210px,58vw); }
+.settings-number > span.has-number-stepper:last-child > em { right:55px; top:17px; z-index:2; }
+.settings-number .number-stepper-input { padding-right:24px; }
+
+html.number-picker-open { overflow:hidden; }
+.number-picker-sheet { z-index:130; }
+.number-picker-sheet::backdrop { background:rgb(11 8 7 / .68); }
+.number-picker-body { padding:14px 18px 4px; }
+.number-picker-suggestions { display:flex; gap:7px; overflow-x:auto; padding:0 0 12px; scrollbar-width:none; }
+.number-picker-suggestions::-webkit-scrollbar,.number-wheel::-webkit-scrollbar { display:none; }
+.number-picker-suggestions button { flex:0 0 auto; min-height:44px; padding:0 12px; border:1px solid color-mix(in srgb,var(--accent) 38%,var(--border)); border-radius:11px; background:color-mix(in srgb,var(--accent) 8%,var(--surface-2)); color:var(--accent); font-size:12px; font-weight:700; font-variant-numeric:tabular-nums; }
+.number-wheel-columns { display:grid; grid-template-columns:repeat(var(--wheel-columns,1),minmax(0,1fr)); gap:10px; }
+.number-wheel-column { position:relative; min-width:0; padding:22px 8px 20px; border:1px solid color-mix(in srgb,var(--border) 78%,transparent); border-radius:17px; background:var(--surface-2); }
+.number-wheel-column > span { position:absolute; top:8px; left:0; right:0; color:var(--faint); text-align:center; font-size:9px; }
+.number-wheel-column > b { position:absolute; right:12px; top:50%; z-index:2; transform:translateY(-50%); color:var(--accent); font-size:11px; pointer-events:none; }
+.number-wheel { height:240px; overflow-y:auto; overscroll-behavior:contain; scroll-snap-type:y mandatory; scrollbar-width:none; touch-action:pan-y; outline:0; }
+.number-wheel::before,.number-wheel::after { content:""; position:absolute; left:8px; right:8px; z-index:1; height:48px; pointer-events:none; }
+.number-wheel::before { top:118px; border-top:1px solid color-mix(in srgb,var(--accent) 45%,var(--border)); }
+.number-wheel::after { top:166px; border-top:1px solid color-mix(in srgb,var(--accent) 45%,var(--border)); }
+.number-wheel-spacer { height:96px; }
+.number-wheel-item { display:grid; place-items:center; height:48px; scroll-snap-align:center; color:var(--faint); font:650 19px/1 ui-monospace,"SFMono-Regular",Consolas,monospace; font-variant-numeric:tabular-nums; transition:color .12s ease,transform .12s ease; }
+.number-wheel-item.selected { color:var(--text); font-size:27px; font-weight:800; transform:scale(1.03); }
+.number-manual-row { margin-top:10px; padding:12px; border:1px solid color-mix(in srgb,var(--accent) 42%,var(--border)); border-radius:14px; background:var(--surface-2); }
+.number-manual-row > label { display:block; margin-bottom:7px; color:var(--faint); font-size:10px; }
+.number-manual-row > div { display:grid; grid-template-columns:minmax(0,1fr) auto auto; align-items:center; gap:8px; }
+.number-manual-row input { width:100%; min-height:46px; padding:8px 10px; border:1px solid var(--border); border-radius:11px; outline:0; background:var(--surface); color:var(--text); text-align:center; font:750 19px/1 ui-monospace,"SFMono-Regular",Consolas,monospace; }
+.number-manual-row input:focus { border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 16%,transparent); }
+.number-manual-row span { color:var(--accent); font-size:11px; }
+.number-manual-row button { min-height:44px; padding:0 11px; border:1px solid color-mix(in srgb,var(--accent) 40%,var(--border)); border-radius:11px; background:color-mix(in srgb,var(--accent) 8%,var(--surface)); color:var(--accent); font-weight:700; }
+.number-picker-sheet .sheet-footer > span { color:var(--faint); font-size:9px; }
 .favorite-field { flex-direction:row; align-items:center; min-height:48px; padding-top:22px; }
 .favorite-field input { width:22px; min-height:22px; accent-color:var(--accent); }
 .sub-input { margin-top:7px; }

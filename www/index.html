@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#1a1412">
   <meta name="color-scheme" content="dark light">
   <title>豆仓</title>
-  <link rel="stylesheet" href="styles.css?v=2.2.1-drink-choice-pad">
+  <link rel="stylesheet" href="styles.css?v=2.2.2">
   <style>
     #aboutDialog .about-actions { display:flex; align-items:center; justify-content:center; gap:8px; color:var(--faint); font-size:12px; }
     #aboutDialog .about-actions .text-link-button { width:auto; min-width:0; min-height:0; padding:2px; border:0; border-radius:0; background:transparent; box-shadow:none; color:var(--accent); font:700 12px/1 inherit; text-decoration:underline; text-underline-offset:4px; }
@@ -236,7 +236,7 @@
         <label class="field"><span>粉量</span><div class="input-unit"><input id="plan-dose" name="dose" type="number" min="0" step="0.1" inputmode="decimal"><em>g</em></div></label>
         <label class="field" hidden><span>液体量</span><div class="input-unit"><input id="plan-liquid" name="liquid" type="number" min="0" step="1" inputmode="decimal"><em>g</em></div></label>
         <input id="plan-ratio" name="ratio" type="hidden">
-        <div class="field ratio-field"><span>粉水比</span><div class="ratio-control"><input id="plan-ratio-left" type="number" min="1" step="1" inputmode="numeric" value="1"><b>:</b><input id="plan-ratio-right" type="number" min="1" step="0.1" inputmode="decimal" placeholder="15"></div></div>
+        <div class="field ratio-field"><span>粉水比</span><div class="ratio-control"><input id="plan-ratio-left" type="hidden" value="1"><b>1 :</b><input id="plan-ratio-right" type="number" min="1" max="40" step="0.5" inputmode="decimal" placeholder="15"></div></div>
         <label class="field method-field" data-methods="手冲 冷萃 冰滴 法压 摩卡壶 爱乐压 聪明杯 虹吸 自定义"><span>目标总水量</span><div class="input-unit"><input id="plan-totalWater" name="totalWater" type="number" min="0" step="0.1" inputmode="decimal"><em>g</em></div></label>
         <label class="field"><span>水温</span><div class="input-unit"><input id="plan-waterTemp" name="waterTemp" type="number" min="0" max="100" step="1" inputmode="numeric" placeholder="92"><em>°C</em></div></label>
         <div class="field"><span>研磨设备</span><select id="plan-grinder-select" class="smart-select"><option value="">请选择或新建</option></select><input id="plan-grinder" name="grinder" type="hidden"><input id="plan-grinder-custom" class="smart-input" type="text" maxlength="120" placeholder="例如：C40" hidden></div>
@@ -253,7 +253,7 @@
         <div class="field method-field duration-field" data-methods="意式" data-duration-target="plan-targetExtractionTime"><span>目标萃取时间</span><div class="duration-control"><input data-duration-sec type="number" min="0" max="180" inputmode="numeric" placeholder="28"><b>秒</b></div></div>
         <input id="plan-pressTime" name="pressTime" type="hidden">
         <div class="field method-field duration-field" data-methods="法压" data-duration-target="plan-pressTime"><span>下压时间</span><div class="duration-control"><input data-duration-sec type="number" min="0" max="180" inputmode="numeric" placeholder="30"><b>秒</b></div></div>
-        <label class="field method-field" data-methods="摩卡壶"><span>摩卡壶规格</span><input id="plan-mokaPotSize" name="mokaPotSize" type="text" maxlength="80" placeholder="3 杯份"></label>
+        <label class="field method-field" data-methods="摩卡壶"><span>摩卡壶规格</span><select id="plan-mokaPotSize-choice"><option value="">未记录</option><option value="1 杯份">1 杯份</option><option value="2 杯份">2 杯份</option><option value="3 杯份">3 杯份</option><option value="4 杯份">4 杯份</option><option value="6 杯份">6 杯份</option><option value="9 杯份">9 杯份</option><option value="__custom__">自定义</option></select><input id="plan-mokaPotSize" name="mokaPotSize" type="hidden"><input id="plan-mokaPotSize-custom" class="sub-input" type="text" maxlength="80" placeholder="输入自定义规格" hidden></label>
         <label class="field method-field" data-methods="摩卡壶"><span>火力大小</span><input id="plan-heatLevel" name="heatLevel" type="text" maxlength="80"></label>
         <label class="field favorite-field method-field" data-methods="摩卡壶"><input id="plan-useHotWater" name="useHotWater" type="checkbox"><span>使用热水</span></label>
         <label class="field full method-field" data-methods="自定义"><span>自定义方式</span><input id="plan-customMethod" name="customMethod" type="text" maxlength="80"></label>
@@ -342,7 +342,7 @@
             <label class="field"><span>粉量</span><div class="input-unit"><input id="drink-param-dose" type="number" min="0" step="0.1" inputmode="decimal"><em>g</em></div></label>
             <label class="field" hidden><span>液体量</span><div class="input-unit"><input id="drink-param-liquid" type="number" min="0" step="1" inputmode="decimal"><em>g</em></div></label>
             <input id="drink-param-ratio" type="hidden">
-            <div class="field ratio-field"><span>粉水比</span><div class="ratio-control"><input id="drink-ratio-left" type="number" min="1" step="1" inputmode="numeric" value="1"><b>:</b><input id="drink-ratio-right" type="number" min="1" step="0.1" inputmode="decimal" placeholder="15"></div></div>
+            <div class="field ratio-field"><span>粉水比</span><div class="ratio-control"><input id="drink-ratio-left" type="hidden" value="1"><b>1 :</b><input id="drink-ratio-right" type="number" min="1" max="40" step="0.5" inputmode="decimal" placeholder="15"></div></div>
             <label class="field drink-param-field" data-methods="手冲 冷萃 冰滴 法压 摩卡壶 爱乐压 聪明杯 虹吸 自定义"><span>目标总水量</span><div class="input-unit"><input id="drink-param-totalWater" type="number" min="0" step="0.1" inputmode="decimal"><em>g</em></div></label>
             <label class="field"><span>水温</span><div class="input-unit"><input id="drink-param-waterTemp" type="number" min="0" max="100" step="1" inputmode="numeric" placeholder="92"><em>°C</em></div></label>
             <label class="field"><span>研磨设备</span><input id="drink-param-grinder" type="text" maxlength="120" placeholder="例如：C40"></label>
@@ -359,7 +359,7 @@
             <div class="field drink-param-field duration-field" data-methods="意式" data-duration-target="drink-param-targetExtractionTime"><span>萃取时间</span><div class="duration-control"><input data-duration-sec type="number" min="0" max="180" inputmode="numeric" placeholder="28"><b>秒</b></div></div>
             <input id="drink-param-pressTime" type="hidden">
             <div class="field drink-param-field duration-field" data-methods="法压" data-duration-target="drink-param-pressTime"><span>下压时间</span><div class="duration-control"><input data-duration-sec type="number" min="0" max="180" inputmode="numeric" placeholder="30"><b>秒</b></div></div>
-            <label class="field drink-param-field" data-methods="摩卡壶"><span>摩卡壶规格</span><input id="drink-param-mokaPotSize" type="text" maxlength="80"></label>
+            <label class="field drink-param-field" data-methods="摩卡壶"><span>摩卡壶规格</span><select id="drink-param-mokaPotSize-choice"><option value="">未记录</option><option value="1 杯份">1 杯份</option><option value="2 杯份">2 杯份</option><option value="3 杯份">3 杯份</option><option value="4 杯份">4 杯份</option><option value="6 杯份">6 杯份</option><option value="9 杯份">9 杯份</option><option value="__custom__">自定义</option></select><input id="drink-param-mokaPotSize" type="hidden"><input id="drink-param-mokaPotSize-custom" class="sub-input" type="text" maxlength="80" placeholder="输入自定义规格" hidden></label>
             <label class="field drink-param-field" data-methods="摩卡壶"><span>火力大小</span><input id="drink-param-heatLevel" type="text" maxlength="80"></label>
             <label class="field favorite-field drink-param-field" data-methods="摩卡壶"><input id="drink-param-useHotWater" type="checkbox"><span>使用热水</span></label>
             <label class="field full drink-param-field" data-methods="自定义"><span>自定义方式</span><input id="drink-param-customMethod" type="text" maxlength="80"></label>
@@ -543,13 +543,13 @@
 
   <dialog class="sheet compact" id="aboutDialog">
     <header class="sheet-header"><div><p class="eyebrow">ABOUT</p><h2>关于豆仓</h2></div><button class="icon-button" id="aboutClose" type="button" aria-label="关闭">×</button></header>
-    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 2.2.1</p></section>
+    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 2.2.2</p></section>
     <section class="about-update" aria-live="polite">
       <div class="about-actions"><button class="text-link-button" id="aboutCheckUpdate" type="button">检查更新</button><span aria-hidden="true">·</span><button class="text-link-button" id="aboutOpenReleases" type="button">查看发布页</button></div>
       <div class="update-status" id="updateStatus" hidden></div>
       <button class="primary-button update-download" id="aboutDownloadUpdate" type="button" hidden>前往下载</button>
     </section>
-    <section class="about-copy"><h3>一包豆子，一段风味，一页日常。</h3><p>豆仓是一款为咖啡爱好者设计的本地优先记录工具。你可以保存每一包咖啡豆的产地、风味与价格，记录每次饮用和冲煮方案，让日常里喝过的咖啡慢慢有迹可循。</p><h4>2.2.1 最新功能</h4><ul><li>饮用记录支持最多 3 张照片，可保存成品、拉花或外饮杯照</li><li>饮用页可直接新增「从豆仓记一杯」或「外饮记录」，外饮可记录店名、饮品、价格和地点且不扣库存</li></ul><div class="privacy-note"><b>离线与隐私</b><p>豆仓默认完全离线使用，数据保存在你的设备中。云同步为可选功能，仅在登录并开启后使用。</p><p>检查更新仅在你主动点击时联网，不会影响本地记录使用。</p></div></section>
+    <section class="about-copy"><h3>一包豆子，一段风味，一页日常。</h3><p>豆仓是一款为咖啡爱好者设计的本地优先记录工具。你可以保存每一包咖啡豆的产地、风味与价格，记录每次饮用和冲煮方案，让日常里喝过的咖啡慢慢有迹可循。</p><h4>2.2.2 最新功能</h4><ul><li>克重、粉水比、水温等高频数字改用底部滚轮面板，点中央数字可切换系统键盘精确输入</li><li>冲煮时长与注水节点改为分秒双列滚轮；价格、赏味期等低频数字改用 − / + 步进器，可长按连续调整</li><li>摩卡壶规格改为 1/2/3/4/6/9 杯份选择，并保留自定义输入</li></ul><div class="privacy-note"><b>离线与隐私</b><p>豆仓默认完全离线使用，数据保存在你的设备中。云同步为可选功能，仅在登录并开启后使用。</p><p>检查更新仅在你主动点击时联网，不会影响本地记录使用。</p></div></section>
   </dialog>
 
   <dialog class="sheet compact" id="migrationDialog">
@@ -562,6 +562,16 @@
     <header class="sheet-header"><div><p class="eyebrow" id="confirmEyebrow">CONFIRM</p><h2 id="confirmTitle">确认操作？</h2></div></header>
     <p class="sheet-intro" id="confirmMessage">此操作需要确认。</p>
     <footer class="sheet-footer"><span></span><div><button class="secondary-button" id="confirmCancel" type="button">取消</button><button class="danger-fill-button" id="confirmAccept" type="button">确认</button></div></footer>
+  </dialog>
+
+  <dialog class="sheet compact number-picker-sheet" id="numberPickerDialog">
+    <header class="sheet-header"><div><p class="eyebrow">SCALE INPUT</p><h2 id="numberPickerTitle">调整数值</h2><p class="sheet-subtitle" id="numberPickerSubtitle">上下滑动调整，点中央数字可精确输入</p></div><button class="icon-button" id="numberPickerClose" type="button" aria-label="关闭数字滚轮">×</button></header>
+    <section class="number-picker-body">
+      <div class="number-picker-suggestions" id="numberPickerSuggestions" aria-label="常用数值"></div>
+      <div class="number-wheel-columns" id="numberWheelColumns"></div>
+      <div class="number-manual-row" id="numberManualRow" hidden><label for="numberManualInput">精确输入</label><div><input id="numberManualInput" type="number" inputmode="decimal"><span id="numberManualUnit"></span><button id="numberManualApply" type="button">返回滚轮</button></div></div>
+    </section>
+    <footer class="sheet-footer"><span>中央刻度为当前值</span><div><button class="secondary-button" id="numberPickerCancel" type="button">取消</button><button class="primary-button" id="numberPickerDone" type="button">完成</button></div></footer>
   </dialog>
 
 
@@ -582,6 +592,7 @@
   <script src="app-brew-assist.js"></script>
   <script src="app-backup.js"></script>
   <script src="app-update.js"></script>
+  <script src="app-number-input.js"></script>
   <script src="app.js"></script>
   <script>
     // 仅在真正的 Web 环境注册 Service Worker；Capacitor 原生壳内跳过。

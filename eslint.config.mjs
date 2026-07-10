@@ -18,6 +18,7 @@ const projectGlobals = {
   AppBrewAssist: 'readonly',
   AppBackup: 'readonly',
   AppUpdate: 'readonly',
+  AppNumberInput: 'readonly',
   PhotoTone: 'readonly',
   Capacitor: 'readonly',
   qrcode: 'readonly',

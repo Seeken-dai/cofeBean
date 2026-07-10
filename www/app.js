@@ -71,6 +71,84 @@
     $(`#${prefix}-ratio-right`).value = right;
     syncRatioValue(prefix);
   }
+  const MOKA_SIZES = ['1 杯份', '2 杯份', '3 杯份', '4 杯份', '6 杯份', '9 杯份'];
+  function setMokaSize(prefix, value) {
+    const hidden = $(`#${prefix}-mokaPotSize`); const choice = $(`#${prefix}-mokaPotSize-choice`); const custom = $(`#${prefix}-mokaPotSize-custom`);
+    if (!hidden || !choice || !custom) return;
+    const text = String(value || ''); const common = MOKA_SIZES.includes(text);
+    choice.value = common ? text : text ? '__custom__' : '';
+    custom.hidden = common || !text; custom.value = common ? '' : text; hidden.value = text;
+    syncChoiceTrigger(choice);
+  }
+  function syncMokaSize(prefix) {
+    const hidden = $(`#${prefix}-mokaPotSize`); const choice = $(`#${prefix}-mokaPotSize-choice`); const custom = $(`#${prefix}-mokaPotSize-custom`);
+    if (!hidden || !choice || !custom) return;
+    const isCustom = choice.value === '__custom__'; custom.hidden = !isCustom;
+    hidden.value = isCustom ? custom.value.trim() : choice.value;
+    if (isCustom && document.activeElement !== custom) setTimeout(() => custom.focus(), 0);
+  }
+  function numericValue(value) { const number = Number(String(value == null ? '' : value).replace(/[^\d.-]/g, '')); return Number.isFinite(number) ? number : null; }
+  function datedCandidate(value, date, priority) { const number = numericValue(value); return number == null ? null : { value: number, timestamp: date, priority: priority || 20 }; }
+  function snapshotCandidates(key) {
+    const rows = [];
+    state.drinkLogs.forEach((log) => { const source = log.brewPlanSnapshot || {}; const value = key === 'grams' ? log.grams : source[key]; const row = datedCandidate(value, log.consumedAt || log.updatedAt); if (row) rows.push(row); });
+    state.brewPlans.forEach((plan) => { const row = datedCandidate(plan[key], plan.updatedAt); if (row) rows.push(row); });
+    return rows;
+  }
+  function beanWeightCandidates() { return state.beans.flatMap((bean) => [datedCandidate(bean.initialWeight, bean.updatedAt), datedCandidate(bean.remainingWeight, bean.updatedAt)]).filter(Boolean); }
+  function ratioCandidates() {
+    const rows = [];
+    state.drinkLogs.forEach((log) => { const row = datedCandidate(parseRatio(log.brewPlanSnapshot && log.brewPlanSnapshot.ratio)[1], log.consumedAt || log.updatedAt); if (row) rows.push(row); });
+    state.brewPlans.forEach((plan) => { const row = datedCandidate(parseRatio(plan.ratio)[1], plan.updatedAt); if (row) rows.push(row); });
+    return rows;
+  }
+  function gramCandidates() {
+    const beanId = $('#drink-beanId').value; const rows = [{ value: state.settings.quickGrams, priority: 90, label: '快捷设置' }];
+    state.drinkLogs.forEach((log) => { const row = datedCandidate(log.grams, log.consumedAt || log.updatedAt, log.beanId === beanId ? 70 : 20); if (row) rows.push(row); });
+    return rows;
+  }
+  function waterCandidates() {
+    const rows = [...snapshotCandidates('totalWater'), ...snapshotCandidates('liquid')];
+    state.brewPlans.forEach((plan) => (plan.steps || []).forEach((step) => { const row = datedCandidate(step.water, plan.updatedAt); if (row) rows.push(row); }));
+    state.drinkLogs.forEach((log) => ((log.brewPlanSnapshot && log.brewPlanSnapshot.steps) || []).forEach((step) => { const row = datedCandidate(step.water, log.consumedAt || log.updatedAt); if (row) rows.push(row); }));
+    return rows;
+  }
+  function durationCandidates(input) {
+    const field = input.closest('.duration-field'); const target = field && field.dataset.durationTarget || '';
+    const key = target.replace(/^plan-|^drink-param-/, ''); const raw = [];
+    state.drinkLogs.forEach((log) => { const value = log.brewPlanSnapshot && log.brewPlanSnapshot[key]; if (value) raw.push(value); });
+    state.brewPlans.forEach((plan) => { if (plan[key]) raw.push(plan[key]); });
+    const hourMode = Boolean(field && field.querySelector('[data-duration-hour]')); const single = Boolean(field && field.querySelectorAll('input').length === 1);
+    return raw.map((value) => {
+      const seconds = secondsFromText(value); if (seconds == null) return null;
+      const values = hourMode ? [Math.floor(seconds / 3600), Math.floor((seconds % 3600) / 60)] : single ? [seconds] : [Math.floor(seconds / 60), Math.round(seconds % 60)];
+      return { values, label: durationText(seconds, hourMode ? 'hour' : 'minute') };
+    }).filter(Boolean).slice(0, 4);
+  }
+  function setupNumberInputs() {
+    const columnProfile = (input) => {
+      const attributeNames = [...input.attributes].map((attr) => attr.name);
+      if (input.hasAttribute('data-duration-hour')) return { columnLabel: '小时', unit: '时', step: 1, min: 0, max: Number(input.max || 72) };
+      if (input.hasAttribute('data-duration-min') || attributeNames.some((name) => /-min$/.test(name))) return { columnLabel: '分钟', unit: '分', step: 1, min: 0, max: Number(input.max || 999) };
+      return { columnLabel: '秒', unit: '秒', step: input.closest('.duration-control') && input.closest('.duration-control').querySelectorAll('input').length === 1 ? 1 : 5, min: 0, max: Number(input.max || 59) };
+    };
+    AppNumberInput.enhance(document, [
+      { selector: '#field-initialWeight, #field-remainingWeight', mode: 'wheel', label: '咖啡豆克重', unit: 'g', step: 1, min: 0, max: 10000, defaultValue: 250, defaults: [100, 200, 250, 500], suggestions: beanWeightCandidates },
+      { selector: '#drink-grams', mode: 'wheel', label: '本次用豆', unit: 'g', step: 0.5, min: 0.1, max: (input) => Number(input.max || 1000), defaults: [15, 18, 20], suggestions: gramCandidates },
+      { selector: '#plan-dose, #drink-param-dose, #plan-targetYield, #drink-param-targetYield', mode: 'wheel', unit: 'g', step: 0.5, min: 0, max: 1000, defaults: [15, 18, 20], suggestions: () => snapshotCandidates('dose') },
+      { selector: '#plan-liquid, #drink-param-liquid, #plan-totalWater, #drink-param-totalWater, [data-pour-water], [data-drink-step-water]', mode: 'wheel', unit: 'g', step: 5, min: 0, max: 5000, suggestions: waterCandidates },
+      { selector: '#plan-ratio-right, #drink-ratio-right', mode: 'wheel', label: '粉水比', step: 0.5, min: 1, max: 40, defaults: [15, 16, 17], suggestions: ratioCandidates },
+      { selector: '#plan-waterTemp, #drink-param-waterTemp', mode: 'wheel', label: '水温', unit: '°C', step: 1, min: 0, max: 100, defaults: [88, 90, 92, 94], suggestions: () => snapshotCandidates('waterTemp') },
+      { selector: '.duration-control', mode: 'group', column: columnProfile, suggestions: durationCandidates },
+      { selector: '.pour-time-control', mode: 'group', label: '注水节点时间', column: columnProfile },
+      { selector: '#calendarTime', mode: 'group', label: '饮用时间', column: (input) => input.id === 'calendarHour' ? { columnLabel: '小时', unit: '时', step: 1, min: 0, max: 23 } : { columnLabel: '分钟', unit: '分', step: 5, min: 0, max: 59 } },
+      { selector: '#field-price, #drink-price', mode: 'stepper', label: '价格', step: 1, min: 0, max: 999999 },
+      { selector: '#field-bestFlavorDays', mode: 'stepper', label: '赏味期', step: 1, min: 1, max: 3650 },
+      { selector: '#settingQuickGrams', mode: 'stepper', label: '快捷喝一杯', step: 0.5, min: 1, max: 100 },
+      { selector: '#settingFlavorReminderDays', mode: 'stepper', label: '赏味期提醒', step: 1, min: 0, max: 60 },
+      { selector: '#settingLowStockCups', mode: 'stepper', label: '余量提醒', step: 1, min: 1, max: 20 }
+    ]);
+  }
   function setDurationControl(field, value) {
     const seconds = secondsFromText(value);
     field.querySelectorAll('input').forEach((input) => { input.value = ''; });
@@ -824,6 +902,7 @@
     const p = plan ? BeanCore.normalizeBrewPlan(plan, plan.updatedAt) : BeanCore.normalizeBrewPlan({ brewMethod: '手冲', dose: state.settings.quickGrams });
     $('#plan-id').value = p.id || ''; $('#plan-version').value = p.version || 1; $('#plan-source').value = p.source || 'user';
     ['name', 'dose', 'liquid', 'ratio', 'totalWater', 'waterTemp', 'grinder', 'grindSetting', 'targetDuration', 'steepTime', 'steepEnvironment', 'coffeeMachine', 'basket', 'targetYield', 'targetExtractionTime', 'pressTime', 'mokaPotSize', 'heatLevel', 'customMethod', 'notes'].forEach((key) => { const el = $(`#plan-${key}`); if (el) el.value = p[key] == null ? '' : String(p[key]).replace('°C', ''); });
+    setMokaSize('plan', p.mokaPotSize);
     setRatioControls('plan', p.ratio);
     $('#plan-method').value = p.brewMethod || '手冲'; $('#plan-useHotWater').checked = Boolean(p.useHotWater);
     $('#plan-steps').value = (p.steps || []).map((step) => [step.label, step.water || '', step.time, step.note].filter(Boolean).join(' | ')).join('\n');
@@ -1011,6 +1090,7 @@
     // 方案里的水温存为文本（可能带 °C，如预置的 "92°C"）；喝一杯的水温是 number 输入，
     // 必须先净化成纯数字再赋值，否则带单位的字符串会被 number 输入静默丢弃、无法带入。
     DRINK_PARAM_KEYS.forEach((key) => setDrinkParam(key, key === 'waterTemp' ? String(data[key] == null ? '' : data[key]).replace(/[^\d.]/g, '') : data[key]));
+    setMokaSize('drink-param', data.mokaPotSize);
     setRatioControls('drink', data.ratio);
     setDrinkParam('useHotWater', data.useHotWater);
     $('#drink-param-dose').value = $('#drink-grams').value || data.dose || '';
@@ -1405,6 +1485,11 @@
     } catch (error) { console.error(error); toast('删除失败'); }
   }
   function bindEvents() {
+    setupNumberInputs();
+    $('#plan-mokaPotSize-choice').addEventListener('change', () => syncMokaSize('plan'));
+    $('#plan-mokaPotSize-custom').addEventListener('input', () => syncMokaSize('plan'));
+    $('#drink-param-mokaPotSize-choice').addEventListener('change', () => syncMokaSize('drink-param'));
+    $('#drink-param-mokaPotSize-custom').addEventListener('input', () => syncMokaSize('drink-param'));
     ['addBean', 'scanBean', 'planImportFab'].forEach((id) => $(`#${id}`).addEventListener('click', floatingActionClickGuard, true));
     $('#addBean').addEventListener('click', () => { expandFloatingActions(); return state.view === 'plans' ? openPlanEditor(null) : state.view === 'drinks' ? openDrinkTypePicker() : openEditor(null); }); $('#scanBean').addEventListener('click', () => { expandFloatingActions(); scanCoffeeLabel(); }); $('#editorClose').addEventListener('click', () => { clearPendingImages(true); setDialog(els.editor, false); }); $('#editorCancel').addEventListener('click', () => { clearPendingImages(true); setDialog(els.editor, false); }); $('#deleteBean').addEventListener('click', removeCurrent); els.form.addEventListener('submit', saveForm); $('#field-initialWeight').addEventListener('input', syncInitialWeightToRemaining); $('#field-remainingWeight').addEventListener('input', markRemainingWeightEdited); $('#editorImageVault').addEventListener('click', (event) => { const remove = event.target.closest('[data-remove-image-role]'); if (remove) return removeBeanImage(remove.dataset.removeImageRole); const button = event.target.closest('[data-add-image-role]'); if (button) return addBeanImage(button.dataset.addImageRole); const card = event.target.closest('[data-preview-image]'); if (card) openImagePreview(card.dataset.previewImage, card.dataset.previewLabel); });
     els.empty.addEventListener('click', (event) => {
@@ -1467,7 +1552,8 @@
     finally { autoSyncing = false; state.syncBusy = false; if (els.sync.open) renderSyncSettings(); }
   }
   function scheduleAutoSync(delay) { clearTimeout(syncTimer); syncTimer = setTimeout(autoSync, delay == null ? 800 : delay); }
-  function bindNativeLifecycle() { const app = capPlugin('App'); if (!app) return; app.addListener('backButton', closeTopLayerOrExit); app.addListener('appStateChange', async ({ isActive }) => { if (!isActive || state.resuming) return; state.resuming = true; await reload({ keepForm: true }); state.resuming = false; scheduleAutoSync(); }); }
+  function closeNumberInputOrTopLayer() { if (AppNumberInput.isOpen()) return AppNumberInput.close(false); return closeTopLayerOrExit(); }
+  function bindNativeLifecycle() { const app = capPlugin('App'); if (!app) return; app.addListener('backButton', closeNumberInputOrTopLayer); app.addListener('appStateChange', async ({ isActive }) => { if (!isActive || state.resuming) return; state.resuming = true; await reload({ keepForm: true }); state.resuming = false; scheduleAutoSync(); }); }
   async function boot() { applyTheme(localStorage.getItem('coffee-vault-theme') || 'dark-roast', false); bindEvents(); try { await BeanRepository.init(); await reload(); bindNativeLifecycle(); await offerMigration(); state.initialized = true; syncFloatingActions({ showHint: true }); scheduleAutoSync(1500); } catch (error) { console.error(error); els.count.textContent = '豆仓启动失败'; toast(error.message || '数据库初始化失败'); } finally { const splash = capPlugin('SplashScreen'); if (splash) splash.hide().catch(() => {}); } }
   boot();
 })();
