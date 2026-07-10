@@ -133,7 +133,7 @@
       return { columnLabel: '秒', unit: '秒', step: input.closest('.duration-control') && input.closest('.duration-control').querySelectorAll('input').length === 1 ? 1 : 5, min: 0, max: Number(input.max || 59) };
     };
     AppNumberInput.enhance(document, [
-      { selector: '#field-initialWeight, #field-remainingWeight', mode: 'wheel', label: '咖啡豆克重', unit: 'g', step: 1, min: 0, max: 10000, defaultValue: 250, defaults: [100, 200, 250, 500], suggestions: beanWeightCandidates },
+      { selector: '#field-initialWeight, #field-remainingWeight', mode: 'wheel', label: '咖啡豆克重', unit: 'g', step: 1, min: 0, max: 10000, defaultValue: 200, defaults: [100, 200, 250, 500], suggestions: beanWeightCandidates },
       { selector: '#drink-grams', mode: 'wheel', label: '本次用豆', unit: 'g', step: 0.5, min: 0.1, max: (input) => Number(input.max || 1000), defaults: [15, 18, 20], suggestions: gramCandidates },
       { selector: '#plan-dose, #drink-param-dose, #plan-targetYield, #drink-param-targetYield', mode: 'wheel', unit: 'g', step: 0.5, min: 0, max: 1000, defaults: [15, 18, 20], suggestions: () => snapshotCandidates('dose') },
       { selector: '#plan-liquid, #drink-param-liquid, #plan-totalWater, #drink-param-totalWater, [data-pour-water], [data-drink-step-water]', mode: 'wheel', unit: 'g', step: 5, min: 0, max: 5000, suggestions: waterCandidates },
