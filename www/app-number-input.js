@@ -176,9 +176,19 @@
       const value = valueOf(input, range);
       const minus = host.querySelector('[data-number-step="-1"]');
       const plus = host.querySelector('[data-number-step="1"]');
-      minus.disabled = value <= range.min;
-      plus.disabled = value >= range.max;
+      // 到达边界只标记 is-limit,不设 button.disabled:在手指仍按住时把按钮禁用会让浏览器
+      // 中断该按钮的指针交互(pointercancel),:active 可能卡住不释放,等按钮重新可用时
+      // 那个残留的高亮会渲染出来,看起来像「点 + 把 − 也点亮了」。
+      setLimit(minus, value <= range.min);
+      setLimit(plus, value >= range.max);
     }
+
+    function setLimit(button, limited) {
+      button.classList.toggle('is-limit', limited);
+      button.setAttribute('aria-disabled', String(limited));
+    }
+
+    function atLimit(button) { return button.classList.contains('is-limit'); }
 
     function markStepper(input, config) {
       if (!input || input.closest('.number-stepper')) return updateStepper(input, config);
@@ -387,6 +397,8 @@
     }
 
     function applyStepButton(stepButton) {
+      // 边界按钮不再是 button.disabled,点击事件照常派发,这里显式忽略,避免空派发 input/change。
+      if (atLimit(stepButton)) return;
       const host = stepButton.closest('.number-stepper');
       const input = host.querySelector('input');
       const config = profileByInput.get(input);
@@ -404,12 +416,12 @@
 
     function onPointerDown(event) {
       const button = event.target.closest('[data-number-step]');
-      if (!button || button.disabled) return;
+      if (!button || atLimit(button)) return;
       stopHold(); heldButton = button;
       holdDelay = setTimeout(() => {
         if (!heldButton) return;
         suppressClickButton = heldButton; applyStepButton(heldButton);
-        holdInterval = setInterval(() => { if (heldButton && !heldButton.disabled) applyStepButton(heldButton); }, 110);
+        holdInterval = setInterval(() => { if (heldButton && !atLimit(heldButton)) applyStepButton(heldButton); }, 110);
       }, 420);
     }
 
