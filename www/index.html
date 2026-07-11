@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#1a1412">
   <meta name="color-scheme" content="dark light">
   <title>豆仓</title>
-  <link rel="stylesheet" href="styles.css?v=2.2.4">
+  <link rel="stylesheet" href="styles.css?v=2.2.5">
   <style>
     #aboutDialog .about-actions { display:flex; align-items:center; justify-content:center; gap:8px; color:var(--faint); font-size:12px; }
     #aboutDialog .about-actions .text-link-button { width:auto; min-width:0; min-height:0; padding:2px; border:0; border-radius:0; background:transparent; box-shadow:none; color:var(--accent); font:700 12px/1 inherit; text-decoration:underline; text-underline-offset:4px; }
@@ -68,8 +68,8 @@
     <section class="bean-list" id="beanList" aria-live="polite"></section>
     <section class="empty-state" id="emptyState" hidden>
       <div class="empty-bag" aria-hidden="true"><svg viewBox="0 0 1024 1024"><path d="M861.866667 179.2l4.266666 4.266667c59.733333 68.266667 85.333333 157.866667 68.266667 245.333333-25.6 125.866667-85.333333 238.933333-174.933333 328.533333-89.6 89.6-204.8 151.466667-328.533334 174.933334-17.066667 4.266667-36.266667 4.266667-53.333333 4.266666-74.666667 0-149.333333-29.866667-202.666667-85.333333-2.133333-2.133333-4.266667-6.4-8.533333-8.533333l-4.266667-4.266667c-59.733333-68.266667-85.333333-157.866667-68.266666-245.333333 25.6-125.866667 85.333333-238.933333 174.933333-328.533334 89.6-89.6 204.8-151.466667 328.533333-174.933333 91.733333-17.066667 187.733333 12.8 256 81.066667l8.533334 8.533333z m-12.8 232.533333c8.533333-38.4 2.133333-78.933333-12.8-115.2-78.933333 134.4-194.133333 194.133333-305.066667 253.866667-115.2 59.733333-224 117.333333-288 253.866667 46.933333 40.533333 108.8 57.6 168.533333 44.8 108.8-21.333333 206.933333-74.666667 285.866667-151.466667s130.133333-177.066667 151.466667-285.866667zM174.933333 612.266667c-8.533333 38.4-2.133333 78.933333 12.8 115.2 78.933333-134.4 194.133333-194.133333 305.066667-253.866667 115.2-59.733333 224-117.333333 288-253.866667C744.533333 187.733333 697.6 170.666667 650.666667 170.666667c-12.8 0-25.6 2.133333-38.4 4.266666-108.8 21.333333-206.933333 74.666667-285.866667 151.466667-76.8 78.933333-130.133333 177.066667-151.466667 285.866667z" fill="currentColor"/></svg></div>
-      <h2>豆仓还是空的</h2>
-      <p>从右下角放入第一包咖啡豆吧。</p>
+      <h2>一包豆子，故事从这里开始</h2>
+      <p>放入第一包咖啡豆，记下它的来处、风味与变化。</p>
       <div class="empty-guide" id="beanEmptyGuide"></div>
     </section>
     </div>
@@ -267,7 +267,7 @@
           <button class="add-pour-step" id="addPourStep" type="button">添加一段注水</button>
         </section>
         <section class="bean-bind full" id="planBeanBind"></section>
-        <label class="field full"><span>备注</span><textarea id="plan-notes" name="notes" maxlength="3000" rows="4" placeholder="这套方案适合的豆子、风味目标或下次调整…"></textarea></label>
+        <label class="field full"><span>备注</span><textarea id="plan-notes" name="notes" maxlength="3000" rows="4" placeholder="这段风味适合什么豆子？也可以记下风味目标和下次想调整的地方…"></textarea></label>
       </div>
       <footer class="sheet-footer"><button class="danger-button" id="planEditorDelete" type="button">删除方案</button><div><button class="secondary-button" id="planEditorCancel" type="button">取消</button><button class="primary-button" type="submit">保存方案</button></div></footer>
     </form>
@@ -375,11 +375,12 @@
         </section>
         <label class="field full"><span>饮用时间</span><input id="drink-time" name="consumedAt" class="picker-control" data-picker-kind="datetime" type="text" readonly required placeholder="选择日期与时间"></label>
         <section class="tasting-summary tasting-visible full" id="drinkTastingSummary" hidden></section>
+        <section class="tasting-prompt tasting-visible full"><b>留下这一杯的感受</b><span>香气、风味和当时的心情，都是这次相遇的一部分。</span></section>
         <fieldset class="rating-field tasting-visible full"><legend>整体评分（可留空）</legend><div class="rating-row" id="overallRating" data-rating-name="overallRating"></div></fieldset>
         <section class="feature-hint full" id="drinkFeatureHint" hidden></section>
         <section class="advanced-ratings tasting-visible full" id="advancedRatingSection" hidden><div class="section-heading"><div><span>高级评价</span><small>笑脸越多越满意；苦涩感的哭脸越多越明显</small></div></div><div id="dimensionRatings"></div></section>
         <section class="image-vault tasting-visible full" id="drinkPhotoVault"></section>
-        <label class="field tasting-visible full"><span>评价备注</span><textarea id="drink-notes" name="notes" maxlength="2000" rows="4" placeholder="这杯的香气、风味变化，或下次想调整的参数…"></textarea></label>
+        <label class="field tasting-visible full"><span>评价备注</span><textarea id="drink-notes" name="notes" maxlength="2000" rows="4" placeholder="这一杯有什么值得记住？也可以写下风味变化和下次想调整的地方…"></textarea></label>
       </div>
       <footer class="sheet-footer"><button class="danger-button" id="deleteDrink" type="button">删除记录</button><div><button class="secondary-button" id="drinkCancel" type="button">取消</button><button class="secondary-button" id="drinkEditFull" type="button" hidden>编辑完整记录</button><button class="secondary-button assist-footer-button" id="drinkStartAssist" type="button" hidden>冲煮辅助</button><button class="primary-button" id="saveDrink" type="submit">保存并扣量</button></div></footer>
     </form>
@@ -539,7 +540,7 @@
     <section class="assist-complete" id="brewAssistComplete" hidden>
       <div class="assist-confetti" id="brewAssistConfetti" aria-hidden="true"></div>
       <div class="assist-trophy" aria-hidden="true">✓</div>
-      <h3>本次冲煮完成</h3>
+      <h3>这一杯冲好了</h3>
       <p id="brewAssistResultMeta"></p>
       <div class="assist-result-grid">
         <article><span>总时长</span><strong id="brewAssistResultDuration">0:00</strong></article>
@@ -556,13 +557,24 @@
 
   <dialog class="sheet compact" id="aboutDialog">
     <header class="sheet-header"><div><p class="eyebrow">ABOUT</p><h2>关于豆仓</h2></div><button class="icon-button" id="aboutClose" type="button" aria-label="关闭">×</button></header>
-    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 2.2.4</p></section>
+    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 2.2.5</p></section>
     <section class="about-update" aria-live="polite">
       <div class="about-actions"><button class="text-link-button" id="aboutCheckUpdate" type="button">检查更新</button><span aria-hidden="true">·</span><button class="text-link-button" id="aboutOpenReleases" type="button">查看发布页</button></div>
       <div class="update-status" id="updateStatus" hidden></div>
       <button class="primary-button update-download" id="aboutDownloadUpdate" type="button" hidden>前往下载</button>
     </section>
-    <section class="about-copy"><h3>一包豆子，一段风味，一页日常。</h3><p>豆仓是一款为咖啡爱好者设计的本地优先记录工具。你可以保存每一包咖啡豆的产地、风味与价格，记录每次饮用和冲煮方案，让日常里喝过的咖啡慢慢有迹可循。</p><h4>2.2.4 最新功能</h4><ul><li>饮用详情照片支持点击查看原图</li><li>饮用记录可生成带评价和手账照片的分享卡片</li><li>搜索移入顶部，数据备份弹窗优化分区留白</li></ul><div class="privacy-note"><b>离线与隐私</b><p>豆仓默认完全离线使用，数据保存在你的设备中。云同步为可选功能，仅在登录并开启后使用。</p><p>检查更新仅在你主动点击时联网，不会影响本地记录使用。</p></div></section>
+    <section class="about-copy">
+      <h3>收藏咖啡，也收藏与咖啡相处的时间。</h3>
+      <p>豆仓是一款为咖啡爱好者设计的本地优先记录工具。</p>
+      <div class="brand-themes">
+        <article><h4>一包豆子，故事从这里开始</h4><p>从入仓到喝完，记录每包豆子的来处、风味与变化。</p></article>
+        <article><h4>一段风味，值得反复回味</h4><p>留下每次尝试，让喜欢的风味能够再次被找到。</p></article>
+        <article><h4>一页日常，留住每一次相遇</h4><p>家里冲的、咖啡馆喝的，都成为自己的咖啡日常。</p></article>
+      </div>
+      <h4>2.2.5 最新功能</h4>
+      <ul><li>三个核心页面融入对应品牌主题</li><li>分享卡片加入豆仓品牌签名</li><li>关键记录节点增加故事、回味与相遇的呼应</li></ul>
+      <div class="privacy-note"><b>离线与隐私</b><p>豆仓默认完全离线使用，数据保存在你的设备中。云同步为可选功能，仅在登录并开启后使用。</p><p>检查更新仅在你主动点击时联网，不会影响本地记录使用。</p></div>
+    </section>
   </dialog>
 
   <dialog class="sheet compact" id="migrationDialog">

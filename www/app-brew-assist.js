@@ -90,7 +90,7 @@
         return;
       }
       assist.savedLogId = saved.id;
-      $('#brewAssistResultMeta').textContent = '冲煮已保存。现在可以评分，也可以先放下手机喝咖啡。';
+      $('#brewAssistResultMeta').textContent = '这一杯已记下。现在可以留下感受，也可以先放下手机喝咖啡。';
       $('#brewAssistPause').hidden = false;
       $('#brewAssistPause').textContent = '先去喝';
       $('#brewAssistFinish').textContent = '现在评分';

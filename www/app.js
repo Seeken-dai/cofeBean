@@ -326,8 +326,8 @@
   function renderBeanEmptyState(visible) {
     if (visible.length) return;
     const isNewUser = state.beans.length === 0;
-    els.empty.querySelector('h2').textContent = isNewUser ? '豆仓还是空的' : '没有匹配的豆子';
-    els.empty.querySelector('p').textContent = isNewUser ? '先放入第一包咖啡豆，后面每一杯都会有迹可循。' : '换个关键词或筛选条件再试试。';
+    els.empty.querySelector('h2').textContent = isNewUser ? '一包豆子，故事从这里开始' : '没有匹配的豆子';
+    els.empty.querySelector('p').textContent = isNewUser ? '放入第一包咖啡豆，记下它的来处、风味与变化。' : '换个关键词或筛选条件再试试。';
     const guide = $('#beanEmptyGuide');
     if (!guide) return;
     guide.hidden = !isNewUser;
@@ -482,16 +482,16 @@
     const title = external ? (log.drinkName || log.cafeName || log.beanName) : log.beanName;
     const meta = external ? ['外饮', log.cafeName, log.price > 0 ? formatPrice(log.price) : '', log.location, stars(log.overallRating)] : [formatWeight(log.grams), `<span class="method-label">${brewIcon(log.brewMethod)}${esc(log.brewMethod)}</span>`, stars(log.overallRating)];
     const photos = log.photos && log.photos.length && !compact ? `<div class="drink-photo-strip">${log.photos.slice(0, 3).map((path, index) => `<span data-preview-image="${esc(path)}" data-preview-label="饮用照片 ${index + 1}"><img src="${esc(imageSrc(path))}" alt=""></span>`).join('')}</div>` : '';
-    return `<article class="drink-entry${radar ? ' has-radar' : ''}${external ? ' is-external' : ''}" data-log-id="${esc(log.id)}" data-tasting-status="${esc(log.tastingStatus)}" tabindex="0" role="button"><div class="drink-dot"></div><div class="drink-entry-main"><div class="drink-head"><strong>${esc(title)}${log.tastingStatus === 'pending' ? '<i class="pending-inline-badge">待评分</i>' : ''}</strong><time>${esc(formatDateTime(log.consumedAt))}</time></div><p class="drink-meta">${meta.filter(Boolean).map((item) => String(item).startsWith('<span') ? item : `<span>${esc(item)}</span>`).join('')}</p>${log.notes ? `<p class="drink-notes">${esc(log.notes)}</p>` : ''}${photos}${tagBlock}</div>${radarCol}</article>`;
+    return `<article class="drink-entry${radar ? ' has-radar' : ''}${external ? ' is-external' : ''}" data-log-id="${esc(log.id)}" data-tasting-status="${esc(log.tastingStatus)}" tabindex="0" role="button"><div class="drink-dot"></div><div class="drink-entry-main"><div class="drink-head"><strong>${esc(title)}${log.tastingStatus === 'pending' ? '<i class="pending-inline-badge">待补感受</i>' : ''}</strong><time>${esc(formatDateTime(log.consumedAt))}</time></div><p class="drink-meta">${meta.filter(Boolean).map((item) => String(item).startsWith('<span') ? item : `<span>${esc(item)}</span>`).join('')}</p>${log.notes ? `<p class="drink-notes">${esc(log.notes)}</p>` : ''}${photos}${tagBlock}</div>${radarCol}</article>`;
   }
   function pendingTastingTemplate(log) {
-    return `<article class="pending-tasting-card" data-pending-id="${esc(log.id)}"><div><span>待评分</span><strong>${esc(log.beanName)}</strong><small>${esc([log.brewPlanName || log.brewMethod, formatDateTime(log.consumedAt)].filter(Boolean).join(' · '))}</small></div><div><button class="secondary-button" data-skip-tasting="${esc(log.id)}" type="button">无需评分</button><button class="primary-button" data-continue-tasting="${esc(log.id)}" type="button">去评分</button></div></article>`;
+    return `<article class="pending-tasting-card" data-pending-id="${esc(log.id)}"><div><span>待补感受</span><strong>${esc(log.beanName)}</strong><small>${esc([log.brewPlanName || log.brewMethod, formatDateTime(log.consumedAt)].filter(Boolean).join(' · '))}</small></div><div><button class="secondary-button" data-skip-tasting="${esc(log.id)}" type="button">无需评分</button><button class="primary-button" data-continue-tasting="${esc(log.id)}" type="button">补充感受</button></div></article>`;
   }
   function renderPendingTastings(host, logs) {
     if (!host) return;
     const pending = (logs || []).filter((log) => log.source === 'bean' && log.tastingStatus === 'pending');
     host.hidden = pending.length === 0;
-    host.innerHTML = pending.length ? `<div class="section-heading"><div><span>待评分</span><small>${pending.length} 杯冲好后还没有评分</small></div></div>${pending.map(pendingTastingTemplate).join('')}` : '';
+    host.innerHTML = pending.length ? `<div class="section-heading"><div><span>留下这一杯的感受</span><small>${pending.length} 杯等待补上风味与感受</small></div></div>${pending.map(pendingTastingTemplate).join('')}` : '';
   }
   // 近 30 天饮用迷你条形图（3c）：每天一根柱，高度按杯数归一；今天高亮，空天留细基线。
   function renderDrinkTrend() {
@@ -515,7 +515,11 @@
     renderDrinkTrend(); renderPendingTastings($('#pendingTastings'), state.drinkLogs);
     const q = String(state.query || '').trim().toLocaleLowerCase('zh-CN');
     const visible = q ? state.drinkLogs.filter((log) => [log.beanName, log.brewMethod, log.cafeName, log.drinkName, log.location, log.notes, log.source === 'external' ? '外饮' : formatWeight(log.grams), formatDateTime(log.consumedAt)].some((value) => String(value || '').toLocaleLowerCase('zh-CN').includes(q))) : state.drinkLogs;
-    $('#drinkEmpty').hidden = visible.length > 0;
+    const drinkEmpty = $('#drinkEmpty'); const hasDrinkLogs = state.drinkLogs.length > 0;
+    drinkEmpty.hidden = visible.length > 0;
+    drinkEmpty.querySelector('h2').textContent = hasDrinkLogs ? '没有匹配的饮用记录' : '一页日常，留住每一次相遇';
+    drinkEmpty.querySelector('p').textContent = hasDrinkLogs ? '换个关键词再试试。' : '家里冲的、咖啡馆喝的，都可以从这一杯开始。';
+    const drinkEmptyActions = drinkEmpty.querySelector('.empty-actions'); if (drinkEmptyActions) drinkEmptyActions.hidden = hasDrinkLogs;
     const pageSize = Math.max(DRINK_PAGE_SIZE, Number(state.drinkVisibleLimit) || DRINK_PAGE_SIZE);
     const paged = visible.slice(0, pageSize);
     if (state.view === 'drinks') els.count.textContent = q || paged.length < visible.length ? `显示 ${paged.length} / 共 ${visible.length} 杯` : `共记录 ${state.drinkLogs.length} 杯`;
@@ -536,7 +540,10 @@
     const q = String(state.query || '').trim().toLocaleLowerCase('zh-CN');
     const methodFiltered = state.brewPlans.filter(planMatchesMethod);
     const visible = q ? methodFiltered.filter((plan) => [plan.name, plan.brewMethod, plan.notes, plan.grinder, plan.grindSetting].some((value) => String(value || '').toLocaleLowerCase('zh-CN').includes(q))) : methodFiltered;
-    $('#planEmpty').hidden = visible.length > 0; $('#brewPlanList').hidden = visible.length === 0;
+    const planEmpty = $('#planEmpty'); const hasPlans = state.brewPlans.length > 0;
+    planEmpty.hidden = visible.length > 0; $('#brewPlanList').hidden = visible.length === 0;
+    planEmpty.querySelector('h2').textContent = hasPlans ? '没有匹配的冲煮方案' : '一段风味，值得反复回味';
+    planEmpty.querySelector('p').textContent = hasPlans ? '换个关键词或冲煮方式再试试。' : '记下冲煮参数，让喜欢的风味下次还能找到。';
     if (state.view === 'plans') els.count.textContent = (q || state.planMethod !== '全部') ? `显示 ${visible.length} / 共 ${state.brewPlans.length} 个方案` : `共 ${state.brewPlans.length} 个冲煮方案`;
     const groups = new Map();
     visible.forEach((plan) => { if (!groups.has(plan.brewMethod)) groups.set(plan.brewMethod, []); groups.get(plan.brewMethod).push(plan); });
@@ -675,7 +682,7 @@
     setDialog(els.drinkDetail, false);
     openPlanEditor(draft);
     $('#planEditorTitle').textContent = '存为新方案';
-    toast('已带入本次参数，确认后保存');
+    toast('已带入本次参数，保存后可以再次回味');
   }
   function openPlanDetail(plan) {
     if (!plan) return; state.viewingPlanId = plan.id;
@@ -893,7 +900,25 @@
     }
   }
   async function openPurchaseUrl(url) { return openExternalUrl(url, '无法打开购买链接'); }
-  async function saveForm(event) { event.preventDefault(); const fd = new FormData(els.form); const old = state.editingId ? state.beans.find((bean) => bean.id === state.editingId) : null; const stamp = new Date().toISOString(); if (!String(fd.get('name') || '').trim()) return toast('请先填写豆名'); try { const fields = await archivePendingImages(Object.fromEntries(fd.entries())); const payload = BeanCore.normalizeBean({ ...(old || {}), ...fields, id: state.editingId || undefined, favorite: $('#field-favorite').checked, createdAt: old ? old.createdAt : stamp, updatedAt: stamp }, stamp); await BeanRepository.save(payload); setDialog(els.editor, false); state.editingId = null; await reload(); let savedMsg = old ? '记录已更新' : '咖啡豆已入仓'; const nudgeKey = `coffee-vault-photo-nudge:${payload.id}`; if (state.settings.showBeanPhotosInList && !payload.bagImagePath && !readLocalFlag(nudgeKey)) { savedMsg += ' · 拍张袋子照，列表更好认'; writeLocalFlag(nudgeKey); } toast(savedMsg); } catch (error) { console.error(error); toast('保存失败，请稍后重试'); } }
+  async function saveForm(event) {
+    event.preventDefault();
+    const fd = new FormData(els.form);
+    const old = state.editingId ? state.beans.find((bean) => bean.id === state.editingId) : null;
+    const isFirstBean = !old && state.beans.length === 0;
+    const stamp = new Date().toISOString();
+    if (!String(fd.get('name') || '').trim()) return toast('请先填写豆名');
+    try {
+      const fields = await archivePendingImages(Object.fromEntries(fd.entries()));
+      const payload = BeanCore.normalizeBean({ ...(old || {}), ...fields, id: state.editingId || undefined, favorite: $('#field-favorite').checked, createdAt: old ? old.createdAt : stamp, updatedAt: stamp }, stamp);
+      const justFinished = Boolean(old && old.status !== '已喝完' && payload.status === '已喝完');
+      await BeanRepository.save(payload);
+      setDialog(els.editor, false); state.editingId = null; await reload();
+      let savedMsg = isFirstBean ? '第一包豆子已入仓，故事开始了' : justFinished ? '这一包喝完了，故事留在豆仓里' : old ? '记录已更新' : '咖啡豆已入仓';
+      const nudgeKey = `coffee-vault-photo-nudge:${payload.id}`;
+      if (state.settings.showBeanPhotosInList && !payload.bagImagePath && !readLocalFlag(nudgeKey)) { savedMsg += ' · 拍张袋子照，列表更好认'; writeLocalFlag(nudgeKey); }
+      toast(savedMsg);
+    } catch (error) { console.error(error); toast('保存失败，请稍后重试'); }
+  }
   async function removeCurrent() {
     if (!state.editingId) return;
     const bean = state.beans.find((item) => item.id === state.editingId);
@@ -1022,7 +1047,7 @@
     const cleaned = cleanPlanFieldsForMethod({ ...fields, useHotWater: $('#plan-useHotWater').checked, waterTemp: fields.waterTemp ? `${fields.waterTemp}°C` : '' });
     const steps = $('#plan-method').value === '手冲' ? readPourSteps() : parsePlanSteps($('#plan-steps').value);
     const payload = BeanCore.normalizeBrewPlan({ ...(old || {}), ...cleaned, id: state.editingPlanId || fields.id || undefined, source: old ? old.source : ($('#plan-source').value || 'user'), beanIds: selectedBeans, steps });
-    try { await BeanRepository.saveBrewPlan(payload); setDialog(els.planEditor, false); state.editingPlanId = null; await reload(); toast(old ? '方案已更新' : '方案已保存'); } catch (error) { console.error(error); toast(error.message || '方案保存失败'); }
+    try { await BeanRepository.saveBrewPlan(payload); setDialog(els.planEditor, false); state.editingPlanId = null; await reload(); toast(old ? '方案已更新' : '这段风味已保存'); } catch (error) { console.error(error); toast(error.message || '方案保存失败'); }
   }
   async function duplicateCurrentPlan() {
     const id = state.viewingPlanId; if (!id) return;
@@ -1294,14 +1319,14 @@
       }
       return;
     }
-    $('#drinkTitle').textContent = '完成评分';
+    $('#drinkTitle').textContent = '留下这一杯的感受';
     $('#drinkBeanMeta').textContent = `${log.beanName} · 可以留空直接完成`;
     const facts = planFactList(log.brewPlanSnapshot || {}, log.brewMethod);
     $('#drinkTastingSummary').innerHTML = `<div><span>本次冲煮</span><strong>${esc(log.brewPlanName || log.brewMethod)}</strong><small>${esc([formatWeight(log.grams), formatDateTime(log.consumedAt)].join(' · '))}</small></div><button type="button" id="drinkTastingSummaryToggle">查看冲煮参数</button><div class="tasting-summary-detail" id="drinkTastingSummaryDetail" hidden>${facts.map((item) => `<p><span>${esc(item.label)}</span><strong>${esc(item.value)}</strong></p>`).join('') || '<p>本次没有记录详细参数</p>'}</div>`;
     $('#deleteDrink').hidden = true;
     $('#drinkStartAssist').hidden = true;
     $('#saveDrink').hidden = false;
-    $('#saveDrink').textContent = '完成评分';
+    $('#saveDrink').textContent = '完成记录';
   }
   function openDrinkDialog(bean, log, mode) { if (!bean && log && log.beanId) bean = state.beans.find((item) => item.id === log.beanId); const sourceKind = log && log.source === 'external' ? 'external' : 'bean'; const orphaned = sourceKind === 'bean' && !bean && Boolean(log); if (sourceKind === 'bean' && !bean && !log) return; state.editingDrinkId = log ? log.id : null; els.drinkForm.reset(); state.pendingDrinkPhotos = []; state.drinkPhotosToDelete = []; state.drinkPhotoDraft = (log && log.photos || []).slice(0, 3); const remaining = bean ? Number(bean.remainingWeight) || 0 : 0; const grams = log ? log.grams : Math.min(state.settings.quickGrams, remaining); const last = bean && !log ? lastBeanLog(bean.id) : null; const lastPlanEnabled = brewPlansEnabled() && last; const lastMethod = !log && last ? last.brewMethod : '手冲'; $('#drink-id').value = log ? log.id : ''; $('#drink-beanId').value = bean ? bean.id : ''; $('#drink-plan-id').value = log && log.brewPlanId || lastPlanEnabled && last.brewPlanId || ''; $('#drink-grams').value = grams; $('#drink-grams').max = remaining + (log ? Number(log.grams) : 0); $('#drink-time').value = localDateTime(log && log.consumedAt); $('#drink-notes').value = log ? log.notes : ''; $('#drink-cafeName').value = log ? log.cafeName || '' : ''; $('#drink-drinkName').value = log ? log.drinkName || '' : ''; $('#drink-price').value = log && log.price != null ? log.price : ''; $('#drink-location').value = log ? log.location || '' : ''; $('#drinkTitle').textContent = sourceKind === 'external' ? (log ? '编辑外饮记录' : '外饮记录') : orphaned ? '历史饮用记录' : log ? '编辑饮用记录' : '喝一杯'; $('#drinkBeanMeta').textContent = sourceKind === 'external' ? '咖啡馆 / 外卖，不扣库存' : orphaned ? `${log.beanName} · 原豆子已删除` : `${bean.name} · 当前剩余 ${formatWeight(remaining)}`; $('#deleteDrink').hidden = !log; $('#saveDrink').hidden = orphaned; methodOptions(log && log.brewMethod || lastMethod); if (sourceKind === 'bean') renderDrinkPlanPicker(bean, log); const source = log && log.brewPlanSnapshot || lastPlanEnabled && last.brewPlanSnapshot || selectedDrinkPlan() || { brewMethod: currentDrinkMethod(), dose: grams }; fillDrinkParams(source); $('#drinkParamPanel').hidden = sourceKind === 'external' || !brewPlansEnabled(); renderRating($('#overallRating'), 'overallRating', log && log.overallRating, false); renderDimensionRatings(log); renderDrinkFeatureHint(log); renderDrinkPhotoVault(); configureDrinkSource(sourceKind, orphaned); configureDrinkMode(log || {}, mode); setDialog(els.drink, true); }
   function openExternalDrinkDialog(log) { openDrinkDialog(null, log ? { ...log, source: 'external' } : BeanCore.normalizeDrinkLog({ source: 'external' })); state.editingDrinkId = log ? log.id : null; if (!log) { $('#drink-id').value = ''; $('#deleteDrink').hidden = true; $('#drinkTitle').textContent = '外饮记录'; } }
@@ -1328,6 +1353,7 @@
       const snapshot = !external && brewPlansEnabled() ? drinkParamSnapshot(method, plan) : null;
       const payload = { ...(old || {}), id: state.editingDrinkId || undefined, source: external ? 'external' : 'bean', beanId: external ? null : bean.id, beanName: external ? '' : bean.name, grams: external ? 0 : $('#drink-grams').value, brewMethod: method, brewPlanId: plan ? plan.id : null, brewPlanVersion: plan ? plan.version : null, brewPlanName: plan ? plan.name : '', brewPlanSnapshot: snapshot, photos, cafeName: $('#drink-cafeName').value, drinkName: $('#drink-drinkName').value, price: $('#drink-price').value, location: $('#drink-location').value, consumedAt: consumed.toISOString(), notes: $('#drink-notes').value, ...ratingPayload() };
       payload.tastingStatus = BeanCore.resolveTastingStatus(payload, { forcePending: opts.forcePending, completing: state.drinkMode === 'tasting', existingStatus: old && old.tastingStatus, isNew: !old });
+      const finishesBean = !external && !old && Number(payload.grams) >= Number(bean.remainingWeight);
       const saved = await BeanRepository.saveDrinkLog(payload);
       if (!external) {
         state.settings.lastBrewMethod = method;
@@ -1338,7 +1364,10 @@
       if (opts.close !== false) setDialog(els.drink, false);
       state.editingDrinkId = null;
       await reload();
-      if (opts.notify !== false) toast(state.drinkMode === 'tasting' ? '评分已完成' : old ? '饮用记录已更新' : payload.tastingStatus === 'pending' ? '冲煮已记录，稍后可以评分' : '已记录这一杯');
+      if (opts.notify !== false) {
+        const savedMessage = state.drinkMode === 'tasting' ? '这一杯的感受已留下' : old ? '饮用记录已更新' : payload.tastingStatus === 'pending' ? '冲煮已记录，稍后可以评分' : '这一杯已记下';
+        toast(finishesBean ? `${savedMessage} · 这一包喝完了，故事留在豆仓里` : savedMessage);
+      }
       return saved;
     } catch (error) {
       console.error(error); toast(error.message || '保存失败'); return null;

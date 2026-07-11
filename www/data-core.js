@@ -711,7 +711,7 @@
       exportScope,
       exportedAt: exportedAt || new Date().toISOString(),
       app: '豆仓',
-      appVersion: '2.2.4'
+      appVersion: '2.2.5'
     };
     if (exportScope === 'all' || exportScope === 'library') {
       payload.beans = (beans || []).map((bean) => normalizeBean(bean, bean.updatedAt));
@@ -853,7 +853,7 @@
       ],
       notes: bean.tastingNotes || '',
       images,
-      footer: '本地记录 · 私人豆仓'
+      footer: '一包豆子，故事从这里开始 · 豆仓'
     };
   }
 
@@ -875,7 +875,7 @@
       rows,
       steps,
       notes: plan.notes || '',
-      footer: '本地记录 · 私人豆仓'
+      footer: '一段风味，值得反复回味 · 豆仓'
     };
     if (opts.includeQr) {
       payload.qr = { code: encodePlanShare(plan), title: '扫码导入此方案', hint: '在豆仓「导入方案」中拍摄或选图，即可保存为新方案 · 豆仓' };
@@ -911,7 +911,7 @@
       brewSteps: snapshot ? (snapshot.steps || []).map((step, index) => ({ label: step.label || `第 ${index + 1} 段`, value: [step.water ? formatShareWeight(step.water) : '', step.time, step.note].filter(Boolean).join(' · ') })) : [],
       notes: log.notes || '',
       images: (log.photos || []).slice(0, 3).map((path, index) => ({ label: `照片 ${index + 1}`, path, role: 'drink' })),
-      footer: '这一杯，值得记住 · 豆仓'
+      footer: '一页日常，留住每一次相遇 · 豆仓'
     };
   }
 

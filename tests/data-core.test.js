@@ -305,6 +305,7 @@ test('share payloads keep content separate from visual style', () => {
   assert.equal(beanPayload.title, '花魁');
   assert.equal(beanPayload.stats[1].value, '¥49.00 / 100g');
   assert.deepEqual(beanPayload.images.map((image) => image.role), ['bag']);
+  assert.equal(beanPayload.footer, '一包豆子，故事从这里开始 · 豆仓');
 
   const plan = core.normalizeBrewPlan({
     name: '四六法',
@@ -319,6 +320,7 @@ test('share payloads keep content separate from visual style', () => {
   assert.equal(planPayload.title, '四六法');
   assert.equal(planPayload.rows.find((row) => row.label === '粉量').value, '20g');
   assert.equal(planPayload.steps[0].value, '60g · 0:00-0:45');
+  assert.equal(planPayload.footer, '一段风味，值得反复回味 · 豆仓');
 });
 
 test('calendar share payloads include month selection and year dots', () => {
@@ -357,6 +359,7 @@ test('drink share payload defaults to basics, ratings and up to three journal ph
   assert.deepEqual(basic.images.map((image) => image.role), ['drink', 'drink', 'drink']);
   assert.equal(basic.rows.find((row) => row.label === '香气').value, '4 / 5');
   assert.deepEqual(basic.brewRows, []);
+  assert.equal(basic.footer, '一页日常，留住每一次相遇 · 豆仓');
 
   const withBrew = core.buildSharePayload('drink', log, { includeBrew: true });
   assert.equal(withBrew.brewRows.find((row) => row.label === '粉量').value, '15g');
