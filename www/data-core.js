@@ -711,7 +711,7 @@
       exportScope,
       exportedAt: exportedAt || new Date().toISOString(),
       app: '豆仓',
-      appVersion: '2.2.3'
+      appVersion: '2.2.4'
     };
     if (exportScope === 'all' || exportScope === 'library') {
       payload.beans = (beans || []).map((bean) => normalizeBean(bean, bean.updatedAt));
@@ -883,6 +883,38 @@
     return payload;
   }
 
+  function buildDrinkSharePayload(logInput, options) {
+    const opts = options || {};
+    const log = normalizeDrinkLog(logInput || {}, logInput && logInput.updatedAt);
+    const external = log.source === 'external';
+    const title = external ? (log.drinkName || log.cafeName || '外饮咖啡') : (log.beanName || '一杯咖啡');
+    const dimensions = { aroma: '香气', acidity: '酸质', sweetness: '甜感', body: '醇厚', aftertaste: '余韵', balance: '平衡', bitterness: '苦感' };
+    const dimensionRatings = DIMENSION_KEYS.filter((key) => log[key]).map((key) => ({ key, label: dimensions[key], value: Number(log[key]) || 0 }));
+    const snapshot = opts.includeBrew && log.brewPlanSnapshot ? normalizeBrewPlan(log.brewPlanSnapshot, log.updatedAt) : null;
+    return {
+      type: 'drink',
+      style: cleanText(opts.style, 40) || 'receipt',
+      title,
+      subtitle: external ? [log.cafeName, log.location].filter(Boolean).join(' · ') || '外饮记录' : [log.brewMethod, log.beanName].filter(Boolean).join(' · '),
+      eyebrow: '饮用手账',
+      meta: [shareDateText(dateKey(log.consumedAt)), log.overallRating ? '已评价' : '未评分'].filter(Boolean),
+      rating: log.overallRating ? { value: Number(log.overallRating), max: 5, label: '整体评价' } : null,
+      stats: external ? [
+        { label: '价格', value: log.price > 0 ? formatShareMoney(log.price) : '—' }
+      ] : [
+        { label: '用豆', value: formatShareWeight(log.grams) },
+        { label: '方式', value: log.brewMethod || '未记录' }
+      ],
+      rows: dimensionRatings.length < 3 ? dimensionRatings.map((item) => ({ label: item.label, value: `${item.value} / 5` })) : [],
+      radar: dimensionRatings.length >= 3 ? dimensionRatings : null,
+      brewRows: snapshot ? sharePlanRows(snapshot) : [],
+      brewSteps: snapshot ? (snapshot.steps || []).map((step, index) => ({ label: step.label || `第 ${index + 1} 段`, value: [step.water ? formatShareWeight(step.water) : '', step.time, step.note].filter(Boolean).join(' · ') })) : [],
+      notes: log.notes || '',
+      images: (log.photos || []).slice(0, 3).map((path, index) => ({ label: `照片 ${index + 1}`, path, role: 'drink' })),
+      footer: '这一杯，值得记住 · 豆仓'
+    };
+  }
+
   function buildMonthCells(year, month, days, selectedDate) {
     const first = new Date(year, month, 1);
     const offset = (first.getDay() + 6) % 7;
@@ -992,6 +1024,7 @@
   function buildSharePayload(type, source, options) {
     if (type === 'bean') return buildBeanSharePayload(source, options);
     if (type === 'brewPlan') return buildPlanSharePayload(source, options);
+    if (type === 'drink') return buildDrinkSharePayload(source, options);
     if (type === 'calendar') return buildCalendarSharePayload(source, options);
     throw new Error('未知分享类型');
   }

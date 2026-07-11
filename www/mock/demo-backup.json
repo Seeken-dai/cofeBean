@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 7,
+  "exportScope": "all",
+  "exportedAt": "2026-07-11T12:00:00.000Z",
+  "app": "豆仓",
+  "appVersion": "2.2.4",
+  "beans": [
+    { "id": "mock-bean-geisha", "name": "花魁 7.0", "roaster": "Mock Roastery", "origin": "埃塞俄比亚 · 古吉", "process": "日晒", "roastLevel": "浅烘", "roastDate": "2026-06-28", "openedDate": "2026-07-02", "bestFlavorDays": 30, "initialWeight": 200, "remainingWeight": 155, "price": 128, "status": "饮用中", "tastingNotes": "茉莉、白桃、佛手柑", "bagImagePath": "mock/cup-1.svg" },
+    { "id": "mock-bean-kenya", "name": "肯尼亚莓果", "roaster": "山谷咖啡", "origin": "肯尼亚 · 涅里", "process": "水洗", "roastLevel": "中浅烘", "roastDate": "2026-07-01", "initialWeight": 250, "remainingWeight": 250, "price": 96, "status": "未开封", "tastingNotes": "黑加仑、番茄、红糖" },
+    { "id": "mock-bean-colombia", "name": "哥伦比亚粉波旁", "roaster": "城市烘焙", "origin": "哥伦比亚 · 蕙兰", "process": "厌氧日晒", "roastLevel": "中烘", "roastDate": "2026-06-12", "openedDate": "2026-06-18", "bestFlavorDays": 21, "initialWeight": 200, "remainingWeight": 0, "price": 88, "status": "已喝完", "tastingNotes": "草莓酱、可可、朗姆酒" }
+  ],
+  "drinkLogs": [
+    { "id": "mock-drink-plan", "source": "bean", "beanId": "mock-bean-geisha", "beanName": "花魁 7.0", "grams": 15, "brewMethod": "手冲", "consumedAt": "2026-07-11T06:26:00.000Z", "overallRating": 5, "aroma": 5, "acidity": 4, "sweetness": 5, "body": 3, "aftertaste": 5, "balance": 4, "bitterness": 1, "notes": "花香很干净，降温后白桃明显。", "photos": ["mock/cup-1.svg", "mock/cup-2.svg", "mock/cup-3.svg"], "brewPlanId": "mock-plan-v60", "brewPlanName": "V60 三段式", "brewPlanVersion": 1, "brewPlanSnapshot": { "name": "V60 三段式", "brewMethod": "手冲", "dose": 15, "ratio": "1:15", "totalWater": 225, "waterTemp": "92°C", "grinder": "C40", "grindSetting": "22 格", "targetDuration": "2:30", "steps": [{ "label": "闷蒸", "water": 45, "time": "0:00-0:40" }, { "label": "第一段", "water": 90, "time": "0:40-1:20" }, { "label": "第二段", "water": 90, "time": "1:20-2:10" }] } },
+    { "id": "mock-drink-no-plan", "source": "bean", "beanId": "mock-bean-geisha", "beanName": "花魁 7.0", "grams": 15, "brewMethod": "聪明杯", "consumedAt": "2026-07-10T01:15:00.000Z", "overallRating": 4, "aroma": 4, "sweetness": 4, "notes": "甜感不错，适合早晨。", "photos": ["mock/cup-2.svg"] },
+    { "id": "mock-drink-external", "source": "external", "drinkName": "Dirty", "cafeName": "Mock Café", "price": 22, "location": "深圳", "consumedAt": "2026-07-09T07:30:00.000Z", "overallRating": 4, "aroma": 4, "acidity": 3, "sweetness": 5, "body": 4, "aftertaste": 4, "balance": 4, "bitterness": 2, "notes": "奶香和坚果感平衡。", "photos": ["mock/cup-1.svg", "mock/cup-3.svg"] },
+    { "id": "mock-drink-pending", "source": "bean", "beanId": "mock-bean-kenya", "beanName": "肯尼亚莓果", "grams": 15, "brewMethod": "手冲", "consumedAt": "2026-07-08T02:00:00.000Z", "tastingStatus": "pending", "brewPlanSnapshot": { "name": "肯尼亚高温快冲", "brewMethod": "手冲", "dose": 15, "ratio": "1:16", "totalWater": 240, "waterTemp": "94°C" } }
+  ],
+  "brewPlans": [
+    { "id": "mock-plan-v60", "name": "V60 三段式", "source": "user", "version": 1, "brewMethod": "手冲", "beanIds": ["mock-bean-geisha"], "dose": 15, "ratio": "1:15", "totalWater": 225, "waterTemp": "92°C", "grinder": "C40", "grindSetting": "22 格", "targetDuration": "2:30", "steps": [{ "label": "闷蒸", "water": 45, "time": "0:00-0:40" }, { "label": "第一段", "water": 90, "time": "0:40-1:20" }, { "label": "第二段", "water": 90, "time": "1:20-2:10" }] }
+  ],
+  "settings": { "quickGrams": 15, "enableBrewPlans": true, "advancedRatings": true, "enabledDimensions": ["aroma", "acidity", "sweetness", "body", "aftertaste", "balance", "bitterness"], "priceUnit": "100g", "theme": "dark-roast", "showBeanPhotosInList": true, "photoJournal": true, "flavorReminderDays": 7, "lowStockCups": 3 }
+}

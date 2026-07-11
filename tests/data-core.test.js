@@ -1,7 +1,19 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const core = require('../www/data-core.js');
 const pkg = require('../package.json');
+
+test('local demo backup stays valid and covers sharing scenarios', () => {
+  const file = path.join(__dirname, '..', 'www', 'mock', 'demo-backup.json');
+  const imported = core.validateImport(JSON.parse(fs.readFileSync(file, 'utf8')));
+  assert.equal(imported.beans.length, 3);
+  assert.equal(imported.drinkLogs.length, 4);
+  assert.ok(imported.drinkLogs.some((log) => log.source === 'external' && log.photos.length === 2));
+  assert.ok(imported.drinkLogs.some((log) => log.brewPlanSnapshot && log.photos.length === 3));
+  assert.ok(imported.drinkLogs.some((log) => !log.brewPlanSnapshot && log.source !== 'external'));
+});
 
 test('normalizeBean applies safe defaults and numeric bounds', () => {
   const bean = core.normalizeBean({ name: '  花魁  ', status: '未知', remainingWeight: '-2', favorite: '1', bagImagePath: ' file:///bag.jpg ' }, '2026-01-01T00:00:00.000Z');
@@ -328,6 +340,38 @@ test('calendar share payloads include month selection and year dots', () => {
   assert.equal(yearPayload.type, 'calendarYear');
   assert.equal(yearPayload.stats[0].value, '2杯');
   assert.equal(yearPayload.calendar.days[0].level, 2);
+});
+
+test('drink share payload defaults to basics, ratings and up to three journal photos', () => {
+  const log = core.normalizeDrinkLog({
+    id: 'drink-share', beanId: 'bean-1', beanName: '花魁', grams: 15, brewMethod: '手冲',
+    consumedAt: '2026-07-11T08:20:00.000Z', overallRating: 5, aroma: 4, sweetness: 5,
+    notes: '花香清楚，尾韵像蜂蜜', photos: ['file:///1.jpg', 'file:///2.jpg', 'file:///3.jpg', 'file:///4.jpg'],
+    brewPlanSnapshot: { name: '本次手冲', brewMethod: '手冲', dose: 15, totalWater: 225, ratio: '1:15', waterTemp: '92°C' }
+  });
+  const basic = core.buildSharePayload('drink', log, { includeBrew: false });
+  assert.equal(basic.type, 'drink');
+  assert.equal(basic.title, '花魁');
+  assert.deepEqual(basic.rating, { value: 5, max: 5, label: '整体评价' });
+  assert.equal(basic.stats.some((stat) => stat.label === '评分'), false);
+  assert.deepEqual(basic.images.map((image) => image.role), ['drink', 'drink', 'drink']);
+  assert.equal(basic.rows.find((row) => row.label === '香气').value, '4 / 5');
+  assert.deepEqual(basic.brewRows, []);
+
+  const withBrew = core.buildSharePayload('drink', log, { includeBrew: true });
+  assert.equal(withBrew.brewRows.find((row) => row.label === '粉量').value, '15g');
+  assert.equal(withBrew.qr, undefined);
+});
+
+test('drink share payload uses a radar for three or more dimension ratings', () => {
+  const log = core.normalizeDrinkLog({
+    id: 'drink-radar', beanName: '瑰夏', grams: 15, consumedAt: '2026-07-11T08:20:00.000Z',
+    aroma: 5, acidity: 4, sweetness: 5, body: 3, aftertaste: 4, balance: 4, bitterness: 2
+  });
+  const payload = core.buildSharePayload('drink', log);
+  assert.equal(payload.rows.length, 0);
+  assert.equal(payload.radar.length, 7);
+  assert.deepEqual(payload.radar.find((item) => item.key === 'bitterness'), { key: 'bitterness', label: '苦感', value: 2 });
 });
 
 test('summarize totals active beans and remaining grams', () => {

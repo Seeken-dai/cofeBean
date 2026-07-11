@@ -33,6 +33,17 @@
       return y + 246;
     }
     function drawReceiptDivider(ctx, palette, x, y, w) { ctx.strokeStyle = palette.line; ctx.lineWidth = 2; ctx.setLineDash([12, 10]); ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w, y); ctx.stroke(); ctx.setLineDash([]); }
+    function drawReceiptRating(ctx, rating, palette, x, y, w) {
+      if (!rating || !(Number(rating.value) > 0)) return y;
+      const value = Math.max(1, Math.min(Number(rating.max) || 5, Number(rating.value)));
+      const max = Number(rating.max) || 5; const stars = `${'★'.repeat(Math.round(value))}${'☆'.repeat(Math.max(0, max - Math.round(value)))}`;
+      fillRound(ctx, x, y, w, 146, 24, palette.ink);
+      setCanvasFont(ctx, 22, 700, false); ctx.fillStyle = palette.line; ctx.fillText(rating.label || '整体评价', x + 26, y + 38);
+      setCanvasFont(ctx, 68, 850, true); ctx.fillStyle = palette.paper; ctx.fillText(value.toFixed(1), x + 24, y + 112);
+      setCanvasFont(ctx, 40, 800, false); ctx.fillStyle = palette.accent; ctx.fillText(stars, x + 190, y + 99);
+      setCanvasFont(ctx, 21, 650, false); ctx.fillStyle = palette.line; ctx.fillText(`${value} / ${max}`, x + w - 92, y + 105);
+      return y + 166;
+    }
     function drawReceiptStats(ctx, stats, palette, x, y, w) {
       if (!stats || !stats.length) return y;
       const gap = 16; const cols = stats.length <= 4 ? stats.length : 3; const cardW = (w - gap * (cols - 1)) / cols;
@@ -43,8 +54,45 @@
       (rows || []).slice(0, 12).forEach((row) => { setCanvasFont(ctx, 24, 600, false); ctx.fillStyle = palette.muted; ctx.fillText(row.label, x, y); setCanvasFont(ctx, 28, 800, false); ctx.fillStyle = palette.ink; ctx.fillText(clipCanvasText(ctx, row.value, w * .62), x + w * .38, y); ctx.strokeStyle = palette.line; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, y + 20); ctx.lineTo(x + w, y + 20); ctx.stroke(); y += 58; });
       return y + 8;
     }
+    function drawReceiptRadar(ctx, ratings, palette, x, y, w) {
+      if (!ratings || ratings.length < 3) return y;
+      const height = 420; const cx = x + w / 2; const cy = y + 205; const radius = 142; const count = ratings.length;
+      const point = (r, index) => { const angle = (-Math.PI / 2) + index * Math.PI * 2 / count; return [cx + Math.cos(angle) * r, cy + Math.sin(angle) * r]; };
+      fillRound(ctx, x, y, w, height, 22, palette.surface, palette.border);
+      setCanvasFont(ctx, 23, 700, false); ctx.fillStyle = palette.muted; ctx.fillText('多维评价', x + 22, y + 38);
+      ctx.lineWidth = 2;
+      for (let level = 1; level <= 5; level += 1) { const points = ratings.map((_, index) => point(radius * level / 5, index)); ctx.beginPath(); points.forEach(([px, py], index) => index ? ctx.lineTo(px, py) : ctx.moveTo(px, py)); ctx.closePath(); ctx.strokeStyle = palette.line; ctx.globalAlpha = .5; ctx.stroke(); }
+      ctx.globalAlpha = 1;
+      ratings.forEach((_, index) => { const [px, py] = point(radius, index); ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(px, py); ctx.strokeStyle = palette.line; ctx.globalAlpha = .55; ctx.stroke(); });
+      ctx.globalAlpha = 1;
+      const plot = ratings.map((item, index) => { const raw = Math.max(1, Math.min(5, Number(item.value) || 0)); const value = item.key === 'bitterness' ? 6 - raw : raw; return point(radius * value / 5, index); });
+      ctx.beginPath(); plot.forEach(([px, py], index) => index ? ctx.lineTo(px, py) : ctx.moveTo(px, py)); ctx.closePath(); ctx.fillStyle = 'rgba(183,120,61,.24)'; ctx.fill(); ctx.strokeStyle = palette.accent; ctx.lineWidth = 5; ctx.stroke();
+      plot.forEach(([px, py]) => { ctx.beginPath(); ctx.arc(px, py, 7, 0, Math.PI * 2); ctx.fillStyle = palette.accent; ctx.fill(); });
+      ratings.forEach((item, index) => { const [px, py] = point(radius + 35, index); setCanvasFont(ctx, 21, 700, false); ctx.fillStyle = palette.muted; ctx.textAlign = Math.abs(px - cx) < 12 ? 'center' : px > cx ? 'left' : 'right'; ctx.fillText(`${item.label} ${item.value}`, px, py + 7); });
+      ctx.textAlign = 'left';
+      return y + height + 26;
+    }
+    function drawCoverImage(ctx, img, x, y, w, h) { const scale = Math.max(w / img.width, h / img.height); const iw = img.width * scale; const ih = img.height * scale; ctx.drawImage(img, x + (w - iw) / 2, y + (h - ih) / 2, iw, ih); }
+    async function drawJournalImages(ctx, images, palette, x, y, w) {
+      const items = images.slice(0, 3); const loaded = await Promise.all(items.map((item) => loadCanvasImage(item.path)));
+      const gap = 18; const layouts = items.length === 1
+        ? [{ x: 34, y: 0, w: w - 68, h: 430, tilt: -.018 }]
+        : items.length === 2
+          ? [{ x: 0, y: 8, w: (w - gap) / 2, h: 360, tilt: -.025 }, { x: (w + gap) / 2, y: 0, w: (w - gap) / 2, h: 360, tilt: .022 }]
+          : [{ x: 0, y: 10, w: w * .55, h: 350, tilt: -.024 }, { x: w * .58, y: 0, w: w * .42, h: 166, tilt: .026 }, { x: w * .58, y: 188, w: w * .42, h: 166, tilt: -.018 }];
+      layouts.forEach((box, index) => {
+        const img = loaded[index]; const cx = x + box.x + box.w / 2; const cy = y + box.y + box.h / 2;
+        ctx.save(); ctx.translate(cx, cy); ctx.rotate(box.tilt); ctx.translate(-cx, -cy);
+        fillRound(ctx, x + box.x - 9, y + box.y - 9, box.w + 18, box.h + 36, 10, '#fffaf0', palette.border);
+        if (img) { ctx.save(); roundRect(ctx, x + box.x, y + box.y, box.w, box.h, 7); ctx.clip(); drawCoverImage(ctx, img, x + box.x, y + box.y, box.w, box.h); ctx.restore(); }
+        fillRound(ctx, x + box.x + box.w * .38, y + box.y - 18, box.w * .24, 38, 5, 'rgba(213,181,142,.72)');
+        ctx.restore();
+      });
+      return y + (items.length === 1 ? 490 : 420);
+    }
     async function drawReceiptImages(ctx, images, palette, x, y, w) {
       if (!images || !images.length) return y;
+      if (images.some((item) => item.role === 'drink')) return drawJournalImages(ctx, images, palette, x, y, w);
       if (images.length === 1) {
         const item = images[0]; const boxH = 760; const img = await loadCanvasImage(item.path);
         fillRound(ctx, x, y, w, boxH, 26, palette.surface, palette.border);
@@ -116,13 +164,14 @@
     }
     async function renderReceiptShareCard(payload) {
       const palette = { bg: '#1a1412', paper: '#f4eadc', surface: '#eadcc8', ink: '#251811', muted: '#806b59', accent: '#b7783d', border: '#d9c6ac', line: '#d5b58e', heat: ['#e2d6c5', '#d5bd96', '#cda66b', '#bd8345', '#8f542d'] };
-      const width = 1080; const maxHeight = 2400;
+      const width = 1080; const maxHeight = 4000;
       const content = document.createElement('canvas'); content.width = width; content.height = maxHeight; const ctx = content.getContext('2d');
       const x = 96; const w = width - x * 2; let y = 132;
-      y = drawReceiptHeader(ctx, payload, palette, x, y, w); y = drawReceiptStats(ctx, payload.stats, palette, x, y, w); drawReceiptDivider(ctx, palette, x, y + 10, w); y += 52;
+      y = drawReceiptHeader(ctx, payload, palette, x, y, w); y = drawReceiptRating(ctx, payload.rating, palette, x, y, w); y = drawReceiptStats(ctx, payload.stats, palette, x, y, w); drawReceiptDivider(ctx, palette, x, y + 10, w); y += 52;
       if (payload.calendar && payload.calendar.view === 'month') y = drawReceiptMonth(ctx, payload.calendar, palette, x, y, w);
       if (payload.calendar && payload.calendar.view === 'year') y = drawReceiptYear(ctx, payload.calendar, palette, x, y, w);
-      y = drawReceiptRows(ctx, payload.rows, palette, x, y, w); y = drawReceiptSteps(ctx, payload.steps, palette, x, y, w);
+      y = drawReceiptRows(ctx, payload.rows, palette, x, y, w); y = drawReceiptRadar(ctx, payload.radar, palette, x, y, w); y = drawReceiptSteps(ctx, payload.steps, palette, x, y, w);
+      if (payload.brewRows && payload.brewRows.length) { setCanvasFont(ctx, 28, 800, false); ctx.fillStyle = palette.ink; ctx.fillText('本次冲煮记录', x, y); y += 48; y = drawReceiptRows(ctx, payload.brewRows, palette, x, y, w); y = drawReceiptSteps(ctx, payload.brewSteps, palette, x, y, w); }
       if (payload.notes) { fillRound(ctx, x, y, w, 140, 22, palette.surface, palette.border); setCanvasFont(ctx, 23, 700, false); ctx.fillStyle = palette.muted; ctx.fillText('风味 / 备注', x + 22, y + 38); setCanvasFont(ctx, 27, 600, false); ctx.fillStyle = palette.ink; drawCanvasTextBlock(ctx, payload.notes, x + 22, y + 78, w - 44, 34, 2); y += 166; }
       y = await drawReceiptImages(ctx, payload.images, palette, x, y, w); y = drawReceiptLogs(ctx, payload.logs, palette, x, y, w);
       y = drawReceiptQr(ctx, payload.qr, palette, x, y, w);

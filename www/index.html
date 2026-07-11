@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#1a1412">
   <meta name="color-scheme" content="dark light">
   <title>豆仓</title>
-  <link rel="stylesheet" href="styles.css?v=2.2.3">
+  <link rel="stylesheet" href="styles.css?v=2.2.4">
   <style>
     #aboutDialog .about-actions { display:flex; align-items:center; justify-content:center; gap:8px; color:var(--faint); font-size:12px; }
     #aboutDialog .about-actions .text-link-button { width:auto; min-width:0; min-height:0; padding:2px; border:0; border-radius:0; background:transparent; box-shadow:none; color:var(--accent); font:700 12px/1 inherit; text-decoration:underline; text-underline-offset:4px; }
@@ -22,6 +22,13 @@
       <p id="recordCount">正在打开豆仓…</p>
     </div>
     <button class="icon-button search-button" id="searchToggle" type="button" aria-label="搜索" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg></button>
+    <section class="search-panel topbar-search" id="searchPanel" hidden>
+      <label class="search-box">
+        <span aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg></span>
+        <input id="searchInput" type="search" autocomplete="off" placeholder="搜索豆名、产地或风味">
+        <button id="searchClear" type="button" aria-label="清除搜索">×</button>
+      </label>
+    </section>
     <button class="icon-button profile-button" id="profileOpen" type="button" aria-label="个人中心"><svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M861.866667 179.2l4.266666 4.266667c59.733333 68.266667 85.333333 157.866667 68.266667 245.333333-25.6 125.866667-85.333333 238.933333-174.933333 328.533333-89.6 89.6-204.8 151.466667-328.533334 174.933334-17.066667 4.266667-36.266667 4.266667-53.333333 4.266666-74.666667 0-149.333333-29.866667-202.666667-85.333333-2.133333-2.133333-4.266667-6.4-8.533333-8.533333l-4.266667-4.266667c-59.733333-68.266667-85.333333-157.866667-68.266666-245.333333 25.6-125.866667 85.333333-238.933333 174.933333-328.533334 89.6-89.6 204.8-151.466667 328.533333-174.933333 91.733333-17.066667 187.733333 12.8 256 81.066667l8.533334 8.533333z m-12.8 232.533333c8.533333-38.4 2.133333-78.933333-12.8-115.2-78.933333 134.4-194.133333 194.133333-305.066667 253.866667-115.2 59.733333-224 117.333333-288 253.866667 46.933333 40.533333 108.8 57.6 168.533333 44.8 108.8-21.333333 206.933333-74.666667 285.866667-151.466667s130.133333-177.066667 151.466667-285.866667zM174.933333 612.266667c-8.533333 38.4-2.133333 78.933333 12.8 115.2 78.933333-134.4 194.133333-194.133333 305.066667-253.866667 115.2-59.733333 224-117.333333 288-253.866667C744.533333 187.733333 697.6 170.666667 650.666667 170.666667c-12.8 0-25.6 2.133333-38.4 4.266666-108.8 21.333333-206.933333 74.666667-285.866667 151.466667-76.8 78.933333-130.133333 177.066667-151.466667 285.866667z" fill="currentColor"/></svg></button>
   </header>
 
@@ -31,13 +38,6 @@
       <button data-view="drinks" type="button">饮用记录</button>
       <button data-view="plans" type="button" id="plansTab">冲煮方案</button>
     </nav>
-    <section class="search-panel" id="searchPanel" hidden>
-      <label class="search-box">
-        <span aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg></span>
-        <input id="searchInput" type="search" autocomplete="off" placeholder="搜索豆名、产地或风味">
-        <button id="searchClear" type="button" aria-label="清除搜索">×</button>
-      </label>
-    </section>
     <div id="beansView">
 
     <section class="overview" aria-label="豆仓概览">
@@ -129,6 +129,7 @@
   <dialog class="sheet compact picker-sheet" id="dataBackupDialog">
     <header class="sheet-header"><div><p class="eyebrow">DATA VAULT</p><h2>数据备份</h2><p class="sheet-subtitle">备份文件只保存在你选择的位置</p></div><button class="icon-button" id="dataBackupClose" type="button" aria-label="关闭">×</button></header>
     <div class="backup-groups">
+      <section class="mock-data-section" id="mockDataSection" hidden><h3>本地测试</h3><button class="mock-data-button" id="loadMockData" type="button"><span>载入 Mock 数据</span><small>覆盖当前浏览器数据，快速生成豆子、饮用记录、评价与照片测试场景</small></button></section>
       <section><h3>导出</h3><div class="source-actions backup-actions">
         <label class="backup-option"><input id="exportBeanImages" type="checkbox"><span><b>包含咖啡豆图片</b><small>仅完整或豆仓导出可用，文件会明显变大</small></span></label>
         <button data-export-scope="all" type="button"><span>全部数据</span><small>豆仓、饮用记录、设置等完整数据</small></button>
@@ -196,7 +197,7 @@
   <dialog class="sheet detail-sheet" id="drinkDetailDialog">
     <header class="sheet-header detail-header">
       <div><p class="eyebrow">BREW PROFILE</p><h2 id="drinkDetailTitle">饮用详情</h2></div>
-      <div class="header-actions"><button class="icon-button" id="drinkDetailEdit" type="button" aria-label="编辑饮用记录"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 16.5-.8 4.3 4.3-.8L18.8 8.7l-3.5-3.5L4 16.5Z"/><path d="m13.8 6.7 3.5 3.5"/></svg></button><button class="icon-button" id="drinkDetailClose" type="button" aria-label="关闭"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6 18 18M18 6 6 18"/></svg></button></div>
+      <div class="header-actions"><button class="icon-button" id="drinkDetailShare" type="button" aria-label="分享饮用记录"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14V4"/><path d="m8 8 4-4 4 4"/><path d="M5 12v5.5A1.5 1.5 0 0 0 6.5 19h11a1.5 1.5 0 0 0 1.5-1.5V12"/></svg></button><button class="icon-button" id="drinkDetailEdit" type="button" aria-label="编辑饮用记录"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 16.5-.8 4.3 4.3-.8L18.8 8.7l-3.5-3.5L4 16.5Z"/><path d="m13.8 6.7 3.5 3.5"/></svg></button><button class="icon-button" id="drinkDetailClose" type="button" aria-label="关闭"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6 18 18M18 6 6 18"/></svg></button></div>
     </header>
     <div class="drink-profile">
       <section class="brew-hero"><div class="brew-cup" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 8h12v7a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5V8Z"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17M8 4c0 1 1 1 1 2M12 3c0 1 1 1 1 2"/></svg></div><div><h3 id="drinkDetailBean"></h3><p id="drinkDetailMeta"></p><div id="drinkDetailStars"></div></div></section>
@@ -375,9 +376,9 @@
         <label class="field full"><span>饮用时间</span><input id="drink-time" name="consumedAt" class="picker-control" data-picker-kind="datetime" type="text" readonly required placeholder="选择日期与时间"></label>
         <section class="tasting-summary tasting-visible full" id="drinkTastingSummary" hidden></section>
         <fieldset class="rating-field tasting-visible full"><legend>整体评分（可留空）</legend><div class="rating-row" id="overallRating" data-rating-name="overallRating"></div></fieldset>
-        <section class="image-vault tasting-visible full" id="drinkPhotoVault"></section>
         <section class="feature-hint full" id="drinkFeatureHint" hidden></section>
         <section class="advanced-ratings tasting-visible full" id="advancedRatingSection" hidden><div class="section-heading"><div><span>高级评价</span><small>笑脸越多越满意；苦涩感的哭脸越多越明显</small></div></div><div id="dimensionRatings"></div></section>
+        <section class="image-vault tasting-visible full" id="drinkPhotoVault"></section>
         <label class="field tasting-visible full"><span>评价备注</span><textarea id="drink-notes" name="notes" maxlength="2000" rows="4" placeholder="这杯的香气、风味变化，或下次想调整的参数…"></textarea></label>
       </div>
       <footer class="sheet-footer"><button class="danger-button" id="deleteDrink" type="button">删除记录</button><div><button class="secondary-button" id="drinkCancel" type="button">取消</button><button class="secondary-button" id="drinkEditFull" type="button" hidden>编辑完整记录</button><button class="secondary-button assist-footer-button" id="drinkStartAssist" type="button" hidden>冲煮辅助</button><button class="primary-button" id="saveDrink" type="submit">保存并扣量</button></div></footer>
@@ -438,6 +439,14 @@
       <button class="share-choice-action" id="planShareCopyCode" type="button"><span><b>复制分享码</b><small>复制 DC1- 短码，可发给对方粘贴导入</small></span><strong aria-hidden="true">⧉</strong></button>
     </section>
     <footer class="sheet-footer"><button class="secondary-button" id="planShareChoiceCancel" type="button">取消</button><div><button class="primary-button" id="planShareChoiceConfirm" type="button">生成预览</button></div></footer>
+  </dialog>
+
+  <dialog class="sheet compact picker-sheet" id="drinkShareChoiceDialog">
+    <header class="sheet-header"><div><p class="eyebrow">CUP JOURNAL</p><h2>分享这一杯</h2><p class="sheet-subtitle">基本信息、评价和照片会默认放入卡片</p></div><button class="icon-button" id="drinkShareChoiceClose" type="button" aria-label="关闭">×</button></header>
+    <section class="share-choice-body">
+      <label id="drinkShareBrewOption"><input id="drinkShareIncludeBrew" type="checkbox"><span><b>包含本次冲煮记录</b><small>展示这杯实际使用的粉量、水量、温度和分段摘要，不分享可导入的方案配置</small></span></label>
+    </section>
+    <footer class="sheet-footer"><button class="secondary-button" id="drinkShareChoiceCancel" type="button">取消</button><div><button class="primary-button" id="drinkShareChoiceConfirm" type="button">生成预览</button></div></footer>
   </dialog>
 
   <dialog class="sheet compact" id="planImportDialog">
@@ -547,13 +556,13 @@
 
   <dialog class="sheet compact" id="aboutDialog">
     <header class="sheet-header"><div><p class="eyebrow">ABOUT</p><h2>关于豆仓</h2></div><button class="icon-button" id="aboutClose" type="button" aria-label="关闭">×</button></header>
-    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 2.2.3</p></section>
+    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 2.2.4</p></section>
     <section class="about-update" aria-live="polite">
       <div class="about-actions"><button class="text-link-button" id="aboutCheckUpdate" type="button">检查更新</button><span aria-hidden="true">·</span><button class="text-link-button" id="aboutOpenReleases" type="button">查看发布页</button></div>
       <div class="update-status" id="updateStatus" hidden></div>
       <button class="primary-button update-download" id="aboutDownloadUpdate" type="button" hidden>前往下载</button>
     </section>
-    <section class="about-copy"><h3>一包豆子，一段风味，一页日常。</h3><p>豆仓是一款为咖啡爱好者设计的本地优先记录工具。你可以保存每一包咖啡豆的产地、风味与价格，记录每次饮用和冲煮方案，让日常里喝过的咖啡慢慢有迹可循。</p><h4>2.2.3 最新功能</h4><ul><li>冲煮完成与评分分成两个阶段，计时结束会自动保存参数并扣量</li><li>引用方案但暂未评价的记录会进入待评分，可稍后继续或直接标记无需评分</li><li>未使用冲煮方案时仍保持原有的一次保存流程</li></ul><div class="privacy-note"><b>离线与隐私</b><p>豆仓默认完全离线使用，数据保存在你的设备中。云同步为可选功能，仅在登录并开启后使用。</p><p>检查更新仅在你主动点击时联网，不会影响本地记录使用。</p></div></section>
+    <section class="about-copy"><h3>一包豆子，一段风味，一页日常。</h3><p>豆仓是一款为咖啡爱好者设计的本地优先记录工具。你可以保存每一包咖啡豆的产地、风味与价格，记录每次饮用和冲煮方案，让日常里喝过的咖啡慢慢有迹可循。</p><h4>2.2.4 最新功能</h4><ul><li>饮用详情照片支持点击查看原图</li><li>饮用记录可生成带评价和手账照片的分享卡片</li><li>搜索移入顶部，数据备份弹窗优化分区留白</li></ul><div class="privacy-note"><b>离线与隐私</b><p>豆仓默认完全离线使用，数据保存在你的设备中。云同步为可选功能，仅在登录并开启后使用。</p><p>检查更新仅在你主动点击时联网，不会影响本地记录使用。</p></div></section>
   </dialog>
 
   <dialog class="sheet compact" id="migrationDialog">

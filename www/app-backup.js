@@ -172,11 +172,24 @@
     async function importText(text) { const imported = core.validateImport(JSON.parse(text)); const scope = backupScope(imported.exportScope); const summary = backupSummary(scope, imported); const mode = chooseImportMode(scope, summary); if (!mode) return; const restored = await restoreBackupImages(imported); await repository.importData(restored, mode); await reload(); setDialog(els.backup, false); setDialog(els.settings, false); setDialog(els.personal, false); toast(`${mode === 'merge' ? '已合并' : '已导入'}${backupScopes[scope].title}`); }
     async function startImport(scope) { try { state.importScope = backupScope(scope); if (repository.isNative()) { const text = await pickNativeBackup(); if (text) await importText(text); } else $('#webImportInput').click(); } catch (error) { console.error(error); toast(error.message || '导入失败，文件格式不正确'); } }
     async function webImport(event) { const file = event.target.files[0]; event.target.value = ''; if (!file) return; try { await importText(await file.text()); } catch (error) { toast(error.message || '导入失败，文件格式不正确'); } }
+    async function loadMockData() {
+      if (!['localhost', '127.0.0.1'].includes(location.hostname)) return;
+      if (!confirmFn('载入 Mock 数据会覆盖当前浏览器中的豆仓、饮用记录、方案和设置。继续吗？')) return;
+      try {
+        const response = await fetch('mock/demo-backup.json', { cache: 'no-store' });
+        if (!response.ok) throw new Error(`Mock 数据读取失败 (${response.status})`);
+        const imported = core.validateImport(await response.json());
+        await repository.importData(imported, 'replace');
+        await reload();
+        setDialog(els.backup, false); setDialog(els.personal, false);
+        toast(`已载入 ${imported.beans.length} 款豆、${imported.drinkLogs.length} 杯 Mock 记录`);
+      } catch (error) { console.error(error); toast(error.message || 'Mock 数据载入失败'); }
+    }
     async function offerMigration() { if (state.beans.length) return; const legacy = repository.legacyData(); if (!legacy) return; $('#migrationMessage').textContent = `发现 ${legacy.beans.length} 条旧版浏览器记录。是否迁移到 SQLite？原数据不会被删除。`; setDialog(els.migration, true); }
     async function migrateLegacy() { const legacy = repository.legacyData(); if (!legacy) return setDialog(els.migration, false); try { await repository.replaceAll(legacy.beans); await reload(); setDialog(els.migration, false); toast(`已迁移 ${legacy.beans.length} 条记录`); } catch (_) { toast('迁移失败，旧数据仍保持不变'); } }
 
     // backupScope/backupSummary/chooseImportMode/base64ToBlob 一并导出,供 Node 测试。
-    return { exportBackup, startImport, webImport, importText, offerMigration, migrateLegacy, backupScope, backupSummary, chooseImportMode, hasCurrentImportTarget, base64ToBlob, decodeBase64 };
+    return { exportBackup, startImport, webImport, importText, loadMockData, offerMigration, migrateLegacy, backupScope, backupSummary, chooseImportMode, hasCurrentImportTarget, base64ToBlob, decodeBase64 };
   }
 
   return { create };
