@@ -2,6 +2,13 @@
 
 本项目采用 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式，并遵循语义化版本。
 
+## [2.2.6] - 2026-07-11
+
+### Changed
+
+- 关于页保留「收藏咖啡，也收藏与咖啡相处的时间」品牌标题，并恢复原有的完整产品功能介绍。
+- Android 版本更新为 `versionName 2.2.6`、`versionCode 54`。
+
 ## [2.2.5] - 2026-07-11
 
 ### Added
