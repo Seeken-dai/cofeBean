@@ -16,7 +16,7 @@ import { collectGarbage, parsePayloadShas, purgeUserPrefix, sweepOrphanImages } 
 
 const SYNC_PROTOCOL = 1;
 const TYPES = ['bean', 'drinkLog', 'brewPlan'];
-const ALLOWED_ORIGINS = ['https://app.cofevault.top', 'https://cofebean.pages.dev', 'http://localhost:4173', 'http://127.0.0.1:4173', 'http://localhost:4178', 'http://127.0.0.1:4178', 'http://localhost', 'capacitor://localhost'];
+const ALLOWED_ORIGINS = ['https://app.cofevault.top', 'https://cofebean.pages.dev', 'http://localhost:4173', 'http://127.0.0.1:4173', 'http://localhost:4178', 'http://127.0.0.1:4178', 'http://localhost', 'https://localhost', 'capacitor://localhost'];
 const SESSION_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 // last_seen 只用于 90 天 TTL 滑动,按小时粒度刷新即可;避免每个同步请求都写一次 D1。
 const LAST_SEEN_REFRESH_MS = 60 * 60 * 1000;
