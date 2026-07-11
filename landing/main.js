@@ -203,6 +203,66 @@
     }
   })();
 
+  // ----- feature rail auto-advance (only while the grid is a horizontal snap rail) -----
+  (function initFeatureRail() {
+    var rail = document.querySelector('.feature-grid');
+    if (!rail) return;
+    var cards = Array.prototype.slice.call(rail.querySelectorAll('.feature'));
+    if (cards.length < 2 || !rail.scrollTo) return;
+    var mq = window.matchMedia('(max-width: 900px)');
+    var reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+    var timer = null, paused = false, resumeT = null;
+
+    function centerIndex() {
+      var mid = rail.getBoundingClientRect().left + rail.clientWidth / 2;
+      var best = 0, bestD = Infinity;
+      for (var i = 0; i < cards.length; i++) {
+        var r = cards[i].getBoundingClientRect();
+        var d = Math.abs((r.left + r.right) / 2 - mid);
+        if (d < bestD) { bestD = d; best = i; }
+      }
+      return best;
+    }
+    function scrollToCard(i) {
+      var card = cards[i];
+      var delta = card.getBoundingClientRect().left - rail.getBoundingClientRect().left;
+      var target = rail.scrollLeft + delta - (rail.clientWidth - card.clientWidth) / 2;
+      rail.scrollTo({ left: target, behavior: 'smooth' });
+    }
+    function advance() {
+      if (paused) return;
+      var next = centerIndex() + 1;
+      if (next > cards.length - 1) next = 0;
+      scrollToCard(next);
+    }
+    function stop() { if (timer) { window.clearInterval(timer); timer = null; } }
+    function start() {
+      stop();
+      if (reduce.matches) return;
+      timer = window.setInterval(advance, 4000);
+    }
+    // manual interaction pauses briefly, then auto-advance resumes from where it landed
+    function pauseAwhile() {
+      paused = true;
+      if (resumeT) window.clearTimeout(resumeT);
+      resumeT = window.setTimeout(function () { paused = false; }, 6000);
+    }
+    rail.addEventListener('pointerdown', pauseAwhile);
+    rail.addEventListener('touchstart', pauseAwhile, { passive: true });
+    rail.addEventListener('wheel', pauseAwhile, { passive: true });
+    rail.addEventListener('mouseenter', function () { paused = true; });
+    rail.addEventListener('mouseleave', function () { paused = false; });
+    document.addEventListener('visibilitychange', function () { if (document.hidden) paused = true; });
+
+    function sync() {
+      if (mq.matches) { start(); }
+      else { stop(); rail.scrollLeft = 0; }
+    }
+    if (mq.addEventListener) mq.addEventListener('change', sync);
+    else if (mq.addListener) mq.addListener(sync);
+    sync();
+  })();
+
   // ----- live version from latest GitHub release -----
   (function fetchVersion() {
     var el = document.getElementById('appVersion');

@@ -259,8 +259,39 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 700; line-height: 1.2; marg
 /* ===== Features ===== */
 .feature-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 18px;
+}
+/* mobile/tablet: swap the 3×3 grid for a horizontal snap rail so 9 cards
+   neither leave an orphan row nor force a very long vertical scroll */
+.rail-hint { display: none; }
+@media (max-width: 900px) {
+  .feature-grid {
+    grid-auto-flow: column;
+    grid-template-columns: none;
+    grid-auto-columns: min(78vw, 300px);
+    gap: 14px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding: 4px 2px 14px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--accent) 55%, transparent) transparent;
+  }
+  .feature-grid > .feature { scroll-snap-align: center; }
+  .feature-grid::-webkit-scrollbar { height: 6px; }
+  .feature-grid::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--accent) 55%, transparent);
+    border-radius: 999px;
+  }
+  .rail-hint {
+    display: block;
+    margin: 2px 0 0;
+    text-align: center;
+    font-size: 13px;
+    color: var(--faint);
+    letter-spacing: 0.04em;
+  }
 }
 .feature {
   padding: 26px 24px;
