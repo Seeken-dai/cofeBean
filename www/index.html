@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#1a1412">
   <meta name="color-scheme" content="dark light">
   <title>豆仓</title>
-  <link rel="stylesheet" href="styles.css?v=2.2.2">
+  <link rel="stylesheet" href="styles.css?v=2.2.3">
   <style>
     #aboutDialog .about-actions { display:flex; align-items:center; justify-content:center; gap:8px; color:var(--faint); font-size:12px; }
     #aboutDialog .about-actions .text-link-button { width:auto; min-width:0; min-height:0; padding:2px; border:0; border-radius:0; background:transparent; box-shadow:none; color:var(--accent); font:700 12px/1 inherit; text-decoration:underline; text-underline-offset:4px; }
@@ -81,6 +81,7 @@
         <article class="stat"><strong id="drinkAverage">—</strong><span>平均评分</span></article>
       </section>
       <section class="drink-trend" id="drinkTrend" hidden></section>
+      <section class="pending-tastings" id="pendingTastings" hidden></section>
       <section class="timeline" id="globalDrinkList" aria-live="polite"></section>
       <section class="empty-state" id="drinkEmpty" hidden><div class="empty-bag" aria-hidden="true"><svg viewBox="0 0 1024 1024"><path d="M861.866667 179.2l4.266666 4.266667c59.733333 68.266667 85.333333 157.866667 68.266667 245.333333-25.6 125.866667-85.333333 238.933333-174.933333 328.533333-89.6 89.6-204.8 151.466667-328.533334 174.933334-17.066667 4.266667-36.266667 4.266667-53.333333 4.266666-74.666667 0-149.333333-29.866667-202.666667-85.333333-2.133333-2.133333-4.266667-6.4-8.533333-8.533333l-4.266667-4.266667c-59.733333-68.266667-85.333333-157.866667-68.266666-245.333333 25.6-125.866667 85.333333-238.933333 174.933333-328.533334 89.6-89.6 204.8-151.466667 328.533333-174.933333 91.733333-17.066667 187.733333 12.8 256 81.066667l8.533334 8.533333z m-12.8 232.533333c8.533333-38.4 2.133333-78.933333-12.8-115.2-78.933333 134.4-194.133333 194.133333-305.066667 253.866667-115.2 59.733333-224 117.333333-288 253.866667 46.933333 40.533333 108.8 57.6 168.533333 44.8 108.8-21.333333 206.933333-74.666667 285.866667-151.466667s130.133333-177.066667 151.466667-285.866667zM174.933333 612.266667c-8.533333 38.4-2.133333 78.933333 12.8 115.2 78.933333-134.4 194.133333-194.133333 305.066667-253.866667 115.2-59.733333 224-117.333333 288-253.866667C744.533333 187.733333 697.6 170.666667 650.666667 170.666667c-12.8 0-25.6 2.133333-38.4 4.266666-108.8 21.333333-206.933333 74.666667-285.866667 151.466667-76.8 78.933333-130.133333 177.066667-151.466667 285.866667z" fill="currentColor"/></svg></div><h2>还没有饮用记录</h2><p>可以从豆仓扣量，也可以记一笔外饮。</p><div class="empty-actions"><button class="primary-button" data-drink-empty-action="bean" type="button">从豆仓记一杯</button><button class="secondary-button" data-drink-empty-action="external" type="button">记一笔外饮</button></div></section>
     </section>
@@ -187,6 +188,7 @@
       <section class="profile-facts" id="detailFacts"></section>
       <section class="profile-images" id="detailImages" hidden></section>
       <section class="profile-notes" id="detailNotesSection"><span>风味笔记</span><p id="detailNotes"></p></section>
+      <section class="pending-tastings pending-tastings--detail" id="detailPendingTastings" hidden></section>
       <section class="bean-history profile-history"><div class="section-heading"><div><span>饮用时间线</span><small id="detailHistorySummary"></small></div></div><div class="timeline compact-timeline" id="detailDrinkHistory"></div></section>
     </div>
   </dialog>
@@ -323,7 +325,7 @@
     </form>
   </dialog>
 
-  <dialog class="sheet" id="drinkDialog">
+  <dialog class="sheet drink-dialog" id="drinkDialog">
     <form id="drinkForm" method="dialog">
       <header class="sheet-header"><div><p class="eyebrow">BREW LOG</p><h2 id="drinkTitle">喝一杯</h2><p class="sheet-subtitle" id="drinkBeanMeta"></p></div><button class="icon-button" id="drinkClose" type="button" aria-label="关闭">×</button></header>
       <div class="form-grid">
@@ -371,13 +373,14 @@
           </div>
         </section>
         <label class="field full"><span>饮用时间</span><input id="drink-time" name="consumedAt" class="picker-control" data-picker-kind="datetime" type="text" readonly required placeholder="选择日期与时间"></label>
-        <fieldset class="rating-field full"><legend>整体评分（可留空）</legend><div class="rating-row" id="overallRating" data-rating-name="overallRating"></div></fieldset>
-        <section class="image-vault full" id="drinkPhotoVault"></section>
+        <section class="tasting-summary tasting-visible full" id="drinkTastingSummary" hidden></section>
+        <fieldset class="rating-field tasting-visible full"><legend>整体评分（可留空）</legend><div class="rating-row" id="overallRating" data-rating-name="overallRating"></div></fieldset>
+        <section class="image-vault tasting-visible full" id="drinkPhotoVault"></section>
         <section class="feature-hint full" id="drinkFeatureHint" hidden></section>
-        <section class="advanced-ratings full" id="advancedRatingSection" hidden><div class="section-heading"><div><span>高级评价</span><small>笑脸越多越满意；苦涩感的哭脸越多越明显</small></div></div><div id="dimensionRatings"></div></section>
-        <label class="field full"><span>评价备注</span><textarea id="drink-notes" name="notes" maxlength="2000" rows="4" placeholder="这杯的香气、风味变化，或下次想调整的参数…"></textarea></label>
+        <section class="advanced-ratings tasting-visible full" id="advancedRatingSection" hidden><div class="section-heading"><div><span>高级评价</span><small>笑脸越多越满意；苦涩感的哭脸越多越明显</small></div></div><div id="dimensionRatings"></div></section>
+        <label class="field tasting-visible full"><span>评价备注</span><textarea id="drink-notes" name="notes" maxlength="2000" rows="4" placeholder="这杯的香气、风味变化，或下次想调整的参数…"></textarea></label>
       </div>
-      <footer class="sheet-footer"><button class="danger-button" id="deleteDrink" type="button">删除记录</button><div><button class="secondary-button" id="drinkCancel" type="button">取消</button><button class="secondary-button assist-footer-button" id="drinkStartAssist" type="button" hidden>冲煮辅助</button><button class="primary-button" id="saveDrink" type="submit">保存并扣量</button></div></footer>
+      <footer class="sheet-footer"><button class="danger-button" id="deleteDrink" type="button">删除记录</button><div><button class="secondary-button" id="drinkCancel" type="button">取消</button><button class="secondary-button" id="drinkEditFull" type="button" hidden>编辑完整记录</button><button class="secondary-button assist-footer-button" id="drinkStartAssist" type="button" hidden>冲煮辅助</button><button class="primary-button" id="saveDrink" type="submit">保存并扣量</button></div></footer>
     </form>
   </dialog>
 
@@ -525,6 +528,7 @@
       </div>
     </section>
     <section class="assist-complete" id="brewAssistComplete" hidden>
+      <div class="assist-confetti" id="brewAssistConfetti" aria-hidden="true"></div>
       <div class="assist-trophy" aria-hidden="true">✓</div>
       <h3>本次冲煮完成</h3>
       <p id="brewAssistResultMeta"></p>
@@ -543,13 +547,13 @@
 
   <dialog class="sheet compact" id="aboutDialog">
     <header class="sheet-header"><div><p class="eyebrow">ABOUT</p><h2>关于豆仓</h2></div><button class="icon-button" id="aboutClose" type="button" aria-label="关闭">×</button></header>
-    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 2.2.2</p></section>
+    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 2.2.3</p></section>
     <section class="about-update" aria-live="polite">
       <div class="about-actions"><button class="text-link-button" id="aboutCheckUpdate" type="button">检查更新</button><span aria-hidden="true">·</span><button class="text-link-button" id="aboutOpenReleases" type="button">查看发布页</button></div>
       <div class="update-status" id="updateStatus" hidden></div>
       <button class="primary-button update-download" id="aboutDownloadUpdate" type="button" hidden>前往下载</button>
     </section>
-    <section class="about-copy"><h3>一包豆子，一段风味，一页日常。</h3><p>豆仓是一款为咖啡爱好者设计的本地优先记录工具。你可以保存每一包咖啡豆的产地、风味与价格，记录每次饮用和冲煮方案，让日常里喝过的咖啡慢慢有迹可循。</p><h4>2.2.2 最新功能</h4><ul><li>克重、粉水比、水温等高频数字改用底部滚轮面板，点中央数字可切换系统键盘精确输入</li><li>冲煮时长与注水节点改为分秒双列滚轮；价格、赏味期等低频数字改用 − / + 步进器，可长按连续调整</li><li>摩卡壶规格改为 1/2/3/4/6/9 杯份选择，并保留自定义输入</li></ul><div class="privacy-note"><b>离线与隐私</b><p>豆仓默认完全离线使用，数据保存在你的设备中。云同步为可选功能，仅在登录并开启后使用。</p><p>检查更新仅在你主动点击时联网，不会影响本地记录使用。</p></div></section>
+    <section class="about-copy"><h3>一包豆子，一段风味，一页日常。</h3><p>豆仓是一款为咖啡爱好者设计的本地优先记录工具。你可以保存每一包咖啡豆的产地、风味与价格，记录每次饮用和冲煮方案，让日常里喝过的咖啡慢慢有迹可循。</p><h4>2.2.3 最新功能</h4><ul><li>冲煮完成与评分分成两个阶段，计时结束会自动保存参数并扣量</li><li>引用方案但暂未评价的记录会进入待评分，可稍后继续或直接标记无需评分</li><li>未使用冲煮方案时仍保持原有的一次保存流程</li></ul><div class="privacy-note"><b>离线与隐私</b><p>豆仓默认完全离线使用，数据保存在你的设备中。云同步为可选功能，仅在登录并开启后使用。</p><p>检查更新仅在你主动点击时联网，不会影响本地记录使用。</p></div></section>
   </dialog>
 
   <dialog class="sheet compact" id="migrationDialog">

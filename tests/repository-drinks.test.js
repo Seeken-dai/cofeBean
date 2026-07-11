@@ -39,6 +39,20 @@ test('drink save, edit and delete adjust inventory atomically in web fallback', 
   delete global.window; delete global.localStorage;
 });
 
+test('pending tasting updates the same drink without deducting inventory twice', async () => {
+  const repo = loadRepository();
+  const bean = core.normalizeBean({ id: 'bean-tasting', name: '待评分豆', initialWeight: 100, remainingWeight: 100 });
+  await repo.save(bean);
+  const pending = await repo.saveDrinkLog({ beanId: bean.id, beanName: bean.name, grams: 15, brewMethod: '手冲', tastingStatus: 'pending' });
+  assert.equal(pending.tastingStatus, 'pending');
+  assert.equal((await repo.getAll())[0].remainingWeight, 85);
+  const completed = await repo.saveDrinkLog({ ...pending, tastingStatus: 'completed', overallRating: 4, notes: '柑橘与蜂蜜' });
+  assert.equal(completed.id, pending.id);
+  assert.equal(completed.tastingStatus, 'completed');
+  assert.equal((await repo.getAll())[0].remainingWeight, 85);
+  delete global.window; delete global.localStorage;
+});
+
 test('insufficient inventory rolls back and deleting bean preserves snapshot history', async () => {
   const repo = loadRepository();
   const bean = core.normalizeBean({ id: 'bean-two', name: '豆二', initialWeight: 10, remainingWeight: 10 });

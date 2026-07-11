@@ -29,6 +29,10 @@ test('sync-transport: domain records convert to worker envelopes and back', () =
   assert.equal(restored.name, '豆');
   assert.equal(restored.revision, 3);
   assert.equal(restored.deviceId, 'dev-a');
+
+  const pendingLog = core.normalizeDrinkLog({ id: 'l1', beanId: 'b1', beanName: '豆', grams: 15, tastingStatus: 'pending' });
+  const restoredLog = transport.fromEnvelope(core, transport.toEnvelope('drinkLog', pendingLog));
+  assert.equal(restoredLog.tastingStatus, 'pending');
 });
 
 test('sync-transport: pull adds auth header and normalizes worker envelopes', async () => {

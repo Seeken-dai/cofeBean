@@ -56,7 +56,7 @@ test('native reads use the existing read/write SQLite connection', async () => {
   const migrations = calls.filter(([name]) => name === 'execute').map(([, options]) => options.statements).join('\n');
   const query = calls.find(([name]) => name === 'query')[1];
   assert.equal(create.readonly, false);
-  assert.equal(create.version, 9);
+  assert.equal(create.version, 10);
   assert.match(migrations, /opened_date/);
   assert.match(migrations, /bag_image_path/);
   assert.match(migrations, /label_image_path/);
@@ -66,7 +66,8 @@ test('native reads use the existing read/write SQLite connection', async () => {
   assert.match(migrations, /brew_plan_snapshot/);
   assert.match(migrations, /ALTER TABLE beans ADD COLUMN deleted_at/);
   assert.match(migrations, /ALTER TABLE drink_logs ADD COLUMN revision/);
-  assert.match(migrations, /user_version = 9/);
+  assert.match(migrations, /ALTER TABLE drink_logs ADD COLUMN tasting_status/);
+  assert.match(migrations, /user_version = 10/);
   assert.equal(query.readonly, false);
   cleanupNativeRepository();
 });

@@ -57,17 +57,18 @@ test('filterAndSort searches multiple fields and sorts remaining weight or unit 
 
 test('backup round trip validates schema and duplicate ids', () => {
   const beans = [core.normalizeBean({ id: 'one', name: '豆一', labelImagePath: 'file:///label.jpg', purchaseUrl: 'https://shop.example.com/beans/one' })];
-  const logs = [core.normalizeDrinkLog({ id: 'cup-one', beanId: 'one', beanName: '豆一', grams: 15, brewMethod: '手冲' })];
+  const logs = [core.normalizeDrinkLog({ id: 'cup-one', beanId: 'one', beanName: '豆一', grams: 15, brewMethod: '手冲', tastingStatus: 'pending' })];
   const plans = [core.normalizeBrewPlan({ id: 'plan-one', name: '三段式', brewMethod: '手冲', beanIds: ['one'], dose: 15 })];
   const backup = core.createBackup(beans, logs, { quickGrams: 18 }, '2026-01-01T00:00:00.000Z', plans);
   const imported = core.validateImport(backup);
   assert.equal(backup.appVersion, pkg.version);
-  assert.equal(backup.schemaVersion, 6);
+  assert.equal(backup.schemaVersion, 7);
   assert.equal(imported.exportScope, 'all');
   assert.equal(imported.beans[0].name, '豆一');
   assert.equal(imported.beans[0].labelImagePath, 'file:///label.jpg');
   assert.equal(imported.beans[0].purchaseUrl, 'https://shop.example.com/beans/one');
   assert.equal(imported.drinkLogs[0].grams, 15);
+  assert.equal(imported.drinkLogs[0].tastingStatus, 'pending');
   assert.equal(imported.brewPlans[0].name, '三段式');
   assert.equal(imported.settings.quickGrams, 18);
   const legacy = core.validateImport({ schemaVersion: 1, beans });

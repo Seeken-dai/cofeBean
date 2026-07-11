@@ -5,7 +5,7 @@
 //   core                                          —— BeanCore(normalizeBrewPlan/prepareBrewAssistSteps/brewAssistStatus)
 //   toast / setDialog                             —— app.js 工具
 //   esc / formatWeight / durationText             —— AppFormat 纯函数
-//   setDurationControl / syncRatioValue / syncDurationField —— 表单联动(回填用)
+//   syncRatioValue / syncDurationField —— 启动辅助前同步表单值
 //   currentDrinkMethod / selectedDrinkPlan / drinkParamSnapshot / openPlanDetail —— 喝一杯/方案页入口与返回
 (function (root, factory) {
   const api = factory();
@@ -15,7 +15,7 @@
   'use strict';
 
   function create(deps) {
-    const { $, $$, state, els, core, toast, setDialog, esc, formatWeight, durationText, setDurationControl, syncRatioValue, syncDurationField, currentDrinkMethod, selectedDrinkPlan, drinkParamSnapshot, openPlanDetail } = deps;
+    const { $, $$, state, els, core, toast, setDialog, esc, formatWeight, durationText, syncRatioValue, syncDurationField, currentDrinkMethod, selectedDrinkPlan, drinkParamSnapshot, openPlanDetail, saveAssistDrink, openTastingById } = deps;
     ['$', '$$', 'state', 'els', 'core', 'toast', 'setDialog', 'esc', 'formatWeight', 'durationText'].forEach((key) => {
       if (!deps[key]) throw new Error(`AppBrewAssist.create 缺少依赖:${key}`);
     });
@@ -40,23 +40,81 @@
       if (assistTimer) cancelAnimationFrame(assistTimer);
       assistTimer = null;
     }
-    function showAssistComplete(elapsed) {
+    // 纸带礼炮：从顶部奖杯（✓）两侧向中间上方喷射，在中央交汇成拱形后受重力洒落。
+    function launchConfetti() {
+      const host = $('#brewAssistConfetti');
+      if (!host) return;
+      const colors = ['#d4a574', '#78a67f', '#e4c45e', '#d9736a', '#8aa6c1', '#e8b04b'];
+      const perSide = 15;
+      const pieces = [];
+      for (let s = 0; s < 2; s++) {
+        const dir = s === 0 ? 1 : -1; // 左炮向右（中间），右炮向左（中间）
+        const side = s === 0 ? 'left' : 'right';
+        for (let i = 0; i < perSide; i++) {
+          const t = i / (perSide - 1);                 // 0..1，决定扇形张开角度
+          const spread = 150 + t * 165;                // 从两侧边缘大跨度冲向中央
+          const rise = 45 + Math.sin(t * Math.PI) * 62 + (i % 3) * 12; // 中等上扬，交汇于奖杯上方
+          const mx = Math.round(dir * spread);
+          const my = -Math.round(rise);
+          const ex = Math.round(dir * spread * 0.92);  // 交汇后略收，向下洒落
+          const ey = 190 + (i % 5) * 34;               // 受重力洒落穿过文字区
+          const long = i % 3 === 0;                     // 掺入细长纸带
+          const w = long ? 4 : 7;
+          const h = long ? 17 : 11;
+          const r1 = dir * (110 + i * 14);
+          const r2 = dir * (360 + i * 46);
+          const delay = (i % 5) * 26;
+          const color = colors[(s * perSide + i) % colors.length];
+          pieces.push(`<i class="${side}" style="--mx:${mx}px;--my:${my}px;--ex:${ex}px;--ey:${ey}px;--r1:${r1}deg;--r2:${r2}deg;--cw:${w}px;--ch:${h}px;--confetti-delay:${delay}ms;background:${color}"></i>`);
+        }
+      }
+      host.innerHTML = pieces.join('');
+      host.classList.remove('is-active');
+      void host.offsetWidth;
+      host.classList.add('is-active');
+    }
+    async function saveCompletedDrink(assist) {
+      if (!assist || assist.saving || assist.savedLogId || typeof saveAssistDrink !== 'function') return;
+      assist.saving = true;
+      $('#brewAssistResultMeta').textContent = '正在保存冲煮参数并扣减豆量…';
+      $('#brewAssistFinish').hidden = false;
+      $('#brewAssistFinish').disabled = true;
+      $('#brewAssistFinish').textContent = '正在保存';
+      const saved = await saveAssistDrink(assist.completedElapsed);
+      if (state.brewAssist !== assist) return;
+      assist.saving = false;
+      $('#brewAssistFinish').disabled = false;
+      if (!saved) {
+        $('#brewAssistResultMeta').textContent = '保存没有完成，请重试；豆量不会重复扣减。';
+        $('#brewAssistFinish').textContent = '重试保存';
+        return;
+      }
+      assist.savedLogId = saved.id;
+      $('#brewAssistResultMeta').textContent = '冲煮已保存。现在可以评分，也可以先放下手机喝咖啡。';
+      $('#brewAssistPause').hidden = false;
+      $('#brewAssistPause').textContent = '先去喝';
+      $('#brewAssistFinish').textContent = '现在评分';
+    }
+    async function showAssistComplete(elapsed) {
       const assist = state.brewAssist;
       if (!assist) return;
       assist.completed = true;
       assist.completedElapsed = Math.max(0, elapsed || assistElapsed());
       stopAssistTimer();
+      releaseWakeLock();
       $('#brewAssistRunning').hidden = true;
       $('#brewAssistComplete').hidden = false;
-      $('#brewAssistResultMeta').textContent = assist.source === 'drink' ? '可回填到「喝一杯」继续评价。' : '本次辅助不会生成饮用记录。';
+      launchConfetti();
+      $('#brewAssistResultMeta').textContent = assist.source === 'drink' ? '正在保存冲煮参数并扣减豆量…' : '本次辅助不会生成饮用记录。';
       $('#brewAssistResultDuration').textContent = durationText(assist.completedElapsed, 'minute');
       $('#brewAssistResultWater').textContent = assistTotalWater(assist.plan);
       $('#brewAssistResultPlan').textContent = assist.plan.name || '未命名方案';
       $('#brewAssistResultSteps').textContent = `${assist.steps.length} 段`;
       $('#brewAssistPause').hidden = true;
       $('#brewAssistSkip').hidden = true;
-      $('#brewAssistFinish').textContent = assist.source === 'drink' ? '回填并继续记录' : '完成';
+      $('#brewAssistFinish').textContent = assist.source === 'drink' ? '正在保存' : '完成';
       $('#brewAssistFinish').classList.remove('assist-finish-emphasis');
+      if (assist.source === 'drink') await saveCompletedDrink(assist);
     }
     // 圆环中心突出「本段注水量」；无水量时回退显示占位。
     function setAssistWater(step) {
@@ -199,12 +257,14 @@
       const steps = core.prepareBrewAssistSteps(normalized.steps);
       if (normalized.brewMethod !== '手冲') return toast('第一版冲煮辅助仅支持手冲');
       if (!steps.length) return toast('这个方案还没有可计时的分段步骤');
-      state.brewAssist = { source, plan: normalized, beanName: beanName || '', steps, total: steps[steps.length - 1].end, phase: 'ready', countdownStartedAt: null, startedAt: null, elapsed: 0, paused: false, completed: false, completedElapsed: 0, renderedStepIndex: null };
+      state.brewAssist = { source, plan: normalized, beanName: beanName || '', steps, total: steps[steps.length - 1].end, phase: 'ready', countdownStartedAt: null, startedAt: null, elapsed: 0, paused: false, completed: false, completedElapsed: 0, savedLogId: null, saving: false, renderedStepIndex: null };
       $('#brewAssistRunning').hidden = false;
       $('#brewAssistComplete').hidden = true;
       $('#brewAssistPause').hidden = false;
       $('#brewAssistSkip').hidden = true;
       $('#brewAssistPause').textContent = '开始';
+      $('#brewAssistFinish').hidden = false;
+      $('#brewAssistFinish').disabled = false;
       $('#brewAssistFinish').textContent = '退出';
       $('#brewAssistFinish').classList.remove('assist-finish-emphasis');
       if (source === 'drink') setDialog(els.drink, false);
@@ -229,7 +289,11 @@
     }
     function pauseBrewAssist() {
       const assist = state.brewAssist;
-      if (!assist || assist.completed) return;
+      if (!assist) return;
+      if (assist.completed && assist.savedLogId) {
+        setDialog(els.brewAssist, false); state.brewAssist = null; return;
+      }
+      if (assist.completed) return;
       if (assist.phase === 'ready') {
         assist.phase = 'countdown';
         assist.countdownStartedAt = Date.now();
@@ -260,32 +324,32 @@
       assist.startedAt = assist.paused ? null : Date.now();
       renderAssist();
     }
-    function finishBrewAssist() {
+    async function finishBrewAssist() {
       const assist = state.brewAssist;
       if (!assist) return;
       if (assist.phase === 'ready') return cancelBrewAssist();
       if (!assist.completed) return showAssistComplete(assistElapsed());
-      setDialog(els.brewAssist, false);
-      stopAssistTimer();
-      releaseWakeLock();
       if (assist.source === 'drink') {
-        $('#drink-param-targetDuration').value = durationText(assist.completedElapsed, 'minute');
-        const durationField = $('[data-duration-target="drink-param-targetDuration"]', els.drinkForm);
-        if (durationField) setDurationControl(durationField, $('#drink-param-targetDuration').value);
-        toast('已回填冲煮时长，可继续评价');
-        setDialog(els.drink, true);
+        if (!assist.savedLogId) {
+          return saveCompletedDrink(assist);
+        }
+        const id = assist.savedLogId;
+        setDialog(els.brewAssist, false); state.brewAssist = null;
+        if (typeof openTastingById === 'function') openTastingById(id);
       } else {
+        setDialog(els.brewAssist, false); stopAssistTimer(); releaseWakeLock();
         const plan = state.brewPlans.find((item) => item.id === state.viewingPlanId);
         if (plan) openPlanDetail(plan);
+        state.brewAssist = null;
       }
-      state.brewAssist = null;
     }
     function cancelBrewAssist() {
       const assist = state.brewAssist;
+      if (assist && assist.saving) return toast('正在保存冲煮记录，请稍候');
       setDialog(els.brewAssist, false);
       stopAssistTimer();
       releaseWakeLock();
-      if (assist && assist.source === 'drink') setDialog(els.drink, true);
+      if (assist && assist.source === 'drink' && !assist.savedLogId) setDialog(els.drink, true);
       if (assist && assist.source === 'plan') {
         const plan = state.brewPlans.find((item) => item.id === state.viewingPlanId);
         if (plan) openPlanDetail(plan);

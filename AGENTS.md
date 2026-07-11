@@ -3,7 +3,7 @@
 ## 项目背景
 
 - 豆仓 Coffee Vault 是本地优先的个人咖啡豆管理 App，含 Android 与 Web 两端：默认完全离线、本地存储；同步线（2.0.0）提供可选的跨设备云同步（默认关闭、登录后启用）。1.x 本地优先线作为独立 `release/1.x-local-first` 分支继续维护，不联网、便于免备案分发。
-- 当前版本为 `2.2.2`，Android `versionCode 50`，正式产物路径为 `dist/coffee-vault-2.2.2-release.apk`。
+- 当前版本为 `2.2.3`，Android `versionCode 51`，正式产物路径为 `dist/coffee-vault-2.2.3-release.apk`。
 - 正式数据保存在应用私有 SQLite 数据库；Web 预览只用于开发，不代表真实设备存储行为。
 - 默认离线使用不需要账号、网络、相册或存储权限；拍照识别只应申请相机权限。同步线的 Android 版本如接入云同步，需要新增 `INTERNET` 权限并在阶段 5 真机验证。
 - 数据安全优先于功能速度：导入失败必须回滚，数据库升级必须保留旧数据。

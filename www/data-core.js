@@ -11,7 +11,7 @@
     throw new Error('缺少 BeanSyncCompare:sync-compare.js 必须先于 data-core.js 加载');
   }
 
-  const SCHEMA_VERSION = 6;
+  const SCHEMA_VERSION = 7;
   const DIMENSION_KEYS = ['aroma', 'acidity', 'sweetness', 'body', 'aftertaste', 'balance', 'bitterness'];
   const BREW_METHODS = ['手冲', '冷萃', '冰滴', '意式', '法压', '摩卡壶', '爱乐压', '聪明杯', '虹吸', '自定义'];
   const PLAN_SOURCES = new Set(['user', 'preset', 'copy']);
@@ -342,6 +342,25 @@
     return Number.isFinite(n) && n >= 1 && n <= 5 ? n : null;
   }
 
+  function hasTastingContent(input) {
+    const source = input && typeof input === 'object' ? input : {};
+    const photos = safeJson(source.photos, []);
+    return Boolean(cleanRating(source.overallRating)
+      || cleanText(source.notes, 2000)
+      || (Array.isArray(photos) && photos.some(Boolean))
+      || DIMENSION_KEYS.some((key) => cleanRating(source[key])));
+  }
+
+  function resolveTastingStatus(input, context) {
+    const source = input && typeof input === 'object' ? input : {};
+    const options = context && typeof context === 'object' ? context : {};
+    if (options.forcePending) return 'pending';
+    if (options.completing) return 'completed';
+    const hasContent = hasTastingContent(source);
+    if (options.existingStatus === 'pending') return hasContent ? 'completed' : 'pending';
+    return options.isNew && source.brewPlanId && !hasContent ? 'pending' : 'completed';
+  }
+
   function normalizeDrinkLog(input, now) {
     const source = input && typeof input === 'object' ? input : {};
     const stamp = now || new Date().toISOString();
@@ -363,6 +382,7 @@
       drinkName: cleanText(source.drinkName, 120),
       price: cleanNumber(source.price),
       location: cleanText(source.location, 120),
+      tastingStatus: source.tastingStatus === 'pending' ? 'pending' : 'completed',
       overallRating: cleanRating(source.overallRating),
       notes: cleanText(source.notes, 2000),
       consumedAt: cleanText(source.consumedAt, 40) || stamp,
@@ -691,7 +711,7 @@
       exportScope,
       exportedAt: exportedAt || new Date().toISOString(),
       app: '豆仓',
-      appVersion: '2.2.2'
+      appVersion: '2.2.3'
     };
     if (exportScope === 'all' || exportScope === 'library') {
       payload.beans = (beans || []).map((bean) => normalizeBean(bean, bean.updatedAt));
@@ -1134,5 +1154,5 @@
     return series;
   }
 
-  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, prepareBrewAssistSteps, brewAssistStatus, resolveOpenedDate, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareAppVersions, isAppVersionNewer, selectReleaseApkAsset, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, flavorTags, beanFreshness, recentDrinkSeries, beanProcessKind };
+  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, hasTastingContent, resolveTastingStatus, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, prepareBrewAssistSteps, brewAssistStatus, resolveOpenedDate, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareAppVersions, isAppVersionNewer, selectReleaseApkAsset, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, flavorTags, beanFreshness, recentDrinkSeries, beanProcessKind };
 });

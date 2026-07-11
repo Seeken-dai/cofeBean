@@ -22,7 +22,7 @@ const BEAN_FIELDS = [
 ];
 const DRINK_LOG_FIELDS = [
   'id', 'beanId', 'beanName', 'grams', 'brewMethod', 'brewPlanId', 'brewPlanVersion',
-  'brewPlanName', 'brewPlanSnapshot', 'photos', 'source', 'cafeName', 'drinkName', 'price', 'location',
+  'brewPlanName', 'brewPlanSnapshot', 'photos', 'source', 'cafeName', 'drinkName', 'price', 'location', 'tastingStatus',
   'overallRating', 'notes', 'consumedAt', 'createdAt', 'updatedAt',
   'aroma', 'acidity', 'sweetness', 'body', 'aftertaste', 'balance', 'bitterness',
   'revision', 'deviceId', 'deletedAt'
@@ -83,6 +83,7 @@ test('contract: drinkLog 默认值与评分范围', () => {
   assert.equal(log.source, 'bean');
   assert.deepEqual(log.photos, []);
   assert.equal(log.brewMethod, '手冲');
+  assert.equal(log.tastingStatus, 'completed');
   assert.equal(log.overallRating, null);
   assert.equal(log.aroma, null);
 
@@ -91,6 +92,18 @@ test('contract: drinkLog 默认值与评分范围', () => {
   assert.equal(core.normalizeDrinkLog({ overallRating: 6 }).overallRating, null);
   assert.equal(core.normalizeDrinkLog({ overallRating: 0 }).overallRating, null);
   assert.equal(core.normalizeDrinkLog({ aroma: 4 }).aroma, 4);
+  assert.equal(core.normalizeDrinkLog({ tastingStatus: 'pending' }).tastingStatus, 'pending');
+  assert.equal(core.normalizeDrinkLog({ tastingStatus: 'unknown' }).tastingStatus, 'completed');
+  assert.equal(core.hasTastingContent({}), false);
+  assert.equal(core.hasTastingContent({ notes: '柑橘' }), true);
+  assert.equal(core.hasTastingContent({ photos: ['idb:cup'] }), true);
+  assert.equal(core.hasTastingContent({ sweetness: 4 }), true);
+  assert.equal(core.resolveTastingStatus({}, { isNew: true }), 'completed', '最简单记录不应产生待评分');
+  assert.equal(core.resolveTastingStatus({ brewPlanId: 'p1' }, { isNew: true }), 'pending', '引用方案且评分内容为空时应提醒');
+  assert.equal(core.resolveTastingStatus({ brewPlanId: 'p1', notes: '花香' }, { isNew: true }), 'completed');
+  assert.equal(core.resolveTastingStatus({}, { forcePending: true }), 'pending', '冲煮辅助强制进入待评分');
+  assert.equal(core.resolveTastingStatus({}, { existingStatus: 'pending' }), 'pending');
+  assert.equal(core.resolveTastingStatus({}, { completing: true, existingStatus: 'pending' }), 'completed', '允许空白完成评分');
 
   const external = core.normalizeDrinkLog({ source: 'external', beanId: 'b1', grams: 18, brewMethod: '手冲', cafeName: '街角店', drinkName: 'Flat White', price: 28, photos: ['a', 'b', 'c', 'd'] });
   assert.equal(external.beanId, null);

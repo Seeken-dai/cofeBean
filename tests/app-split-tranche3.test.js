@@ -97,6 +97,51 @@ test('brew-assist: 手冲含分段 → 建立进行态并进入 ready 阶段', (
   } finally { delete global.requestAnimationFrame; delete global.cancelAnimationFrame; }
 });
 
+test('brew-assist: 点结束后自动保存，并在同一完成页选择评分或先去喝', async () => {
+  global.requestAnimationFrame = () => 1; global.cancelAnimationFrame = () => {};
+  try {
+    const saved = [];
+    const plan = { brewMethod: '手冲', name: '测试方案', steps: [{ label: '注水', water: 225, startTime: '0:00', endTime: '1:30' }] };
+    const { api, state, $ } = createAssist({
+      drinkParamSnapshot: () => plan,
+      saveAssistDrink: async (elapsed) => { saved.push(elapsed); return { id: 'pending-log' }; }
+    });
+    api.openDrinkBrewAssist();
+    state.brewAssist.phase = 'running'; state.brewAssist.startedAt = Date.now() - 90000;
+    await api.finishBrewAssist();
+    assert.equal(state.brewAssist.completed, true);
+    assert.equal(saved.length, 1);
+    assert.equal(state.brewAssist.savedLogId, 'pending-log');
+    assert.equal($('#brewAssistFinish').textContent, '现在评分');
+    assert.equal($('#brewAssistPause').textContent, '先去喝');
+    assert.match($('#brewAssistConfetti').innerHTML, /class="left"/);
+    assert.match($('#brewAssistConfetti').innerHTML, /class="right"/);
+    api.pauseBrewAssist();
+    assert.equal(state.brewAssist, null);
+  } finally { delete global.requestAnimationFrame; delete global.cancelAnimationFrame; }
+});
+
+test('brew-assist: 自动保存失败时留在完成页并允许重试', async () => {
+  global.requestAnimationFrame = () => 1; global.cancelAnimationFrame = () => {};
+  try {
+    let attempts = 0;
+    const plan = { brewMethod: '手冲', name: '测试方案', steps: [{ label: '注水', water: 225, startTime: '0:00', endTime: '1:30' }] };
+    const { api, state, $ } = createAssist({
+      drinkParamSnapshot: () => plan,
+      saveAssistDrink: async () => { attempts += 1; return attempts === 1 ? null : { id: 'retry-log' }; }
+    });
+    api.openDrinkBrewAssist();
+    state.brewAssist.phase = 'running'; state.brewAssist.startedAt = Date.now() - 90000;
+    await api.finishBrewAssist();
+    assert.equal($('#brewAssistFinish').textContent, '重试保存');
+    assert.equal(state.brewAssist.savedLogId, null);
+    await api.finishBrewAssist();
+    assert.equal(attempts, 2);
+    assert.equal(state.brewAssist.savedLogId, 'retry-log');
+    assert.equal($('#brewAssistFinish').textContent, '现在评分');
+  } finally { delete global.requestAnimationFrame; delete global.cancelAnimationFrame; }
+});
+
 // ---- app-backup ----
 
 function createBackupApi(confirmAnswers, overrides) {
