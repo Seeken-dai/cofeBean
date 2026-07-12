@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#1a1412">
   <meta name="color-scheme" content="dark light">
   <title>豆仓</title>
-  <link rel="stylesheet" href="styles.css?v=2.2.7">
+  <link rel="stylesheet" href="styles.css?v=2.2.8">
   <style>
     #aboutDialog .about-actions { display:flex; align-items:center; justify-content:center; gap:8px; color:var(--faint); font-size:12px; }
     #aboutDialog .about-actions .text-link-button { width:auto; min-width:0; min-height:0; padding:2px; border:0; border-radius:0; background:transparent; box-shadow:none; color:var(--accent); font:700 12px/1 inherit; text-decoration:underline; text-underline-offset:4px; }
@@ -558,7 +558,7 @@
 
   <dialog class="sheet compact" id="aboutDialog">
     <header class="sheet-header"><div><p class="eyebrow">ABOUT</p><h2>关于豆仓</h2></div><button class="icon-button" id="aboutClose" type="button" aria-label="关闭">×</button></header>
-    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 2.2.7</p></section>
+    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 2.2.8</p></section>
     <section class="about-update" aria-live="polite">
       <div class="about-actions"><button class="text-link-button" id="aboutCheckUpdate" type="button">检查更新</button><span aria-hidden="true">·</span><button class="text-link-button" id="aboutOpenReleases" type="button">查看发布页</button></div>
       <div class="update-status" id="updateStatus" hidden></div>
@@ -567,8 +567,8 @@
     <section class="about-copy">
       <h3>收藏咖啡，也收藏与咖啡相处的时间。</h3>
       <p>豆仓是一款为咖啡爱好者设计的本地优先记录工具。你可以保存每一包咖啡豆的产地、风味与价格，记录每次饮用和冲煮方案，让日常里喝过的咖啡慢慢有迹可循。</p>
-      <h4>2.2.7 最新功能</h4>
-      <ul><li>新增安卓桌面「喝一杯」小组件，一键从豆仓用豆或记录外饮</li><li>优化外饮记录的品牌提示与冲煮方案绑定豆的空状态排版</li></ul>
+      <h4>2.2.8 最新功能</h4>
+      <ul><li>分段注水改为折叠卡片，每段默认只看摘要、点开再编辑，长列表不再占满整屏</li><li>新增「按结构生成」：一刀流/三段式/四六法按总水量一键生成分段，并可把余量补入末段</li><li>喝一杯调整用豆量时，带入方案的注水水量按比例自动缩放</li></ul>
       <div class="privacy-note"><b>离线与隐私</b><p>豆仓默认完全离线使用，数据保存在你的设备中。云同步为可选功能，仅在登录并开启后使用。</p><p>检查更新仅在你主动点击时联网，不会影响本地记录使用。</p></div>
     </section>
   </dialog>
