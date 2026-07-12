@@ -4,4 +4,12 @@
     <string name="title_activity_main">豆仓</string>
     <string name="package_name">com.coffeebean.vault</string>
     <string name="custom_url_scheme">com.coffeebean.vault</string>
+    <string name="quick_drink_widget_name">豆仓 · 喝一杯</string>
+    <string name="quick_drink_widget_description">快速记录用豆或外饮</string>
+    <string name="quick_drink_widget_title">今天喝哪一杯？</string>
+    <string name="quick_drink_widget_brand">豆仓 · QUICK LOG</string>
+    <string name="quick_drink_widget_bean_hint">从豆仓扣量</string>
+    <string name="quick_drink_widget_bean">用豆喝一杯</string>
+    <string name="quick_drink_widget_external_hint">咖啡馆 / 外卖</string>
+    <string name="quick_drink_widget_external">在店喝</string>
 </resources>

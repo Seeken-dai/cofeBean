@@ -1292,6 +1292,24 @@
     $('#choiceList').innerHTML = beans.map((bean) => `<button type="button" data-drink-bean="${esc(bean.id)}"><span>${esc(bean.name)}<small>${esc([bean.roaster, bean.origin].filter(Boolean).join(' · ') || '豆仓咖啡豆')}</small></span><i>${esc(formatWeight(bean.remainingWeight))}</i></button>`).join('') + '<p class="manager-empty compact-empty">未开封豆子的第一杯请到豆仓卡片中记录。</p>';
     setDialog(els.choice, true);
   }
+  let lastWidgetAction = null;
+  let lastWidgetActionAt = 0;
+  function handleWidgetUrl(value) {
+    const action = AppWidgetIntent.parseAction(value);
+    if (!action || !state.initialized) return false;
+    const now = Date.now();
+    if (lastWidgetAction === action && now - lastWidgetActionAt < 800) return true;
+    lastWidgetAction = action;
+    lastWidgetActionAt = now;
+    if (els.choice.open) setDialog(els.choice, false);
+    if (els.drink.open) { discardDrinkPhotoDraft(); setDialog(els.drink, false); }
+    state.view = 'drinks';
+    state.drinkVisibleLimit = DRINK_PAGE_SIZE;
+    render();
+    if (action === 'external') openExternalDrinkDialog();
+    else openBeanPickerForDrink();
+    return true;
+  }
   function configureDrinkSource(source, orphaned) {
     const external = source === 'external';
     $('#drink-source').value = source;
@@ -1689,7 +1707,7 @@
   }
   function scheduleAutoSync(delay) { clearTimeout(syncTimer); syncTimer = setTimeout(autoSync, delay == null ? 800 : delay); }
   function closeNumberInputOrTopLayer() { if (AppNumberInput.isOpen()) return AppNumberInput.close(false); return closeTopLayerOrExit(); }
-  function bindNativeLifecycle() { const app = capPlugin('App'); if (!app) return; app.addListener('backButton', closeNumberInputOrTopLayer); app.addListener('appStateChange', async ({ isActive }) => { if (!isActive || state.resuming) return; state.resuming = true; await reload({ keepForm: true }); state.resuming = false; scheduleAutoSync(); }); }
-  async function boot() { applyTheme(localStorage.getItem('coffee-vault-theme') || 'dark-roast', false); bindEvents(); try { await BeanRepository.init(); await reload(); bindNativeLifecycle(); await offerMigration(); state.initialized = true; syncFloatingActions({ showHint: true }); scheduleAutoSync(1500); } catch (error) { console.error(error); els.count.textContent = '豆仓启动失败'; toast(error.message || '数据库初始化失败'); } finally { const splash = capPlugin('SplashScreen'); if (splash) splash.hide().catch(() => {}); } }
+  function bindNativeLifecycle() { const app = capPlugin('App'); if (!app) return; app.addListener('backButton', closeNumberInputOrTopLayer); app.addListener('appUrlOpen', ({ url }) => handleWidgetUrl(url)); app.addListener('appStateChange', async ({ isActive }) => { if (!isActive || state.resuming) return; state.resuming = true; await reload({ keepForm: true }); state.resuming = false; scheduleAutoSync(); }); }
+  async function boot() { applyTheme(localStorage.getItem('coffee-vault-theme') || 'dark-roast', false); bindEvents(); try { await BeanRepository.init(); await reload(); bindNativeLifecycle(); await offerMigration(); state.initialized = true; const app = capPlugin('App'); if (app && app.getLaunchUrl) { const launch = await app.getLaunchUrl(); if (launch && launch.url) handleWidgetUrl(launch.url); } syncFloatingActions({ showHint: true }); scheduleAutoSync(1500); } catch (error) { console.error(error); els.count.textContent = '豆仓启动失败'; toast(error.message || '数据库初始化失败'); } finally { const splash = capPlugin('SplashScreen'); if (splash) splash.hide().catch(() => {}); } }
   boot();
 })();

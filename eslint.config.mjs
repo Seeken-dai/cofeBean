@@ -19,6 +19,7 @@ const projectGlobals = {
   AppBackup: 'readonly',
   AppUpdate: 'readonly',
   AppNumberInput: 'readonly',
+  AppWidgetIntent: 'readonly',
   PhotoTone: 'readonly',
   Capacitor: 'readonly',
   qrcode: 'readonly',

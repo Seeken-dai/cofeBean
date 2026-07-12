@@ -33,6 +33,12 @@ android {
         }
     }
     buildTypes {
+        debug {
+            applicationIdSuffix ".debug"
+            versionNameSuffix "-debug"
+            resValue "string", "app_name", "豆仓 Debug"
+            resValue "string", "title_activity_main", "豆仓 Debug"
+        }
         release {
             signingConfig signingConfigs.release
             minifyEnabled false

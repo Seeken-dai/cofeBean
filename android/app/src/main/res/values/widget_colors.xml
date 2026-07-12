@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="widget_outer">#F7F1E8</color>
+    <color name="widget_border">#BFA98E</color>
+    <color name="widget_text">#3B3028</color>
+    <color name="widget_muted">#735F4D</color>
+    <color name="widget_accent">#8F6B4E</color>
+    <color name="widget_brand_icon">#EADBC8</color>
+    <color name="widget_bean">#AD815D</color>
+    <color name="widget_bean_border">#9D7251</color>
+    <color name="widget_bean_icon">#986D4E</color>
+    <color name="widget_bean_text">#FFF8EF</color>
+    <color name="widget_bean_muted">#F2E5D8</color>
+    <color name="widget_external">#E0CDB4</color>
+    <color name="widget_external_border">#C2AA8D</color>
+    <color name="widget_external_icon">#CEB494</color>
+    <color name="widget_external_text">#4C3B30</color>
+    <color name="widget_external_muted">#806B59</color>
+</resources>

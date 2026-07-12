@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layout_margin="6dp"
+    android:background="@drawable/widget_outer_background"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/quick_drink_widget_brand" android:textColor="@color/widget_accent" android:textSize="10sp" android:textStyle="bold" />
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:text="@string/quick_drink_widget_title" android:textColor="@color/widget_text" android:textSize="16sp" android:textStyle="bold" />
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_marginTop="8dp" android:layout_weight="1" android:orientation="horizontal">
+        <LinearLayout android:id="@+id/widget_bean_action" android:layout_width="0dp" android:layout_height="match_parent" android:layout_marginEnd="4dp" android:layout_weight="1" android:background="@drawable/widget_bean_background" android:gravity="center_vertical" android:orientation="horizontal" android:paddingHorizontal="10dp">
+            <FrameLayout android:layout_width="38dp" android:layout_height="38dp" android:background="@drawable/widget_bean_icon_background"><ImageView android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center" android:contentDescription="@null" android:src="@drawable/ic_widget_cup" /></FrameLayout>
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:layout_weight="1" android:orientation="vertical"><TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:maxLines="1" android:text="@string/quick_drink_widget_bean_hint" android:textColor="@color/widget_bean_muted" android:textSize="9sp" /><TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:maxLines="1" android:text="@string/quick_drink_widget_bean" android:textColor="@color/widget_bean_text" android:textSize="14sp" android:textStyle="bold" /></LinearLayout>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="›" android:textColor="@color/widget_bean_muted" android:textSize="18sp" />
+        </LinearLayout>
+        <LinearLayout android:id="@+id/widget_external_action" android:layout_width="0dp" android:layout_height="match_parent" android:layout_marginStart="4dp" android:layout_weight="1" android:background="@drawable/widget_external_background" android:gravity="center_vertical" android:orientation="horizontal" android:paddingHorizontal="10dp">
+            <FrameLayout android:layout_width="38dp" android:layout_height="38dp" android:background="@drawable/widget_external_icon_background"><ImageView android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center" android:contentDescription="@null" android:src="@drawable/ic_widget_cafe" /></FrameLayout>
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:layout_weight="1" android:orientation="vertical"><TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:maxLines="1" android:text="@string/quick_drink_widget_external_hint" android:textColor="@color/widget_external_muted" android:textSize="9sp" /><TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:maxLines="1" android:text="@string/quick_drink_widget_external" android:textColor="@color/widget_external_text" android:textSize="14sp" android:textStyle="bold" /></LinearLayout>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="›" android:textColor="@color/widget_external_muted" android:textSize="18sp" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

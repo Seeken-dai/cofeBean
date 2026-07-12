@@ -29,6 +29,7 @@ const SHELL = [
   './app-backup.js',
   './app-update.js',
   './app-number-input.js',
+  './app-widget-intent.js',
   './app.js',
   './vendor/qrcode-generator.js',
   './vendor/jsQR.js',
