@@ -332,10 +332,10 @@
 
   async function getDrinkLogs(beanId) {
     if (!native) {
-      return web().loadState().drinkLogs.filter((log) => !log.deletedAt && (!beanId || log.beanId === beanId)).sort((a, b) => b.consumedAt.localeCompare(a.consumedAt));
+      return web().loadState().drinkLogs.filter((log) => !log.deletedAt && (!beanId || log.beanId === beanId)).sort((a, b) => root.BeanCore.compareDrinkChronology(b, a));
     }
     const where = beanId ? 'WHERE l.bean_id = ? AND l.deleted_at IS NULL' : 'WHERE l.deleted_at IS NULL';
-    const result = await nativeDb().query({ database: DB_NAME, statement: `SELECT l.*, COALESCE(b.name, l.bean_name) AS display_bean_name FROM drink_logs l LEFT JOIN beans b ON b.id = l.bean_id ${where} ORDER BY l.consumed_at DESC`, values: beanId ? [beanId] : [], readonly: false });
+    const result = await nativeDb().query({ database: DB_NAME, statement: `SELECT l.*, COALESCE(b.name, l.bean_name) AS display_bean_name FROM drink_logs l LEFT JOIN beans b ON b.id = l.bean_id ${where} ORDER BY l.consumed_at DESC, l.created_at DESC, l.id DESC`, values: beanId ? [beanId] : [], readonly: false });
     return (result.values || []).map(fromLogRow);
   }
 
@@ -592,7 +592,7 @@
     await seedPresetPlans();
     const [beans, logs, plans] = await Promise.all([
       nativeDb().query({ database: DB_NAME, statement: 'SELECT * FROM beans ORDER BY updated_at DESC', values: [], readonly: false }),
-      nativeDb().query({ database: DB_NAME, statement: 'SELECT l.*, COALESCE(b.name, l.bean_name) AS display_bean_name FROM drink_logs l LEFT JOIN beans b ON b.id = l.bean_id ORDER BY l.consumed_at DESC', values: [], readonly: false }),
+      nativeDb().query({ database: DB_NAME, statement: 'SELECT l.*, COALESCE(b.name, l.bean_name) AS display_bean_name FROM drink_logs l LEFT JOIN beans b ON b.id = l.bean_id ORDER BY l.consumed_at DESC, l.created_at DESC, l.id DESC', values: [], readonly: false }),
       nativeDb().query({ database: DB_NAME, statement: 'SELECT * FROM brew_plans ORDER BY updated_at DESC', values: [], readonly: false })
     ]);
     return {

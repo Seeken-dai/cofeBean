@@ -711,7 +711,7 @@
       exportScope,
       exportedAt: exportedAt || new Date().toISOString(),
       app: '豆仓',
-      appVersion: '2.2.8'
+      appVersion: '2.2.9'
     };
     if (exportScope === 'all' || exportScope === 'library') {
       payload.beans = (beans || []).map((bean) => normalizeBean(bean, bean.updatedAt));
@@ -1046,7 +1046,7 @@
       day.grams = Math.round(day.grams * 10) / 10;
       day.cost = Math.round(day.cost * 100) / 100;
       day.averageRating = day.rated ? Math.round(day.ratingSum / day.rated * 10) / 10 : null;
-      day.logs.sort((a, b) => cleanText(b.consumedAt).localeCompare(cleanText(a.consumedAt)));
+      day.logs.sort((a, b) => compareDrinkChronology(b, a));
       delete day.ratingSum;
       delete day.rated;
     });
@@ -1187,5 +1187,27 @@
     return series;
   }
 
-  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, hasTastingContent, resolveTastingStatus, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, prepareBrewAssistSteps, brewAssistStatus, resolveOpenedDate, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareAppVersions, isAppVersionNewer, selectReleaseApkAsset, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, flavorTags, beanFreshness, recentDrinkSeries, beanProcessKind };
+  // 找到当前记录之前、同一豆子最近一条可绘制雷达图的评价记录。
+  function compareDrinkChronology(a, b) {
+    const leftConsumed = new Date(a && a.consumedAt).getTime();
+    const rightConsumed = new Date(b && b.consumedAt).getTime();
+    const consumedDiff = (Number.isFinite(leftConsumed) ? leftConsumed : 0) - (Number.isFinite(rightConsumed) ? rightConsumed : 0);
+    if (consumedDiff) return consumedDiff;
+    const leftCreated = new Date(a && a.createdAt).getTime();
+    const rightCreated = new Date(b && b.createdAt).getTime();
+    const createdDiff = (Number.isFinite(leftCreated) ? leftCreated : 0) - (Number.isFinite(rightCreated) ? rightCreated : 0);
+    if (createdDiff) return createdDiff;
+    return cleanText(a && a.id).localeCompare(cleanText(b && b.id));
+  }
+  function previousComparableDrink(logs, current) {
+    if (!current || !current.beanId) return null;
+    if (!Number.isFinite(new Date(current.consumedAt).getTime())) return null;
+    return (logs || []).filter((log) => {
+      if (!log || log.id === current.id || log.deletedAt || log.source === 'external' || log.beanId !== current.beanId) return false;
+      const dimensions = DIMENSION_KEYS.filter((key) => Number(log[key]) > 0).length;
+      return Number.isFinite(new Date(log.consumedAt).getTime()) && compareDrinkChronology(log, current) < 0 && dimensions >= 3;
+    }).sort((a, b) => compareDrinkChronology(b, a))[0] || null;
+  }
+
+  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, hasTastingContent, resolveTastingStatus, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, prepareBrewAssistSteps, brewAssistStatus, resolveOpenedDate, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareAppVersions, isAppVersionNewer, selectReleaseApkAsset, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, flavorTags, beanFreshness, recentDrinkSeries, compareDrinkChronology, previousComparableDrink, beanProcessKind };
 });

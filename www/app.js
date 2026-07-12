@@ -448,20 +448,26 @@
   // labels：'full' 详情大图（维度名+分值），'short' 列表小图（单字标签），其它为无标签。
   function buildRatingRadar(log, options) {
     const opts = options || {};
-    const keys = BeanCore.DIMENSION_KEYS.filter((key) => log[key]);
+    const compare = opts.compare || null;
+    const currentKeys = BeanCore.DIMENSION_KEYS.filter((key) => log[key]);
+    const sharedKeys = compare ? currentKeys.filter((key) => compare[key]) : [];
+    const keys = sharedKeys.length >= 3 ? sharedKeys : currentKeys;
+    const comparison = sharedKeys.length >= 3 ? compare : null;
     if (keys.length < 3) return '';
     const mode = opts.labels === true ? 'full' : opts.labels || false;
     const short = mode === 'short';
     const cx = 100, cy = 100, n = keys.length, maxR = mode === 'full' ? 58 : short ? 66 : 84;
     const angleAt = (i) => -90 + i * 360 / n;
-    const plotR = (key) => { const raw = Math.max(1, Math.min(5, Number(log[key]) || 0)); return maxR * (key === 'bitterness' ? 6 - raw : raw) / 5; };
+    const plotR = (source, key) => { const raw = Math.max(1, Math.min(5, Number(source[key]) || 0)); return maxR * (key === 'bitterness' ? 6 - raw : raw) / 5; };
     const grid = [1, 2, 3, 4, 5].map((level) => {
       const pts = keys.map((_, i) => radarPoint(cx, cy, maxR * level / 5, angleAt(i)).join(',')).join(' ');
       return `<polygon points="${pts}" class="radar-grid"/>`;
     }).join('');
     const spokes = keys.map((_, i) => { const [x, y] = radarPoint(cx, cy, maxR, angleAt(i)); return `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" class="radar-axis"/>`; }).join('');
-    const shape = `<polygon points="${keys.map((key, i) => radarPoint(cx, cy, plotR(key), angleAt(i)).join(',')).join(' ')}" class="radar-shape"/>`;
-    const dots = keys.map((key, i) => { const [x, y] = radarPoint(cx, cy, plotR(key), angleAt(i)); return `<circle cx="${x}" cy="${y}" r="${short ? 2.2 : 2.6}" class="radar-dot"/>`; }).join('');
+    const previousShape = comparison ? `<polygon points="${keys.map((key, i) => radarPoint(cx, cy, plotR(comparison, key), angleAt(i)).join(',')).join(' ')}" class="radar-shape radar-shape--previous"/>` : '';
+    const previousDots = comparison ? keys.map((key, i) => { const [x, y] = radarPoint(cx, cy, plotR(comparison, key), angleAt(i)); return `<circle cx="${x}" cy="${y}" r="2.3" class="radar-dot radar-dot--previous"/>`; }).join('') : '';
+    const shape = `<polygon points="${keys.map((key, i) => radarPoint(cx, cy, plotR(log, key), angleAt(i)).join(',')).join(' ')}" class="radar-shape"/>`;
+    const dots = keys.map((key, i) => { const [x, y] = radarPoint(cx, cy, plotR(log, key), angleAt(i)); return `<circle cx="${x}" cy="${y}" r="${short ? 2.2 : 2.6}" class="radar-dot"/>`; }).join('');
     const labelSvg = mode ? keys.map((key, i) => {
       const [x, y] = radarPoint(cx, cy, maxR + (short ? 12 : 15), angleAt(i));
       const anchor = Math.abs(x - cx) < 8 ? 'middle' : x > cx ? 'start' : 'end';
@@ -469,7 +475,7 @@
       return `<text x="${x}" y="${y}" text-anchor="${anchor}" class="radar-label">${DIMENSIONS[key]}<tspan class="radar-label-val"> ${log[key]}${key === 'bitterness' ? '☹' : '☺'}</tspan></text>`;
     }).join('') : '';
     const cls = `rating-radar${short ? ' rating-radar--mini' : ''}${opts.animate ? ' radar-enter' : ''}`;
-    return `<svg class="${cls}" viewBox="0 0 200 200" role="img" aria-label="高级评价雷达图">${grid}${spokes}${shape}${dots}${labelSvg}</svg>`;
+    return `<svg class="${cls}" viewBox="0 0 200 200" role="img" aria-label="${comparison ? '本次与上次高级评价对比雷达图' : '高级评价雷达图'}">${grid}${spokes}${previousShape}${previousDots}${shape}${dots}${labelSvg}</svg>`;
   }
   function logTemplate(log, compact) {
     const advancedKeys = BeanCore.DIMENSION_KEYS.filter((key) => log[key]);
@@ -482,16 +488,8 @@
     const title = external ? (log.drinkName || log.cafeName || log.beanName) : log.beanName;
     const meta = external ? ['外饮', log.cafeName, log.price > 0 ? formatPrice(log.price) : '', log.location, stars(log.overallRating)] : [formatWeight(log.grams), `<span class="method-label">${brewIcon(log.brewMethod)}${esc(log.brewMethod)}</span>`, stars(log.overallRating)];
     const photos = log.photos && log.photos.length && !compact ? `<div class="drink-photo-strip">${log.photos.slice(0, 3).map((path, index) => `<span data-preview-image="${esc(path)}" data-preview-label="饮用照片 ${index + 1}"><img src="${esc(imageSrc(path))}" alt=""></span>`).join('')}</div>` : '';
-    return `<article class="drink-entry${radar ? ' has-radar' : ''}${external ? ' is-external' : ''}" data-log-id="${esc(log.id)}" data-tasting-status="${esc(log.tastingStatus)}" tabindex="0" role="button"><div class="drink-dot"></div><div class="drink-entry-main"><div class="drink-head"><strong>${esc(title)}${log.tastingStatus === 'pending' ? '<i class="pending-inline-badge">待补感受</i>' : ''}</strong><time>${esc(formatDateTime(log.consumedAt))}</time></div><p class="drink-meta">${meta.filter(Boolean).map((item) => String(item).startsWith('<span') ? item : `<span>${esc(item)}</span>`).join('')}</p>${log.notes ? `<p class="drink-notes">${esc(log.notes)}</p>` : ''}${photos}${tagBlock}</div>${radarCol}</article>`;
-  }
-  function pendingTastingTemplate(log) {
-    return `<article class="pending-tasting-card" data-pending-id="${esc(log.id)}"><div><span>待补感受</span><strong>${esc(log.beanName)}</strong><small>${esc([log.brewPlanName || log.brewMethod, formatDateTime(log.consumedAt)].filter(Boolean).join(' · '))}</small></div><div><button class="secondary-button" data-skip-tasting="${esc(log.id)}" type="button">无需评分</button><button class="primary-button" data-continue-tasting="${esc(log.id)}" type="button">补充感受</button></div></article>`;
-  }
-  function renderPendingTastings(host, logs) {
-    if (!host) return;
-    const pending = (logs || []).filter((log) => log.source === 'bean' && log.tastingStatus === 'pending');
-    host.hidden = pending.length === 0;
-    host.innerHTML = pending.length ? `<div class="section-heading"><div><span>留下这一杯的感受</span><small>${pending.length} 杯等待补上风味与感受</small></div></div>${pending.map(pendingTastingTemplate).join('')}` : '';
+    const pending = log.tastingStatus === 'pending' ? `<button class="pending-inline-badge" data-continue-tasting="${esc(log.id)}" type="button">待补感受</button>` : '';
+    return `<article class="drink-entry${radar ? ' has-radar' : ''}${external ? ' is-external' : ''}" data-log-id="${esc(log.id)}" data-tasting-status="${esc(log.tastingStatus)}" tabindex="0" role="button"><div class="drink-dot"></div><div class="drink-entry-main"><div class="drink-head"><strong>${esc(title)}${pending}</strong><time>${esc(formatDateTime(log.consumedAt))}</time></div><p class="drink-meta">${meta.filter(Boolean).map((item) => String(item).startsWith('<span') ? item : `<span>${esc(item)}</span>`).join('')}</p>${log.notes ? `<p class="drink-notes">${esc(log.notes)}</p>` : ''}${photos}${tagBlock}</div>${radarCol}</article>`;
   }
   // 近 30 天饮用迷你条形图（3c）：每天一根柱，高度按杯数归一；今天高亮，空天留细基线。
   function renderDrinkTrend() {
@@ -512,7 +510,7 @@
   }
   function renderDrinks() {
     const stats = BeanCore.summarizeDrinkLogs(state.drinkLogs); $('#drinkCups').textContent = stats.cups; $('#drinkGrams').textContent = formatWeight(stats.grams); $('#drinkAverage').textContent = stats.averageRating ? `${stats.averageRating}★` : '—';
-    renderDrinkTrend(); renderPendingTastings($('#pendingTastings'), state.drinkLogs);
+    renderDrinkTrend();
     const q = String(state.query || '').trim().toLocaleLowerCase('zh-CN');
     const visible = q ? state.drinkLogs.filter((log) => [log.beanName, log.brewMethod, log.cafeName, log.drinkName, log.location, log.notes, log.source === 'external' ? '外饮' : formatWeight(log.grams), formatDateTime(log.consumedAt)].some((value) => String(value || '').toLocaleLowerCase('zh-CN').includes(q))) : state.drinkLogs;
     const drinkEmpty = $('#drinkEmpty'); const hasDrinkLogs = state.drinkLogs.length > 0;
@@ -641,7 +639,6 @@
     const chips = flavorChips(bean.tastingNotes); $('#detailNotes').innerHTML = chips || esc(bean.tastingNotes || '还没有记录风味笔记。'); $('#detailNotesSection').classList.toggle('muted', !bean.tastingNotes);
     $('#detailDrink').dataset.beanId = bean.id; $('#detailDrink').disabled = remaining <= 0; $('#detailDrinkGrams').textContent = formatWeight(Math.min(state.settings.quickGrams, remaining));
     $('#detailHistorySummary').textContent = logs.length ? `${logs.length} 杯 · ${formatWeight(logs.reduce((sum, log) => sum + log.grams, 0))}` : '还没有饮用记录';
-    renderPendingTastings($('#detailPendingTastings'), logs);
     $('#detailDrinkHistory').innerHTML = logs.length ? logs.map((log) => logTemplate(log, true)).join('') : '<p class="manager-empty">还没有喝过这款豆子。</p>';
     setDialog(els.detail, true);
   }
@@ -663,8 +660,12 @@
     $('#drinkDetailNotesSection').hidden = !log.notes;
     $('#drinkDetailNotes').textContent = log.notes || '';
     const dimensions = BeanCore.DIMENSION_KEYS.filter((key) => log[key]); $('#drinkDetailDimensions').hidden = !dimensions.length;
-    const radar = buildRatingRadar(log, { labels: true, animate: true });
-    $('#drinkDetailRadar').innerHTML = radar;
+    const previousCandidate = BeanCore.previousComparableDrink(state.drinkLogs, log);
+    const previous = previousCandidate && dimensions.filter((key) => previousCandidate[key]).length >= 3 ? previousCandidate : null;
+    const radar = buildRatingRadar(log, { labels: true, animate: true, compare: previous });
+    $('#drinkDetailDimensions').querySelector('.section-heading small').textContent = previous ? '与上次同豆评价对比' : '本次风味感受';
+    const legend = previous ? `<div class="radar-legend"><span class="current">本次</span><span class="previous">上次 · ${esc(formatDateTime(previous.consumedAt))}</span></div>` : '';
+    $('#drinkDetailRadar').innerHTML = radar + legend;
     // 画出雷达图时不再重复显示字段式维度列表（分值已标在雷达轴上）；不足 3 维回退到列表。
     $('#drinkDetailDimensionList').innerHTML = radar ? '' : dimensions.map((key) => `<div><span>${DIMENSIONS[key]}</span><strong>${key === 'bitterness' ? '☹' : '☺'} ${log[key]} / 5</strong></div>`).join('');
     const photoHtml = log.photos && log.photos.length ? `<section class="profile-images drink-detail-photos"><div class="section-heading"><div><span>照片贴图</span><small>${log.photos.length} 张本机图片</small></div></div>${log.photos.map((path, index) => imageCard(`饮用照片 ${index + 1}`, path)).join('')}</section>` : '';
@@ -1498,15 +1499,7 @@
     if (els.detail.open) setDialog(els.detail, false);
     openDrinkDialog(bean, log, 'tasting');
   }
-  async function skipTasting(id) {
-    const log = state.drinkLogs.find((item) => item.id === id);
-    if (!log || log.tastingStatus !== 'pending') return;
-    try { await BeanRepository.saveDrinkLog({ ...log, tastingStatus: 'completed' }); await reload(); toast('已标记为无需评分'); }
-    catch (error) { console.error(error); toast(error.message || '更新失败'); }
-  }
   function handlePendingTastingAction(event) {
-    const skip = event.target.closest('[data-skip-tasting]');
-    if (skip) { event.stopPropagation(); return skipTasting(skip.dataset.skipTasting); }
     const open = event.target.closest('[data-continue-tasting]');
     if (open) { event.stopPropagation(); return openTastingById(open.dataset.continueTasting); }
   }
@@ -1670,7 +1663,7 @@
   async function shareCalendarCard() { try { const payload = BeanCore.buildSharePayload('calendar', { view: state.coffeeCalendarView, date: state.coffeeCalendarDate, selectedDate: state.selectedCoffeeDay, days: daySummaries() }, { style: 'receipt' }); await shareCanvas(payload); } catch (error) { console.error(error); toast('分享失败'); } }
   // 备份导出/导入与旧版迁移在 app-backup.js(拆分第三批)。
   const { exportBackup, startImport, webImport, loadMockData, offerMigration, migrateLegacy } =
-    window.AppBackup.create({ $, state, els, core: BeanCore, repository: BeanRepository, capPlugin, toast, setDialog, reload, confirmFn: (message) => window.confirm(message) });
+    window.AppBackup.create({ $, state, els, core: BeanCore, repository: BeanRepository, capPlugin, toast, setDialog, reload, confirmFn: (message) => askConfirm({ eyebrow: 'LOCAL TEST', title: '载入 Mock 数据？', message, confirmText: '载入' }) });
 
   function exitApp() { const app = capPlugin('App'); if (app) app.exitApp(); }
   // 轻量退出：主界面再次返回（约 2 秒内）才退出，否则先 toast 提示，避免误触整块退出弹窗。
@@ -1740,13 +1733,12 @@
       if (button.dataset.emptyAction === 'backup') { syncBackupDialog(); setDialog(els.backup, true); }
     });
     $('#drinkEmpty').addEventListener('click', (event) => { const button = event.target.closest('[data-drink-empty-action]'); if (!button) return; if (button.dataset.drinkEmptyAction === 'external') return openExternalDrinkDialog(); openBeanPickerForDrink(); });
-    $('#pendingTastings').addEventListener('click', handlePendingTastingAction); $('#detailPendingTastings').addEventListener('click', handlePendingTastingAction);
     $('#drinkStarterHint').addEventListener('click', (event) => { if (!event.target.closest('[data-drink-hint-dismiss]')) return; writeLocalFlag('coffee-vault-hint-first-drink'); renderDrinkStarterHint(); });
     els.list.addEventListener('click', (event) => { if (cardPressFired) { cardPressFired = false; return; } const quick = event.target.closest('[data-drink-id]'); if (quick) { event.stopPropagation(); return openDrinkDialog(state.beans.find((bean) => bean.id === quick.dataset.drinkId)); } const card = event.target.closest('.bean-card'); if (card) openDetail(state.beans.find((bean) => bean.id === card.dataset.id)); });
     attachLongPress(els.list, '.bean-card', longPressDeleteBean);
     els.list.addEventListener('keydown', (event) => { if (!['Enter', ' '].includes(event.key) || event.target.closest('button')) return; const card = event.target.closest('.bean-card'); if (card) { event.preventDefault(); openDetail(state.beans.find((bean) => bean.id === card.dataset.id)); } });
     $('#beanReminderPanel').addEventListener('click', (event) => { const button = event.target.closest('[data-reminder-bean]'); if (button) openDetail(state.beans.find((bean) => bean.id === button.dataset.reminderBean)); });
-    $('#globalDrinkList').addEventListener('click', (event) => { if (cardPressFired) { cardPressFired = false; return; } const preview = event.target.closest('[data-preview-image]'); if (preview) { event.stopPropagation(); return openImagePreview(preview.dataset.previewImage, preview.dataset.previewLabel); } if (event.target.closest('#drinkLoadMore')) { state.drinkVisibleLimit += DRINK_PAGE_SIZE; return renderDrinks(); } const item = event.target.closest('[data-log-id]'); if (item) openDrinkDetail(state.drinkLogs.find((entry) => entry.id === item.dataset.logId)); }); $('#detailDrinkHistory').addEventListener('click', (event) => { if (cardPressFired) { cardPressFired = false; return; } const preview = event.target.closest('[data-preview-image]'); if (preview) return openImagePreview(preview.dataset.previewImage, preview.dataset.previewLabel); const item = event.target.closest('[data-log-id]'); if (item) openDrinkDetail(state.drinkLogs.find((log) => log.id === item.dataset.logId)); });
+    $('#globalDrinkList').addEventListener('click', (event) => { if (cardPressFired) { cardPressFired = false; return; } if (event.target.closest('[data-continue-tasting]')) return handlePendingTastingAction(event); const preview = event.target.closest('[data-preview-image]'); if (preview) { event.stopPropagation(); return openImagePreview(preview.dataset.previewImage, preview.dataset.previewLabel); } if (event.target.closest('#drinkLoadMore')) { state.drinkVisibleLimit += DRINK_PAGE_SIZE; return renderDrinks(); } const item = event.target.closest('[data-log-id]'); if (item) openDrinkDetail(state.drinkLogs.find((entry) => entry.id === item.dataset.logId)); }); $('#detailDrinkHistory').addEventListener('click', (event) => { if (cardPressFired) { cardPressFired = false; return; } if (event.target.closest('[data-continue-tasting]')) return handlePendingTastingAction(event); const preview = event.target.closest('[data-preview-image]'); if (preview) return openImagePreview(preview.dataset.previewImage, preview.dataset.previewLabel); const item = event.target.closest('[data-log-id]'); if (item) openDrinkDetail(state.drinkLogs.find((log) => log.id === item.dataset.logId)); });
     attachLongPress($('#globalDrinkList'), '[data-log-id]', longPressDeleteDrink);
     attachLongPress($('#detailDrinkHistory'), '[data-log-id]', longPressDeleteDrink);
     attachLongPress(els.calendar, '[data-log-id]', longPressDeleteDrink);

@@ -206,6 +206,28 @@ test('backup: base64 工具在 Node 环境可用且互逆', () => {
   assert.equal(blob.size, 3);
 });
 
+test('backup: loadMockData 等待应用内异步确认后才覆盖浏览器数据', async () => {
+  const previousLocation = global.location;
+  const previousFetch = global.fetch;
+  global.location = { hostname: 'localhost' };
+  global.fetch = async () => ({ ok: true, json: async () => core.createBackup([core.normalizeBean({ name: 'Mock 豆' })], [], core.normalizeSettings({}), null, []) });
+  try {
+    let resolveConfirm;
+    const confirmFn = () => new Promise((resolve) => { resolveConfirm = resolve; });
+    const { api, imported } = createBackupApi([], { confirmFn });
+    const loading = api.loadMockData();
+    await Promise.resolve();
+    assert.equal(imported.length, 0, '确认前不能覆盖数据');
+    resolveConfirm(true);
+    await loading;
+    assert.equal(imported.length, 1);
+    assert.equal(imported[0].mode, 'replace');
+  } finally {
+    global.location = previousLocation;
+    global.fetch = previousFetch;
+  }
+});
+
 // ---- app-update ----
 
 function createUpdateApi(release, options) {

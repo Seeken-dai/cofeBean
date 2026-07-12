@@ -267,6 +267,25 @@ test('drink log and settings normalization keep ratings optional', () => {
   assert.equal(core.normalizeSettings({ enableBrewPlans: '1' }).enableBrewPlans, true);
 });
 
+test('previousComparableDrink finds the latest earlier rated brew for the same bean', () => {
+  const current = { id: 'current', beanId: 'bean-a', consumedAt: '2026-07-12T10:00:00.000Z', aroma: 5, acidity: 4, sweetness: 5 };
+  const logs = [
+    current,
+    { id: 'future', beanId: 'bean-a', consumedAt: '2026-07-13T10:00:00.000Z', aroma: 5, acidity: 5, sweetness: 5 },
+    { id: 'other-bean', beanId: 'bean-b', consumedAt: '2026-07-12T09:00:00.000Z', aroma: 5, acidity: 5, sweetness: 5 },
+    { id: 'too-few', beanId: 'bean-a', consumedAt: '2026-07-12T09:30:00.000Z', aroma: 5, acidity: 4 },
+    { id: 'latest-rated', beanId: 'bean-a', consumedAt: '2026-07-11T10:00:00.000Z', aroma: 4, acidity: 3, sweetness: 4 },
+    { id: 'older-rated', beanId: 'bean-a', consumedAt: '2026-07-10T10:00:00.000Z', aroma: 3, acidity: 3, sweetness: 3 }
+  ];
+  assert.equal(core.previousComparableDrink(logs, current).id, 'latest-rated');
+  assert.equal(core.previousComparableDrink(logs, { ...current, beanId: null }), null);
+
+  const sameMinuteEarlier = { id: 'same-minute-earlier', beanId: 'bean-a', consumedAt: current.consumedAt, createdAt: '2026-07-12T10:00:10.000Z', aroma: 4, acidity: 4, sweetness: 4 };
+  const sameMinuteLater = { ...current, createdAt: '2026-07-12T10:00:20.000Z' };
+  assert.equal(core.previousComparableDrink([sameMinuteLater, sameMinuteEarlier], sameMinuteLater).id, 'same-minute-earlier');
+  assert.equal(core.previousComparableDrink([sameMinuteLater, sameMinuteEarlier], sameMinuteEarlier), null);
+});
+
 test('calendar day summaries estimate grams cost and average rating', () => {
   const beans = [
     core.normalizeBean({ id: 'b1', name: '花魁', initialWeight: 200, remainingWeight: 170, price: 98 }),

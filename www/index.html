@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#1a1412">
   <meta name="color-scheme" content="dark light">
   <title>豆仓</title>
-  <link rel="stylesheet" href="styles.css?v=2.2.8">
+  <link rel="stylesheet" href="styles.css?v=2.2.9">
   <style>
     #aboutDialog .about-actions { display:flex; align-items:center; justify-content:center; gap:8px; color:var(--faint); font-size:12px; }
     #aboutDialog .about-actions .text-link-button { width:auto; min-width:0; min-height:0; padding:2px; border:0; border-radius:0; background:transparent; box-shadow:none; color:var(--accent); font:700 12px/1 inherit; text-decoration:underline; text-underline-offset:4px; }
@@ -81,7 +81,6 @@
         <article class="stat"><strong id="drinkAverage">—</strong><span>平均评分</span></article>
       </section>
       <section class="drink-trend" id="drinkTrend" hidden></section>
-      <section class="pending-tastings" id="pendingTastings" hidden></section>
       <section class="timeline" id="globalDrinkList" aria-live="polite"></section>
       <section class="empty-state" id="drinkEmpty" hidden><div class="empty-bag" aria-hidden="true"><svg viewBox="0 0 1024 1024"><path d="M861.866667 179.2l4.266666 4.266667c59.733333 68.266667 85.333333 157.866667 68.266667 245.333333-25.6 125.866667-85.333333 238.933333-174.933333 328.533333-89.6 89.6-204.8 151.466667-328.533334 174.933334-17.066667 4.266667-36.266667 4.266667-53.333333 4.266666-74.666667 0-149.333333-29.866667-202.666667-85.333333-2.133333-2.133333-4.266667-6.4-8.533333-8.533333l-4.266667-4.266667c-59.733333-68.266667-85.333333-157.866667-68.266666-245.333333 25.6-125.866667 85.333333-238.933333 174.933333-328.533334 89.6-89.6 204.8-151.466667 328.533333-174.933333 91.733333-17.066667 187.733333 12.8 256 81.066667l8.533334 8.533333z m-12.8 232.533333c8.533333-38.4 2.133333-78.933333-12.8-115.2-78.933333 134.4-194.133333 194.133333-305.066667 253.866667-115.2 59.733333-224 117.333333-288 253.866667 46.933333 40.533333 108.8 57.6 168.533333 44.8 108.8-21.333333 206.933333-74.666667 285.866667-151.466667s130.133333-177.066667 151.466667-285.866667zM174.933333 612.266667c-8.533333 38.4-2.133333 78.933333 12.8 115.2 78.933333-134.4 194.133333-194.133333 305.066667-253.866667 115.2-59.733333 224-117.333333 288-253.866667C744.533333 187.733333 697.6 170.666667 650.666667 170.666667c-12.8 0-25.6 2.133333-38.4 4.266666-108.8 21.333333-206.933333 74.666667-285.866667 151.466667-76.8 78.933333-130.133333 177.066667-151.466667 285.866667z" fill="currentColor"/></svg></div><h2>还没有饮用记录</h2><p>可以从豆仓扣量，也可以记一笔外饮。</p><div class="empty-actions"><button class="primary-button" data-drink-empty-action="bean" type="button">从豆仓记一杯</button><button class="secondary-button" data-drink-empty-action="external" type="button">记一笔外饮</button></div></section>
     </section>
@@ -189,7 +188,6 @@
       <section class="profile-facts" id="detailFacts"></section>
       <section class="profile-images" id="detailImages" hidden></section>
       <section class="profile-notes" id="detailNotesSection"><span>风味笔记</span><p id="detailNotes"></p></section>
-      <section class="pending-tastings pending-tastings--detail" id="detailPendingTastings" hidden></section>
       <section class="bean-history profile-history"><div class="section-heading"><div><span>饮用时间线</span><small id="detailHistorySummary"></small></div></div><div class="timeline compact-timeline" id="detailDrinkHistory"></div></section>
     </div>
   </dialog>
@@ -558,7 +556,7 @@
 
   <dialog class="sheet compact" id="aboutDialog">
     <header class="sheet-header"><div><p class="eyebrow">ABOUT</p><h2>关于豆仓</h2></div><button class="icon-button" id="aboutClose" type="button" aria-label="关闭">×</button></header>
-    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 2.2.8</p></section>
+    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 2.2.9</p></section>
     <section class="about-update" aria-live="polite">
       <div class="about-actions"><button class="text-link-button" id="aboutCheckUpdate" type="button">检查更新</button><span aria-hidden="true">·</span><button class="text-link-button" id="aboutOpenReleases" type="button">查看发布页</button></div>
       <div class="update-status" id="updateStatus" hidden></div>
@@ -567,8 +565,8 @@
     <section class="about-copy">
       <h3>收藏咖啡，也收藏与咖啡相处的时间。</h3>
       <p>豆仓是一款为咖啡爱好者设计的本地优先记录工具。你可以保存每一包咖啡豆的产地、风味与价格，记录每次饮用和冲煮方案，让日常里喝过的咖啡慢慢有迹可循。</p>
-      <h4>2.2.8 最新功能</h4>
-      <ul><li>分段注水改为折叠卡片，每段默认只看摘要、点开再编辑，长列表不再占满整屏</li><li>新增「按结构生成」：一刀流/三段式/四六法按总水量一键生成分段，并可把余量补入末段</li><li>喝一杯调整用豆量时，带入方案的注水水量按比例自动缩放</li></ul>
+      <h4>2.2.9 最新功能</h4>
+      <ul><li>待补感受提醒收进饮用时间线，以轻量胶囊提示，不再用大卡片打断浏览</li><li>饮用详情雷达图可叠加同一款豆子的上次高级评价，直观看到本次变化</li><li>同一分钟的饮用记录按创建顺序稳定排列，也能正确识别上一次评价</li></ul>
       <div class="privacy-note"><b>离线与隐私</b><p>豆仓默认完全离线使用，数据保存在你的设备中。云同步为可选功能，仅在登录并开启后使用。</p><p>检查更新仅在你主动点击时联网，不会影响本地记录使用。</p></div>
     </section>
   </dialog>
