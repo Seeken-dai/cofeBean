@@ -37,6 +37,7 @@
   let previousView = state.view;
   let suppressListEnter = false;
   let activeQuickDrinkButton = null;
+  let dialogScrimTimer = null;
   const previousStats = new Map();
   const els = { list: $('#beanList'), empty: $('#emptyState'), count: $('#recordCount'), searchPanel: $('#searchPanel'), search: $('#searchInput'), personal: $('#personalDialog'), backup: $('#dataBackupDialog'), calendar: $('#coffeeCalendarDialog'), detail: $('#detailDialog'), drinkDetail: $('#drinkDetailDialog'), planDetail: $('#planDetailDialog'), planEditor: $('#planEditorDialog'), editor: $('#editorDialog'), form: $('#beanForm'), planForm: $('#planForm'), drink: $('#drinkDialog'), drinkForm: $('#drinkForm'), brewAssist: $('#brewAssistDialog'), choice: $('#choiceDialog'), datePicker: $('#datePickerDialog'), photoSource: $('#photoSourceDialog'), scanImage: $('#scanImageDialog'), imagePreview: $('#imagePreviewDialog'), shareChoice: $('#shareImageChoiceDialog'), drinkShareChoice: $('#drinkShareChoiceDialog'), planShareChoice: $('#planShareChoiceDialog'), planImport: $('#planImportDialog'), manager: $('#smartManagerDialog'), settings: $('#settingsDialog'), sync: $('#syncDialog'), syncAuth: $('#syncAuthDialog'), about: $('#aboutDialog'), migration: $('#migrationDialog'), confirm: $('#confirmDialog'), sharePreview: $('#sharePreviewDialog'), toast: $('#toast'), scanResult: $('#scanResult') };
 
@@ -183,8 +184,18 @@
     } catch (_) {}
     if (navigator.vibrate) navigator.vibrate(kind === 'success' ? [20, 45, 30] : 12);
   }
+  function syncDialogScrim() {
+    clearTimeout(dialogScrimTimer);
+    const hasOpenDialog = Boolean(document.querySelector('dialog[open]'));
+    if (hasOpenDialog) {
+      document.body.classList.add('dialog-scrim-active'); document.body.classList.remove('dialog-scrim-closing');
+      return;
+    }
+    document.body.classList.remove('dialog-scrim-active'); document.body.classList.add('dialog-scrim-closing');
+    dialogScrimTimer = setTimeout(() => document.body.classList.remove('dialog-scrim-closing'), motionReduced() ? 0 : 180);
+  }
   function setDialog(dialog, open) {
-    if (open && !dialog.open) { dialog.classList.remove('sheet-closing'); dialog.showModal(); return; }
+    if (open && !dialog.open) { dialog.classList.remove('sheet-closing'); dialog.showModal(); syncDialogScrim(); return; }
     if (!open && dialog.open && !dialog.classList.contains('sheet-closing')) {
       if (motionReduced()) { dialog.close(); return; }
       dialog.classList.add('sheet-closing');
@@ -1781,6 +1792,8 @@
   }
   function bindEvents() {
     setupNumberInputs();
+    $$('dialog').forEach((dialog) => dialog.addEventListener('close', syncDialogScrim));
+    new MutationObserver(syncDialogScrim).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['open'] });
     els.drink.addEventListener('close', resetQuickDrinkFeedback);
     const localPreview = ['localhost', '127.0.0.1'].includes(location.hostname); $('#mockDataSection').hidden = !localPreview; $('#loadMockData').addEventListener('click', loadMockData);
     $('#plan-mokaPotSize-choice').addEventListener('change', () => syncMokaSize('plan'));

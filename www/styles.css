@@ -21,6 +21,9 @@
 [hidden] { display: none!important; }
 html { min-height: 100%; background: var(--bg); }
 body { min-height: 100vh; margin: 0; background: radial-gradient(circle at 90% -10%, color-mix(in srgb,var(--accent) 10%,transparent), transparent 34%), var(--bg); color: var(--text); -webkit-tap-highlight-color: transparent; }
+body::before { content:""; position:fixed; z-index:900; inset:0; background:rgb(8 5 4 / .72); backdrop-filter:blur(4px); opacity:0; pointer-events:none; transition:opacity .18s ease-out; }
+body.dialog-scrim-active::before { opacity:1; }
+body.dialog-scrim-closing::before { opacity:0; }
 body.cap-native { --native-safe-top: max(env(safe-area-inset-top,0px), 24px); }
 button,input,select,textarea { font: inherit; }
 button { touch-action: manipulation; }
@@ -213,17 +216,14 @@ body:not(.cap-native) #planImportCamera { display:none; }
 .toast.show { opacity:1; transform:translate(-50%,0); }
 
 dialog { color:var(--text); }
-dialog::backdrop { background:rgb(8 5 4 / .72); backdrop-filter:blur(4px); }
+dialog::backdrop { background:transparent!important; backdrop-filter:none!important; opacity:0!important; animation:none!important; }
 .sheet { width:min(100% - 20px,620px); max-height:calc(100dvh - 20px - env(safe-area-inset-top,0px)); margin:auto auto 0; padding:0; overflow:auto; border:1px solid var(--border); border-radius:26px 26px 0 0; background:var(--surface); box-shadow:var(--shadow); }
 /* 弹窗淡入上滑 + 淡出（项6）：@starting-style/allow-discrete，覆盖开与关；旧内核自动降级为瞬开瞬关 */
 .sheet { opacity:1; transform:translateY(0); transition:opacity .24s var(--ease),transform .26s var(--ease),overlay .26s allow-discrete,display .26s allow-discrete; }
 .sheet:not([open]) { opacity:0; transform:translateY(20px); }
 @starting-style { .sheet[open] { opacity:0; transform:translateY(20px); } }
-.sheet::backdrop { opacity:1; }
-.sheet[open]::backdrop { animation:backdrop-in .18s ease-out both; }
 .sheet[open] { animation:sheet-in .36s var(--ease-spring) both; }
 .sheet.sheet-closing { animation:sheet-out .2s ease-in both; pointer-events:none; }
-.sheet.sheet-closing::backdrop { animation:none; opacity:0; backdrop-filter:none; }
 @media (prefers-reduced-motion:reduce) { .sheet,.sheet::backdrop { transition:none; } .sheet:not([open]) { transform:none; } }
 .sheet form { margin:0; }
 .sheet-header { position:sticky; top:0; z-index:3; display:flex; justify-content:space-between; align-items:center; gap:16px; padding:20px 20px 16px; border-bottom:1px solid color-mix(in srgb,var(--border) 70%,transparent); background:color-mix(in srgb,var(--surface) 94%,transparent); backdrop-filter:blur(14px); }
@@ -786,7 +786,6 @@ html.number-picker-open { overflow:hidden; }
 @keyframes drink-float { from { opacity:0; transform:translateY(4px) scale(.85); } 20% { opacity:1; } to { opacity:0; transform:translateY(-34px) scale(1); } }
 @keyframes sheet-in { 0% { opacity:0; transform:translateY(24px) scale(.985); } 75% { opacity:1; transform:translateY(-2px) scale(1.002); } 100% { opacity:1; transform:none; } }
 @keyframes sheet-out { from { opacity:1; transform:none; } to { opacity:0; transform:translateY(28px); } }
-@keyframes backdrop-in { from { opacity:0; } to { opacity:1; } }
 @keyframes card-leave { 0% { opacity:1; transform:none; max-height:var(--card-height); margin-bottom:0; } 55% { opacity:0; transform:scale(.96); max-height:var(--card-height); } 100% { opacity:0; transform:scale(.96); max-height:0; min-height:0; margin-bottom:-8px; padding-top:0; padding-bottom:0; } }
 .card-leaving { overflow:hidden; pointer-events:none; animation:card-leave .3s ease-in both!important; }
 /* 待补感受只在饮用时间线里轻量提示，不打断浏览。 */
