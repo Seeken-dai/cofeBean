@@ -34,6 +34,9 @@
   let fabIdleTimer = null;
   let fabScrollTimer = null;
   let fabHintTimer = null;
+  let previousView = state.view;
+  let suppressListEnter = false;
+  const previousStats = new Map();
   const els = { list: $('#beanList'), empty: $('#emptyState'), count: $('#recordCount'), searchPanel: $('#searchPanel'), search: $('#searchInput'), personal: $('#personalDialog'), backup: $('#dataBackupDialog'), calendar: $('#coffeeCalendarDialog'), detail: $('#detailDialog'), drinkDetail: $('#drinkDetailDialog'), planDetail: $('#planDetailDialog'), planEditor: $('#planEditorDialog'), editor: $('#editorDialog'), form: $('#beanForm'), planForm: $('#planForm'), drink: $('#drinkDialog'), drinkForm: $('#drinkForm'), brewAssist: $('#brewAssistDialog'), choice: $('#choiceDialog'), datePicker: $('#datePickerDialog'), photoSource: $('#photoSourceDialog'), scanImage: $('#scanImageDialog'), imagePreview: $('#imagePreviewDialog'), shareChoice: $('#shareImageChoiceDialog'), drinkShareChoice: $('#drinkShareChoiceDialog'), planShareChoice: $('#planShareChoiceDialog'), planImport: $('#planImportDialog'), manager: $('#smartManagerDialog'), settings: $('#settingsDialog'), sync: $('#syncDialog'), syncAuth: $('#syncAuthDialog'), about: $('#aboutDialog'), migration: $('#migrationDialog'), confirm: $('#confirmDialog'), sharePreview: $('#sharePreviewDialog'), toast: $('#toast'), scanResult: $('#scanResult') };
 
   function capPlugin(name) { return window.Capacitor && window.Capacitor.Plugins ? window.Capacitor.Plugins[name] : null; }
@@ -167,7 +170,45 @@
     const sec = Number(field.querySelector('[data-duration-sec]')?.value || 0);
     target.value = durationText(hour * 3600 + min * 60 + sec, field.querySelector('[data-duration-hour]') ? 'hour' : 'minute');
   }
-  function setDialog(dialog, open) { if (open && !dialog.open) dialog.showModal(); if (!open && dialog.open) dialog.close(); }
+  function motionReduced() { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
+  function wait(ms) { return new Promise((resolve) => setTimeout(resolve, motionReduced() ? 0 : ms)); }
+  function haptic(kind) {
+    if (!navigator.vibrate) return;
+    navigator.vibrate(kind === 'success' ? [12, 35, 18] : 10);
+  }
+  function setDialog(dialog, open) {
+    if (open && !dialog.open) { dialog.classList.remove('sheet-closing'); dialog.showModal(); return; }
+    if (!open && dialog.open && !dialog.classList.contains('sheet-closing')) {
+      if (motionReduced()) { dialog.close(); return; }
+      dialog.classList.add('sheet-closing');
+      let onEnd;
+      const finish = () => { dialog.removeEventListener('animationend', onEnd); dialog.classList.remove('sheet-closing'); if (dialog.open) dialog.close(); };
+      onEnd = (event) => { if (event.target !== dialog || event.animationName !== 'sheet-out') return; finish(); };
+      dialog.addEventListener('animationend', onEnd);
+      setTimeout(finish, 260);
+    }
+  }
+  function animateNumber(el, value, format) {
+    const to = Number(value) || 0; const from = previousStats.get(el.id);
+    previousStats.set(el.id, to);
+    if (from == null || from === to || motionReduced()) { el.textContent = format(to); return; }
+    const started = performance.now();
+    const tick = (now) => { const p = Math.min(1, (now - started) / 400); const eased = 1 - Math.pow(1 - p, 3); el.textContent = format(from + (to - from) * eased); if (p < 1) requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+  }
+  function animateCardExit(el) {
+    if (!el || motionReduced()) return Promise.resolve();
+    el.style.setProperty('--card-height', `${el.offsetHeight}px`); el.classList.add('card-leaving');
+    return new Promise((resolve) => { el.addEventListener('animationend', resolve, { once: true }); setTimeout(resolve, 340); });
+  }
+  async function animateQuickDrink(button) {
+    if (!button || button.disabled) return;
+    const bean = state.beans.find((item) => item.id === button.dataset.drinkId); if (!bean) return;
+    const grams = Math.min(state.settings.quickGrams, Number(bean.remainingWeight) || 0);
+    button.classList.add('is-drinking'); button.querySelector('span').textContent = '✓'; haptic('light');
+    const float = document.createElement('span'); float.className = 'drink-float'; float.textContent = `-${formatWeight(grams)}`; button.appendChild(float);
+    await wait(450); openDrinkDialog(bean);
+  }
   function floatingActionsActive() { return ['beans', 'plans', 'drinks'].includes(state.view) && !(state.view === 'beans' && state.beans.length === 0); }
   function readLocalFlag(key) { try { return localStorage.getItem(key) === '1'; } catch (_) { return false; } }
   function writeLocalFlag(key) { try { localStorage.setItem(key, '1'); } catch (_) {} }
@@ -304,6 +345,8 @@
     $('#plansTab').hidden = !brewPlansEnabled();
     $('.view-tabs').classList.toggle('two-tabs', !brewPlansEnabled());
     $('#beansView').hidden = state.view !== 'beans'; $('#drinksView').hidden = state.view !== 'drinks'; $('#plansView').hidden = state.view !== 'plans';
+    const order = { beans: 0, drinks: 1, plans: 2 }; const activeView = $(`#${state.view}View`);
+    if (activeView && previousView !== state.view) { activeView.classList.remove('slide-from-left', 'slide-from-right'); void activeView.offsetWidth; activeView.classList.add(order[state.view] > order[previousView] ? 'slide-from-right' : 'slide-from-left'); previousView = state.view; }
     document.body.classList.toggle('empty-onboarding', state.view === 'beans' && state.beans.length === 0);
     $('#addBean').hidden = !floatingActionsActive(); $('#scanBean').hidden = state.view !== 'beans' || !floatingActionsActive(); $('#planImportFab').hidden = state.view !== 'plans';
     $('#addBean').setAttribute('aria-label', state.view === 'plans' ? '新增冲煮方案' : state.view === 'drinks' ? '记一杯' : '新增咖啡豆');
@@ -315,12 +358,12 @@
   }
   function renderBeans() {
     const visible = BeanCore.filterAndSort(state.beans, state); const stats = BeanCore.summarize(state.beans);
-    $('#statTotal').textContent = stats.total; $('#statActive').textContent = stats.active; $('#statRemaining').textContent = formatWeight(stats.remaining);
+    animateNumber($('#statTotal'), stats.total, (value) => String(Math.round(value))); animateNumber($('#statActive'), stats.active, (value) => String(Math.round(value))); animateNumber($('#statRemaining'), stats.remaining, (value) => formatWeight(Math.round(value * 10) / 10));
     renderBeanReminders();
     renderDrinkStarterHint();
     els.empty.hidden = visible.length > 0; els.list.hidden = visible.length === 0;
     renderBeanEmptyState(visible);
-    els.list.innerHTML = visible.map((bean, index) => cardTemplate(bean, index)).join('');
+    els.list.classList.toggle('suppress-enter', suppressListEnter); els.list.innerHTML = visible.map((bean, index) => cardTemplate(bean, index)).join('');
     els.count.textContent = (state.query || state.status !== '全部') ? `显示 ${visible.length} / 共 ${state.beans.length} 款` : `共 ${state.beans.length} 款咖啡豆`;
   }
   function renderBeanEmptyState(visible) {
@@ -407,7 +450,7 @@
     if (!(initial > 0)) return '';
     const pct = Math.max(0, Math.min(100, Math.round(remaining / initial * 100)));
     const level = pct <= 12 ? ' is-low' : pct <= 30 ? ' is-mid' : '';
-    return `<div class="remaining-bar${level}" role="presentation" aria-hidden="true"><i style="width:${pct}%"></i></div>`;
+    return `<div class="remaining-bar${level}" role="presentation" aria-hidden="true" style="--w:${pct}%"><i></i></div>`;
   }
   function cardTemplate(bean, index) {
     const subtitle = [bean.roaster, bean.origin].filter(Boolean).join(' · ') || '等待补充烘焙商与产地';
@@ -461,18 +504,19 @@
     const plotR = (source, key) => { const raw = Math.max(1, Math.min(5, Number(source[key]) || 0)); return maxR * (key === 'bitterness' ? 6 - raw : raw) / 5; };
     const grid = [1, 2, 3, 4, 5].map((level) => {
       const pts = keys.map((_, i) => radarPoint(cx, cy, maxR * level / 5, angleAt(i)).join(',')).join(' ');
-      return `<polygon points="${pts}" class="radar-grid"/>`;
+      return `<polygon points="${pts}" class="radar-grid"${opts.animate ? ` style="animation-delay:${level * 45}ms"` : ''}/>`;
     }).join('');
     const spokes = keys.map((_, i) => { const [x, y] = radarPoint(cx, cy, maxR, angleAt(i)); return `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" class="radar-axis"/>`; }).join('');
     const previousShape = comparison ? `<polygon points="${keys.map((key, i) => radarPoint(cx, cy, plotR(comparison, key), angleAt(i)).join(',')).join(' ')}" class="radar-shape radar-shape--previous"/>` : '';
     const previousDots = comparison ? keys.map((key, i) => { const [x, y] = radarPoint(cx, cy, plotR(comparison, key), angleAt(i)); return `<circle cx="${x}" cy="${y}" r="2.3" class="radar-dot radar-dot--previous"/>`; }).join('') : '';
-    const shape = `<polygon points="${keys.map((key, i) => radarPoint(cx, cy, plotR(log, key), angleAt(i)).join(',')).join(' ')}" class="radar-shape"/>`;
-    const dots = keys.map((key, i) => { const [x, y] = radarPoint(cx, cy, plotR(log, key), angleAt(i)); return `<circle cx="${x}" cy="${y}" r="${short ? 2.2 : 2.6}" class="radar-dot"/>`; }).join('');
+    const shape = `<polygon points="${keys.map((key, i) => radarPoint(cx, cy, plotR(log, key), angleAt(i)).join(',')).join(' ')}" class="radar-shape"${opts.animate ? ' style="animation-delay:250ms"' : ''}/>`;
+    const dots = keys.map((key, i) => { const [x, y] = radarPoint(cx, cy, plotR(log, key), angleAt(i)); const delay = 330 + i * 55; return `${opts.animate ? `<circle cx="${x}" cy="${y}" r="${short ? 2.2 : 2.6}" class="radar-dot-ripple" style="animation-delay:${delay}ms"/>` : ''}<circle cx="${x}" cy="${y}" r="${short ? 2.2 : 2.6}" class="radar-dot"${opts.animate ? ` style="animation-delay:${delay}ms"` : ''}/>`; }).join('');
     const labelSvg = mode ? keys.map((key, i) => {
       const [x, y] = radarPoint(cx, cy, maxR + (short ? 12 : 15), angleAt(i));
       const anchor = Math.abs(x - cx) < 8 ? 'middle' : x > cx ? 'start' : 'end';
-      if (short) return `<text x="${x}" y="${y}" text-anchor="${anchor}" class="radar-label radar-label--short">${DIMENSION_SHORT[key]}</text>`;
-      return `<text x="${x}" y="${y}" text-anchor="${anchor}" class="radar-label">${DIMENSIONS[key]}<tspan class="radar-label-val"> ${log[key]}${key === 'bitterness' ? '☹' : '☺'}</tspan></text>`;
+      const delay = opts.animate ? ' style="animation-delay:600ms"' : '';
+      if (short) return `<text x="${x}" y="${y}" text-anchor="${anchor}" class="radar-label radar-label--short"${delay}>${DIMENSION_SHORT[key]}</text>`;
+      return `<text x="${x}" y="${y}" text-anchor="${anchor}" class="radar-label"${delay}>${DIMENSIONS[key]}<tspan class="radar-label-val"> ${log[key]}${key === 'bitterness' ? '☹' : '☺'}</tspan></text>`;
     }).join('') : '';
     const cls = `rating-radar${short ? ' rating-radar--mini' : ''}${opts.animate ? ' radar-enter' : ''}`;
     return `<svg class="${cls}" viewBox="0 0 200 200" role="img" aria-label="${comparison ? '本次与上次高级评价对比雷达图' : '高级评价雷达图'}">${grid}${spokes}${previousShape}${previousDots}${shape}${dots}${labelSvg}</svg>`;
@@ -700,11 +744,14 @@
 
   // 冲煮辅助在 app-brew-assist.js(拆分第三批):计时器/WakeLock 为模块私有,进行态仍在 state.brewAssist。
   const { openDrinkBrewAssist, openPlanBrewAssist, pauseBrewAssist, tapBrewAssistRing, skipBrewAssistStage, finishBrewAssist, cancelBrewAssist, requestWakeLock } =
-    window.AppBrewAssist.create({ $, $$, state, els, core: BeanCore, toast, setDialog, esc, formatWeight, durationText, setDurationControl, syncRatioValue, syncDurationField, currentDrinkMethod, selectedDrinkPlan, drinkParamSnapshot, openPlanDetail, saveAssistDrink, openTastingById });
+    window.AppBrewAssist.create({ $, $$, state, els, core: BeanCore, toast, setDialog, haptic, esc, formatWeight, durationText, setDurationControl, syncRatioValue, syncDurationField, currentDrinkMethod, selectedDrinkPlan, drinkParamSnapshot, openPlanDetail, saveAssistDrink, openTastingById });
 
   async function reload(options) {
+    suppressListEnter = Boolean(options && options.skipEnterAnimation);
+    document.body.classList.toggle('suppress-list-enter', suppressListEnter);
     try { const [beans, logs, plans, settings] = await Promise.all([BeanRepository.getAll(), BeanRepository.getDrinkLogs(), BeanRepository.getBrewPlans(), BeanRepository.getSettings()]); state.beans = beans; state.drinkLogs = logs; state.brewPlans = plans; state.settings = settings; await resolveWebImages(beans, logs); applyTheme(settings.theme, false); render(); if (els.detail.open && state.editingId) { const bean = state.beans.find((item) => item.id === state.editingId); if (bean) openDetail(bean); } if (els.drinkDetail.open && state.viewingDrinkId) { const log = state.drinkLogs.find((item) => item.id === state.viewingDrinkId); if (log) openDrinkDetail(log); } if (els.planDetail.open && state.viewingPlanId) { const plan = state.brewPlans.find((item) => item.id === state.viewingPlanId); if (plan) openPlanDetail(plan); } if (!(options && options.keepForm) && els.editor.open && state.editingId) { const bean = state.beans.find((item) => item.id === state.editingId); if (bean) fillForm(bean); } }
     catch (error) { console.error(error); toast('读取豆仓失败，请重试'); }
+    finally { suppressListEnter = false; document.body.classList.remove('suppress-list-enter'); }
   }
 
   async function openEditor(bean, scanResult) {
@@ -1692,14 +1739,14 @@
   async function longPressDeleteBean(card) {
     const bean = state.beans.find((item) => item.id === card.dataset.id);
     if (!bean || !await askConfirm({ title: `删除「${bean.name}」？`, message: '饮用历史会保留，只从豆仓列表隐藏这包豆子。' })) return;
-    try { await BeanRepository.remove(bean.id); if (els.detail.open) setDialog(els.detail, false); await reload(); toast('已删除，饮用历史保留'); } catch (error) { console.error(error); toast('删除失败'); }
+    try { await BeanRepository.remove(bean.id); if (els.detail.open) setDialog(els.detail, false); await animateCardExit(card); await reload({ skipEnterAnimation: true }); toast('已删除，饮用历史保留'); } catch (error) { console.error(error); toast('删除失败'); }
   }
   async function longPressDeletePlan(card) {
     const plan = state.brewPlans.find((item) => item.id === card.dataset.planId);
     if (!plan) return;
     if (plan.source === 'preset') return toast('预置方案不能删除，可复制后编辑');
     if (!await askConfirm({ title: `删除方案「${plan.name}」？`, message: '历史饮用记录会保留当时的冲煮参数快照。' })) return;
-    try { await BeanRepository.deleteBrewPlan(plan.id); if (els.planDetail.open) setDialog(els.planDetail, false); await reload(); toast('方案已删除'); } catch (error) { console.error(error); toast(error.message || '删除失败'); }
+    try { await BeanRepository.deleteBrewPlan(plan.id); if (els.planDetail.open) setDialog(els.planDetail, false); await animateCardExit(card); await reload({ skipEnterAnimation: true }); toast('方案已删除'); } catch (error) { console.error(error); toast(error.message || '删除失败'); }
   }
   async function longPressDeleteDrink(card) {
     const log = state.drinkLogs.find((item) => item.id === card.dataset.logId);
@@ -1712,7 +1759,7 @@
       if (state.editingDrinkId === log.id) state.editingDrinkId = null;
       if (els.drinkDetail.open && state.viewingDrinkId === log.id) { state.viewingDrinkId = null; setDialog(els.drinkDetail, false); }
       if (els.drink.open && !state.editingDrinkId) setDialog(els.drink, false);
-      await reload();
+      await animateCardExit(card); await reload({ skipEnterAnimation: true });
       toast(external ? '外饮记录已删除' : '记录已删除，克数已归还');
     } catch (error) { console.error(error); toast('删除失败'); }
   }
@@ -1734,7 +1781,7 @@
     });
     $('#drinkEmpty').addEventListener('click', (event) => { const button = event.target.closest('[data-drink-empty-action]'); if (!button) return; if (button.dataset.drinkEmptyAction === 'external') return openExternalDrinkDialog(); openBeanPickerForDrink(); });
     $('#drinkStarterHint').addEventListener('click', (event) => { if (!event.target.closest('[data-drink-hint-dismiss]')) return; writeLocalFlag('coffee-vault-hint-first-drink'); renderDrinkStarterHint(); });
-    els.list.addEventListener('click', (event) => { if (cardPressFired) { cardPressFired = false; return; } const quick = event.target.closest('[data-drink-id]'); if (quick) { event.stopPropagation(); return openDrinkDialog(state.beans.find((bean) => bean.id === quick.dataset.drinkId)); } const card = event.target.closest('.bean-card'); if (card) openDetail(state.beans.find((bean) => bean.id === card.dataset.id)); });
+    els.list.addEventListener('click', (event) => { if (cardPressFired) { cardPressFired = false; return; } const quick = event.target.closest('[data-drink-id]'); if (quick) { event.stopPropagation(); return animateQuickDrink(quick); } const card = event.target.closest('.bean-card'); if (card) openDetail(state.beans.find((bean) => bean.id === card.dataset.id)); });
     attachLongPress(els.list, '.bean-card', longPressDeleteBean);
     els.list.addEventListener('keydown', (event) => { if (!['Enter', ' '].includes(event.key) || event.target.closest('button')) return; const card = event.target.closest('.bean-card'); if (card) { event.preventDefault(); openDetail(state.beans.find((bean) => bean.id === card.dataset.id)); } });
     $('#beanReminderPanel').addEventListener('click', (event) => { const button = event.target.closest('[data-reminder-bean]'); if (button) openDetail(state.beans.find((bean) => bean.id === button.dataset.reminderBean)); });

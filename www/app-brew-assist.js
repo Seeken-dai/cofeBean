@@ -15,7 +15,7 @@
   'use strict';
 
   function create(deps) {
-    const { $, $$, state, els, core, toast, setDialog, esc, formatWeight, durationText, syncRatioValue, syncDurationField, currentDrinkMethod, selectedDrinkPlan, drinkParamSnapshot, openPlanDetail, saveAssistDrink, openTastingById } = deps;
+    const { $, $$, state, els, core, toast, setDialog, haptic, esc, formatWeight, durationText, syncRatioValue, syncDurationField, currentDrinkMethod, selectedDrinkPlan, drinkParamSnapshot, openPlanDetail, saveAssistDrink, openTastingById } = deps;
     ['$', '$$', 'state', 'els', 'core', 'toast', 'setDialog', 'esc', 'formatWeight', 'durationText'].forEach((key) => {
       if (!deps[key]) throw new Error(`AppBrewAssist.create 缺少依赖:${key}`);
     });
@@ -31,6 +31,10 @@
       const assist = state.brewAssist;
       if (!assist || assist.completed) return assist ? assist.completedElapsed : 0;
       return assist.elapsed + (assist.paused || !assist.startedAt ? 0 : (Date.now() - assist.startedAt) / 1000);
+    }
+    function setAnimatedText(el, value) {
+      const text = String(value); if (!el || el.textContent === text) return;
+      el.textContent = text; el.classList.remove('digit-changing'); void el.offsetWidth; el.classList.add('digit-changing');
     }
     function assistTotalWater(plan) {
       const total = Number(plan.totalWater) || core.prepareBrewAssistSteps(plan.steps).reduce((sum, step) => sum + (Number(step.water) || 0), 0);
@@ -104,6 +108,7 @@
       releaseWakeLock();
       $('#brewAssistRunning').hidden = true;
       $('#brewAssistComplete').hidden = false;
+      if (typeof haptic === 'function') haptic('success');
       launchConfetti();
       $('#brewAssistResultMeta').textContent = assist.source === 'drink' ? '正在保存冲煮参数并扣减豆量…' : '本次辅助不会生成饮用记录。';
       $('#brewAssistResultDuration').textContent = durationText(assist.completedElapsed, 'minute');
@@ -119,7 +124,7 @@
     // 圆环中心突出「本段注水量」；无水量时回退显示占位。
     function setAssistWater(step) {
       const hasWater = step && step.water;
-      $('#brewAssistWater').textContent = hasWater ? formatWeight(step.water) : (step ? '—' : '准备器具');
+      setAnimatedText($('#brewAssistWater'), hasWater ? formatWeight(step.water) : (step ? '—' : '准备器具'));
       $('#brewAssistWaterCaption').textContent = hasWater ? '本段目标注水' : (step ? '本段未记录水量' : '确认粉量、水量和器具后开始');
     }
     function assistNextBrief(step) {
@@ -137,14 +142,14 @@
       const assist = state.brewAssist;
       if (!assist) return;
       const ring = $('#brewAssistRing');
-      ring.classList.remove('assist-ring--gap');
+      ring.classList.remove('assist-ring--gap'); ring.classList.toggle('assist-ring--paused', Boolean(assist.paused)); ring.classList.toggle('assist-ring--pouring', assist.phase === 'running');
       ring.setAttribute('aria-label', assist.phase === 'ready' ? '开始冲煮辅助' : '进入下一段');
       $('#brewAssistMeta').textContent = [assist.beanName, assist.plan.name, '手冲'].filter(Boolean).join(' · ');
       if (assist.phase === 'ready') {
         const first = assist.steps[0];
         $('#brewAssistPhase').textContent = `准备就绪 · 共 ${assist.steps.length} 段`;
         setAssistWater(first);
-        $('#brewAssistTime').textContent = assistClock(0);
+        setAnimatedText($('#brewAssistTime'), assistClock(0));
         $('#brewAssistStageMeta').textContent = first ? `${first.time} · 点圆环开始` : `全程 ${durationText(assist.total, 'minute')}`;
         $('#brewAssistRing').style.setProperty('--assist-progress', '0deg');
         setAssistNext(assist.steps[1], false);
@@ -158,7 +163,7 @@
         const left = Math.max(0, 3 - (Date.now() - assist.countdownStartedAt) / 1000);
         $('#brewAssistPhase').textContent = '准备开始';
         setAssistWater(assist.steps[0]);
-        $('#brewAssistTime').textContent = `00:0${Math.ceil(left) || 0}`;
+        setAnimatedText($('#brewAssistTime'), `00:0${Math.ceil(left) || 0}`);
         $('#brewAssistStageMeta').textContent = '倒计时结束进入第一段';
         $('#brewAssistRing').style.setProperty('--assist-progress', `${Math.min(360, (3 - left) / 3 * 360)}deg`);
         setAssistNext(assist.steps[1], false);
@@ -183,9 +188,9 @@
         // 大数字与下方计时用同一个 ceil 值，避免 ceil 与 assistClock 内部 round 不一致导致两处差 1 秒。
         const gapShown = Math.ceil(remaining);
         $('#brewAssistPhase').textContent = '等待间奏 · 准备下一段';
-        $('#brewAssistWater').textContent = String(gapShown);
+        setAnimatedText($('#brewAssistWater'), String(gapShown));
         $('#brewAssistWaterCaption').textContent = '秒后进入下一段';
-        $('#brewAssistTime').textContent = assistClock(gapShown);
+        setAnimatedText($('#brewAssistTime'), assistClock(gapShown));
         $('#brewAssistStageMeta').textContent = status.next ? `下一段：${status.next.label}` : '';
         $('#brewAssistRing').style.setProperty('--assist-progress', `${Math.max(0, Math.min(360, remaining / span * 360))}deg`);
         setAssistNext(status.next, false);
@@ -204,7 +209,7 @@
       const stageElapsed = Math.max(0, elapsed - current.start);
       $('#brewAssistPhase').textContent = overtime ? `最后一段 · ${current.label}` : `第 ${status.index + 1}/${assist.steps.length} 段 · ${current.label}`;
       setAssistWater(current);
-      $('#brewAssistTime').textContent = assistClock(stageElapsed);
+      setAnimatedText($('#brewAssistTime'), assistClock(stageElapsed));
       $('#brewAssistStageMeta').textContent = overtime ? `已超出方案 ${durationText(Math.max(0, elapsed - assist.total), 'minute')}` : current.time;
       $('#brewAssistRing').style.setProperty('--assist-progress', `${overtime ? 360 : Math.min(360, stageElapsed / current.duration * 360)}deg`);
       setAssistNext(next, overtime);
