@@ -219,9 +219,8 @@ dialog::backdrop { background:rgb(8 5 4 / .72); backdrop-filter:blur(4px); }
 .sheet { opacity:1; transform:translateY(0); transition:opacity .24s var(--ease),transform .26s var(--ease),overlay .26s allow-discrete,display .26s allow-discrete; }
 .sheet:not([open]) { opacity:0; transform:translateY(20px); }
 @starting-style { .sheet[open] { opacity:0; transform:translateY(20px); } }
-.sheet::backdrop { opacity:1; transition:opacity .24s var(--ease),overlay .26s allow-discrete,display .26s allow-discrete; }
-.sheet:not([open])::backdrop { opacity:0; }
-@starting-style { .sheet[open]::backdrop { opacity:0; } }
+.sheet::backdrop { opacity:1; }
+.sheet[open]::backdrop { animation:backdrop-in .18s ease-out both; }
 .sheet[open] { animation:sheet-in .36s var(--ease-spring) both; }
 .sheet.sheet-closing { animation:sheet-out .2s ease-in both; pointer-events:none; }
 .sheet.sheet-closing::backdrop { animation:backdrop-out .2s ease-in both; }
@@ -694,15 +693,18 @@ html.number-picker-open { overflow:hidden; }
 .assist-ring[role="button"]:focus-visible { outline:2px solid var(--accent); outline-offset:5px; }
 .assist-ring[role="button"]:active { transform:scale(.985); }
 .assist-ring::before { content:""; position:absolute; width:min(58vw,216px); aspect-ratio:1; border-radius:50%; background:radial-gradient(circle at 50% 28%, color-mix(in srgb,var(--accent) 8%,var(--surface-2)), var(--surface)); box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--border) 68%,transparent); }
-.assist-ring::after { content:""; position:absolute; z-index:2; left:50%; top:50%; width:12px; height:12px; margin:-6px; border-radius:50% 50% 50% 18%; background:var(--accent); box-shadow:0 0 14px color-mix(in srgb,var(--accent) 80%,transparent); transform:rotate(calc(var(--assist-progress) - 45deg)) translateX(min(35vw,130px)); transform-origin:6px 6px; }
-.assist-ring > div::before { content:""; position:absolute; z-index:-1; inset:-22px; border-radius:50%; background:radial-gradient(circle,color-mix(in srgb,var(--accent) 16%,transparent),transparent 64%); opacity:0; transform:scale(.78); }
+.assist-ring::after { content:""; position:absolute; z-index:2; left:50%; top:50%; width:12px; height:12px; margin:-6px; border-radius:50% 50% 50% 18%; background:var(--accent); box-shadow:0 0 14px color-mix(in srgb,var(--accent) 80%,transparent); transform:rotate(var(--assist-progress)) translateY(max(calc(-35vw + 6px),-124px)) rotate(45deg); transform-origin:center; }
+.assist-ring > div::before { content:""; position:absolute; z-index:0; inset:-22px; border-radius:50%; background:radial-gradient(circle,color-mix(in srgb,var(--accent) 28%,transparent),transparent 66%); opacity:0; transform:scale(.78); pointer-events:none; }
 .assist-ring.assist-ring--pouring > div::before { animation:assist-water-wave 2.8s ease-in-out infinite; animation-play-state:running; }
 .assist-ring.assist-ring--paused > div::before { animation-play-state:paused; }
 .assist-ring > div { position:relative; z-index:1; display:grid; gap:3px; justify-items:center; width:min(58vw,208px); padding:10px; text-align:center; }
+.assist-ring > div > * { position:relative; z-index:1; }
 .assist-ring span,.assist-ring small { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .assist-ring span { color:var(--accent); font-size:11px; font-weight:800; }
 .assist-ring strong { box-sizing:border-box; max-width:100%; padding:0 5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text); font-size:52px; font-weight:850; line-height:1.14; font-variant-numeric:tabular-nums; letter-spacing:0; }
-.assist-ring strong.digit-changing,.assist-ring-clock b.digit-changing { animation:assist-digit-change .24s ease-out both; }
+.assist-ring strong.digit-changing,.assist-ring-clock b span.digit-changing { animation:assist-digit-change .24s ease-out both; }
+.assist-ring-clock b span { display:inline-block; min-width:.58em; text-align:center; }
+.assist-ring-clock b span:nth-child(3) { min-width:.3em; }
 #brewAssistWaterCaption { color:var(--faint); font-size:10px; }
 .assist-ring-clock { display:flex; align-items:baseline; justify-content:center; gap:7px; margin-top:5px; max-width:100%; }
 .assist-ring-clock b { color:var(--accent); font:700 21px "Vault Serif",serif; font-variant-numeric:tabular-nums; }
@@ -786,6 +788,7 @@ html.number-picker-open { overflow:hidden; }
 @keyframes drink-float { from { opacity:0; transform:translateY(4px) scale(.85); } 20% { opacity:1; } to { opacity:0; transform:translateY(-34px) scale(1); } }
 @keyframes sheet-in { 0% { opacity:0; transform:translateY(24px) scale(.985); } 75% { opacity:1; transform:translateY(-2px) scale(1.002); } 100% { opacity:1; transform:none; } }
 @keyframes sheet-out { from { opacity:1; transform:none; } to { opacity:0; transform:translateY(28px); } }
+@keyframes backdrop-in { from { opacity:0; } to { opacity:1; } }
 @keyframes backdrop-out { from { opacity:1; } to { opacity:0; } }
 @keyframes card-leave { 0% { opacity:1; transform:none; max-height:var(--card-height); margin-bottom:0; } 55% { opacity:0; transform:scale(.96); max-height:var(--card-height); } 100% { opacity:0; transform:scale(.96); max-height:0; min-height:0; margin-bottom:-8px; padding-top:0; padding-bottom:0; } }
 .card-leaving { overflow:hidden; pointer-events:none; animation:card-leave .3s ease-in both!important; }

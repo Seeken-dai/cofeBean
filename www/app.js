@@ -36,6 +36,7 @@
   let fabHintTimer = null;
   let previousView = state.view;
   let suppressListEnter = false;
+  let activeQuickDrinkButton = null;
   const previousStats = new Map();
   const els = { list: $('#beanList'), empty: $('#emptyState'), count: $('#recordCount'), searchPanel: $('#searchPanel'), search: $('#searchInput'), personal: $('#personalDialog'), backup: $('#dataBackupDialog'), calendar: $('#coffeeCalendarDialog'), detail: $('#detailDialog'), drinkDetail: $('#drinkDetailDialog'), planDetail: $('#planDetailDialog'), planEditor: $('#planEditorDialog'), editor: $('#editorDialog'), form: $('#beanForm'), planForm: $('#planForm'), drink: $('#drinkDialog'), drinkForm: $('#drinkForm'), brewAssist: $('#brewAssistDialog'), choice: $('#choiceDialog'), datePicker: $('#datePickerDialog'), photoSource: $('#photoSourceDialog'), scanImage: $('#scanImageDialog'), imagePreview: $('#imagePreviewDialog'), shareChoice: $('#shareImageChoiceDialog'), drinkShareChoice: $('#drinkShareChoiceDialog'), planShareChoice: $('#planShareChoiceDialog'), planImport: $('#planImportDialog'), manager: $('#smartManagerDialog'), settings: $('#settingsDialog'), sync: $('#syncDialog'), syncAuth: $('#syncAuthDialog'), about: $('#aboutDialog'), migration: $('#migrationDialog'), confirm: $('#confirmDialog'), sharePreview: $('#sharePreviewDialog'), toast: $('#toast'), scanResult: $('#scanResult') };
 
@@ -172,9 +173,15 @@
   }
   function motionReduced() { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
   function wait(ms) { return new Promise((resolve) => setTimeout(resolve, motionReduced() ? 0 : ms)); }
-  function haptic(kind) {
-    if (!navigator.vibrate) return;
-    navigator.vibrate(kind === 'success' ? [12, 35, 18] : 10);
+  async function haptic(kind) {
+    const native = capPlugin('Haptics');
+    try {
+      if (native) {
+        if (kind === 'success' && native.notification) return await native.notification({ type: 'SUCCESS' });
+        if (native.impact) return await native.impact({ style: 'LIGHT' });
+      }
+    } catch (_) {}
+    if (navigator.vibrate) navigator.vibrate(kind === 'success' ? [20, 45, 30] : 12);
   }
   function setDialog(dialog, open) {
     if (open && !dialog.open) { dialog.classList.remove('sheet-closing'); dialog.showModal(); return; }
@@ -205,9 +212,18 @@
     if (!button || button.disabled) return;
     const bean = state.beans.find((item) => item.id === button.dataset.drinkId); if (!bean) return;
     const grams = Math.min(state.settings.quickGrams, Number(bean.remainingWeight) || 0);
-    button.classList.add('is-drinking'); button.querySelector('span').textContent = '✓'; haptic('light');
+    resetQuickDrinkFeedback(); activeQuickDrinkButton = button;
+    const label = button.querySelector('span'); button.dataset.originalLabel = label.textContent;
+    button.classList.add('is-drinking'); label.textContent = '✓'; haptic('light');
     const float = document.createElement('span'); float.className = 'drink-float'; float.textContent = `-${formatWeight(grams)}`; button.appendChild(float);
     await wait(450); openDrinkDialog(bean);
+  }
+  function resetQuickDrinkFeedback() {
+    const button = activeQuickDrinkButton; activeQuickDrinkButton = null;
+    if (!button || !button.isConnected) return;
+    button.classList.remove('is-drinking'); button.querySelectorAll('.drink-float').forEach((node) => node.remove());
+    const label = button.querySelector('span'); if (label) label.textContent = button.dataset.originalLabel || label.textContent;
+    delete button.dataset.originalLabel;
   }
   function floatingActionsActive() { return ['beans', 'plans', 'drinks'].includes(state.view) && !(state.view === 'beans' && state.beans.length === 0); }
   function readLocalFlag(key) { try { return localStorage.getItem(key) === '1'; } catch (_) { return false; } }
@@ -1765,6 +1781,7 @@
   }
   function bindEvents() {
     setupNumberInputs();
+    els.drink.addEventListener('close', resetQuickDrinkFeedback);
     const localPreview = ['localhost', '127.0.0.1'].includes(location.hostname); $('#mockDataSection').hidden = !localPreview; $('#loadMockData').addEventListener('click', loadMockData);
     $('#plan-mokaPotSize-choice').addEventListener('change', () => syncMokaSize('plan'));
     $('#plan-mokaPotSize-custom').addEventListener('input', () => syncMokaSize('plan'));
