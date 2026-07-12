@@ -1327,13 +1327,13 @@
       if (bean && plan.beanIds.includes(bean.id)) tags.push('已绑定');
       if (plan.source === 'preset') tags.push('预置');
       const tagHtml = tags.map((tag) => `<i>${esc(tag)}</i>`).join('');
-      return `<button type="button" data-drink-plan="${esc(plan.id)}" class="${plan.id === currentId ? 'active' : ''}"><span>${esc(plan.name)}${tagHtml ? `<em>${tagHtml}</em>` : ''}</span><small>${esc(plan.brewMethod)} · v${esc(plan.version)}</small></button>`;
+      return `<button type="button" data-drink-plan="${esc(plan.id)}" class="${plan.id === currentId ? 'active' : ''}"><span>${esc(plan.name)}${tagHtml ? `<em>${tagHtml}</em>` : ''}</span></button>`;
     }).join('');
-    const lastManualButton = lastManual ? `<button type="button" data-use-last-brew="${esc(last.id)}"><span>上次手填参数<em><i>上次</i></em></span><small>${esc(formatDateTime(last.consumedAt))}</small></button>` : '';
+    const lastManualButton = lastManual ? `<button type="button" class="drink-plan-action" data-use-last-brew="${esc(last.id)}"><span>上次手填参数<em><i>上次</i></em></span><small>${esc(formatDateTime(last.consumedAt))}</small></button>` : '';
     const hints = [currentMethod || '当前方式'];
     if (last) hints.push('当前豆子的上次使用');
     hints.push('已绑定方案优先');
-    $('#drinkPlanPicker').innerHTML = `<div class="section-heading"><div><span>方案选择</span><small>${esc(hints.join(' · '))}</small></div></div><div class="drink-plan-options"><button type="button" data-drink-plan="" class="${!currentId ? 'active' : ''}"><span>不使用方案</span><small>手填本次参数</small></button>${lastManualButton}${planButtons}${plans.length || lastManual ? '' : '<p class="manager-empty compact-empty">当前冲煮方式暂无方案。</p>'}</div>`;
+    $('#drinkPlanPicker').innerHTML = `<div class="section-heading"><div><span>方案选择</span><small>${esc(hints.join(' · '))}</small></div></div><div class="drink-plan-options"><button type="button" data-drink-plan="" class="drink-plan-action ${!currentId ? 'active' : ''}"><span>不使用方案</span><small>手填本次参数</small></button>${lastManualButton}${planButtons}${plans.length || lastManual ? '' : '<p class="manager-empty compact-empty">当前冲煮方式暂无方案。</p>'}</div>`;
     updateDrinkAssistEntry();
   }
   // 冲煮辅助入口移动到底部工具栏：手冲方式且本次有可计时的分段步骤时显示。

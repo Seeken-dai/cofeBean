@@ -559,11 +559,11 @@ html.number-picker-open { overflow:hidden; }
 .pour-step-head input { width:100%; min-height:36px; padding:6px 9px; border:1px solid transparent; border-radius:10px; background:transparent; color:var(--accent); font-size:14px; font-weight:700; }
 .pour-step-head input:focus { border-color:var(--border); background:var(--surface-2); }
 .pour-step-head button { width:32px; height:32px; border:1px solid var(--border); border-radius:10px; background:var(--surface-2); color:var(--danger); font-size:16px; }
-.pour-step-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+.pour-step-grid { display:grid; grid-template-columns:minmax(58px,.7fr) repeat(2,minmax(0,1.15fr)); gap:8px; }
 .pour-step-grid label { display:flex; flex-direction:column; gap:5px; color:var(--faint); font-size:11px; }
 .pour-step-grid label.full { grid-column:1/-1; }
 .pour-step-grid input { width:100%; min-height:40px; padding:8px 9px; border:1px solid var(--border); border-radius:10px; background:var(--surface-2); color:var(--text); font-size:15px; }
-.pour-time-control { display:grid; grid-template-columns:1fr auto 1fr auto; align-items:center; gap:3px; min-height:40px; padding:0 6px; border:1px solid var(--border); border-radius:10px; background:var(--surface-2); }
+.pour-time-control { display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto; align-items:center; gap:2px; min-height:40px; padding:0 4px; border:1px solid var(--border); border-radius:10px; background:var(--surface-2); }
 .pour-time-control input { min-width:0; min-height:36px; padding:4px 1px; border:0; background:transparent; text-align:center; font-size:15px; }
 .pour-time-control b { color:var(--accent); font-size:10px; }
 .pour-step-actions { display:flex; gap:8px; }
@@ -574,6 +574,7 @@ html.number-picker-open { overflow:hidden; }
 .drink-plan-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; }
 .drink-plan-options button { display:flex; align-items:center; justify-content:space-between; gap:10px; min-width:0; min-height:42px; padding:8px 10px; border:1px solid color-mix(in srgb,var(--border) 80%,transparent); border-radius:11px; background:var(--surface); color:var(--muted); text-align:left; }
 .drink-plan-options button > span { min-width:0; flex:1 1 auto; }
+.drink-plan-options .drink-plan-action { grid-column:1/-1; }
 .drink-plan-options button.active { border-color:color-mix(in srgb,var(--accent) 58%,var(--border)); background:color-mix(in srgb,var(--accent) 10%,var(--surface)); color:var(--accent); }
 .drink-plan-options span,.drink-plan-options small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .drink-plan-options span { font-weight:700; }
@@ -733,7 +734,7 @@ html.number-picker-open { overflow:hidden; }
 @media (max-width:420px) {
   .overview { grid-template-columns:1fr 1px .85fr 1.15fr; gap:10px; padding:15px 13px; }
   .stat strong { font-size:17px; }.stat-primary strong { font-size:32px; }
-  .form-grid,.drink-param-grid,.drink-plan-options { grid-template-columns:1fr; }.field.full,.drink-param-grid .field.full,.drink-param-grid > .full { grid-column:1; }.favorite-field { padding-top:0; }
+  .form-grid,.drink-param-grid { grid-template-columns:1fr; }.field.full,.drink-param-grid .field.full,.drink-param-grid > .full { grid-column:1; }.favorite-field { padding-top:0; }
   .rating-row { gap:4px; }.rating-row button { width:38px; height:40px; }.dimension-settings { grid-template-columns:1fr 1fr; }
   .sync-actions { grid-template-columns:1fr 1fr; }.sync-actions #syncLogout { grid-column:1/-1; }
   .sync-account-card { grid-template-columns:42px 1fr; }.sync-account-card .sync-badge { grid-column:2; justify-self:start; }
