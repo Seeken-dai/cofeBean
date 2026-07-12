@@ -262,9 +262,10 @@
         <label class="field full method-field" data-methods="自定义"><span>自定义方式</span><input id="plan-customMethod" name="customMethod" type="text" maxlength="80"></label>
         <label class="field full" id="planStepsTextField"><span>步骤</span><textarea id="plan-steps" rows="4" placeholder="每行一段，例如：闷蒸 | 30g | 0:00-0:30"></textarea></label>
         <section class="pour-steps full method-field" id="planPourSteps" data-methods="手冲">
-          <div class="section-heading"><div><span>分段注水</span><small>后续冲煮计时器会复用这些步骤</small></div></div>
+          <div class="section-heading"><div><span>分段注水</span><small>后续冲煮计时器会复用这些步骤</small></div><small class="pour-allocation" id="pourAllocation"></small></div>
+          <div class="pour-template-row" id="pourTemplateRow"><span>按结构生成</span><button type="button" data-pour-template="preset-single-pour">一刀流</button><button type="button" data-pour-template="preset-three-pour">三段式</button><button type="button" data-pour-template="preset-46-method">四六法</button></div>
           <div class="pour-step-list" id="pourStepList"></div>
-          <button class="add-pour-step" id="addPourStep" type="button">添加一段注水</button>
+          <div class="pour-step-actions"><button class="add-pour-step" id="addPourStep" type="button">添加一段注水</button><button class="pour-fill-remainder" id="pourFillRemainder" type="button" hidden></button></div>
         </section>
         <section class="bean-bind full" id="planBeanBind"></section>
         <label class="field full"><span>备注</span><textarea id="plan-notes" name="notes" maxlength="3000" rows="4" placeholder="这段风味适合什么豆子？也可以记下风味目标和下次想调整的地方…"></textarea></label>

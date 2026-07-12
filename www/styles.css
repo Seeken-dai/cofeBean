@@ -541,19 +541,35 @@ html.number-picker-open { overflow:hidden; }
 .bean-bind-grid input { flex:0 0 auto; accent-color:var(--accent); }
 .bean-bind-grid span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .pour-steps { display:grid; gap:8px; padding:12px; border:1px solid var(--border); border-radius:15px; background:var(--surface-2); }
+.pour-steps .section-heading { margin-bottom:0; align-items:baseline; }
+.pour-allocation { flex:0 0 auto; color:var(--accent); font-size:11px; font-weight:650; }
+.pour-allocation.over { color:var(--danger); }
+.pour-template-row { display:flex; align-items:center; gap:6px; }
+.pour-template-row > span { flex:0 0 auto; color:var(--faint); font-size:11px; }
+.pour-template-row button { flex:1; min-height:34px; border:1px solid var(--border); border-radius:10px; background:var(--surface); color:var(--muted); font-size:12px; font-weight:650; }
 .pour-step-list { display:grid; gap:8px; }
 .pour-step { display:grid; gap:8px; padding:10px; border:1px solid color-mix(in srgb,var(--border) 80%,transparent); border-radius:12px; background:var(--surface); }
-.pour-step-head { display:flex; align-items:center; justify-content:space-between; gap:10px; }
-.pour-step-head strong { color:var(--accent); font-size:12px; }
-.pour-step-head button { width:30px; height:30px; border:1px solid var(--border); border-radius:10px; background:var(--surface-2); color:var(--danger); }
-.pour-step-grid { display:grid; grid-template-columns:1.1fr .9fr .8fr .8fr; gap:8px; }
-.pour-step-grid label { display:flex; flex-direction:column; gap:5px; color:var(--faint); font-size:9px; }
+.pour-step.active { border-color:color-mix(in srgb,var(--accent) 48%,var(--border)); background:color-mix(in srgb,var(--accent) 5%,var(--surface)); }
+.pour-step-summary { display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; min-height:38px; padding:0; border:0; background:transparent; color:var(--muted); text-align:left; }
+.pour-step-summary span { display:grid; gap:3px; min-width:0; }
+.pour-step-summary b { overflow:hidden; color:var(--accent); font-size:13px; text-overflow:ellipsis; white-space:nowrap; }
+.pour-step-summary small { overflow:hidden; color:var(--faint); font-size:11px; text-overflow:ellipsis; white-space:nowrap; }
+.pour-step-summary i { flex:0 0 auto; color:var(--accent); font-size:11px; font-style:normal; font-weight:750; }
+.pour-step-head { display:grid; grid-template-columns:1fr 32px; gap:8px; align-items:center; }
+.pour-step-head input { width:100%; min-height:36px; padding:6px 9px; border:1px solid transparent; border-radius:10px; background:transparent; color:var(--accent); font-size:14px; font-weight:700; }
+.pour-step-head input:focus { border-color:var(--border); background:var(--surface-2); }
+.pour-step-head button { width:32px; height:32px; border:1px solid var(--border); border-radius:10px; background:var(--surface-2); color:var(--danger); font-size:16px; }
+.pour-step-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+.pour-step-grid label { display:flex; flex-direction:column; gap:5px; color:var(--faint); font-size:11px; }
 .pour-step-grid label.full { grid-column:1/-1; }
-.pour-step-grid input { width:100%; min-height:38px; padding:8px 9px; border:1px solid var(--border); border-radius:10px; background:var(--surface-2); color:var(--text); }
-.pour-time-control { display:grid; grid-template-columns:1fr auto 1fr auto; align-items:center; gap:4px; min-height:38px; padding:0 7px; border:1px solid var(--border); border-radius:10px; background:var(--surface-2); }
-.pour-time-control input { min-width:0; min-height:34px; padding:4px 2px; border:0; background:transparent; text-align:center; }
-.pour-time-control b { color:var(--accent); font-size:9px; }
+.pour-step-grid input { width:100%; min-height:40px; padding:8px 9px; border:1px solid var(--border); border-radius:10px; background:var(--surface-2); color:var(--text); font-size:15px; }
+.pour-time-control { display:grid; grid-template-columns:1fr auto 1fr auto; align-items:center; gap:3px; min-height:40px; padding:0 6px; border:1px solid var(--border); border-radius:10px; background:var(--surface-2); }
+.pour-time-control input { min-width:0; min-height:36px; padding:4px 1px; border:0; background:transparent; text-align:center; font-size:15px; }
+.pour-time-control b { color:var(--accent); font-size:10px; }
+.pour-step-actions { display:flex; gap:8px; }
+.pour-step-actions button { flex:1; }
 .add-pour-step { min-height:42px; border:1px dashed color-mix(in srgb,var(--accent) 48%,var(--border)); border-radius:12px; background:color-mix(in srgb,var(--accent) 8%,transparent); color:var(--accent); font-weight:750; }
+.pour-fill-remainder { min-height:42px; border:1px solid color-mix(in srgb,var(--accent) 40%,var(--border)); border-radius:12px; background:var(--surface); color:var(--accent); font-size:12px; font-weight:650; }
 .drink-plan-picker { display:grid; gap:8px; padding:10px 12px; border:1px solid var(--border); border-radius:14px; background:var(--surface-2); }
 .drink-plan-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; }
 .drink-plan-options button { display:flex; align-items:center; justify-content:space-between; gap:10px; min-width:0; min-height:42px; padding:8px 10px; border:1px solid color-mix(in srgb,var(--border) 80%,transparent); border-radius:11px; background:var(--surface); color:var(--muted); text-align:left; }
@@ -579,18 +595,11 @@ html.number-picker-open { overflow:hidden; }
 .drink-step-list { display:grid; gap:8px; }
 .drink-step-card { display:grid; gap:8px; padding:9px; border:1px solid color-mix(in srgb,var(--border) 78%,transparent); border-radius:13px; background:var(--surface); }
 .drink-step-card.active { border-color:color-mix(in srgb,var(--accent) 48%,var(--border)); background:color-mix(in srgb,var(--accent) 5%,var(--surface)); }
-.drink-step-summary,.drink-step-head button:first-child { width:100%; min-height:42px; padding:0; border:0; background:transparent; color:var(--muted); text-align:left; }
-.drink-step-summary { display:flex; align-items:center; justify-content:space-between; gap:10px; }
-.drink-step-summary span,.drink-step-head span { display:grid; gap:3px; min-width:0; }
-.drink-step-summary b,.drink-step-head b { overflow:hidden; color:var(--accent); font-size:13px; text-overflow:ellipsis; white-space:nowrap; }
-.drink-step-summary small,.drink-step-head small { overflow:hidden; color:var(--faint); font-size:9px; text-overflow:ellipsis; white-space:nowrap; }
-.drink-step-summary i { flex:0 0 auto; color:var(--accent); font-size:10px; font-style:normal; font-weight:750; }
-.drink-step-head { display:grid; grid-template-columns:1fr 32px; gap:8px; align-items:center; }
-.drink-step-head button:last-child { width:32px; height:32px; border:1px solid var(--border); border-radius:10px; background:var(--surface-2); color:var(--danger); font-size:18px; }
-.drink-step-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-.drink-step-grid label { display:flex; flex-direction:column; gap:5px; color:var(--faint); font-size:9px; }
-.drink-step-grid label.full { grid-column:1/-1; }
-.drink-step-grid input { width:100%; min-height:38px; padding:8px 9px; border:1px solid var(--border); border-radius:10px; background:var(--surface-2); color:var(--text); }
+.drink-step-summary { display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; min-height:42px; padding:0; border:0; background:transparent; color:var(--muted); text-align:left; }
+.drink-step-summary span { display:grid; gap:3px; min-width:0; }
+.drink-step-summary b { overflow:hidden; color:var(--accent); font-size:13px; text-overflow:ellipsis; white-space:nowrap; }
+.drink-step-summary small { overflow:hidden; color:var(--faint); font-size:11px; text-overflow:ellipsis; white-space:nowrap; }
+.drink-step-summary i { flex:0 0 auto; color:var(--accent); font-size:11px; font-style:normal; font-weight:750; }
 .compact-empty { grid-column:1/-1; padding:8px 4px; }
 .timeline { display:grid; gap:14px; }
 .timeline-group { display:grid; gap:10px; }
@@ -724,7 +733,7 @@ html.number-picker-open { overflow:hidden; }
 @media (max-width:420px) {
   .overview { grid-template-columns:1fr 1px .85fr 1.15fr; gap:10px; padding:15px 13px; }
   .stat strong { font-size:17px; }.stat-primary strong { font-size:32px; }
-  .form-grid,.drink-param-grid,.drink-plan-options,.pour-step-grid,.drink-step-grid { grid-template-columns:1fr; }.field.full,.drink-param-grid .field.full,.drink-param-grid > .full,.pour-step-grid label.full,.drink-step-grid label.full { grid-column:1; }.favorite-field { padding-top:0; }
+  .form-grid,.drink-param-grid,.drink-plan-options { grid-template-columns:1fr; }.field.full,.drink-param-grid .field.full,.drink-param-grid > .full { grid-column:1; }.favorite-field { padding-top:0; }
   .rating-row { gap:4px; }.rating-row button { width:38px; height:40px; }.dimension-settings { grid-template-columns:1fr 1fr; }
   .sync-actions { grid-template-columns:1fr 1fr; }.sync-actions #syncLogout { grid-column:1/-1; }
   .sync-account-card { grid-template-columns:42px 1fr; }.sync-account-card .sync-badge { grid-column:2; justify-self:start; }
