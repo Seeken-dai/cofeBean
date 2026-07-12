@@ -461,6 +461,146 @@
     return plan ? normalizeBrewPlan(plan, plan.updatedAt) : null;
   }
 
+  const AI_PLAN_MAX_BODY = 8000; // AI 明文方案原文上限，约对应一段完整方案，超长直接拒收
+
+  function beanAgeDays(roastDate, now) {
+    const text = cleanText(roastDate, 40);
+    if (!text) return null;
+    const start = new Date(text);
+    if (Number.isNaN(start.getTime())) return null;
+    const end = now ? new Date(now) : new Date();
+    const days = Math.floor((end.getTime() - start.getTime()) / 86400000);
+    return days >= 0 ? days : null;
+  }
+
+  // 生成发给任意第三方 AI 的提示词：公共契约两种模式共用，仅开场段不同（选豆 / 通用）。
+  function buildAiPlanPrompt(bean, now) {
+    const methods = BREW_METHODS.join('、');
+    const example = {
+      name: '云南日晒手冲·明亮花果',
+      brewMethod: '手冲', dose: 15, totalWater: 225, ratio: '1:15',
+      waterTemp: '92℃', grindSetting: '中细，白砂糖颗粒感', targetDuration: '2:30',
+      notes: '三段式注水，突出花香与柑橘酸质。',
+      steps: [
+        { label: '焖蒸', water: 30, startTime: '0:00', endTime: '0:45', note: '轻柔画圈，充分排气' },
+        { label: '第一段', water: 120, startTime: '0:45', endTime: '1:30', note: '中心小水流螺旋注水' },
+        { label: '收尾', water: 75, startTime: '1:30', endTime: '2:30', note: '压低水位收尾' }
+      ]
+    };
+    const contract = [
+      '你是「豆仓」App 的手冲/意式咖啡冲煮专家，请为用户设计一份冲煮方案。',
+      '',
+      '【输出契约】',
+      '- 方案定稿时只输出一个 JSON 对象；不要 markdown 代码块、不要任何解释文字，方便用户一键复制。',
+      '- 给出最终 JSON 之前，你可以正常对话、追问器具与偏好；但最终答案必须是纯 JSON。',
+      '- 只输出一个方案对象，不要输出数组或多个方案。',
+      '',
+      '【字段规则】',
+      '- name：方案名称，不超过 120 字。',
+      `- brewMethod：必须是以下之一——${methods}。`,
+      '- dose：粉量（克，数字）；totalWater：总水量（克，数字）；ratio：粉水比，如 "1:15"。',
+      '- waterTemp：水温，如 "92℃"；grindSetting：研磨度描述；targetDuration：目标总时长，如 "2:30"。',
+      '- notes：冲煮要点说明，不超过 3000 字。',
+      '- steps：分段数组，每段为 { "label": 段名, "water": 该段注水量数字, "startTime": "0:00", "endTime": "0:45", "note": 该段要点 }。',
+      '',
+      '【示例（仅示范结构，请按实际方案填写）】',
+      JSON.stringify(example)
+    ];
+    let opening;
+    if (bean) {
+      const age = beanAgeDays(bean.roastDate, now);
+      const info = [
+        bean.name ? `名称：${bean.name}` : '',
+        bean.origin ? `产地：${bean.origin}` : '',
+        bean.process ? `处理法：${bean.process}` : '',
+        bean.roastLevel ? `烘焙度：${bean.roastLevel}` : '',
+        bean.roastDate ? `烘焙日期：${bean.roastDate}${age != null ? `（已养豆 ${age} 天）` : ''}` : '',
+        bean.tastingNotes ? `风味描述：${bean.tastingNotes}` : ''
+      ].filter(Boolean);
+      opening = [
+        '【本次豆子信息】',
+        info.length ? info.join('\n') : '（用户未填写详细信息，可先向其确认）',
+        '',
+        '请针对这支豆的特性设计方案，可先简短确认用户的器具与偏好，再给出最终 JSON。',
+        ''
+      ];
+    } else {
+      opening = [
+        '【豆子信息获取方式】',
+        '用户接下来会通过以下两种方式之一告诉你豆子信息：',
+        '① 发送咖啡豆标签或豆袋的照片——请从图片中识别豆名、产地、处理法、烘焙度、风味描述等；',
+        '② 直接口头描述豆子属性。',
+        '请先复述你理解的豆子特性；如信息不足（如烘焙度、烘焙日期、研磨器具），可主动追问，再生成方案。',
+        ''
+      ];
+    }
+    return opening.concat(contract).join('\n');
+  }
+
+  // 从可能夹带解释文字/代码围栏的文本中，截取首个平衡的 {...} 或 [...] 片段。
+  function extractJsonSlice(text) {
+    const startObj = text.indexOf('{');
+    const startArr = text.indexOf('[');
+    if (startObj === -1 && startArr === -1) return null;
+    let start, open, close;
+    if (startArr === -1 || (startObj !== -1 && startObj < startArr)) { start = startObj; open = '{'; close = '}'; }
+    else { start = startArr; open = '['; close = ']'; }
+    let depth = 0, inStr = false, esc = false;
+    for (let i = start; i < text.length; i += 1) {
+      const ch = text[i];
+      if (inStr) {
+        if (esc) esc = false;
+        else if (ch === '\\') esc = true;
+        else if (ch === '"') inStr = false;
+        continue;
+      }
+      if (ch === '"') inStr = true;
+      else if (ch === open) depth += 1;
+      else if (ch === close) { depth -= 1; if (depth === 0) return text.slice(start, i + 1); }
+    }
+    return null;
+  }
+
+  // AI 常把数字写成带单位字符串（"15g" / "225ml"），提取其中数字，交给 cleanNumber 收口。
+  function looseNumber(value) {
+    if (typeof value !== 'string') return value;
+    const match = value.match(/-?\d+(?:\.\d+)?/);
+    return match ? match[0] : value;
+  }
+
+  // 解析 AI 返回的明文 JSON 方案，归一化为一份 user 来源的草稿。数组取首个并标记 pickedFirst。
+  function parseAiPlanJson(text, now) {
+    const trimmed = String(text == null ? '' : text).trim();
+    if (!trimmed) throw new Error('请粘贴 AI 返回的方案内容');
+    if (trimmed.length > AI_PLAN_MAX_BODY) throw new Error('内容过长，请让 AI 精简后只输出一个 JSON 方案');
+    let body = trimmed.replace(/^\s*```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+    const slice = extractJsonSlice(body);
+    if (slice) body = slice;
+    let data;
+    try { data = JSON.parse(body); }
+    catch (_) { throw new Error('无法识别为 JSON 方案，请让 AI 重新只输出 JSON'); }
+    let pickedFirst = false;
+    if (Array.isArray(data)) {
+      if (!data.length) throw new Error('方案内容为空，请让 AI 重新生成');
+      data = data[0]; pickedFirst = true;
+    }
+    if (!data || typeof data !== 'object') throw new Error('方案内容格式不对，应为一个 JSON 对象');
+    const cleaned = {
+      ...data, id: undefined, createdAt: undefined, updatedAt: undefined,
+      deletedAt: undefined, revision: undefined, deviceId: undefined, version: undefined,
+      source: 'user'
+    };
+    ['dose', 'totalWater', 'liquid', 'targetYield'].forEach((key) => { cleaned[key] = looseNumber(cleaned[key]); });
+    if (Array.isArray(cleaned.steps)) cleaned.steps = cleaned.steps.map((step) => (step && typeof step === 'object' ? { ...step, water: looseNumber(step.water) } : step));
+    const plan = normalizeBrewPlan(cleaned, now);
+    if (!BREW_METHODS.includes(plan.brewMethod)) plan.brewMethod = '自定义';
+    const CORE_KEYS = ['dose', 'totalWater', 'ratio', 'waterTemp', 'grinder', 'grindSetting', 'targetDuration', 'steepTime', 'targetYield', 'targetExtractionTime', 'pressTime'];
+    const hasParams = CORE_KEYS.some((key) => plan[key] != null && plan[key] !== '');
+    const meaningful = (plan.name && plan.name !== '未命名方案') || hasParams || plan.notes || (plan.steps && plan.steps.length);
+    if (!meaningful) throw new Error('没有识别到有效的方案内容，请让 AI 按要求重新生成');
+    return { plan, pickedFirst };
+  }
+
   function utf8ToBase64Url(text) {
     const bytes = unescape(encodeURIComponent(String(text)));
     const base64 = typeof btoa === 'function'
@@ -1209,5 +1349,5 @@
     }).sort((a, b) => compareDrinkChronology(b, a))[0] || null;
   }
 
-  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, hasTastingContent, resolveTastingStatus, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, prepareBrewAssistSteps, brewAssistStatus, resolveOpenedDate, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareAppVersions, isAppVersionNewer, selectReleaseApkAsset, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, flavorTags, beanFreshness, recentDrinkSeries, compareDrinkChronology, previousComparableDrink, beanProcessKind };
+  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, hasTastingContent, resolveTastingStatus, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, buildAiPlanPrompt, parseAiPlanJson, prepareBrewAssistSteps, brewAssistStatus, resolveOpenedDate, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareAppVersions, isAppVersionNewer, selectReleaseApkAsset, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, flavorTags, beanFreshness, recentDrinkSeries, compareDrinkChronology, previousComparableDrink, beanProcessKind };
 });

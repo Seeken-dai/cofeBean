@@ -464,3 +464,60 @@ test('decodePlanShare ignores unknown fields but keeps a valid plan', () => {
   assert.equal(decoded.brewMethod, '冷萃');
   assert.equal(decoded.dose, 20);
 });
+
+test('parseAiPlanJson accepts bare JSON and normalizes to a user plan', () => {
+  const { plan, pickedFirst } = core.parseAiPlanJson('{"name":"埃塞手冲","brewMethod":"手冲","dose":"15g","ratio":"1：15"}');
+  assert.equal(pickedFirst, false);
+  assert.equal(plan.name, '埃塞手冲');
+  assert.equal(plan.brewMethod, '手冲');
+  assert.equal(plan.dose, 15); // "15g" 被 cleanNumber 清成 15
+  assert.equal(plan.totalWater, 225); // dose + 全角冒号 ratio 自动补 totalWater
+  assert.equal(plan.source, 'user');
+});
+
+test('parseAiPlanJson strips ```json fences and surrounding prose', () => {
+  const text = '好的，这是你的方案：\n```json\n{"name":"围栏测试","brewMethod":"意式","dose":18}\n```\n祝冲煮愉快！';
+  const { plan } = core.parseAiPlanJson(text);
+  assert.equal(plan.name, '围栏测试');
+  assert.equal(plan.brewMethod, '意式');
+  assert.equal(plan.dose, 18);
+});
+
+test('parseAiPlanJson picks the first plan from an array and flags it', () => {
+  const { plan, pickedFirst } = core.parseAiPlanJson('[{"name":"第一个","dose":16},{"name":"第二个","dose":20}]');
+  assert.equal(pickedFirst, true);
+  assert.equal(plan.name, '第一个');
+});
+
+test('parseAiPlanJson clamps out-of-range fields via normalizeBrewPlan', () => {
+  const { plan } = core.parseAiPlanJson(`{"name":"越界","brewMethod":"火星冲煮","dose":16,"waterTemp":"${'温'.repeat(500)}"}`);
+  assert.equal(plan.brewMethod, '自定义'); // 非法冲煮方式回落
+  assert.ok(plan.waterTemp.length <= 300); // 超长字段被截断
+});
+
+test('parseAiPlanJson rejects junk / empty / oversized / empty-object input', () => {
+  assert.throws(() => core.parseAiPlanJson('今天天气不错'), /JSON/);
+  assert.throws(() => core.parseAiPlanJson('   '), /粘贴/);
+  assert.throws(() => core.parseAiPlanJson('x'.repeat(8001)), /过长/);
+  assert.throws(() => core.parseAiPlanJson('{"foo":"bar"}'), /有效/); // 归一化后无有效内容
+});
+
+test('buildAiPlanPrompt general mode guides photo/verbal input and omits bean section', () => {
+  const prompt = core.buildAiPlanPrompt(null);
+  assert.ok(prompt.includes('照片'));
+  assert.ok(prompt.includes('口头描述') || prompt.includes('口述'));
+  assert.ok(!prompt.includes('本次豆子信息'));
+  core.BREW_METHODS.forEach((method) => assert.ok(prompt.includes(method)));
+  assert.ok(prompt.includes('startTime') && prompt.includes('endTime'));
+  assert.ok(prompt.includes('只输出一个 JSON'));
+});
+
+test('buildAiPlanPrompt bean mode embeds bean traits and drops photo guidance', () => {
+  const bean = { name: '耶加雪菲', origin: '埃塞俄比亚', process: '日晒', roastLevel: '浅烘', tastingNotes: '柑橘 花香', roastDate: '2026-07-01' };
+  const prompt = core.buildAiPlanPrompt(bean, '2026-07-12T00:00:00.000Z');
+  assert.ok(prompt.includes('本次豆子信息'));
+  assert.ok(prompt.includes('埃塞俄比亚'));
+  assert.ok(prompt.includes('日晒'));
+  assert.ok(prompt.includes('已养豆 11 天'));
+  assert.ok(!prompt.includes('发送咖啡豆标签或豆袋的照片'));
+});

@@ -663,7 +663,7 @@
   function ymd(date) { return BeanCore.dateKey(date); }
   function dateFromKey(key) { const [y, m, d] = String(key || '').split('-').map(Number); return new Date(y || new Date().getFullYear(), (m || 1) - 1, d || 1); }
   function money(value) { const n = Math.round((Number(value) || 0) * 100) / 100; return `¥${n % 1 ? n.toFixed(1) : n.toFixed(0)}`; }
-  function dayLevel(day) { const grams = Number(day && day.grams) || 0; if (grams <= 0) return 0; if (grams <= 15) return 1; if (grams <= 30) return 2; if (grams <= 45) return 3; return 4; }
+  function dayLevel(day) { const grams = Number(day && day.grams) || 0; const cups = Number(day && day.cups) || 0; if (grams <= 0) { if (cups <= 0) return 0; if (cups <= 1) return 1; if (cups <= 2) return 2; if (cups <= 3) return 3; return 4; } if (grams <= 15) return 1; if (grams <= 30) return 2; if (grams <= 45) return 3; return 4; }
   function monthKey(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`; }
   function statsForRange(days, predicate) { const values = Object.values(days).filter((day) => predicate(day.date)); const rated = values.filter((day) => day.averageRating); return { cups: values.reduce((sum, day) => sum + day.cups, 0), grams: Math.round(values.reduce((sum, day) => sum + day.grams, 0) * 10) / 10, cost: Math.round(values.reduce((sum, day) => sum + day.cost, 0) * 100) / 100, averageRating: rated.length ? Math.round(rated.reduce((sum, day) => sum + day.averageRating, 0) / rated.length * 10) / 10 : null }; }
   function continuousDays(days) { const keys = Object.keys(days).sort(); if (!keys.length) return 0; let cursor = dateFromKey(keys[keys.length - 1]); let count = 0; while (days[ymd(cursor)]) { count += 1; cursor.setDate(cursor.getDate() - 1); } return count; }
@@ -1673,7 +1673,48 @@
   }
   function setImportStatus(message, isError) { const el = $('#planImportStatus'); el.textContent = message || ''; el.classList.toggle('error', Boolean(isError)); }
   function clearImportSummary() { state.importPlanDraft = null; $('#planImportSummary').hidden = true; $('#planImportConfirm').disabled = true; }
-  function openPlanImport() { clearImportSummary(); $('#planImportCode').value = ''; setImportStatus(''); setDialog(els.planImport, true); }
+  function fillPlanImportBeans() {
+    const select = $('#planImportBean'); if (!select) return;
+    const beans = state.beans.filter((bean) => !bean.deletedAt);
+    const options = ['<option value="">不指定豆子（拍照或口述给 AI）</option>']
+      .concat(beans.map((bean) => `<option value="${esc(bean.id)}">${esc(bean.name || '未命名豆子')}</option>`));
+    select.innerHTML = options.join('');
+    $('#planImportBeanField').hidden = !beans.length;
+  }
+  function setPlanImportTab(tab) {
+    state.planImportTab = tab === 'ai' ? 'ai' : 'code';
+    $$('#planImportTabs .chip').forEach((chip) => chip.classList.toggle('active', chip.dataset.importTab === state.planImportTab));
+    $$('#planImportDialog [data-import-panel]').forEach((panel) => { panel.hidden = panel.dataset.importPanel !== state.planImportTab; });
+    clearImportSummary(); setImportStatus('');
+  }
+  function openPlanImport() {
+    clearImportSummary(); $('#planImportCode').value = ''; $('#planImportAiCode').value = ''; setImportStatus('');
+    fillPlanImportBeans(); setPlanImportTab('code');
+    setDialog(els.planImport, true);
+  }
+  function showPlanImportPreview(plan, statusMessage) {
+    state.importPlanDraft = plan;
+    $('#planImportName').textContent = plan.name;
+    $('#planImportMeta').textContent = [plan.brewMethod, plan.dose ? plan.dose + 'g' : '', plan.ratio, plan.waterTemp].filter(Boolean).join(' · ');
+    $('#planImportSteps').textContent = plan.steps && plan.steps.length ? `${plan.steps.length} 段步骤` : '无分段步骤';
+    $('#planImportSummary').hidden = false; $('#planImportConfirm').disabled = false; setImportStatus(statusMessage || '已识别方案，确认后导入');
+  }
+  async function copyAiPlanPrompt() {
+    const beanId = $('#planImportBean').value;
+    const bean = beanId ? state.beans.find((item) => item.id === beanId) : null;
+    const prompt = BeanCore.buildAiPlanPrompt(bean || null);
+    try {
+      await copyText(prompt);
+      toast(bean ? `已复制针对「${bean.name}」的提示词，去粘贴给你的 AI` : '已复制通用提示词，可拍豆袋照片或口述给 AI');
+    } catch (error) { console.error(error); toast('复制失败，请手动长按输入框粘贴'); }
+  }
+  function parseAiPlanInput() {
+    const text = $('#planImportAiCode').value;
+    let result;
+    try { result = BeanCore.parseAiPlanJson(text); }
+    catch (error) { clearImportSummary(); setImportStatus(error.message || 'AI 方案无法解析', true); return; }
+    showPlanImportPreview(result.plan, result.pickedFirst ? '检测到多个方案，已取第 1 个，确认后导入' : '已识别 AI 方案，确认后导入');
+  }
   async function getPhotoForQr(source) { const camera = capPlugin('Camera'); if (!BeanRepository.isNative() || !camera) throw new Error('扫码功能仅在 Android App 中可用'); return camera.getPhoto({ quality: 92, width: 2200, correctOrientation: true, allowEditing: false, resultType: 'uri', source: source === 'camera' ? 'CAMERA' : 'PHOTOS', saveToGallery: false }); }
   function runJsQr(img, w, h) {
     const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
@@ -1717,11 +1758,7 @@
     let plan;
     try { plan = BeanCore.decodePlanShare(code); }
     catch (error) { clearImportSummary(); setImportStatus(error.message || '分享码无法解析', true); return; }
-    state.importPlanDraft = plan;
-    $('#planImportName').textContent = plan.name;
-    $('#planImportMeta').textContent = [plan.brewMethod, plan.dose ? plan.dose + 'g' : '', plan.ratio, plan.waterTemp].filter(Boolean).join(' · ');
-    $('#planImportSteps').textContent = plan.steps && plan.steps.length ? `${plan.steps.length} 段步骤` : '无分段步骤';
-    $('#planImportSummary').hidden = false; $('#planImportConfirm').disabled = false; setImportStatus('已识别方案，确认后导入');
+    showPlanImportPreview(plan);
   }
   async function confirmImportPlan() {
     const draft = state.importPlanDraft; if (!draft) return;
@@ -1790,12 +1827,20 @@
       toast(external ? '外饮记录已删除' : '记录已删除，克数已归还');
     } catch (error) { console.error(error); toast('删除失败'); }
   }
+  async function syncMockDataVisibility() {
+    const section = $('#mockDataSection');
+    if (!section) return;
+    const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+    if (!isNative) { section.hidden = !['localhost', '127.0.0.1'].includes(location.hostname); return; }
+    section.hidden = true;
+    try { const app = capPlugin('App'); if (app && app.getInfo) { const info = await app.getInfo(); if (/-debug$/i.test(String(info && info.version || ''))) section.hidden = false; } } catch (_) {}
+  }
   function bindEvents() {
     setupNumberInputs();
     $$('dialog').forEach((dialog) => dialog.addEventListener('close', syncDialogScrim));
     new MutationObserver(syncDialogScrim).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['open'] });
     els.drink.addEventListener('close', resetQuickDrinkFeedback);
-    const localPreview = ['localhost', '127.0.0.1'].includes(location.hostname); $('#mockDataSection').hidden = !localPreview; $('#loadMockData').addEventListener('click', loadMockData);
+    $('#loadMockData').addEventListener('click', loadMockData); syncMockDataVisibility();
     $('#plan-mokaPotSize-choice').addEventListener('change', () => syncMokaSize('plan'));
     $('#plan-mokaPotSize-custom').addEventListener('input', () => syncMokaSize('plan'));
     $('#drink-param-mokaPotSize-choice').addEventListener('change', () => syncMokaSize('drink-param'));
@@ -1827,7 +1872,7 @@
     $('#detailHero').addEventListener('keydown', (event) => { if (!['Enter', ' '].includes(event.key)) return; const thumb = event.target.closest('[data-preview-image]'); if (thumb) { event.preventDefault(); openImagePreview(thumb.dataset.previewImage, thumb.dataset.previewLabel); } });
     $('#detailFacts').addEventListener('click', (event) => { const item = event.target.closest('[data-purchase-url]'); if (item) openPurchaseUrl(item.dataset.purchaseUrl); });
     $('#detailFacts').addEventListener('keydown', (event) => { if (!['Enter', ' '].includes(event.key)) return; const item = event.target.closest('[data-purchase-url]'); if (item) { event.preventDefault(); openPurchaseUrl(item.dataset.purchaseUrl); } });
-    $('#imagePreviewClose').addEventListener('click', () => setDialog(els.imagePreview, false)); $('#imagePreviewCancel').addEventListener('click', () => setDialog(els.imagePreview, false)); $('#imagePreviewSave').addEventListener('click', sharePreviewImage); $('#shareImageChoiceClose').addEventListener('click', () => setDialog(els.shareChoice, false)); $('#shareImageChoiceCancel').addEventListener('click', () => setDialog(els.shareChoice, false)); $('#shareImageChoiceConfirm').addEventListener('click', confirmBeanShareChoice); $('#planShareChoiceClose').addEventListener('click', () => setDialog(els.planShareChoice, false)); $('#planShareChoiceCancel').addEventListener('click', () => setDialog(els.planShareChoice, false)); $('#planShareChoiceConfirm').addEventListener('click', confirmPlanShareChoice); $('#planImportFab').addEventListener('click', () => { expandFloatingActions(); openPlanImport(); }); $('#settingsImportPlan').addEventListener('click', () => { setDialog(els.settings, false); openPlanImport(); }); $('#planImportClose').addEventListener('click', () => setDialog(els.planImport, false)); $('#planImportCancel').addEventListener('click', () => setDialog(els.planImport, false)); $('#planImportCamera').addEventListener('click', () => importQrFromSource('camera')); $('#planImportGallery').addEventListener('click', () => importQrFromSource('photos')); $('#planImportParse').addEventListener('click', parsePastedImportCode); $('#planImportConfirm').addEventListener('click', confirmImportPlan);
+    $('#imagePreviewClose').addEventListener('click', () => setDialog(els.imagePreview, false)); $('#imagePreviewCancel').addEventListener('click', () => setDialog(els.imagePreview, false)); $('#imagePreviewSave').addEventListener('click', sharePreviewImage); $('#shareImageChoiceClose').addEventListener('click', () => setDialog(els.shareChoice, false)); $('#shareImageChoiceCancel').addEventListener('click', () => setDialog(els.shareChoice, false)); $('#shareImageChoiceConfirm').addEventListener('click', confirmBeanShareChoice); $('#planShareChoiceClose').addEventListener('click', () => setDialog(els.planShareChoice, false)); $('#planShareChoiceCancel').addEventListener('click', () => setDialog(els.planShareChoice, false)); $('#planShareChoiceConfirm').addEventListener('click', confirmPlanShareChoice); $('#planImportFab').addEventListener('click', () => { expandFloatingActions(); openPlanImport(); }); $('#settingsImportPlan').addEventListener('click', () => { setDialog(els.settings, false); openPlanImport(); }); $('#planImportClose').addEventListener('click', () => setDialog(els.planImport, false)); $('#planImportCancel').addEventListener('click', () => setDialog(els.planImport, false)); $('#planImportCamera').addEventListener('click', () => importQrFromSource('camera')); $('#planImportGallery').addEventListener('click', () => importQrFromSource('photos')); $('#planImportParse').addEventListener('click', parsePastedImportCode); $('#planImportConfirm').addEventListener('click', confirmImportPlan); $('#planImportTabs').addEventListener('click', (event) => { const chip = event.target.closest('[data-import-tab]'); if (chip) setPlanImportTab(chip.dataset.importTab); }); $('#planImportCopyPrompt').addEventListener('click', copyAiPlanPrompt); $('#planImportAiParse').addEventListener('click', parseAiPlanInput);
     $('#drinkShareChoiceClose').addEventListener('click', () => setDialog(els.drinkShareChoice, false));
     $('#drinkShareChoiceCancel').addEventListener('click', () => setDialog(els.drinkShareChoice, false));
     $('#drinkShareChoiceConfirm').addEventListener('click', confirmDrinkShareChoice);
