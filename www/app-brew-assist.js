@@ -209,7 +209,7 @@
         return;
       }
       const current = status.current;
-      ring.classList.toggle('assist-ring--pouring', Boolean(current && current.water && !assist.paused));
+      ring.classList.toggle('assist-ring--pouring', Boolean(current && current.water));
       // 到达方案总时长后不再自动结束：继续为最后一段计时（超时），由用户手动点「结束」记录实际用时。
       const overtime = status.phase === 'done';
       const next = assist.steps[status.index + 1];
