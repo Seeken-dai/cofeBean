@@ -246,6 +246,18 @@
     clearTimeout(fabHintTimer);
     fabHintTimer = setTimeout(() => toast('右侧按钮可快速添加，空闲后会自动收起'), 700);
   }
+  // 该机 window.innerHeight 会无事件地在多值间跳动（含系统栏区域），fixed 元素若用 bottom 锚定它就会
+  // 随之位移。documentElement.clientHeight（可视视口高度）稳定，故浮动按钮改用它从顶部（top）锚定，
+  // 屏幕位置恒定不跳。clientHeight 偶尔无事件变化，除事件外再以低频轮询兜住（仅在变化时写入）。
+  let visibleHApplied = -1;
+  let visibleWApplied = -1;
+  function updateFabInset() {
+    const de = document.documentElement;
+    const h = de.clientHeight;
+    if (h !== visibleHApplied) { visibleHApplied = h; de.style.setProperty('--visible-h', `${h}px`); }
+    const w = de.clientWidth;
+    if (w !== visibleWApplied) { visibleWApplied = w; de.style.setProperty('--visible-w', `${w}px`); }
+  }
   function collapseFloatingActions() {
     if (!floatingActionsActive()) return;
     document.body.classList.add('floating-actions-collapsed');
@@ -1893,8 +1905,13 @@
     $('#brewAssistStop').addEventListener('click', cancelBrewAssist); $('#brewAssistPause').addEventListener('click', pauseBrewAssist); $('#brewAssistRing').addEventListener('click', tapBrewAssistRing); $('#brewAssistRing').addEventListener('keydown', (event) => { if (['Enter', ' '].includes(event.key)) { event.preventDefault(); tapBrewAssistRing(); } }); $('#brewAssistSkip').addEventListener('click', skipBrewAssistStage); $('#brewAssistFinish').addEventListener('click', finishBrewAssist);
     $('#sharePreviewClose').addEventListener('click', closeSharePreview); $('#sharePreviewCancel').addEventListener('click', closeSharePreview); $('#sharePreviewSave').addEventListener('click', saveShareCard); $('#sharePreviewShare').addEventListener('click', confirmShareCard);
     $('#confirmCancel').addEventListener('click', () => resolveConfirm(false)); $('#confirmAccept').addEventListener('click', () => resolveConfirm(true)); els.confirm.addEventListener('close', () => resolveConfirm(false));
-    document.addEventListener('visibilitychange', () => { if (document.visibilityState !== 'visible') return; if (els.brewAssist.open && state.brewAssist && !state.brewAssist.completed) requestWakeLock(); scheduleAutoSync(); syncFloatingActions({ delay: 1800 }); });
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState !== 'visible') return; if (els.brewAssist.open && state.brewAssist && !state.brewAssist.completed) requestWakeLock(); scheduleAutoSync(); updateFabInset(); syncFloatingActions({ delay: 1800 }); });
     window.addEventListener('scroll', () => { if (!floatingActionsActive()) return; expandFloatingActions({ delay: 1600 }); clearTimeout(fabScrollTimer); fabScrollTimer = setTimeout(() => scheduleFloatingActionCollapse(900), 160); }, { passive: true });
+    updateFabInset();
+    window.addEventListener('resize', updateFabInset);
+    window.addEventListener('orientationchange', updateFabInset);
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', updateFabInset);
+    setInterval(updateFabInset, 300);
     [els.personal, els.backup, els.calendar, els.detail, els.drinkDetail, els.planDetail, els.planEditor, els.editor, els.drink, els.brewAssist, els.choice, els.datePicker, els.photoSource, els.scanImage, els.imagePreview, els.shareChoice, els.drinkShareChoice, els.sharePreview, els.confirm, els.manager, els.settings, els.sync, els.syncAuth, els.about].forEach((dialog) => dialog.addEventListener('click', (event) => { if (event.target === dialog) dialog === els.brewAssist ? cancelBrewAssist() : dialog === els.sharePreview ? closeSharePreview() : dialog === els.drink ? (discardDrinkPhotoDraft(), dialog.close()) : dialog.close(); }));
     $('#photoSourceClose').addEventListener('click', () => setDialog(els.photoSource, false));
     els.editor.addEventListener('close', () => clearPendingImages(true));
