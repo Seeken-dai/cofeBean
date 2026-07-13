@@ -302,3 +302,10 @@ test('回顾卡片使用清楚、日常的标题措辞', () => {
   ['你实际喝到的风味', '你喝得多，也真的喜欢吗', '通常在什么时候喝', '哪几天更常来一杯', '近 12 个月咖啡花费', '两种喝法的差别', '新鲜时真的更喜欢吗']
     .forEach((title) => assert.doesNotMatch(source, new RegExp(title)));
 });
+
+test('手冲回顾首页归入第04类，单豆页面按层级返回', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'www', 'app-insights.js'), 'utf8');
+  assert.match(source, /handBrewHomeSection/);
+  assert.match(source, /<span>04<\/span><div><h3>冲煮回顾<\/h3>/);
+  assert.match(source, /if \(state\.insightsBeanId\) \{[\s\S]*?state\.insightsBeanId = null;[\s\S]*?return true;/);
+});

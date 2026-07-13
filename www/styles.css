@@ -443,10 +443,11 @@ html.number-picker-open { overflow:hidden; }
 .insights-sheet { width:min(100% - 18px,650px); height:calc(100dvh - 20px - env(safe-area-inset-top,0px)); }
 .insights-sheet .sheet-header { padding-bottom:15px; }
 .insights-sheet .sheet-header h2 { font-size:31px; }
-.insights-header-lead { display:flex; align-items:center; gap:6px; min-width:0; }
+.insights-header-lead { display:flex; flex:1 1 auto; align-items:center; gap:6px; min-width:0; }
 .insights-header-lead > div { min-width:0; }
-.insights-back-button { display:flex; align-items:center; gap:2px; min-width:44px; min-height:44px; margin-left:-8px; padding:0 6px 0 0; border:0; background:transparent; color:var(--accent); font-size:10px; font-weight:750; }
+.insights-back-button { display:flex; flex:0 0 auto; align-items:center; gap:2px; min-width:44px; min-height:44px; margin-left:-8px; padding:0 6px 0 0; border:0; background:transparent; color:var(--accent); font-size:10px; font-weight:750; white-space:nowrap; }
 .insights-back-button svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.insights-back-button span { white-space:nowrap; }
 .insights-back-button:active { transform:translateX(-1px); color:var(--text); }
 .insights-body { padding:14px 16px calc(28px + env(safe-area-inset-bottom,0px)); }
 .insights-range-label { margin:0 3px 7px; color:var(--muted); font-size:10px; font-weight:750; letter-spacing:.06em; }
@@ -491,7 +492,9 @@ html.number-picker-open { overflow:hidden; }
 .handbrew-summary-card > i { position:absolute; top:50%; right:15px; color:var(--accent); font-size:24px; font-style:normal; font-weight:300; transform:translateY(-50%); }
 .handbrew-page-intro { padding:3px 3px 3px; }
 .handbrew-page-intro h3 { margin:5px 0 7px; font:700 23px "Vault Serif",serif; }
-.handbrew-page-intro > p:last-child { margin:0; color:var(--muted); font-size:10px; line-height:1.6; }
+.handbrew-page-intro > p:last-child { display:flex; align-items:flex-start; gap:5px; margin:0; color:var(--muted); font-size:10px; line-height:1.6; }
+.handbrew-page-intro > p:last-child > span { min-width:0; }
+.handbrew-page-intro > p:last-child .insight-help-button { margin-top:1px; }
 .handbrew-section { margin-top:22px; }
 .handbrew-habit-card { margin-top:0; }
 .handbrew-habit-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
@@ -623,6 +626,10 @@ html.number-picker-open { overflow:hidden; }
 }
 @media (max-width:390px) {
   .insights-body { padding-inline:12px; }
+  .insights-sheet .sheet-header { gap:8px; padding-inline:16px; }
+  .insights-sheet .sheet-header h2 { font-size:28px; }
+  .insights-header-lead { gap:4px; }
+  .insights-back-button { margin-left:-4px; }
   .insights-range button { font-size:10px; }
   .insight-opening { grid-template-columns:1fr; }
   .insight-opening-stamp { grid-template-columns:auto auto auto; justify-content:start; gap:6px; width:100%; transform:none; }
