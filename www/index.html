@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#1a1412">
   <meta name="color-scheme" content="dark light">
   <title>豆仓</title>
-  <link rel="stylesheet" href="styles.css?v=2.3.2">
+  <link rel="stylesheet" href="styles.css?v=2.3.3">
   <style>
     #aboutDialog .about-actions { display:flex; align-items:center; justify-content:center; gap:8px; color:var(--faint); font-size:12px; }
     #aboutDialog .about-actions .text-link-button { width:auto; min-width:0; min-height:0; padding:2px; border:0; border-radius:0; background:transparent; box-shadow:none; color:var(--accent); font:700 12px/1 inherit; text-decoration:underline; text-underline-offset:4px; }
@@ -572,7 +572,7 @@
 
   <dialog class="sheet compact" id="aboutDialog">
     <header class="sheet-header"><div><p class="eyebrow">ABOUT</p><h2>关于豆仓</h2></div><button class="icon-button" id="aboutClose" type="button" aria-label="关闭">×</button></header>
-    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 2.3.2</p></section>
+    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 2.3.3</p></section>
     <section class="about-update" aria-live="polite">
       <div class="about-actions"><button class="text-link-button" id="aboutCheckUpdate" type="button">检查更新</button><span aria-hidden="true">·</span><button class="text-link-button" id="aboutOpenReleases" type="button">查看发布页</button></div>
       <div class="update-status" id="updateStatus" hidden></div>
@@ -581,8 +581,8 @@
     <section class="about-copy">
       <h3>收藏咖啡，也收藏与咖啡相处的时间。</h3>
       <p>豆仓是一款为咖啡爱好者设计的本地优先记录工具。你可以保存每一包咖啡豆的产地、风味与价格，记录每次饮用和冲煮方案，让日常里喝过的咖啡慢慢有迹可循。</p>
-      <h4>2.3.2 最新功能</h4>
-      <ul><li>导入方案新增「AI 生成」入口：一键复制提示词发给任意 AI，把返回的方案粘贴回来即可导入</li><li>咖啡日历热力图修复：外饮记录的月历与年历现在也会正确着色</li><li>「载入 Mock 数据」按钮仅在开发调试版显示，正式版不再出现</li></ul>
+      <h4>2.3.3 最新功能</h4>
+      <ul><li>修复浮动按钮偶尔上下跳动、切换列表页时左右位移的问题，位置在各页保持一致</li><li>修复冲煮方案页偶尔比屏幕宽、浮动按钮被挤出边缘的问题</li><li>超长方案名在列表与详情页不再溢出，改为省略或自动换行；导入方案图标更贴切</li></ul>
       <div class="privacy-note"><b>离线与隐私</b><p>豆仓默认完全离线使用，数据保存在你的设备中。云同步为可选功能，仅在登录并开启后使用。</p><p>检查更新仅在你主动点击时联网，不会影响本地记录使用。</p></div>
     </section>
   </dialog>
