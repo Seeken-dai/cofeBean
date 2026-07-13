@@ -5,6 +5,7 @@ import globals from 'globals';
 
 const projectGlobals = {
   BeanCore: 'readonly',
+  BeanInsights: 'readonly',
   BeanSyncCompare: 'readonly',
   BeanSync: 'readonly',
   BeanCloudSync: 'readonly',
@@ -20,6 +21,7 @@ const projectGlobals = {
   AppUpdate: 'readonly',
   AppNumberInput: 'readonly',
   AppWidgetIntent: 'readonly',
+  AppInsights: 'readonly',
   PhotoTone: 'readonly',
   Capacitor: 'readonly',
   qrcode: 'readonly',

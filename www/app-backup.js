@@ -176,7 +176,7 @@
       if (!['localhost', '127.0.0.1'].includes(location.hostname)) return;
       if (!await confirmFn('载入 Mock 数据会覆盖当前浏览器中的豆仓、饮用记录、方案和设置。继续吗？')) return;
       try {
-        const response = await fetch('mock/demo-backup.json', { cache: 'no-store' });
+        const response = await fetch(`mock/demo-backup.json?ts=${Date.now()}`, { cache: 'no-store' });
         if (!response.ok) throw new Error(`Mock 数据读取失败 (${response.status})`);
         const imported = core.validateImport(await response.json());
         await repository.importData(imported, 'replace');

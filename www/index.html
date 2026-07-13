@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#1a1412">
   <meta name="color-scheme" content="dark light">
   <title>豆仓</title>
-  <link rel="stylesheet" href="styles.css?v=2.3.3">
+  <link rel="stylesheet" href="styles.css?v=2.3.4">
   <style>
     #aboutDialog .about-actions { display:flex; align-items:center; justify-content:center; gap:8px; color:var(--faint); font-size:12px; }
     #aboutDialog .about-actions .text-link-button { width:auto; min-width:0; min-height:0; padding:2px; border:0; border-radius:0; background:transparent; box-shadow:none; color:var(--accent); font:700 12px/1 inherit; text-decoration:underline; text-underline-offset:4px; }
@@ -80,7 +80,10 @@
         <article class="stat"><strong id="drinkGrams">0g</strong><span>累计用豆</span></article>
         <article class="stat"><strong id="drinkAverage">—</strong><span>平均评分</span></article>
       </section>
-      <section class="drink-trend" id="drinkTrend" hidden></section>
+      <div class="drink-trend-wrap">
+        <section class="drink-trend" id="drinkTrend" hidden></section>
+        <button class="insights-overview-button" id="insightsOpen" type="button" aria-label="打开回顾" hidden><span>回顾</span><strong aria-hidden="true">›</strong></button>
+      </div>
       <section class="timeline" id="globalDrinkList" aria-live="polite"></section>
       <section class="empty-state" id="drinkEmpty" hidden><div class="empty-bag" aria-hidden="true"><svg viewBox="0 0 1024 1024"><path d="M861.866667 179.2l4.266666 4.266667c59.733333 68.266667 85.333333 157.866667 68.266667 245.333333-25.6 125.866667-85.333333 238.933333-174.933333 328.533333-89.6 89.6-204.8 151.466667-328.533334 174.933334-17.066667 4.266667-36.266667 4.266667-53.333333 4.266666-74.666667 0-149.333333-29.866667-202.666667-85.333333-2.133333-2.133333-4.266667-6.4-8.533333-8.533333l-4.266667-4.266667c-59.733333-68.266667-85.333333-157.866667-68.266666-245.333333 25.6-125.866667 85.333333-238.933333 174.933333-328.533334 89.6-89.6 204.8-151.466667 328.533333-174.933333 91.733333-17.066667 187.733333 12.8 256 81.066667l8.533334 8.533333z m-12.8 232.533333c8.533333-38.4 2.133333-78.933333-12.8-115.2-78.933333 134.4-194.133333 194.133333-305.066667 253.866667-115.2 59.733333-224 117.333333-288 253.866667 46.933333 40.533333 108.8 57.6 168.533333 44.8 108.8-21.333333 206.933333-74.666667 285.866667-151.466667s130.133333-177.066667 151.466667-285.866667zM174.933333 612.266667c-8.533333 38.4-2.133333 78.933333 12.8 115.2 78.933333-134.4 194.133333-194.133333 305.066667-253.866667 115.2-59.733333 224-117.333333 288-253.866667C744.533333 187.733333 697.6 170.666667 650.666667 170.666667c-12.8 0-25.6 2.133333-38.4 4.266666-108.8 21.333333-206.933333 74.666667-285.866667 151.466667-76.8 78.933333-130.133333 177.066667-151.466667 285.866667z" fill="currentColor"/></svg></div><h2>还没有饮用记录</h2><p>可以从豆仓扣量，也可以记一笔外饮。</p><div class="empty-actions"><button class="primary-button" data-drink-empty-action="bean" type="button">从豆仓记一杯</button><button class="secondary-button" data-drink-empty-action="external" type="button">记一笔外饮</button></div></section>
     </section>
@@ -106,9 +109,10 @@
   <button class="fab" id="addBean" type="button" aria-label="新增咖啡豆">＋</button>
   <div class="toast" id="toast" role="status" aria-live="polite" popover="manual"></div>
   <div class="dim-info-popover" id="dimInfoPopover" popover="auto" role="tooltip"></div>
+  <div class="dim-info-popover insight-help-popover" id="insightsHelpPopover" popover="manual" role="tooltip"></div>
 
   <dialog class="sheet compact personal-sheet" id="personalDialog">
-    <header class="sheet-header"><div><p class="eyebrow">PERSONAL BREW</p><h2>个人中心</h2><p class="sheet-subtitle">你的咖啡日常和数据工具</p></div><button class="icon-button" id="personalClose" type="button" aria-label="关闭">×</button></header>
+    <header class="sheet-header"><div><p class="eyebrow">PERSONAL BREW</p><h2>个人中心</h2><p class="sheet-subtitle">你的咖啡日常和常用设置</p></div><button class="icon-button" id="personalClose" type="button" aria-label="关闭">×</button></header>
     <section class="personal-body">
       <button class="calendar-entry-card" id="coffeeCalendarOpen" type="button">
         <div class="calendar-entry-copy"><span>咖啡日历</span><small>查看哪些天喝了咖啡、用了多少豆、花了多少钱</small></div>
@@ -116,9 +120,10 @@
         <div class="calendar-entry-stats" id="profileCalendarStats">本月 0 杯 · 0g · ¥0</div>
       </button>
       <div class="personal-actions">
+        <button class="settings-action" id="personalInsightsOpen" type="button"><span><b>回顾</b><small>回看你的口味、习惯和值得再喝的豆子</small></span><strong>›</strong></button>
         <button class="settings-action" id="personalSettingsOpen" type="button"><span><b>设置</b><small>饮用偏好、价格单位、主题和评价维度</small></span><strong>›</strong></button>
-        <button class="settings-action" id="personalSyncOpen" type="button"><span><b>云同步</b><small>登录账号、开启同步和管理云端数据</small></span><strong>↻</strong></button>
-        <button class="settings-action" id="dataBackupOpen" type="button"><span><b>数据备份</b><small>按范围导出或导入本机数据</small></span><strong>↗</strong></button>
+        <button class="settings-action" id="personalSyncOpen" type="button"><span><b>云同步</b><small>登录账号、开启同步和管理云端数据</small></span><strong>›</strong></button>
+        <button class="settings-action" id="dataBackupOpen" type="button"><span><b>数据备份</b><small>按范围导出或导入本机数据</small></span><strong>›</strong></button>
         <input id="webImportInput" type="file" accept="application/json,.json" hidden>
       </div>
       <button class="about-link-bottom" id="aboutOpen" type="button"><span>关于豆仓</span><strong>›</strong></button>
@@ -128,7 +133,7 @@
   <dialog class="sheet compact picker-sheet" id="dataBackupDialog">
     <header class="sheet-header"><div><p class="eyebrow">DATA VAULT</p><h2>数据备份</h2><p class="sheet-subtitle">备份文件只保存在你选择的位置</p></div><button class="icon-button" id="dataBackupClose" type="button" aria-label="关闭">×</button></header>
     <div class="backup-groups">
-      <section class="mock-data-section" id="mockDataSection" hidden><h3>本地测试</h3><button class="mock-data-button" id="loadMockData" type="button"><span>载入 Mock 数据</span><small>覆盖当前浏览器数据，快速生成豆子、饮用记录、评价与照片测试场景</small></button></section>
+      <section class="mock-data-section" id="mockDataSection" hidden><h3>本地测试</h3><button class="mock-data-button" id="loadMockData" type="button"><span>载入 Mock 数据</span><small>覆盖当前浏览器数据，快速生成回顾、评价、方案与照片验收场景</small></button></section>
       <section><h3>导出</h3><div class="source-actions backup-actions">
         <label class="backup-option"><input id="exportBeanImages" type="checkbox"><span><b>包含咖啡豆图片</b><small>仅完整或豆仓导出可用，文件会明显变大</small></span></label>
         <button data-export-scope="all" type="button"><span>全部数据</span><small>豆仓、饮用记录、设置等完整数据</small></button>
@@ -175,6 +180,24 @@
         <div class="section-heading"><div><span>近期活跃</span><small>最近的饮用记录</small></div></div>
         <div class="timeline compact-timeline" id="calendarRecentList"></div>
       </section>
+    </section>
+  </dialog>
+
+  <dialog class="sheet insights-sheet" id="insightsDialog">
+    <header class="sheet-header">
+      <div><p class="eyebrow">YOUR COFFEE</p><h2>回顾</h2><p class="sheet-subtitle">从每一杯里，慢慢看见自己的口味</p></div>
+      <button class="icon-button" id="insightsClose" type="button" aria-label="关闭"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6 18 18M18 6 6 18"/></svg></button>
+    </header>
+    <section class="insights-body">
+      <p class="insights-range-label">回顾范围</p>
+      <nav class="insights-range" aria-label="回顾时间范围">
+        <button data-insights-range="30d" type="button">近30天</button>
+        <button data-insights-range="90d" type="button">近90天</button>
+        <button data-insights-range="thisYear" type="button">今年</button>
+        <button data-insights-range="all" type="button">全部</button>
+      </nav>
+      <p class="insights-range-note">用于口味与偏好、饮用习惯、自家与外饮、赏味期和日常好豆；咖啡开销单独统计近 12 个月。</p>
+      <div id="insightsContent" aria-live="polite"></div>
     </section>
   </dialog>
 
@@ -572,7 +595,7 @@
 
   <dialog class="sheet compact" id="aboutDialog">
     <header class="sheet-header"><div><p class="eyebrow">ABOUT</p><h2>关于豆仓</h2></div><button class="icon-button" id="aboutClose" type="button" aria-label="关闭">×</button></header>
-    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 2.3.3</p></section>
+    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 2.3.4</p></section>
     <section class="about-update" aria-live="polite">
       <div class="about-actions"><button class="text-link-button" id="aboutCheckUpdate" type="button">检查更新</button><span aria-hidden="true">·</span><button class="text-link-button" id="aboutOpenReleases" type="button">查看发布页</button></div>
       <div class="update-status" id="updateStatus" hidden></div>
@@ -581,8 +604,8 @@
     <section class="about-copy">
       <h3>收藏咖啡，也收藏与咖啡相处的时间。</h3>
       <p>豆仓是一款为咖啡爱好者设计的本地优先记录工具。你可以保存每一包咖啡豆的产地、风味与价格，记录每次饮用和冲煮方案，让日常里喝过的咖啡慢慢有迹可循。</p>
-      <h4>2.3.3 最新功能</h4>
-      <ul><li>修复浮动按钮偶尔上下跳动、切换列表页时左右位移的问题，位置在各页保持一致</li><li>修复冲煮方案页偶尔比屏幕宽、浮动按钮被挤出边缘的问题</li><li>超长方案名在列表与详情页不再溢出，改为省略或自动换行；导入方案图标更贴切</li></ul>
+      <h4>2.3.4 最新功能</h4>
+      <ul><li>新增回顾，从饮用记录中整理口味偏好、喝咖啡的习惯与花费趋势</li><li>新增产地、处理法与烘焙度偏好对比，以及自家冲煮、外饮和性价比分析</li><li>小样本只给出友好提示；缺少价格的记录不计入估算，关闭高级评价时不显示对应内容</li></ul>
       <div class="privacy-note"><b>离线与隐私</b><p>豆仓默认完全离线使用，数据保存在你的设备中。云同步为可选功能，仅在登录并开启后使用。</p><p>检查更新仅在你主动点击时联网，不会影响本地记录使用。</p></div>
     </section>
   </dialog>
@@ -614,6 +637,7 @@
   <script src="vendor/jsQR.js"></script>
   <script src="sync-compare.js"></script>
   <script src="data-core.js"></script>
+  <script src="insights-core.js"></script>
   <script src="coffee-parser.js"></script>
   <script src="repository-web-adapter.js"></script>
   <script src="repository.js"></script>
@@ -629,6 +653,7 @@
   <script src="app-update.js"></script>
   <script src="app-number-input.js"></script>
   <script src="app-widget-intent.js"></script>
+  <script src="app-insights.js"></script>
   <script src="app.js"></script>
   <script>
     // 仅在真正的 Web 环境注册 Service Worker；Capacitor 原生壳内跳过。

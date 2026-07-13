@@ -3,16 +3,36 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const core = require('../www/data-core.js');
+const insights = require('../www/insights-core.js');
 const pkg = require('../package.json');
 
-test('local demo backup stays valid and covers sharing scenarios', () => {
+test('local demo backup stays valid and covers sharing and full review scenarios', () => {
   const file = path.join(__dirname, '..', 'www', 'mock', 'demo-backup.json');
   const imported = core.validateImport(JSON.parse(fs.readFileSync(file, 'utf8')));
-  assert.equal(imported.beans.length, 3);
-  assert.equal(imported.drinkLogs.length, 4);
+  assert.equal(imported.beans.length, 6);
+  assert.equal(imported.drinkLogs.length, 41);
   assert.ok(imported.drinkLogs.some((log) => log.source === 'external' && log.photos.length === 2));
   assert.ok(imported.drinkLogs.some((log) => log.brewPlanSnapshot && log.photos.length === 3));
   assert.ok(imported.drinkLogs.some((log) => !log.brewPlanSnapshot && log.source !== 'external'));
+  assert.ok(imported.drinkLogs.some((log) => log.tastingStatus === 'pending'));
+
+  const now = new Date(2026, 6, 13, 18);
+  const recent = insights.filterLogsByRange(imported.drinkLogs, '30d', now);
+  assert.ok(recent.length >= 20);
+  assert.equal(insights.averageDimensions(recent, { enabled: imported.settings.advancedRatings, enabledDimensions: imported.settings.enabledDimensions }).ok, true);
+  assert.equal(insights.flavorProfile(recent).ok, true);
+  ['origin', 'process', 'roastLevel'].forEach((field) => assert.equal(insights.preferenceGap(recent, imported.beans, field).ok, true));
+  assert.equal(insights.timeBuckets(recent).ok, true);
+  assert.equal(insights.weekdayStats(recent).ok, true);
+  const spend = insights.monthlySpendSeries(imported.drinkLogs, imported.beans, now);
+  assert.equal(spend.ok, true);
+  assert.equal(spend.data.series.filter((month) => month.amount > 0).length, 12);
+  assert.ok(spend.data.homeTotal > 0 && spend.data.externalTotal > 0);
+  assert.ok(spend.meta.excludedCount > 0);
+  assert.equal(insights.homeVsExternal(recent, imported.beans).ok, true);
+  assert.ok(insights.beanValueRanking(recent, imported.beans).data.length >= 3);
+  assert.equal(insights.freshnessRatingGap(recent, imported.beans).ok, true);
+  assert.ok(recent.filter((log) => log.brewPlanSnapshot && log.brewPlanSnapshot.name === 'V60 三段式' && log.overallRating).length >= 3);
 });
 
 test('normalizeBean applies safe defaults and numeric bounds', () => {

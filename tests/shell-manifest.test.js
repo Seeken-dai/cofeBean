@@ -64,3 +64,8 @@ test('styles.css 的 ?v= 与 sw.js CACHE 都跟随 package.json 版本', () => {
   assert.equal(buster[1], version, `styles.css?v= 应为 ${version}（发版请跑 npm run bump-version）`);
   assert.equal(cache[1], version, `sw.js CACHE 应为 coffee-vault-shell-${version}`);
 });
+
+test('本地 Mock 数据绕过 Service Worker 缓存并在安装时清理旧副本', () => {
+  assert.match(sw, /requestUrl\.pathname\.startsWith\(MOCK_PATH\)/);
+  assert.match(sw, /cachedRequests\.filter\(\(request\) => new URL\(request\.url\)\.pathname\.startsWith\(MOCK_PATH\)\)/);
+});
