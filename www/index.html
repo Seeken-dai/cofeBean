@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#1a1412">
   <meta name="color-scheme" content="dark light">
   <title>豆仓</title>
-  <link rel="stylesheet" href="styles.css?v=2.3.4">
+  <link rel="stylesheet" href="styles.css?v=2.3.5">
   <style>
     #aboutDialog .about-actions { display:flex; align-items:center; justify-content:center; gap:8px; color:var(--faint); font-size:12px; }
     #aboutDialog .about-actions .text-link-button { width:auto; min-width:0; min-height:0; padding:2px; border:0; border-radius:0; background:transparent; box-shadow:none; color:var(--accent); font:700 12px/1 inherit; text-decoration:underline; text-underline-offset:4px; }
@@ -185,10 +185,10 @@
 
   <dialog class="sheet insights-sheet" id="insightsDialog">
     <header class="sheet-header">
-      <div><p class="eyebrow">YOUR COFFEE</p><h2>回顾</h2><p class="sheet-subtitle">从每一杯里，慢慢看见自己的口味</p></div>
+      <div class="insights-header-lead"><button class="insights-back-button" id="insightsBack" type="button" aria-label="返回回顾首页" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg><span>回顾</span></button><div><p class="eyebrow" id="insightsEyebrow">YOUR COFFEE</p><h2 id="insightsTitle">回顾</h2><p class="sheet-subtitle" id="insightsSubtitle">从每一杯里，慢慢看见自己的口味</p></div></div>
       <button class="icon-button" id="insightsClose" type="button" aria-label="关闭"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6 18 18M18 6 6 18"/></svg></button>
     </header>
-    <section class="insights-body">
+    <section class="insights-body" id="insightsHomePage">
       <p class="insights-range-label">回顾范围</p>
       <nav class="insights-range" aria-label="回顾时间范围">
         <button data-insights-range="30d" type="button">近30天</button>
@@ -198,6 +198,9 @@
       </nav>
       <p class="insights-range-note">用于口味与偏好、饮用习惯、自家与外饮、赏味期和日常好豆；咖啡开销单独统计近 12 个月。</p>
       <div id="insightsContent" aria-live="polite"></div>
+    </section>
+    <section class="insights-body" id="brewReviewPage" hidden>
+      <div id="brewReviewContent" aria-live="polite"></div>
     </section>
   </dialog>
 
@@ -211,6 +214,7 @@
       <section class="profile-facts" id="detailFacts"></section>
       <section class="profile-images" id="detailImages" hidden></section>
       <section class="profile-notes" id="detailNotesSection"><span>风味笔记</span><p id="detailNotes"></p></section>
+      <section class="detail-brew-review-entry" id="detailBrewReviewEntry" hidden><button type="button" id="detailBrewReview"><span>查看手冲回顾</span><small id="detailBrewReviewSummary"></small><strong aria-hidden="true">›</strong></button></section>
       <section class="bean-history profile-history"><div class="section-heading"><div><span>饮用时间线</span><small id="detailHistorySummary"></small></div></div><div class="timeline compact-timeline" id="detailDrinkHistory"></div></section>
     </div>
   </dialog>
@@ -595,7 +599,7 @@
 
   <dialog class="sheet compact" id="aboutDialog">
     <header class="sheet-header"><div><p class="eyebrow">ABOUT</p><h2>关于豆仓</h2></div><button class="icon-button" id="aboutClose" type="button" aria-label="关闭">×</button></header>
-    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 2.3.4</p></section>
+    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 2.3.5</p></section>
     <section class="about-update" aria-live="polite">
       <div class="about-actions"><button class="text-link-button" id="aboutCheckUpdate" type="button">检查更新</button><span aria-hidden="true">·</span><button class="text-link-button" id="aboutOpenReleases" type="button">查看发布页</button></div>
       <div class="update-status" id="updateStatus" hidden></div>
@@ -604,8 +608,8 @@
     <section class="about-copy">
       <h3>收藏咖啡，也收藏与咖啡相处的时间。</h3>
       <p>豆仓是一款为咖啡爱好者设计的本地优先记录工具。你可以保存每一包咖啡豆的产地、风味与价格，记录每次饮用和冲煮方案，让日常里喝过的咖啡慢慢有迹可循。</p>
-      <h4>2.3.4 最新功能</h4>
-      <ul><li>新增回顾，从饮用记录中整理口味偏好、喝咖啡的习惯与花费趋势</li><li>新增产地、处理法与烘焙度偏好对比，以及自家冲煮、外饮和性价比分析</li><li>小样本只给出友好提示；缺少价格的记录不计入估算，关闭高级评价时不显示对应内容</li></ul>
+      <h4>2.3.5 最新功能</h4>
+      <ul><li>新增手冲回顾，基于全部历史自家手冲记录整理你的冲煮习惯</li><li>同一支豆积累 3 杯带总评分的手冲记录后，可查看评分较高的具体记录与参数范围</li><li>缺少参数只影响对应统计项；高级评价关闭时隐藏相关内容，不新增数据库、备份或同步字段</li></ul>
       <div class="privacy-note"><b>离线与隐私</b><p>豆仓默认完全离线使用，数据保存在你的设备中。云同步为可选功能，仅在登录并开启后使用。</p><p>检查更新仅在你主动点击时联网，不会影响本地记录使用。</p></div>
     </section>
   </dialog>

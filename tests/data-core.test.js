@@ -9,14 +9,22 @@ const pkg = require('../package.json');
 test('local demo backup stays valid and covers sharing and full review scenarios', () => {
   const file = path.join(__dirname, '..', 'www', 'mock', 'demo-backup.json');
   const imported = core.validateImport(JSON.parse(fs.readFileSync(file, 'utf8')));
-  assert.equal(imported.beans.length, 6);
-  assert.equal(imported.drinkLogs.length, 41);
+  assert.equal(imported.beans.length, 7);
+  assert.equal(imported.drinkLogs.length, 43);
+  assert.ok(imported.beans.some((bean) => bean.deletedAt));
+  assert.ok(imported.drinkLogs.some((log) => log.brewMethod === '手冲' && !log.overallRating && log.aroma));
   assert.ok(imported.drinkLogs.some((log) => log.source === 'external' && log.photos.length === 2));
   assert.ok(imported.drinkLogs.some((log) => log.brewPlanSnapshot && log.photos.length === 3));
   assert.ok(imported.drinkLogs.some((log) => !log.brewPlanSnapshot && log.source !== 'external'));
   assert.ok(imported.drinkLogs.some((log) => log.tastingStatus === 'pending'));
 
   const now = new Date(2026, 6, 13, 18);
+  const allHandBrew = insights.handBrewSummary(imported.drinkLogs, imported.beans, { now });
+  assert.equal(allHandBrew.ok, true);
+  assert.ok(allHandBrew.data.cups >= 5);
+  assert.equal(insights.filterHandBrewLogs(imported.drinkLogs, imported.beans).some((log) => log.id === 'mock-drink-deleted-bean'), false);
+  assert.equal(insights.handBrewBeanReview(imported.drinkLogs, imported.beans, 'mock-bean-costa-rica', { now }).reason, 'insufficient');
+  assert.equal(insights.handBrewBeanReview(imported.drinkLogs, imported.beans, 'mock-bean-geisha', { now }).ok, true);
   const recent = insights.filterLogsByRange(imported.drinkLogs, '30d', now);
   assert.ok(recent.length >= 20);
   assert.equal(insights.averageDimensions(recent, { enabled: imported.settings.advancedRatings, enabledDimensions: imported.settings.enabledDimensions }).ok, true);

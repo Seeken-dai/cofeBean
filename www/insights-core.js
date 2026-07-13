@@ -12,6 +12,8 @@
   }
 
   const MIN_SAMPLE = 3;
+  const HAND_BREW_MIN = 5;
+  const HAND_BREW_BEAN_MIN = 3;
   const DIMENSION_LABELS = {
     aroma: '香气', acidity: '酸质', sweetness: '甜感', body: '醇厚',
     aftertaste: '余韵', balance: '平衡', bitterness: '苦感'
@@ -183,6 +185,195 @@
     return new Map((Array.isArray(beans) ? beans : []).filter((bean) => bean && bean.id && !bean.deletedAt).map((bean) => [bean.id, bean]));
   }
 
+  function positiveNumber(value) {
+    if (value === '' || value == null) return null;
+    const match = String(value).trim().match(/-?\d+(?:\.\d+)?/);
+    const number = match ? Number(match[0]) : Number(value);
+    return Number.isFinite(number) && number > 0 ? number : null;
+  }
+
+  function parseRatioValue(value, dose, totalWater) {
+    const match = String(value || '').match(/1\s*[:：]\s*(\d+(?:\.\d+)?)/);
+    if (match) return positiveNumber(match[1]);
+    const number = positiveNumber(value);
+    if (number && number !== 1) return number;
+    return dose > 0 && totalWater > 0 ? totalWater / dose : null;
+  }
+
+  function parseDurationSeconds(value) {
+    const text = String(value || '').trim();
+    if (!text) return null;
+    const hours = text.match(/(\d+(?:\.\d+)?)\s*h/i) || text.match(/(\d+(?:\.\d+)?)\s*时/);
+    const minutes = text.match(/(\d+(?:\.\d+)?)\s*m(?!s)/i) || text.match(/(\d+(?:\.\d+)?)\s*分/);
+    const seconds = text.match(/(\d+(?:\.\d+)?)\s*s/i) || text.match(/(\d+(?:\.\d+)?)\s*秒/);
+    const colon = text.match(/^(\d+):(\d{1,2})(?::(\d{1,2}))?/);
+    if (colon) return (colon[3] ? Number(colon[1]) * 3600 + Number(colon[2]) * 60 + Number(colon[3]) : Number(colon[1]) * 60 + Number(colon[2]));
+    if (hours || minutes || seconds) return (hours ? Number(hours[1]) * 3600 : 0) + (minutes ? Number(minutes[1]) * 60 : 0) + (seconds ? Number(seconds[1]) : 0);
+    const number = Number(text);
+    return Number.isFinite(number) && number > 0 ? number : null;
+  }
+
+  function formatMetricNumber(value) {
+    const number = round(value, 1);
+    return Number.isInteger(number) ? String(number) : number.toFixed(1);
+  }
+
+  function formatHandBrewRatio(value) {
+    return value == null ? '' : `1:${formatMetricNumber(value)}`;
+  }
+
+  function formatHandBrewDuration(seconds) {
+    if (!(Number(seconds) >= 0)) return '';
+    const total = Math.round(Number(seconds));
+    return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+  }
+
+  function snapshotOf(log) {
+    const raw = log && log.brewPlanSnapshot;
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+    return typeof beanCore.normalizeBrewPlan === 'function' ? beanCore.normalizeBrewPlan(raw, log.updatedAt) : raw;
+  }
+
+  function handBrewParameters(log) {
+    const snapshot = snapshotOf(log) || {};
+    const grams = positiveNumber(log && log.grams);
+    const dose = grams || positiveNumber(snapshot.dose);
+    const totalWater = positiveNumber(snapshot.totalWater) || positiveNumber(snapshot.liquid);
+    return {
+      dose,
+      ratio: parseRatioValue(snapshot.ratio, dose, totalWater),
+      waterTemp: positiveNumber(snapshot.waterTemp),
+      grind: [snapshot.grinder, snapshot.grindSetting].filter(Boolean).join(' · '),
+      durationSeconds: parseDurationSeconds(snapshot.targetDuration),
+      steps: Array.isArray(snapshot.steps) ? snapshot.steps : [],
+      snapshot
+    };
+  }
+
+  function collectHandBrewRecords(logs, beans, beanId, now) {
+    const current = validDate(now || new Date()) || new Date();
+    const beansById = beanMapOf(beans);
+    const records = [];
+    let excludedCount = 0;
+    (Array.isArray(logs) ? logs : []).forEach((log) => {
+      if (!log || log.deletedAt || log.source === 'external' || log.brewMethod !== '手冲' || !log.beanId || (beanId && log.beanId !== beanId)) {
+        excludedCount += 1;
+        return;
+      }
+      const bean = beansById.get(log.beanId);
+      const date = validDate(log.consumedAt);
+      if (!bean || !date || date.getTime() > current.getTime()) {
+        excludedCount += 1;
+        return;
+      }
+      records.push({ log, bean, date, parameters: handBrewParameters(log) });
+    });
+    return { records, excludedCount };
+  }
+
+  function filterHandBrewLogs(logs, beans, beanId, now) {
+    return collectHandBrewRecords(logs, beans, beanId, now).records.map((item) => item.log);
+  }
+
+  function summarizeMetric(values, digits) {
+    const usable = (Array.isArray(values) ? values : []).filter((value) => Number.isFinite(Number(value)) && Number(value) > 0).map(Number);
+    if (!usable.length) return null;
+    const precision = digits == null ? 1 : digits;
+    return { median: round(median(usable), precision), min: round(Math.min(...usable), precision), max: round(Math.max(...usable), precision), sampleSize: usable.length };
+  }
+
+  function dimensionRows(log, options) {
+    const opts = options || {};
+    const keys = Array.isArray(opts.enabledDimensions) ? opts.enabledDimensions.filter((key) => beanCore.DIMENSION_KEYS.includes(key)) : beanCore.DIMENSION_KEYS;
+    return keys.map((key) => {
+      const value = Number(log && log[key]);
+      return value > 0 ? { key, label: DIMENSION_LABELS[key] || key, value: round(value) } : null;
+    }).filter(Boolean);
+  }
+
+  function handBrewRecordView(item, options) {
+    const log = item.log;
+    const opts = options || {};
+    return {
+      id: log.id,
+      consumedAt: log.consumedAt,
+      rating: Number(log.overallRating),
+      parameters: {
+        dose: item.parameters.dose,
+        ratio: item.parameters.ratio,
+        waterTemp: item.parameters.waterTemp,
+        grind: item.parameters.grind,
+        durationSeconds: item.parameters.durationSeconds
+      },
+      steps: item.parameters.steps,
+      dimensions: opts.advancedRatings ? dimensionRows(log, opts) : null
+    };
+  }
+
+  function sortedRatedRecords(records) {
+    return records.filter((item) => Number(item.log.overallRating) > 0).sort((a, b) => {
+      const ratingDiff = Number(b.log.overallRating) - Number(a.log.overallRating);
+      if (ratingDiff) return ratingDiff;
+      const consumedDiff = b.date.getTime() - a.date.getTime();
+      if (consumedDiff) return consumedDiff;
+      const bCreated = validDate(b.log.createdAt);
+      const aCreated = validDate(a.log.createdAt);
+      return (bCreated ? bCreated.getTime() : 0) - (aCreated ? aCreated.getTime() : 0) || String(b.log.id || '').localeCompare(String(a.log.id || ''));
+    });
+  }
+
+  function commonHandBrewDimensions(records, options) {
+    const opts = options || {};
+    if (!opts.advancedRatings || records.length < 2) return null;
+    const keys = Array.isArray(opts.enabledDimensions) ? opts.enabledDimensions.filter((key) => beanCore.DIMENSION_KEYS.includes(key)) : beanCore.DIMENSION_KEYS;
+    const common = keys.map((key) => {
+      const values = records.map((record) => Number(record.log[key])).filter((value) => value > 0);
+      return values.length === records.length ? { key, label: DIMENSION_LABELS[key] || key, value: round(values.reduce((sum, value) => sum + value, 0) / values.length), sampleSize: values.length } : null;
+    }).filter(Boolean);
+    return common.length >= 3 ? common : null;
+  }
+
+  function handBrewSummary(logs, beans, options) {
+    const opts = options || {};
+    const collection = collectHandBrewRecords(logs, beans, null, opts.now);
+    const required = HAND_BREW_MIN;
+    if (collection.records.length < required) return insufficient(collection.records.length, required, collection.excludedCount);
+    const records = collection.records;
+    return response(true, null, {
+      cups: records.length,
+      beanCount: new Set(records.map((item) => item.bean.id)).size,
+      dose: summarizeMetric(records.map((item) => item.parameters.dose)),
+      ratio: summarizeMetric(records.map((item) => item.parameters.ratio)),
+      waterTemp: summarizeMetric(records.map((item) => item.parameters.waterTemp)),
+      duration: summarizeMetric(records.map((item) => item.parameters.durationSeconds), 0)
+    }, { sampleSize: records.length, required, excludedCount: collection.excludedCount });
+  }
+
+  function handBrewBeanReview(logs, beans, beanId, options) {
+    const opts = options || {};
+    const collection = collectHandBrewRecords(logs, beans, beanId, opts.now);
+    const rated = sortedRatedRecords(collection.records);
+    const required = HAND_BREW_BEAN_MIN;
+    if (rated.length < required) return insufficient(rated.length, required, collection.excludedCount);
+    const selected = rated.slice(0, 3);
+    const records = selected.map((item) => handBrewRecordView(item, opts));
+    const average = rated.reduce((sum, item) => sum + Number(item.log.overallRating), 0) / rated.length;
+    return response(true, null, {
+      beanId,
+      beanName: collection.records[0].bean.name || '未命名咖啡豆',
+      ratedCount: rated.length,
+      averageRating: round(average),
+      records,
+      ranges: {
+        dose: summarizeMetric(records.map((record) => record.parameters.dose)),
+        ratio: summarizeMetric(records.map((record) => record.parameters.ratio)),
+        waterTemp: summarizeMetric(records.map((record) => record.parameters.waterTemp)),
+        duration: summarizeMetric(records.map((record) => record.parameters.durationSeconds), 0)
+      },
+      advanced: opts.advancedRatings ? { commonDimensions: commonHandBrewDimensions(selected, opts) } : null
+    }, { sampleSize: rated.length, required, excludedCount: collection.excludedCount });
+  }
+
   function estimateKnownCost(log, beansOrMap) {
     if (!log) return { known: false, amount: null };
     if (log.source === 'external') {
@@ -329,8 +520,11 @@
   }
 
   return {
-    MIN_SAMPLE, DIMENSION_LABELS, FLAVOR_LABELS, filterLogsByRange, groupStats,
+    MIN_SAMPLE, HAND_BREW_MIN, HAND_BREW_BEAN_MIN, DIMENSION_LABELS, FLAVOR_LABELS,
+    filterLogsByRange, filterHandBrewLogs, groupStats,
     averageDimensions, flavorProfile, preferenceGap, timeBuckets, weekdayStats,
+    handBrewSummary, handBrewHabits: handBrewSummary, handBrewBeanReview, beanHandBrewReview: handBrewBeanReview,
+    formatHandBrewRatio, formatHandBrewDuration,
     estimateKnownCost, monthlySpendSeries, homeVsExternal, beanValueRanking, freshnessRatingGap
   };
 });

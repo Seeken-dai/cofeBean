@@ -19,6 +19,20 @@ function bean(id, extra) {
   return { id, name: id, initialWeight: 200, price: 100, origin: '埃塞俄比亚', process: '水洗', roastLevel: '浅烘', ...extra };
 }
 
+function brewSnapshot(extra) {
+  return {
+    name: '手填参数', dose: 15, ratio: '1:15', totalWater: 225, waterTemp: 92,
+    grinder: 'C40', grindSetting: '24', targetDuration: '2:30', steps: [{ water: 50, time: '0:30' }],
+    ...(extra || {})
+  };
+}
+
+function handLog(id, consumedAt, extra) {
+  const options = extra || {};
+  const { brewPlanSnapshot: rawSnapshot, ...rest } = options;
+  return log(id, consumedAt, { brewMethod: '手冲', brewPlanId: null, brewPlanSnapshot: brewSnapshot(rawSnapshot), ...rest });
+}
+
 test('filterLogsByRange 使用本地自然日、排除未来/删除/无效日期', () => {
   const now = new Date(2026, 6, 13, 18, 0, 0);
   const logs = [
@@ -173,13 +187,100 @@ test('回顾 SVG 输出包含可访问说明并转义标签', () => {
 });
 
 test('回顾的每类统计都提供口径说明按钮', () => {
-  const keys = ['dimensions', 'flavor', 'preference', 'time', 'weekday', 'spend', 'source', 'freshness', 'value'];
+  const keys = ['dimensions', 'flavor', 'preference', 'time', 'weekday', 'spend', 'source', 'freshness', 'value', 'handBrew'];
   assert.deepEqual(Object.keys(appInsights.HELP_CONTENT), keys);
   keys.forEach((key) => {
     assert.match(appInsights.helpButton(key), new RegExp(`data-insights-help="${key}"`));
     assert.ok(appInsights.HELP_CONTENT[key].body.length > 20);
   });
   assert.match(appInsights.HELP_CONTENT.spend.body, /不随上方回顾范围变化/);
+});
+
+test('手冲回顾只收录自家手冲、排除已删除豆，但保留已喝完的豆', () => {
+  const beans = [
+    bean('bean-a'),
+    bean('bean-finished', { status: '已喝完' }),
+    bean('bean-deleted', { deletedAt: atLocal(2026, 7, 1) })
+  ];
+  const rows = [
+    handLog('keep-a', atLocal(2026, 1, 10)),
+    handLog('keep-finished', atLocal(2026, 2, 10), { beanId: 'bean-finished' }),
+    handLog('smart', atLocal(2026, 3, 10), { brewMethod: '聪明杯' }),
+    handLog('aeropress', atLocal(2026, 4, 10), { brewMethod: '爱乐压' }),
+    handLog('external', atLocal(2026, 5, 10), { source: 'external', beanId: null }),
+    handLog('deleted-bean', atLocal(2026, 6, 10), { beanId: 'bean-deleted' }),
+    handLog('deleted-log', atLocal(2026, 6, 11), { deletedAt: atLocal(2026, 6, 12) })
+  ];
+  assert.deepEqual(insights.filterHandBrewLogs(rows, beans).map((item) => item.id), ['keep-a', 'keep-finished']);
+});
+
+test('手冲习惯使用全部历史，五杯解锁，缺失参数只影响对应统计项', () => {
+  const now = new Date(2026, 6, 13, 18);
+  const beans = [bean('bean-a'), bean('bean-b', { status: '已喝完' })];
+  const rows = [
+    handLog('old-1', atLocal(2026, 1, 10), { grams: 15, beanId: 'bean-a', brewPlanSnapshot: brewSnapshot({ ratio: '1:15', waterTemp: 90, targetDuration: '2:00' }) }),
+    handLog('old-2', atLocal(2026, 2, 10), { grams: 17, beanId: 'bean-a', brewPlanSnapshot: brewSnapshot({ ratio: '1:16', waterTemp: 92, targetDuration: '3:00' }) }),
+    handLog('old-3', atLocal(2026, 3, 10), { grams: 19, beanId: 'bean-b', brewPlanSnapshot: brewSnapshot({ ratio: '1:17', waterTemp: 94, targetDuration: '4:00' }) }),
+    handLog('old-4', atLocal(2026, 4, 10), { grams: 21, beanId: 'bean-b', brewPlanSnapshot: brewSnapshot({ ratio: '1:18', waterTemp: null, targetDuration: null }) }),
+    handLog('manual', atLocal(2026, 5, 10), { grams: 23, beanId: 'bean-a', brewPlanSnapshot: brewSnapshot({ ratio: null, totalWater: 460, waterTemp: 96, targetDuration: null }) })
+  ];
+  assert.equal(insights.filterLogsByRange(rows, '30d', now).length, 0);
+  const result = insights.handBrewSummary(rows, beans, { now });
+  assert.equal(result.ok, true);
+  assert.equal(result.data.cups, 5);
+  assert.equal(result.data.beanCount, 2);
+  assert.deepEqual(result.data.dose, { median: 19, min: 15, max: 23, sampleSize: 5 });
+  assert.deepEqual(result.data.ratio, { median: 17, min: 15, max: 20, sampleSize: 5 });
+  assert.deepEqual(result.data.waterTemp, { median: 93, min: 90, max: 96, sampleSize: 4 });
+  assert.deepEqual(result.data.duration, { median: 180, min: 120, max: 240, sampleSize: 3 });
+  assert.equal(insights.handBrewSummary(rows.slice(0, 4), beans, { now }).reason, 'insufficient');
+});
+
+test('单豆手冲回顾需要三杯带总评分，评分同分按新日期，最多三条且排除无评分', () => {
+  const beans = [
+    bean('bean-a'),
+    bean('bean-finished', { status: '已喝完' }),
+    bean('bean-deleted', { deletedAt: atLocal(2026, 7, 1) })
+  ];
+  const rows = [
+    handLog('a-old-five', atLocal(2026, 7, 1), { overallRating: 5, grams: 15, createdAt: atLocal(2026, 7, 1, 8) }),
+    handLog('a-four-missing', atLocal(2026, 7, 2), { overallRating: 4, grams: null, brewPlanSnapshot: brewSnapshot({ dose: null, ratio: null, totalWater: null, liquid: null, waterTemp: null, grinder: '', grindSetting: '', targetDuration: '' }) }),
+    handLog('a-new-five', atLocal(2026, 7, 3), { overallRating: 5, grams: 20, createdAt: atLocal(2026, 7, 3, 8) }),
+    handLog('a-three', atLocal(2026, 7, 4), { overallRating: 3 }),
+    handLog('a-no-score', atLocal(2026, 7, 5), { aroma: 5, acidity: 4, sweetness: 3 }),
+    handLog('finished-1', atLocal(2026, 7, 1), { beanId: 'bean-finished', overallRating: 4 }),
+    handLog('finished-2', atLocal(2026, 7, 2), { beanId: 'bean-finished', overallRating: 4 }),
+    handLog('finished-3', atLocal(2026, 7, 3), { beanId: 'bean-finished', overallRating: 4 }),
+    handLog('deleted-1', atLocal(2026, 7, 1), { beanId: 'bean-deleted', overallRating: 5 }),
+    handLog('deleted-2', atLocal(2026, 7, 2), { beanId: 'bean-deleted', overallRating: 5 }),
+    handLog('deleted-3', atLocal(2026, 7, 3), { beanId: 'bean-deleted', overallRating: 5 })
+  ];
+  const review = insights.handBrewBeanReview(rows, beans, 'bean-a', { advancedRatings: false, now: new Date(2026, 7, 13) });
+  assert.equal(review.ok, true);
+  assert.equal(review.data.ratedCount, 4);
+  assert.equal(review.data.averageRating, 4.3);
+  assert.deepEqual(review.data.records.map((item) => item.id), ['a-new-five', 'a-old-five', 'a-four-missing']);
+  assert.equal(review.data.records.some((item) => item.id === 'a-no-score'), false);
+  assert.deepEqual(review.data.ranges.dose, { median: 17.5, min: 15, max: 20, sampleSize: 2 });
+  assert.equal(review.data.records[2].parameters.dose, null);
+  assert.equal(insights.handBrewBeanReview(rows, beans, 'bean-deleted').reason, 'empty');
+  assert.equal(insights.handBrewBeanReview(rows.slice(0, 2), beans, 'bean-a').reason, 'insufficient');
+  assert.equal(insights.handBrewBeanReview(rows, beans, 'bean-finished').data.ratedCount, 3);
+});
+
+test('高级评价只解释已有维度，关闭时隐藏，少于三个共同维度不聚合', () => {
+  const beans = [bean('bean-a')];
+  const rows = [
+    handLog('common-1', atLocal(2026, 7, 1), { overallRating: 5, aroma: 4, acidity: 3, sweetness: 4 }),
+    handLog('common-2', atLocal(2026, 7, 2), { overallRating: 4, aroma: 5, acidity: 4, sweetness: null }),
+    handLog('common-3', atLocal(2026, 7, 3), { overallRating: 4, aroma: 3, acidity: 5, sweetness: 4 })
+  ];
+  const off = insights.handBrewBeanReview(rows, beans, 'bean-a', { advancedRatings: false });
+  assert.equal(off.data.advanced, null);
+  const on = insights.handBrewBeanReview(rows, beans, 'bean-a', { advancedRatings: true, enabledDimensions: ['aroma', 'acidity', 'sweetness'] });
+  assert.equal(on.data.advanced.commonDimensions, null);
+  assert.deepEqual(on.data.records[0].dimensions.map((item) => item.key), ['aroma', 'acidity', 'sweetness']);
+  assert.deepEqual(on.data.records.find((item) => item.id === 'common-2').dimensions.map((item) => item.key), ['aroma', 'acidity']);
 });
 
 test('近12个月花费折线图默认展示三组，也支持单独查看', () => {

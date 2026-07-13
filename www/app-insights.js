@@ -20,7 +20,8 @@
     spend: { title: '咖啡开销怎么统计', body: '不随上方回顾范围变化，固定查看最近 12 个月。自家冲煮按豆价、初始重量和本次用豆量估算，外饮使用实付金额；没填金额的记录不计入。' },
     source: { title: '在家与在外怎么比较', body: '自家冲煮和外饮各至少 3 杯才比较。杯数使用全部有效记录，评分只使用已评分记录，开销只汇总能够估算的金额。' },
     freshness: { title: '赏味期怎么统计', body: '按每杯饮用日期与当前豆子的开封日、赏味期计算当时状态。期内和超期后各至少 3 杯有效评分才展示，只说明记录差异。' },
-    value: { title: '日常好豆怎么统计', body: '同一支豆至少有 3 杯评分和可估算成本才进入列表。至少有两支候选豆时，才标记相对高分且单杯成本较低的豆子。' }
+    value: { title: '日常好豆怎么统计', body: '同一支豆至少有 3 杯评分和可估算成本才进入列表。至少有两支候选豆时，才标记相对高分且单杯成本较低的豆子。' },
+    handBrew: { title: '手冲回顾怎么统计', body: '只统计全部历史中明确标记为手冲的自家记录；外饮、其他冲煮方式和已删除豆子不参与。缺少某项参数只影响该项，不会让整杯记录失效。全局习惯 5 杯解锁，单豆回顾 3 杯带总评分解锁。' }
   };
 
   function esc(value) {
@@ -129,6 +130,110 @@
     return result && result.ok ? render(result.data, result.meta) : emptyCard(result, hint);
   }
 
+  function handBrewNumber(value) {
+    const number = Math.round((Number(value) || 0) * 10) / 10;
+    return Number.isInteger(number) ? String(number) : number.toFixed(1);
+  }
+
+  function handBrewWeight(value) {
+    return value == null ? '' : `${handBrewNumber(value)}g`;
+  }
+
+  function handBrewTemperature(value) {
+    return value == null ? '' : `${handBrewNumber(value)}°C`;
+  }
+
+  function handBrewDate(value) {
+    const date = new Date(value);
+    if (!Number.isFinite(date.getTime())) return '日期未记录';
+    return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+  }
+
+  function handBrewMetricText(metric, formatter) {
+    if (!metric) return '';
+    const value = formatter(metric.median);
+    const hasRange = metric.sampleSize >= 2 && metric.min !== metric.max;
+    return { value, note: hasRange ? `${formatter(metric.min)}–${formatter(metric.max)} · ${metric.sampleSize} 个有效值` : `${metric.sampleSize} 个有效值` };
+  }
+
+  function handBrewMetricRows(data, core) {
+    const definitions = [
+      ['dose', '常用粉量', handBrewWeight],
+      ['ratio', '常用粉水比', core.formatHandBrewRatio],
+      ['waterTemp', '常用水温', handBrewTemperature],
+      ['duration', '常见总时长', core.formatHandBrewDuration]
+    ];
+    return definitions.map(([key, label, formatter]) => {
+      const metric = handBrewMetricText(data[key], formatter);
+      return metric ? `<div><span>${label}</span><strong>${esc(metric.value)}</strong><small>${esc(metric.note)}</small></div>` : '';
+    }).filter(Boolean).join('');
+  }
+
+  function handBrewUnlock(result, hint) {
+    return `<div class="insight-unlock"><span class="insight-bean-mark" aria-hidden="true"></span><div><strong>手冲记录还在积累</strong><p>${esc(hint || remainingText(result))}</p></div></div>`;
+  }
+
+  function handBrewSummaryCard(result) {
+    const count = Number(result && result.meta && result.meta.sampleSize) || 0;
+    const message = count ? `已记录 ${count} 杯手冲` : '还没有手冲记录';
+    const hint = count >= 5 ? '基于全部手冲记录，看看你平时怎么冲。' : '再记录几次，豆仓会慢慢整理出你的冲煮习惯。';
+    return `<article class="insight-card handbrew-summary-card" data-insights-brew-review role="button" tabindex="0" aria-label="打开手冲回顾"><div class="insight-card-head"><div><span>手冲回顾</span><h4>冲煮表现${helpButton('handBrew')}</h4></div><strong>${esc(count ? `${count} 杯` : '—')}</strong></div><p>${esc(message)} · ${esc(hint)}</p><i aria-hidden="true">›</i></article>`;
+  }
+
+  function handBrewHabitCard(result, core) {
+    return `<article class="insight-card handbrew-habit-card"><div class="insight-card-head"><div><span>基于全部手冲记录</span><h4>你的手冲习惯${helpButton('handBrew')}</h4></div><small>中位数代表值</small></div>${unlockOr(result, (data) => `<div class="handbrew-habit-grid"><div><span>有效手冲杯数</span><strong>${esc(data.cups)}</strong><small>不受回顾范围影响</small></div><div><span>涉及豆款</span><strong>${esc(data.beanCount)}</strong><small>已删除豆子排除</small></div>${handBrewMetricRows(data, core)}</div><p class="insight-cost-note">范围只在有至少两个有效值时显示；没有有效值的参数不展示。</p>`, '再记录几次手冲，豆仓就能慢慢整理出你的冲煮习惯。')}</article>`;
+  }
+
+  function handBrewBeanLinks(state, core) {
+    const settings = state.settings || {};
+    return state.beans.filter((bean) => bean && !bean.deletedAt).map((bean) => ({
+      bean,
+      result: core.handBrewBeanReview(state.drinkLogs, state.beans, bean.id, { advancedRatings: Boolean(settings.advancedRatings), enabledDimensions: settings.enabledDimensions })
+    })).filter((item) => item.result && item.result.ok).sort((a, b) => String(a.bean.name || '').localeCompare(String(b.bean.name || ''), 'zh-CN'));
+  }
+
+  function handBrewGlobalPage(result, state, core) {
+    const unlocked = handBrewBeanLinks(state, core);
+    const beans = unlocked.length ? unlocked.map(({ bean, result: beanResult }) => `<article class="handbrew-bean-link" data-insights-brew-bean="${esc(bean.id)}" role="button" tabindex="0"><div><span>单豆冲煮回顾</span><h4>${esc(bean.name || '未命名咖啡豆')}</h4><p>${esc(`${beanResult.data.ratedCount} 杯有效评分 · 平均 ${beanResult.data.averageRating}★`)}</p></div><strong aria-hidden="true">›</strong></article>`).join('') : '<div class="insight-unlock"><span class="insight-bean-mark" aria-hidden="true"></span><div><strong>还没有解锁单豆回顾</strong><p>同一支豆积累 3 杯带总评分的手冲记录后，会出现在这里。</p></div></div>';
+    return `<div class="handbrew-page-intro"><p class="eyebrow">POUR-OVER NOTES</p><h3>手冲回顾</h3><p>基于全部手冲记录 · 只看自家手冲，不受首页时间范围影响${helpButton('handBrew')}</p></div><section class="insight-section handbrew-section"><div class="insight-section-title"><span>01</span><div><h3>你的手冲习惯</h3><p>只回答平时怎么冲，不比较哪组参数更好</p></div></div>${handBrewHabitCard(result, core)}</section><section class="insight-section handbrew-section"><div class="insight-section-title"><span>02</span><div><h3>单豆冲煮回顾</h3><p>带总评分的手冲记录达到 3 杯后解锁</p></div></div><div class="handbrew-bean-list">${beans}</div></section>`;
+  }
+
+  function handBrewRangeRows(ranges, core) {
+    const definitions = [
+      ['dose', '粉量', handBrewWeight],
+      ['ratio', '粉水比', core.formatHandBrewRatio],
+      ['waterTemp', '水温', handBrewTemperature],
+      ['duration', '总时长', core.formatHandBrewDuration]
+    ];
+    return definitions.map(([key, label, formatter]) => {
+      const metric = handBrewMetricText(ranges[key], formatter);
+      return metric ? `<div><span>${label}</span><strong>${esc(metric.value)}</strong><small>${esc(metric.note)}</small></div>` : '';
+    }).filter(Boolean).join('');
+  }
+
+  function handBrewRecordCard(record, core, index) {
+    const parameters = record.parameters || {};
+    const rows = [
+      parameters.dose != null ? ['粉量', handBrewWeight(parameters.dose)] : null,
+      parameters.ratio != null ? ['粉水比', core.formatHandBrewRatio(parameters.ratio)] : null,
+      parameters.waterTemp != null ? ['水温', handBrewTemperature(parameters.waterTemp)] : null,
+      parameters.grind ? ['研磨度', parameters.grind] : null,
+      parameters.durationSeconds != null ? ['总时长', core.formatHandBrewDuration(parameters.durationSeconds)] : null
+    ].filter(Boolean);
+    const dimensions = Array.isArray(record.dimensions) && record.dimensions.length ? `<section class="handbrew-record-dimensions"><span>本次高级评价</span><div>${record.dimensions.map((item) => `<b>${esc(item.label)} ${esc(item.value)}</b>`).join('')}</div></section>` : '';
+    const steps = Array.isArray(record.steps) && record.steps.length ? `<section class="handbrew-record-steps"><div class="section-heading"><div><span>分段注水</span><small>只在展开记录后显示</small></div></div>${record.steps.map((step, stepIndex) => `<div><b>${esc(step.label || `第 ${stepIndex + 1} 段`)}</b><span>${esc([step.water ? handBrewWeight(step.water) : '', step.time, step.note].filter(Boolean).join(' · '))}</span></div>`).join('')}</section>` : '';
+    return `<details class="handbrew-record"><summary><span class="handbrew-record-index">${index + 1}</span><span class="handbrew-record-date"><strong>${esc(handBrewDate(record.consumedAt))}</strong><small>饮用日期</small></span><b class="handbrew-record-rating">${esc(record.rating)}★</b><i aria-hidden="true">⌄</i></summary><div class="handbrew-record-body">${rows.length ? `<div class="handbrew-record-grid">${rows.map(([label, value]) => `<div><span>${esc(label)}</span><strong title="${esc(value)}">${esc(value)}</strong></div>`).join('')}</div>` : '<p class="handbrew-missing-note">这杯没有填写详细冲煮参数。</p>'}${dimensions}${steps}</div></details>`;
+  }
+
+  function handBrewBeanPage(result, bean, core) {
+    const name = bean && bean.name || result && result.data && result.data.beanName || '未命名咖啡豆';
+    if (!result || !result.ok) return `<div class="handbrew-page-intro"><p class="eyebrow">POUR-OVER NOTES</p><h3>${esc(name)}</h3><p>基于全部手冲记录</p></div>${handBrewUnlock(result, `再记录 ${Math.max(1, (result && result.meta && result.meta.required || 3) - (result && result.meta && result.meta.sampleSize || 0))} 杯带总评分的手冲，豆仓会解锁这支豆的回顾。`)}`;
+    const data = result.data;
+    const common = data.advanced && data.advanced.commonDimensions;
+    const commonCard = common && common.length >= 3 ? `<div class="handbrew-common-note"><span>评分较高记录的共同填写维度</span><p>${common.map((item) => `${esc(item.label)} ${esc(item.value)}`).join(' · ')}<small>简单平均，不与其他参数比较。</small></p></div>` : '';
+    return `<div class="handbrew-page-intro"><p class="eyebrow">POUR-OVER NOTES</p><h3>${esc(data.beanName || name)}</h3><p>基于全部手冲记录 · 只展示评分较高的具体记录${helpButton('handBrew')}</p></div><article class="insight-card handbrew-score-card"><div><span>有效评分杯数</span><strong>${esc(data.ratedCount)}</strong></div><div><span>平均总评分</span><strong>${esc(data.averageRating)}★</strong></div></article>${data.ranges && handBrewRangeRows(data.ranges, core) ? `<article class="insight-card handbrew-range-card"><div class="insight-card-head"><div><span>选中的最多 3 条记录</span><h4>直观参数范围${helpButton('handBrew')}</h4></div><small>不生成推荐结论</small></div><div class="handbrew-range-grid">${handBrewRangeRows(data.ranges, core)}</div></article>` : ''}<section class="insight-section handbrew-section"><div class="insight-section-title"><span>03</span><div><h3>评分较高的记录</h3><p>按总评分从高到低，同分时优先较新的记录</p></div></div>${commonCard}<div class="handbrew-record-list">${data.records.map((record, index) => handBrewRecordCard(record, core, index)).join('')}</div></section>`;
+  }
+
   function create(deps) {
     const options = deps || {};
     if (!options.state || !options.dialog || !options.core || typeof options.setDialog !== 'function') throw new Error('AppInsights.create 缺少依赖');
@@ -138,7 +243,14 @@
     const setDialog = options.setDialog;
     const toast = typeof options.toast === 'function' ? options.toast : null;
     const content = dialog.querySelector('#insightsContent');
-    if (!content) throw new Error('回顾页面骨架不完整');
+    const homePage = dialog.querySelector('#insightsHomePage') || content;
+    const brewReviewPage = dialog.querySelector('#brewReviewPage');
+    const brewReviewContent = dialog.querySelector('#brewReviewContent');
+    const title = dialog.querySelector('#insightsTitle');
+    const subtitle = dialog.querySelector('#insightsSubtitle');
+    const eyebrow = dialog.querySelector('#insightsEyebrow');
+    const backButton = dialog.querySelector('#insightsBack');
+    if (!content || !brewReviewPage || !brewReviewContent) throw new Error('回顾页面骨架不完整');
 
     function globalUnlock(logs) {
       const required = core.MIN_SAMPLE || 3;
@@ -251,35 +363,94 @@
       return `<section class="insight-section"><div class="insight-section-title"><span>03</span><div><h3>花费与回购</h3><p>金额只统计能够估算的记录</p></div></div><div class="insight-card-stack">${spendCard(monthly)}<div class="two-up">${sourceCompareCard(source)}${freshnessCard(freshness)}</div>${valueCard(value)}</div></section>`;
     }
 
-    function render() {
+    function updatePageFrame() {
+      const isBrewReview = state.insightsPage === 'brew';
+      homePage.hidden = isBrewReview;
+      brewReviewPage.hidden = !isBrewReview;
+      if (backButton) backButton.hidden = !isBrewReview;
+      if (title) title.textContent = isBrewReview ? '手冲回顾' : '回顾';
+      if (subtitle) subtitle.textContent = isBrewReview ? '基于全部手冲记录 · 页内回看你的冲煮习惯' : '从每一杯里，慢慢看见自己的口味';
+      if (eyebrow) eyebrow.textContent = isBrewReview ? 'POUR-OVER NOTES' : 'YOUR COFFEE';
+    }
+
+    function renderHome() {
       state.insightsRange = RANGE_LABELS[state.insightsRange] ? state.insightsRange : 'all';
       state.insightsPreference = PREFERENCE_LABELS[state.insightsPreference] ? state.insightsPreference : 'origin';
       state.insightsSpendView = ['all', 'total', 'home', 'external'].includes(state.insightsSpendView) ? state.insightsSpendView : 'all';
       dialog.querySelectorAll('[data-insights-range]').forEach((button) => button.classList.toggle('active', button.dataset.insightsRange === state.insightsRange));
       const logs = core.filterLogsByRange(state.drinkLogs, state.insightsRange, new Date());
+      const handBrew = core.handBrewSummary(state.drinkLogs, state.beans);
+      const handBrewCard = handBrewSummaryCard(handBrew);
       if (logs.length < (core.MIN_SAMPLE || 3)) {
-        content.innerHTML = globalUnlock(logs);
+        content.innerHTML = `${handBrewCard}${globalUnlock(logs)}`;
         return;
       }
       const dimensions = core.averageDimensions(logs, { enabled: Boolean(state.settings.advancedRatings), enabledDimensions: state.settings.enabledDimensions });
       const flavor = core.flavorProfile(logs);
       const time = core.timeBuckets(logs);
       const radar = state.settings.advancedRatings ? radarCard(dimensions) : '';
-      content.innerHTML = `${openingCard(logs, flavor, time)}<section class="insight-section"><div class="insight-section-title"><span>01</span><div><h3>口味与偏好</h3><p>从饮用笔记和个人评价里慢慢整理</p></div></div><div class="insight-card-stack">${radar}${flavorCard(flavor)}${preferenceCard(logs)}</div></section>${habitsSection(logs)}${spendSection(logs)}`;
+      content.innerHTML = `${openingCard(logs, flavor, time)}${handBrewCard}<section class="insight-section"><div class="insight-section-title"><span>01</span><div><h3>口味与偏好</h3><p>从饮用笔记和个人评价里慢慢整理</p></div></div><div class="insight-card-stack">${radar}${flavorCard(flavor)}${preferenceCard(logs)}</div></section>${habitsSection(logs)}${spendSection(logs)}`;
+    }
+
+    function renderBrewReview() {
+      const settings = state.settings || {};
+      const options = { advancedRatings: Boolean(settings.advancedRatings), enabledDimensions: settings.enabledDimensions };
+      if (state.insightsBeanId) {
+        const bean = state.beans.find((item) => item && item.id === state.insightsBeanId && !item.deletedAt);
+        const result = bean ? core.handBrewBeanReview(state.drinkLogs, state.beans, bean.id, options) : null;
+        brewReviewContent.innerHTML = handBrewBeanPage(result, bean, core);
+        return;
+      }
+      const result = core.handBrewSummary(state.drinkLogs, state.beans);
+      brewReviewContent.innerHTML = handBrewGlobalPage(result, state, core);
+    }
+
+    function render() {
+      updatePageFrame();
+      if (state.insightsPage === 'brew') {
+        renderBrewReview();
+        return;
+      }
+      renderHome();
     }
 
     function open() {
       hideHelp();
+      state.insightsPage = 'home';
+      state.insightsBeanId = null;
       render();
       setDialog(dialog, true);
     }
 
     function close() { hideHelp(); setDialog(dialog, false); }
 
+    function openBrewReview(beanId) {
+      hideHelp();
+      state.insightsPage = 'brew';
+      state.insightsBeanId = beanId || null;
+      render();
+      setDialog(dialog, true);
+    }
+
+    function handleBack() {
+      if (state.insightsPage !== 'brew') return false;
+      state.insightsPage = 'home';
+      state.insightsBeanId = null;
+      hideHelp();
+      render();
+      return true;
+    }
+
     function handleClick(event) {
       const help = event.target.closest('[data-insights-help]');
       if (help) { event.preventDefault(); showHelp(help.dataset.insightsHelp, help); return true; }
       hideHelp();
+      const back = event.target.closest('#insightsBack');
+      if (back) { event.preventDefault(); return handleBack(); }
+      const summary = event.target.closest('[data-insights-brew-review]');
+      if (summary) { openBrewReview(); return true; }
+      const beanLink = event.target.closest('[data-insights-brew-bean]');
+      if (beanLink) { openBrewReview(beanLink.dataset.insightsBrewBean); return true; }
       const spendView = event.target.closest('[data-insights-spend-view]');
       if (spendView) {
         const next = spendView.dataset.insightsSpendView;
@@ -295,8 +466,13 @@
     }
 
     dialog.addEventListener('close', hideHelp);
-    return { render, open, close, handleClick };
+    dialog.addEventListener('keydown', (event) => {
+      if (!['Enter', ' '].includes(event.key) || !event.target.closest('[data-insights-brew-review],[data-insights-brew-bean]')) return;
+      event.preventDefault();
+      handleClick(event);
+    });
+    return { render, open, close, handleClick, handleBack, openBrewReview, openBeanReview: openBrewReview };
   }
 
-  return { HELP_CONTENT, create, buildRadar, buildSpendLineChart, emptyCard, helpButton, remainingText };
+  return { HELP_CONTENT, create, buildRadar, buildSpendLineChart, emptyCard, helpButton, remainingText, handBrewSummaryCard, handBrewRecordCard, handBrewBeanPage };
 });
