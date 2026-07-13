@@ -445,9 +445,8 @@ html.number-picker-open { overflow:hidden; }
 .insights-sheet .sheet-header h2 { font-size:31px; }
 .insights-header-lead { display:flex; flex:1 1 auto; align-items:center; gap:6px; min-width:0; }
 .insights-header-lead > div { min-width:0; }
-.insights-back-button { display:flex; flex:0 0 auto; align-items:center; gap:2px; min-width:44px; min-height:44px; margin-left:-8px; padding:0 6px 0 0; border:0; background:transparent; color:var(--accent); font-size:10px; font-weight:750; white-space:nowrap; }
+.insights-back-button { display:grid; flex:0 0 44px; place-items:center; width:44px; min-width:44px; min-height:44px; margin-left:-8px; padding:0; border:0; background:transparent; color:var(--accent); }
 .insights-back-button svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
-.insights-back-button span { white-space:nowrap; }
 .insights-back-button:active { transform:translateX(-1px); color:var(--text); }
 .insights-body { padding:14px 16px calc(28px + env(safe-area-inset-bottom,0px)); }
 .insights-range-label { margin:0 3px 7px; color:var(--muted); font-size:10px; font-weight:750; letter-spacing:.06em; }

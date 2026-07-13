@@ -378,8 +378,6 @@
       if (eyebrow) eyebrow.textContent = isBrewReview ? 'POUR-OVER NOTES' : 'YOUR COFFEE';
       if (backButton) {
         backButton.setAttribute('aria-label', isBeanReview ? '返回手冲回顾' : '返回回顾首页');
-        const label = backButton.querySelector('span');
-        if (label) label.textContent = isBeanReview ? '手冲回顾' : '回顾';
       }
     }
 

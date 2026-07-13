@@ -305,7 +305,10 @@ test('回顾卡片使用清楚、日常的标题措辞', () => {
 
 test('手冲回顾首页归入第04类，单豆页面按层级返回', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'www', 'app-insights.js'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '..', 'www', 'index.html'), 'utf8');
   assert.match(source, /handBrewHomeSection/);
   assert.match(source, /<span>04<\/span><div><h3>冲煮回顾<\/h3>/);
   assert.match(source, /if \(state\.insightsBeanId\) \{[\s\S]*?state\.insightsBeanId = null;[\s\S]*?return true;/);
+  assert.match(source, /setAttribute\('aria-label', isBeanReview \? '返回手冲回顾' : '返回回顾首页'\)/);
+  assert.doesNotMatch(html, /id="insightsBackLabel"/);
 });
