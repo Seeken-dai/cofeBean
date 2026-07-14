@@ -184,7 +184,112 @@
       octx.drawImage(content, 0, 0);
       return out;
     }
-    const SHARE_CARD_RENDERERS = { receipt: renderReceiptShareCard };
+    function drawReportBadge(ctx, payload, palette, x, y, w) {
+      setCanvasFont(ctx, 26, 800, false); ctx.fillStyle = palette.accent;
+      ctx.fillText(`${payload.eyebrow} · ${payload.reportKind === 'year' ? 'COFFEE YEAR REPORT' : 'COFFEE MONTH REPORT'}`, x, y);
+      y += 24;
+      setCanvasFont(ctx, 150, 850, true); ctx.fillStyle = palette.ink;
+      const big = String((payload.badge && payload.badge.big) || '');
+      ctx.fillText(big, x, y + 138);
+      const bigW = ctx.measureText(big).width;
+      setCanvasFont(ctx, 34, 700, false); ctx.fillStyle = palette.muted;
+      ctx.fillText((payload.badge && payload.badge.small) || '', x + bigW + 22, y + 138);
+      y += 172;
+      setCanvasFont(ctx, 30, 600, false); ctx.fillStyle = palette.muted;
+      y = drawCanvasTextBlock(ctx, payload.subtitle, x, y + 30, w, 42, 3);
+      return y + 24;
+    }
+    function drawReportHero(ctx, stats, palette, x, y, w) {
+      if (!stats || !stats.length) return y;
+      const gap = 16; const cols = 4; const cardW = (w - gap * (cols - 1)) / cols; const h = 150;
+      stats.slice(0, 4).forEach((stat, index) => {
+        const px = x + index * (cardW + gap); const dark = index === 0;
+        fillRound(ctx, px, y, cardW, h, 22, dark ? palette.ink : palette.surface, dark ? null : palette.border);
+        setCanvasFont(ctx, 20, 700, false); ctx.fillStyle = dark ? palette.line : palette.muted; ctx.fillText(stat.label, px + 20, y + 40);
+        setCanvasFont(ctx, 52, 850, true); ctx.fillStyle = dark ? palette.paper : palette.ink;
+        const val = clipCanvasText(ctx, stat.value, cardW - 40); ctx.fillText(val, px + 20, y + 110);
+        if (stat.unit) { const nw = ctx.measureText(val).width; setCanvasFont(ctx, 22, 700, false); ctx.fillStyle = dark ? palette.accent : palette.muted; ctx.fillText(stat.unit, px + 20 + nw + 6, y + 110); }
+      });
+      return y + h + 26;
+    }
+    function drawReportSourceBar(ctx, source, palette, x, y, w) {
+      if (!source) return y;
+      const total = (Number(source.home) || 0) + (Number(source.external) || 0); if (!total) return y;
+      setCanvasFont(ctx, 22, 700, false); ctx.fillStyle = palette.muted; ctx.fillText('本阶段足迹', x, y); y += 32;
+      const barH = 40; const homeW = Math.round(w * ((Number(source.home) || 0) / total));
+      fillRound(ctx, x, y, w, barH, barH / 2, palette.surface, palette.border);
+      if (homeW > 0) fillRound(ctx, x, y, Math.min(w, Math.max(homeW, barH)), barH, barH / 2, palette.accent);
+      y += barH + 14;
+      setCanvasFont(ctx, 22, 600, false); ctx.fillStyle = palette.ink; ctx.fillText(`自家冲煮 ${source.home} 杯`, x, y);
+      const right = `外饮 ${source.external} 杯`; ctx.fillStyle = palette.muted; ctx.fillText(right, x + w - ctx.measureText(right).width, y);
+      y += 30;
+      if (source.unknownCost) { setCanvasFont(ctx, 19, 500, false); ctx.fillStyle = palette.muted; ctx.fillText(`${source.unknownCost} 杯金额未计入估算`, x, y + 6); y += 26; }
+      return y + 14;
+    }
+    function drawReportRhythm(ctx, rhythm, palette, x, y, w, activeLabel) {
+      if (!rhythm || !rhythm.length) return y;
+      setCanvasFont(ctx, 22, 700, false); ctx.fillStyle = palette.muted; ctx.fillText('12 个月杯数节奏', x, y); y += 40;
+      const n = rhythm.length; const gap = 10; const barW = (w - gap * (n - 1)) / n; const maxCups = Math.max(1, ...rhythm.map((item) => item.cups)); const areaH = 200; const baseY = y + areaH;
+      rhythm.forEach((item, index) => {
+        const px = x + index * (barW + gap); const bh = item.cups ? Math.max(8, Math.round(areaH * (item.cups / maxCups))) : 3;
+        const active = item.label === activeLabel && item.cups;
+        fillRound(ctx, px, baseY - bh, barW, bh, Math.min(8, barW / 2), active ? palette.accent : palette.surface, active ? null : palette.border);
+        if (item.cups) { setCanvasFont(ctx, 18, 800, false); ctx.fillStyle = palette.ink; const t = String(item.cups); ctx.fillText(t, px + (barW - ctx.measureText(t).width) / 2, baseY - bh - 8); }
+        setCanvasFont(ctx, 17, 600, false); ctx.fillStyle = palette.muted; const lbl = item.label.replace('月', ''); ctx.fillText(lbl, px + (barW - ctx.measureText(lbl).width) / 2, baseY + 26);
+      });
+      return baseY + 48;
+    }
+    function drawReportHighlights(ctx, items, palette, x, y, w) {
+      if (!items || !items.length) return y;
+      const gap = 16; const cardW = (w - gap) / 2; const h = 118;
+      items.forEach((item, index) => {
+        const px = x + (index % 2) * (cardW + gap); const py = y + Math.floor(index / 2) * (h + gap);
+        fillRound(ctx, px, py, cardW, h, 20, palette.surface, palette.border);
+        setCanvasFont(ctx, 20, 700, false); ctx.fillStyle = palette.accent; ctx.fillText(item.label, px + 22, py + 38);
+        setCanvasFont(ctx, 30, 800, true); ctx.fillStyle = palette.ink; ctx.fillText(clipCanvasText(ctx, item.value, cardW - 44), px + 22, py + 80);
+        if (item.sub) { setCanvasFont(ctx, 20, 600, false); ctx.fillStyle = palette.muted; ctx.fillText(clipCanvasText(ctx, item.sub, cardW - 44), px + 22, py + 108); }
+      });
+      return y + Math.ceil(items.length / 2) * (h + gap) + 6;
+    }
+    function drawReportChips(ctx, label, items, palette, x, y, w) {
+      if (!items || !items.length) return y;
+      setCanvasFont(ctx, 22, 700, false); ctx.fillStyle = palette.muted; ctx.fillText(label, x, y); y += 36;
+      let cx = x; let cy = y; const padX = 22; const h = 52; const gap = 14; const lineH = h + 14;
+      items.forEach((raw) => {
+        const text = String(raw); setCanvasFont(ctx, 24, 650, false); const cw = ctx.measureText(text).width + padX * 2;
+        if (cx > x && cx + cw > x + w) { cx = x; cy += lineH; }
+        fillRound(ctx, cx, cy, cw, h, h / 2, palette.surface, palette.border);
+        setCanvasFont(ctx, 24, 650, false); ctx.fillStyle = palette.ink; ctx.fillText(text, cx + padX, cy + 34);
+        cx += cw + gap;
+      });
+      return cy + lineH + 6;
+    }
+    async function renderReportShareCard(payload) {
+      const palette = { bg: '#1a1412', paper: '#f4eadc', surface: '#eadcc8', ink: '#251811', muted: '#806b59', accent: '#b7783d', border: '#d9c6ac', line: '#d5b58e', heat: ['#e2d6c5', '#d5bd96', '#cda66b', '#bd8345', '#8f542d'] };
+      const width = 1080; const maxHeight = 4200;
+      const content = document.createElement('canvas'); content.width = width; content.height = maxHeight; const ctx = content.getContext('2d');
+      const x = 96; const w = width - x * 2; let y = 140;
+      setCanvasFont(ctx, 28, 800, false); ctx.fillStyle = palette.accent; ctx.fillText('豆仓 COFFEE VAULT', x, y); y += 54;
+      y = drawReportBadge(ctx, payload, palette, x, y, w);
+      y = drawReportHero(ctx, payload.hero, palette, x, y, w);
+      drawReceiptDivider(ctx, palette, x, y, w); y += 46;
+      y = drawReportSourceBar(ctx, payload.source, palette, x, y, w);
+      y = drawReportRhythm(ctx, payload.rhythm, palette, x, y, w, payload.activeMonthLabel);
+      y = drawReportHighlights(ctx, payload.highlights, palette, x, y, w);
+      y = drawReportChips(ctx, '笔记里的常见风味', payload.flavors, palette, x, y, w);
+      y = drawReportChips(ctx, '这一阶段喝过', payload.beans, palette, x, y, w);
+      y = drawReportChips(ctx, '探索过的产地', payload.origins, palette, x, y, w);
+      drawReceiptDivider(ctx, palette, x, y + 4, w); y += 56;
+      setCanvasFont(ctx, 24, 800, false); ctx.fillStyle = palette.accent; ctx.fillText(payload.footer || '本地记录 · 私人豆仓', x, y);
+      const cardHeight = Math.min(Math.max(Math.round(y + 116), 560), maxHeight);
+      const out = document.createElement('canvas'); out.width = width; out.height = cardHeight; const octx = out.getContext('2d');
+      octx.fillStyle = palette.bg; octx.fillRect(0, 0, width, cardHeight);
+      fillRound(octx, 54, 54, width - 108, cardHeight - 108, 42, palette.paper, '#6f4d33');
+      for (let dy = 170; dy <= cardHeight - 150; dy += 190) { octx.fillStyle = palette.bg; octx.beginPath(); octx.arc(54, dy, 16, 0, Math.PI * 2); octx.arc(width - 54, dy, 16, 0, Math.PI * 2); octx.fill(); }
+      octx.drawImage(content, 0, 0);
+      return out;
+    }
+    const SHARE_CARD_RENDERERS = { receipt: renderReceiptShareCard, report: renderReportShareCard };
     async function renderShareCard(payload, style) { const renderer = SHARE_CARD_RENDERERS[style || payload.style] || SHARE_CARD_RENDERERS.receipt; return renderer({ ...payload, style: style || payload.style || 'receipt' }); }
 
     // clipCanvasText / wrapCanvasLines 一并导出,供 Node 测试用假 ctx 验证换行/截断逻辑。

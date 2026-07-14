@@ -558,32 +558,39 @@
 
   function buildCoffeeReportSharePayload(report) {
     if (!report) throw new Error('缺少咖啡报告');
-    const rows = [
-      report.topBean ? { label: '喝得最多', value: `${report.topBean.beanName} · ${report.topBean.cups} 杯` } : null,
-      report.beans.length ? { label: '这一阶段的豆子', value: report.beans.slice(0, 4).map((item) => item.beanName).join(' · ') } : null,
-      report.commonTime ? { label: '常喝时段', value: `${report.commonTime.label} · ${report.commonTime.cups} 杯` } : null,
-      report.longestStreak ? { label: '最长连续', value: `${report.longestStreak} 天` } : null,
-      report.topRated ? { label: '一杯高分记录', value: `${report.topRated.name} · ${report.topRated.rating}★` } : null,
-      report.flavors.length ? { label: '常见风味', value: report.flavors.map((item) => item.label).join(' · ') } : null,
-      report.activeMonth ? { label: '最活跃月份', value: `${report.activeMonth.label} · ${report.activeMonth.cups} 杯` } : null
+    const isYear = report.type === 'year';
+    const badge = isYear
+      ? { big: String(report.key), small: '年度' }
+      : { big: `${Number((String(report.key).split('-')[1] || '').replace(/^0/, '')) || ''}月`, small: `${String(report.key).split('-')[0]} 年` };
+    const highlights = [
+      report.topBean ? { label: '喝得最多', value: report.topBean.beanName, sub: `${report.topBean.cups} 杯` } : null,
+      report.topRated ? { label: '一杯高分记录', value: report.topRated.name, sub: `${report.topRated.rating}★` } : null,
+      report.commonTime ? { label: '常喝时段', value: report.commonTime.label, sub: `${report.commonTime.cups} 杯` } : null,
+      report.longestStreak ? { label: '最长连续', value: `${report.longestStreak} 天`, sub: '按自然日' } : null,
+      isYear && report.activeMonth ? { label: '最活跃月份', value: report.activeMonth.label, sub: `${report.activeMonth.cups} 杯` } : null
     ].filter(Boolean);
     return {
-      type: report.type === 'year' ? 'coffeeYearReport' : 'coffeeMonthReport',
-      style: 'receipt',
-      eyebrow: report.type === 'year' ? '咖啡年报' : '咖啡月报',
+      type: isYear ? 'coffeeYearReport' : 'coffeeMonthReport',
+      style: 'report',
+      reportKind: isYear ? 'year' : 'month',
+      eyebrow: isYear ? '咖啡年报' : '咖啡月报',
       title: report.title,
       subtitle: report.summary,
-      meta: [`${report.cups} 杯`, `${report.days} 个记录日`, `${report.beanCount} 款豆`],
-      stats: [
-        { label: '咖啡', value: `${report.cups}杯` },
-        { label: '记录日', value: `${report.days}天` },
-        { label: '豆款', value: `${report.beanCount}款` },
-        { label: '估算花费', value: report.estimatedSpend == null ? '—' : `¥${round(report.estimatedSpend, 2)}` }
+      badge,
+      hero: [
+        { label: '咖啡', value: `${report.cups}`, unit: '杯' },
+        { label: '记录日', value: `${report.days}`, unit: '天' },
+        { label: '豆款', value: `${report.beanCount}`, unit: '款' },
+        { label: '估算花费', value: report.estimatedSpend == null ? '—' : `¥${round(report.estimatedSpend, 2)}`, unit: '' }
       ],
-      rows,
-      logs: report.monthlyRhythm.length ? report.monthlyRhythm.map((item) => ({ title: item.label, meta: `${item.cups} 杯` })) : [],
-      notes: `自家 ${report.homeCups} 杯 · 外饮 ${report.externalCups} 杯${report.unknownCostCount ? ` · ${report.unknownCostCount} 杯金额未计入` : ''}`,
-      footer: report.type === 'year' ? '咖啡日常，按年慢慢收好 · 豆仓' : '咖啡日常，按月慢慢收好 · 豆仓'
+      source: { home: report.homeCups, external: report.externalCups, unknownCost: report.unknownCostCount || 0 },
+      rhythm: (report.monthlyRhythm || []).map((item) => ({ label: item.label, cups: item.cups })),
+      activeMonthLabel: report.activeMonth ? report.activeMonth.label : '',
+      highlights,
+      flavors: report.flavors.map((item) => item.label),
+      beans: report.beans.slice(0, 6).map((item) => item.beanName),
+      origins: report.origins.slice(0, 6),
+      footer: isYear ? '咖啡日常，按年慢慢收好 · 豆仓' : '咖啡日常，按月慢慢收好 · 豆仓'
     };
   }
 

@@ -556,15 +556,12 @@ html.number-picker-open { overflow:hidden; }
 .handbrew-record-steps > div + div { margin-top:5px; }
 .handbrew-record-steps b { color:var(--accent); font-size:9px; }
 .handbrew-record-steps span { min-width:0; color:var(--muted); font-size:9px; overflow-wrap:anywhere; }
-.coffee-report-summary-card { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:14px; border-color:color-mix(in srgb,var(--accent) 40%,var(--border)); background:linear-gradient(145deg,color-mix(in srgb,var(--accent) 9%,var(--surface-2)),var(--surface)); cursor:pointer; }
-.coffee-report-summary-card > div { min-width:0; }
-.coffee-report-summary-card > div > span { color:var(--faint); font-size:9px; font-weight:750; letter-spacing:.08em; }
-.coffee-report-summary-card h4 { display:flex; align-items:center; gap:6px; margin:5px 0 0; font:700 16px "Vault Serif",serif; }
-.coffee-report-summary-card p { margin:7px 0 0; color:var(--muted); font-size:10px; line-height:1.55; }
-.coffee-report-summary-card > strong { display:grid; grid-template-columns:auto auto; align-items:end; justify-items:end; color:var(--accent); }
-.coffee-report-summary-card > strong b { font:700 25px/1 "Vault Serif",serif; }
-.coffee-report-summary-card > strong small { margin-left:3px; color:var(--faint); font-size:8px; font-weight:600; }
-.coffee-report-summary-card > strong i { grid-column:1/-1; margin-top:7px; font-size:20px; font-style:normal; font-weight:400; }
+.coffee-report-summary-card { position:relative; padding-right:42px; border-color:color-mix(in srgb,var(--accent) 40%,var(--border)); background:linear-gradient(145deg,color-mix(in srgb,var(--accent) 9%,var(--surface-2)),var(--surface)); cursor:pointer; transition:border-color var(--ease),transform var(--ease),background var(--ease); }
+.coffee-report-summary-card:active { transform:translateY(1px); border-color:var(--accent); }
+.coffee-report-summary-card > p { margin:0; color:var(--muted); font-size:10px; line-height:1.6; }
+.coffee-report-summary-card .insight-card-head > strong { display:flex; align-items:baseline; gap:3px; }
+.coffee-report-summary-card .insight-card-head > strong small { color:var(--faint); font-size:9px; font-weight:600; }
+.coffee-report-summary-card > i { position:absolute; top:50%; right:15px; color:var(--accent); font-size:24px; font-style:normal; font-weight:300; transform:translateY(-50%); }
 .report-page-intro { padding:3px; }
 .report-page-intro h3 { margin:5px 0 7px; font:700 23px "Vault Serif",serif; }
 .report-page-intro > p:last-child { margin:0; color:var(--muted); font-size:10px; line-height:1.6; }
@@ -696,7 +693,6 @@ html.number-picker-open { overflow:hidden; }
   .insight-opening-stamp { grid-template-columns:auto auto auto; justify-content:start; gap:6px; width:100%; transform:none; }
   .insight-opening-stamp small,.insight-opening-stamp em { margin:0; align-self:end; }
   .value-row.is-highlight { padding-right:12px; padding-top:36px; }
-  .coffee-report-summary-card { grid-template-columns:minmax(0,1fr) 58px; }
   .coffee-report-hero { grid-template-columns:1fr; }
   .coffee-report-hero > p { grid-template-columns:repeat(3,minmax(0,1fr)); }
   .coffee-report-highlights article { grid-template-columns:1fr auto; gap:4px 8px; }

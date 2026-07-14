@@ -189,7 +189,7 @@
     const latest = Array.isArray(reports) && reports[0];
     const count = Array.isArray(reports) ? reports.length : 0;
     const summary = latest ? `${latest.label}已有 ${latest.cups} 杯记录，打开看看这一阶段的咖啡日常。` : '完整自然月内记录满 5 杯后，这里会生成第一份咖啡月报。';
-    return `<section class="insight-section report-home-section"><div class="insight-section-title"><span>05</span><div><h3>咖啡月报 / 咖啡年报</h3><p>把已经走完的一段咖啡日常收成一页</p></div></div><article class="insight-card coffee-report-summary-card" data-insights-reports role="button" tabindex="0" aria-label="打开咖啡月报与年报"><div><span>阶段报告</span><h4>${latest ? esc(latest.title) : '咖啡月报与年报'}${helpButton('report')}</h4><p>${esc(summary)}</p></div><strong><b>${count}</b><small>份报告</small><i aria-hidden="true">›</i></strong></article></section>`;
+    return `<section class="insight-section report-home-section"><div class="insight-section-title"><span>05</span><div><h3>咖啡月报 / 咖啡年报</h3><p>把已经走完的一段咖啡日常收成一页</p></div></div><article class="insight-card coffee-report-summary-card" data-insights-reports role="button" tabindex="0" aria-label="打开咖啡月报与年报"><div class="insight-card-head"><div><span>阶段报告</span><h4>${latest ? esc(latest.title) : '咖啡月报与年报'}${helpButton('report')}</h4></div><strong>${count}<small>份报告</small></strong></div><p>${esc(summary)}</p><i aria-hidden="true">›</i></article></section>`;
   }
 
   function reportMoney(value) {
