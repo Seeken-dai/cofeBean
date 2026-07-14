@@ -14,6 +14,7 @@
   const MIN_SAMPLE = 3;
   const HAND_BREW_MIN = 5;
   const HAND_BREW_BEAN_MIN = 3;
+  const COFFEE_REPORT_MIN = 5;
   const DIMENSION_LABELS = {
     aroma: '香气', acidity: '酸质', sweetness: '甜感', body: '醇厚',
     aftertaste: '余韵', balance: '平衡', bitterness: '苦感'
@@ -393,6 +394,199 @@
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
   }
 
+  function localDateKey(date) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  }
+
+  function reportPeriod(type, key) {
+    if (type === 'month') {
+      const match = String(key || '').match(/^(\d{4})-(\d{2})$/);
+      if (!match) return null;
+      const year = Number(match[1]);
+      const month = Number(match[2]);
+      if (month < 1 || month > 12) return null;
+      return { type, key: `${year}-${String(month).padStart(2, '0')}`, start: new Date(year, month - 1, 1), end: new Date(year, month, 1), label: `${year} 年 ${month} 月`, title: `${year} 年 ${month} 月咖啡月报` };
+    }
+    if (type === 'year') {
+      const match = String(key || '').match(/^(\d{4})$/);
+      if (!match) return null;
+      const year = Number(match[1]);
+      return { type, key: String(year), start: new Date(year, 0, 1), end: new Date(year + 1, 0, 1), label: `${year} 年`, title: `${year} 年咖啡年报` };
+    }
+    return null;
+  }
+
+  function periodLogs(logs, period, now) {
+    const current = validDate(now || new Date()) || new Date();
+    if (!period || period.end.getTime() > new Date(current.getFullYear(), current.getMonth(), current.getDate() + 1).getTime()) return [];
+    return filterLogsByRange(logs, 'all', current).filter((log) => {
+      const date = validDate(log.consumedAt);
+      return date && date >= period.start && date < period.end;
+    });
+  }
+
+  function reportFlavorWords(logs) {
+    const counts = new Map();
+    (Array.isArray(logs) ? logs : []).forEach((log) => {
+      const seen = new Set();
+      beanCore.flavorTags(log && log.notes).forEach((tag) => {
+        if (!tag || tag.category === 'other') return;
+        const label = String(tag.label || '').trim();
+        if (!label || seen.has(label)) return;
+        seen.add(label);
+        counts.set(label, (counts.get(label) || 0) + 1);
+      });
+    });
+    return Array.from(counts, ([label, count]) => ({ label, count }))
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, 'zh-CN')).slice(0, 3);
+  }
+
+  function longestReportStreak(logs) {
+    const keys = Array.from(new Set((Array.isArray(logs) ? logs : []).map((log) => validDate(log && log.consumedAt)).filter(Boolean).map(localDateKey))).sort();
+    let longest = 0;
+    let current = 0;
+    let previous = null;
+    keys.forEach((key) => {
+      const date = validDate(`${key}T00:00:00`);
+      const consecutive = previous && date && Math.round((date.getTime() - previous.getTime()) / 86400000) === 1;
+      current = consecutive ? current + 1 : 1;
+      longest = Math.max(longest, current);
+      previous = date;
+    });
+    return longest;
+  }
+
+  function availableCoffeeReports(logs, now) {
+    const current = validDate(now || new Date()) || new Date();
+    const currentMonth = new Date(current.getFullYear(), current.getMonth(), 1);
+    const currentYear = new Date(current.getFullYear(), 0, 1);
+    const counts = new Map();
+    filterLogsByRange(logs, 'all', current).forEach((log) => {
+      const date = validDate(log.consumedAt);
+      if (!date) return;
+      if (date < currentMonth) counts.set(`month:${monthKey(date)}`, (counts.get(`month:${monthKey(date)}`) || 0) + 1);
+      if (date < currentYear) counts.set(`year:${date.getFullYear()}`, (counts.get(`year:${date.getFullYear()}`) || 0) + 1);
+    });
+    return Array.from(counts, ([id, cups]) => {
+      const [type, key] = id.split(':');
+      const period = reportPeriod(type, key);
+      return cups >= COFFEE_REPORT_MIN && period ? { ...period, cups } : null;
+    }).filter(Boolean).sort((a, b) => b.end.getTime() - a.end.getTime() || (a.type === 'year' ? -1 : 1));
+  }
+
+  function coffeePeriodReport(logs, beans, options) {
+    const opts = options || {};
+    const period = reportPeriod(opts.type, opts.key);
+    if (!period) return response(false, 'invalidPeriod', null, { required: COFFEE_REPORT_MIN });
+    const current = validDate(opts.now || new Date()) || new Date();
+    const currentBoundary = opts.type === 'year' ? new Date(current.getFullYear(), 0, 1) : new Date(current.getFullYear(), current.getMonth(), 1);
+    if (period.end > currentBoundary) return response(false, 'incompletePeriod', null, { required: COFFEE_REPORT_MIN });
+    const rows = periodLogs(logs, period, current);
+    if (rows.length < COFFEE_REPORT_MIN) return insufficient(rows.length, COFFEE_REPORT_MIN);
+    const beansById = beanMapOf(beans);
+    const home = rows.filter((log) => log.source !== 'external');
+    const external = rows.filter((log) => log.source === 'external');
+    const joined = home.map((log) => ({ log, bean: beansById.get(log.beanId) })).filter((item) => item.bean);
+    const beanGroups = groupStats(joined, (item) => item.bean.id).map(({ key, values }) => ({ beanId: key, beanName: values[0].bean.name || '未命名咖啡豆', cups: values.length }))
+      .sort((a, b) => b.cups - a.cups || a.beanName.localeCompare(b.beanName, 'zh-CN'));
+    const rated = rows.filter((log) => Number(log.overallRating) > 0).slice().sort((a, b) => Number(b.overallRating) - Number(a.overallRating) || new Date(b.consumedAt) - new Date(a.consumedAt));
+    const highest = rated[0] || null;
+    const costs = rows.map((log) => estimateKnownCost(log, beansById));
+    const knownCosts = costs.filter((item) => item.known);
+    const times = timeBuckets(rows);
+    const commonTime = times.ok ? times.data.slice().sort((a, b) => b.cups - a.cups || a.start - b.start)[0] : null;
+    const origins = Array.from(new Set(joined.map((item) => String(item.bean.origin || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'zh-CN'));
+    const monthlyRhythm = [];
+    if (opts.type === 'year') {
+      for (let month = 0; month < 12; month += 1) {
+        const key = `${period.key}-${String(month + 1).padStart(2, '0')}`;
+        monthlyRhythm.push({ key, label: `${month + 1}月`, cups: rows.filter((log) => monthKey(validDate(log.consumedAt)) === key).length });
+      }
+    }
+    const activeMonth = monthlyRhythm.length ? monthlyRhythm.slice().sort((a, b) => b.cups - a.cups || a.key.localeCompare(b.key))[0] : null;
+    const topBean = beanGroups[0] || null;
+    const summary = topBean ? `${period.label}记录了 ${rows.length} 杯咖啡，${topBean.beanName}是这一阶段喝得最多的豆子。` : `${period.label}记录了 ${rows.length} 杯咖啡，构成了这一阶段的咖啡日常。`;
+    return response(true, null, {
+      type: period.type,
+      key: period.key,
+      label: period.label,
+      title: period.title,
+      cups: rows.length,
+      days: new Set(rows.map((log) => localDateKey(validDate(log.consumedAt)))).size,
+      beanCount: new Set(joined.map((item) => item.bean.id)).size,
+      beans: beanGroups,
+      homeCups: home.length,
+      externalCups: external.length,
+      origins,
+      topBean,
+      topRated: highest ? {
+        id: highest.id,
+        name: highest.source === 'external' ? (highest.drinkName || highest.cafeName || '外饮咖啡') : ((beansById.get(highest.beanId) || {}).name || highest.beanName || '咖啡'),
+        rating: Number(highest.overallRating),
+        consumedAt: highest.consumedAt,
+        source: highest.source === 'external' ? 'external' : 'bean'
+      } : null,
+      flavors: reportFlavorWords(rows),
+      commonTime: commonTime && commonTime.cups ? commonTime : null,
+      longestStreak: longestReportStreak(rows),
+      estimatedSpend: knownCosts.length ? round(knownCosts.reduce((sum, item) => sum + item.amount, 0), 2) : null,
+      unknownCostCount: costs.length - knownCosts.length,
+      monthlyRhythm,
+      activeMonth: activeMonth && activeMonth.cups ? activeMonth : null,
+      summary
+    }, { sampleSize: rows.length, required: COFFEE_REPORT_MIN, excludedCount: costs.length - knownCosts.length });
+  }
+
+  function coffeeReportReminders(logs, now) {
+    const current = validDate(now || new Date()) || new Date();
+    const endOfToday = new Date(current.getFullYear(), current.getMonth(), current.getDate() + 1);
+    return availableCoffeeReports(logs, current).filter((period) => {
+      const expiresAt = new Date(period.end);
+      expiresAt.setDate(expiresAt.getDate() + 7);
+      return period.end <= endOfToday && current < expiresAt;
+    }).map((period) => ({
+      id: `report:${period.type}:${period.key}`,
+      type: period.type === 'year' ? 'reportYear' : 'reportMonth',
+      reportType: period.type,
+      reportKey: period.key,
+      priority: period.type === 'year' ? 400 : 300,
+      title: period.type === 'year' ? '咖啡年报已生成' : '咖啡月报已生成',
+      message: `${period.label} · ${period.cups} 杯记录`,
+      expiresAt: new Date(period.end.getFullYear(), period.end.getMonth(), period.end.getDate() + 7).toISOString()
+    }));
+  }
+
+  function buildCoffeeReportSharePayload(report) {
+    if (!report) throw new Error('缺少咖啡报告');
+    const rows = [
+      report.topBean ? { label: '喝得最多', value: `${report.topBean.beanName} · ${report.topBean.cups} 杯` } : null,
+      report.beans.length ? { label: '这一阶段的豆子', value: report.beans.slice(0, 4).map((item) => item.beanName).join(' · ') } : null,
+      report.commonTime ? { label: '常喝时段', value: `${report.commonTime.label} · ${report.commonTime.cups} 杯` } : null,
+      report.longestStreak ? { label: '最长连续', value: `${report.longestStreak} 天` } : null,
+      report.topRated ? { label: '一杯高分记录', value: `${report.topRated.name} · ${report.topRated.rating}★` } : null,
+      report.flavors.length ? { label: '常见风味', value: report.flavors.map((item) => item.label).join(' · ') } : null,
+      report.activeMonth ? { label: '最活跃月份', value: `${report.activeMonth.label} · ${report.activeMonth.cups} 杯` } : null
+    ].filter(Boolean);
+    return {
+      type: report.type === 'year' ? 'coffeeYearReport' : 'coffeeMonthReport',
+      style: 'receipt',
+      eyebrow: report.type === 'year' ? '咖啡年报' : '咖啡月报',
+      title: report.title,
+      subtitle: report.summary,
+      meta: [`${report.cups} 杯`, `${report.days} 个记录日`, `${report.beanCount} 款豆`],
+      stats: [
+        { label: '咖啡', value: `${report.cups}杯` },
+        { label: '记录日', value: `${report.days}天` },
+        { label: '豆款', value: `${report.beanCount}款` },
+        { label: '估算花费', value: report.estimatedSpend == null ? '—' : `¥${round(report.estimatedSpend, 2)}` }
+      ],
+      rows,
+      logs: report.monthlyRhythm.length ? report.monthlyRhythm.map((item) => ({ title: item.label, meta: `${item.cups} 杯` })) : [],
+      notes: `自家 ${report.homeCups} 杯 · 外饮 ${report.externalCups} 杯${report.unknownCostCount ? ` · ${report.unknownCostCount} 杯金额未计入` : ''}`,
+      footer: report.type === 'year' ? '咖啡日常，按年慢慢收好 · 豆仓' : '咖啡日常，按月慢慢收好 · 豆仓'
+    };
+  }
+
   function monthlySpendSeries(logs, beans, now) {
     const current = validDate(now || new Date()) || new Date();
     const start = new Date(current.getFullYear(), current.getMonth() - 11, 1);
@@ -520,11 +714,12 @@
   }
 
   return {
-    MIN_SAMPLE, HAND_BREW_MIN, HAND_BREW_BEAN_MIN, DIMENSION_LABELS, FLAVOR_LABELS,
+    MIN_SAMPLE, HAND_BREW_MIN, HAND_BREW_BEAN_MIN, COFFEE_REPORT_MIN, DIMENSION_LABELS, FLAVOR_LABELS,
     filterLogsByRange, filterHandBrewLogs, groupStats,
     averageDimensions, flavorProfile, preferenceGap, timeBuckets, weekdayStats,
     handBrewSummary, handBrewHabits: handBrewSummary, handBrewBeanReview, beanHandBrewReview: handBrewBeanReview,
     formatHandBrewRatio, formatHandBrewDuration,
-    estimateKnownCost, monthlySpendSeries, homeVsExternal, beanValueRanking, freshnessRatingGap
+    estimateKnownCost, monthlySpendSeries, homeVsExternal, beanValueRanking, freshnessRatingGap,
+    availableCoffeeReports, coffeePeriodReport, coffeeReportReminders, buildCoffeeReportSharePayload
   };
 });

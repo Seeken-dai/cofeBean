@@ -1,19 +1,19 @@
 // 豆仓 Web Service Worker。
-// 2.3.5 验收修订：新增手冲回顾二级页面、条件式豆子入口与相关界面资源；修正层级返回和窄屏布局。
+// 2.3.6：新增咖啡月报与年报、日历上下文入口、长图分享，以及单条阅后消失的首页提醒。
 // 策略：按版本预缓存应用外壳（cache-first）。CACHE 版本号随 app 版本变化（由 scripts/bump-version.mjs 同步）。
 // - install 时用 addAll 原子化拉取整套外壳：全部成功才写入这一版缓存，任一失败则安装失败、继续用旧 SW/旧缓存。
 // - activate 时清理其它版本的缓存并接管页面。
 // 这样每一版的外壳始终是「同一版本的一致集合」，不会出现新 index.html 配旧 app.js 之类的错配（这是之前
 // stale-while-revalidate 按单文件各自更新、遇到弱网时导致「更新后 web 打开报错」的根因）。
 // cache-first 也让联网时直接用本地缓存秒开，避免 iOS PWA 联网黑屏/白屏。
-const CACHE = 'coffee-vault-shell-2.3.5';
+const CACHE = 'coffee-vault-shell-2.3.6';
 // 不预缓存 './index.html'：Cloudflare Pages 会把 /index.html 308 重定向到 /，
 // addAll 跟随重定向后缓存的响应带 redirected=true，导航时返还会触发
 // 「Response served by service worker has redirections」，导致整个 Web 打不开。
 // 导航统一走根路径 './'（直接 200，无重定向）。
 const SHELL = [
   './',
-  './styles.css?v=2.3.5',
+  './styles.css?v=2.3.6',
   './sync-compare.js',
   './data-core.js',
   './insights-core.js',

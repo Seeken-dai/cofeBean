@@ -851,7 +851,7 @@
       exportScope,
       exportedAt: exportedAt || new Date().toISOString(),
       app: '豆仓',
-      appVersion: '2.3.5'
+      appVersion: '2.3.6'
     };
     if (exportScope === 'all' || exportScope === 'library') {
       payload.beans = (beans || []).map((bean) => normalizeBean(bean, bean.updatedAt));
@@ -882,11 +882,21 @@
     (beans || []).map((bean) => normalizeBean(bean, bean.updatedAt)).forEach((bean) => {
       if (bean.status === '已喝完') return;
       const daysLeft = bestFlavorDaysLeft(bean, today);
-      if (daysLeft != null && daysLeft >= 0 && daysLeft <= prefs.flavorReminderDays) results.push({ type: 'flavor', beanId: bean.id, beanName: bean.name, daysLeft, message: daysLeft === 0 ? '今天到达最佳赏味期' : `最佳赏味期还有 ${daysLeft} 天` });
+      if (daysLeft != null && daysLeft >= 0 && daysLeft <= prefs.flavorReminderDays) {
+        const opened = new Date(bean.openedDate);
+        const target = new Date(opened.getFullYear(), opened.getMonth(), opened.getDate() + Number(bean.bestFlavorDays));
+        const targetDate = dateKey(target);
+        results.push({ id: `flavor:${bean.id}:${targetDate}`, type: 'flavor', priority: 200, targetDate, beanId: bean.id, beanName: bean.name, daysLeft, title: bean.name, message: daysLeft === 0 ? '今天到达最佳赏味期' : `最佳赏味期还有 ${daysLeft} 天` });
+      }
       const remaining = Number(bean.remainingWeight) || 0;
-      if (remaining > 0 && remaining <= quick * prefs.lowStockCups) results.push({ type: 'stock', beanId: bean.id, beanName: bean.name, cupsLeft: Math.max(1, Math.ceil(remaining / quick)), message: `约剩 ${Math.max(1, Math.ceil(remaining / quick))} 杯` });
+      if (remaining > 0 && remaining <= quick * prefs.lowStockCups) results.push({ id: `stock:${bean.id}`, type: 'stock', priority: 100, beanId: bean.id, beanName: bean.name, cupsLeft: Math.max(1, Math.ceil(remaining / quick)), title: bean.name, message: `约剩 ${Math.max(1, Math.ceil(remaining / quick))} 杯` });
     });
-    return results;
+    return results.sort((a, b) => b.priority - a.priority || Number(a.daysLeft == null ? Infinity : a.daysLeft) - Number(b.daysLeft == null ? Infinity : b.daysLeft) || a.beanName.localeCompare(b.beanName, 'zh-CN'));
+  }
+
+  function selectHomeReminder(reminders, acknowledgedIds) {
+    const acknowledged = acknowledgedIds instanceof Set ? acknowledgedIds : new Set(Array.isArray(acknowledgedIds) ? acknowledgedIds : []);
+    return (Array.isArray(reminders) ? reminders : []).filter((item) => item && item.id && !acknowledged.has(item.id)).slice().sort((a, b) => Number(b.priority || 0) - Number(a.priority || 0) || String(a.id).localeCompare(String(b.id)))[0] || null;
   }
 
   function filterAndSort(beans, options) {
@@ -1349,5 +1359,5 @@
     }).sort((a, b) => compareDrinkChronology(b, a))[0] || null;
   }
 
-  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, hasTastingContent, resolveTastingStatus, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, buildAiPlanPrompt, parseAiPlanJson, prepareBrewAssistSteps, brewAssistStatus, resolveOpenedDate, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareAppVersions, isAppVersionNewer, selectReleaseApkAsset, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, FLAVOR_LEXICON, flavorTags, beanFreshness, recentDrinkSeries, compareDrinkChronology, previousComparableDrink, beanProcessKind };
+  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, hasTastingContent, resolveTastingStatus, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, selectHomeReminder, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, buildAiPlanPrompt, parseAiPlanJson, prepareBrewAssistSteps, brewAssistStatus, resolveOpenedDate, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareAppVersions, isAppVersionNewer, selectReleaseApkAsset, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, FLAVOR_LEXICON, flavorTags, beanFreshness, recentDrinkSeries, compareDrinkChronology, previousComparableDrink, beanProcessKind };
 });

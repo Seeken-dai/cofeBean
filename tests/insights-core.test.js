@@ -187,7 +187,7 @@ test('回顾 SVG 输出包含可访问说明并转义标签', () => {
 });
 
 test('回顾的每类统计都提供口径说明按钮', () => {
-  const keys = ['dimensions', 'flavor', 'preference', 'time', 'weekday', 'spend', 'source', 'freshness', 'value', 'handBrew'];
+  const keys = ['dimensions', 'flavor', 'preference', 'time', 'weekday', 'spend', 'source', 'freshness', 'value', 'handBrew', 'report'];
   assert.deepEqual(Object.keys(appInsights.HELP_CONTENT), keys);
   keys.forEach((key) => {
     assert.match(appInsights.helpButton(key), new RegExp(`data-insights-help="${key}"`));
@@ -309,6 +309,68 @@ test('手冲回顾首页归入第04类，单豆页面按层级返回', () => {
   assert.match(source, /handBrewHomeSection/);
   assert.match(source, /<span>04<\/span><div><h3>冲煮回顾<\/h3>/);
   assert.match(source, /if \(state\.insightsBeanId\) \{[\s\S]*?state\.insightsBeanId = null;[\s\S]*?return true;/);
-  assert.match(source, /setAttribute\('aria-label', isBeanReview \? '返回手冲回顾' : '返回回顾首页'\)/);
+  assert.match(source, /isBeanReview \? '返回手冲回顾' : isReportDetail \? '返回咖啡月报与年报' : '返回回顾首页'/);
   assert.doesNotMatch(html, /id="insightsBackLabel"/);
+});
+
+test('咖啡月报只统计完整自然月，五杯解锁并排除无效记录', () => {
+  const beans = [
+    bean('bean-a', { name: '日常豆' }),
+    bean('bean-deleted', { name: '已删除豆', deletedAt: atLocal(2026, 7, 1) })
+  ];
+  const rows = [
+    log('a1', atLocal(2026, 6, 1, 8), { overallRating: 4, notes: '柠檬、红茶' }),
+    log('a2', atLocal(2026, 6, 2, 8), { overallRating: 5, notes: '柠檬、花香' }),
+    log('deleted-bean', atLocal(2026, 6, 3, 9), { beanId: 'bean-deleted', overallRating: 3 }),
+    log('external', atLocal(2026, 6, 4, 10), { source: 'external', beanId: null, grams: 0, drinkName: '店内手冲', price: 30, overallRating: 5 }),
+    log('a3', atLocal(2026, 6, 5, 8), { overallRating: 4, notes: '柠檬、莓果' }),
+    log('removed', atLocal(2026, 6, 6), { deletedAt: atLocal(2026, 6, 7) }),
+    log('july', atLocal(2026, 7, 1))
+  ];
+  const report = insights.coffeePeriodReport(rows, beans, { type: 'month', key: '2026-06', now: new Date(2026, 6, 3, 12) });
+  assert.equal(report.ok, true);
+  assert.equal(report.data.cups, 5);
+  assert.equal(report.data.days, 5);
+  assert.equal(report.data.beanCount, 1);
+  assert.deepEqual([report.data.homeCups, report.data.externalCups], [4, 1]);
+  assert.equal(report.data.topBean.beanName, '日常豆');
+  assert.equal(report.data.topRated.id, 'external');
+  assert.equal(report.data.estimatedSpend, 52.5);
+  assert.equal(report.data.unknownCostCount, 1);
+  assert.equal(report.data.flavors[0].label, '柠檬');
+  assert.equal(insights.coffeePeriodReport(rows.slice(0, 4), beans, { type: 'month', key: '2026-06', now: new Date(2026, 6, 3) }).reason, 'insufficient');
+  assert.equal(insights.coffeePeriodReport(rows, beans, { type: 'month', key: '2026-07', now: new Date(2026, 6, 3) }).reason, 'incompletePeriod');
+});
+
+test('咖啡年报提供十二月节奏，报告列表与首页提醒只使用已完成周期', () => {
+  const rows = [
+    log('d1', atLocal(2025, 12, 1)), log('d2', atLocal(2025, 12, 2)), log('d3', atLocal(2025, 12, 3)),
+    log('d4', atLocal(2025, 12, 4)), log('d5', atLocal(2025, 12, 5)),
+    log('current', atLocal(2026, 1, 2))
+  ];
+  const now = new Date(2026, 0, 3, 12);
+  const periods = insights.availableCoffeeReports(rows, now);
+  assert.deepEqual(periods.map((item) => `${item.type}:${item.key}`), ['year:2025', 'month:2025-12']);
+  const annual = insights.coffeePeriodReport(rows, [bean('bean-a')], { type: 'year', key: '2025', now });
+  assert.equal(annual.ok, true);
+  assert.equal(annual.data.monthlyRhythm.length, 12);
+  assert.deepEqual(annual.data.activeMonth, { key: '2025-12', label: '12月', cups: 5 });
+  const reminders = insights.coffeeReportReminders(rows, now);
+  assert.deepEqual(reminders.map((item) => item.type), ['reportYear', 'reportMonth']);
+  assert.ok(reminders[0].priority > reminders[1].priority);
+  assert.equal(insights.coffeeReportReminders(rows, new Date(2026, 0, 9)).length, 0);
+  const payload = insights.buildCoffeeReportSharePayload(annual.data);
+  assert.equal(payload.eyebrow, '咖啡年报');
+  assert.equal(payload.logs.length, 12);
+});
+
+test('回顾提供第05类咖啡月报与年报，并按报告列表返回', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'www', 'app-insights.js'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '..', 'www', 'index.html'), 'utf8');
+  assert.match(source, /<span>05<\/span><div><h3>咖啡月报 \/ 咖啡年报<\/h3>/);
+  assert.match(source, /if \(state\.insightsPage === 'report'\)[\s\S]*?state\.insightsPage = 'reports'/);
+  assert.match(source, /if \(state\.insightsPage === 'reports'\)[\s\S]*?state\.insightsPage = 'home'/);
+  assert.match(html, /id="reportReviewPage"/);
+  assert.match(html, /id="calendarReportOpen"/);
+  assert.doesNotMatch(source + html, /时光报告/);
 });

@@ -131,7 +131,10 @@ test('bean best flavor days and in-app reminders are normalized', () => {
   assert.equal(core.bestFlavorDaysLeft(bean, '2026-06-24T12:00:00.000Z'), 7);
   const reminders = core.beanReminders([bean], { quickGrams: 15, flavorReminderDays: 7, lowStockCups: 4 }, '2026-06-24T12:00:00.000Z');
   assert.deepEqual(reminders.map((item) => item.type), ['flavor', 'stock']);
+  assert.equal(reminders[0].id, 'flavor:fresh:2026-07-01');
+  assert.equal(reminders[1].id, 'stock:fresh');
   assert.equal(reminders[0].message, '最佳赏味期还有 7 天');
+  assert.equal(core.selectHomeReminder([{ id: 'stock', priority: 100 }, { id: 'month', priority: 300 }, { id: 'year', priority: 400 }], ['year']).id, 'month');
   assert.equal(core.normalizeSettings({ flavorReminderDays: 99, lowStockCups: 0 }).flavorReminderDays, 60);
   assert.equal(core.normalizeSettings({ flavorReminderDays: 99, lowStockCups: 0 }).lowStockCups, 1);
 });
