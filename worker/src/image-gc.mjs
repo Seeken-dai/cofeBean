@@ -12,8 +12,8 @@
 const R2_PREFIX = 'r2:';
 const SHA_RE = /^[a-f0-9]{64}$/;
 
-// bean 的两个图片字段 + drinkLog.photos[]；brewPlan 不带图片。
-const IMAGE_FIELDS = ['bagImagePath', 'labelImagePath'];
+// bean 的原图、手账抠图、标签图片字段 + drinkLog.photos[]；brewPlan 不带图片。
+const IMAGE_FIELDS = ['bagImagePath', 'bagCutoutImagePath', 'labelImagePath'];
 
 // 新上传的图在这段时间内不回收，等它对应的记录 push 上来。
 export const GRACE_MS = 7 * 24 * 60 * 60 * 1000;

@@ -2,6 +2,20 @@
 
 本项目采用 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式，并遵循语义化版本。
 
+## [2.3.8] - 2026-07-15
+
+### Added
+
+- 新增完全离线的咖啡袋主体抠图：本地打包 MediaPipe Interactive Segmenter、WASM 运行时与 MagicTouch 模型，不依赖网络或 Google Play Services。
+- 开启“照片手账模式”后，拍照或上传咖啡袋图片会自动识别中心连续主体，并生成带 5% 纯白撕纸边的透明手账封面；识别失败不影响原图保存。
+- 编辑页新增手账封面生成状态及查看、删除、重试入口；历史图片不批量处理，可在编辑页按需生成。
+
+### Changed
+
+- 咖啡袋原图与手账封面分开保存。编辑页始终显示原图，详情头图优先无边框展示抠图；同时开启“列表咖啡袋封面”后，列表也优先展示抠图，缺失时回退原图。
+- 图片备份、恢复、云同步与 Worker 图片回收链路加入手账封面字段；SQLite 升级至 `user_version 11`，旧数据库增量添加 `bag_cutout_image_path`，不清空既有数据。
+- Android 版本更新为 `versionName 2.3.8`、`versionCode 66`；未新增 Android 权限、在线识别、遥测或默认网络请求。
+
 ## [2.3.7] - 2026-07-15
 
 ### Added

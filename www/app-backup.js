@@ -19,6 +19,7 @@
     });
 
     const backupScopes = { all: { title: '完整备份', file: '全部备份' }, library: { title: '豆仓与饮用记录', file: '豆仓记录备份' }, brewPlans: { title: '冲煮方案', file: '冲煮方案备份' } };
+    const beanImageRoles = [['bag', 'bagImagePath', 'bag'], ['bagCutout', 'bagCutoutImagePath', 'bag'], ['label', 'labelImagePath', 'label']];
     function backupScope(scope) { return backupScopes[scope] ? scope : 'all'; }
     function userPlanCount(plans) { return (plans || []).filter((plan) => plan.source !== 'preset').length; }
     function backupSummary(scope, data) {
@@ -56,12 +57,12 @@
       const images = {};
       for (const bean of state.beans) {
         const entry = {};
-        for (const [role, key] of [['bag', 'bagImagePath'], ['label', 'labelImagePath']]) {
+        for (const [role, key] of beanImageRoles) {
           const ref = bean[key];
           if (!ref || String(ref).indexOf('idb:') !== 0) continue;
           try { const blob = await repository.getWebImage(ref); if (blob) entry[role] = { data: await blobToBase64(blob), extension: '.webp', mimeType: blob.type || 'image/webp' }; } catch (_) {}
         }
-        if (entry.bag || entry.label) images[bean.id] = entry;
+        if (entry.bag || entry.bagCutout || entry.label) images[bean.id] = entry;
       }
       return Object.keys(images).length ? images : null;
     }
@@ -83,7 +84,7 @@
       for (const bean of beans) {
         const entry = imported.beanImages && imported.beanImages[bean.id];
         if (!entry) continue;
-        for (const [role, key] of [['bag', 'bagImagePath'], ['label', 'labelImagePath']]) {
+        for (const [role, key] of beanImageRoles) {
           if (!entry[role] || !entry[role].data) continue;
           try { const blob = base64ToBlob(entry[role].data, entry[role].mimeType); bean[key] = await repository.saveWebImage(blob); } catch (_) {}
         }
@@ -108,11 +109,11 @@
       const images = {};
       for (const bean of state.beans) {
         const entry = {};
-        for (const [role, key] of [['bag', 'bagImagePath'], ['label', 'labelImagePath']]) {
+        for (const [role, key] of beanImageRoles) {
           if (!bean[key]) continue;
           try { entry[role] = await scanner.readArchivedImage({ path: bean[key] }); } catch (_) {}
         }
-        if (entry.bag || entry.label) images[bean.id] = entry;
+        if (entry.bag || entry.bagCutout || entry.label) images[bean.id] = entry;
       }
       return Object.keys(images).length ? images : null;
     }
@@ -143,10 +144,10 @@
       for (const bean of beans) {
         const entry = imported.beanImages && imported.beanImages[bean.id];
         if (!entry) continue;
-        for (const [role, key] of [['bag', 'bagImagePath'], ['label', 'labelImagePath']]) {
+        for (const [role, key, archiveRole] of beanImageRoles) {
           if (!entry[role]) continue;
           try {
-            const restored = await scanner.restoreArchivedImage({ role, data: entry[role].data, extension: entry[role].extension });
+            const restored = await scanner.restoreArchivedImage({ role: archiveRole, data: entry[role].data, extension: entry[role].extension });
             bean[key] = restored.path || restored.uri || bean[key];
           } catch (_) {}
         }

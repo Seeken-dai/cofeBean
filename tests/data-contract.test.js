@@ -15,7 +15,7 @@ function assertKeys(obj, expected, label) {
 
 const BEAN_FIELDS = [
   'name', 'roaster', 'origin', 'process', 'roastDate', 'openedDate', 'purchaseDate',
-  'purchaseUrl', 'tastingNotes', 'status', 'roastLevel', 'bagImagePath', 'labelImagePath',
+  'purchaseUrl', 'tastingNotes', 'status', 'roastLevel', 'bagImagePath', 'bagCutoutImagePath', 'labelImagePath',
   'initialWeight', 'remainingWeight', 'price', 'bestFlavorDays',
   'favorite', 'id', 'createdAt', 'updatedAt',
   'revision', 'deviceId', 'deletedAt'

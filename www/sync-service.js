@@ -74,7 +74,7 @@
     return message.length > 120 ? message.slice(0, 117) + '...' : message;
   }
 
-  const IMAGE_FIELDS = ['bagImagePath', 'labelImagePath'];
+  const IMAGE_FIELDS = ['bagImagePath', 'bagCutoutImagePath', 'labelImagePath'];
   function isIdbRef(value) { return typeof value === 'string' && value.indexOf('idb:') === 0; }
   function isR2Ref(value) { return typeof value === 'string' && value.indexOf('r2:') === 0; }
   function isFileRef(value) { return typeof value === 'string' && value.indexOf('file:') === 0; }

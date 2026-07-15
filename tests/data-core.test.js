@@ -140,12 +140,13 @@ test('bean best flavor days and in-app reminders are normalized', () => {
 });
 
 test('backup can include bean images when requested', () => {
-  const beans = [core.normalizeBean({ id: 'image-bean', name: '图片豆', bagImagePath: 'file:///bag.jpg' })];
-  const beanImages = { 'image-bean': { bag: { data: 'abc', extension: '.jpg', mimeType: 'image/jpeg' } } };
+  const beans = [core.normalizeBean({ id: 'image-bean', name: '图片豆', bagImagePath: 'file:///bag.jpg', bagCutoutImagePath: 'file:///bag-cutout.png' })];
+  const beanImages = { 'image-bean': { bag: { data: 'abc', extension: '.jpg', mimeType: 'image/jpeg' }, bagCutout: { data: 'xyz', extension: '.png', mimeType: 'image/png' } } };
   const backup = core.createBackup(beans, [], {}, '2026-01-01T00:00:00.000Z', [], { scope: 'library', beanImages });
   assert.deepEqual(backup.beanImages, beanImages);
   const imported = core.validateImport(backup);
   assert.equal(imported.beanImages['image-bean'].bag.data, 'abc');
+  assert.equal(imported.beanImages['image-bean'].bagCutout.data, 'xyz');
 });
 
 test('drink logs support external records and photos', () => {

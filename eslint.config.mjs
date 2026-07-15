@@ -22,6 +22,8 @@ const projectGlobals = {
   AppNumberInput: 'readonly',
   AppWidgetIntent: 'readonly',
   AppInsights: 'readonly',
+  SubjectCropCore: 'readonly',
+  AppSubjectCrop: 'readonly',
   PhotoTone: 'readonly',
   Capacitor: 'readonly',
   qrcode: 'readonly',

@@ -51,7 +51,7 @@
   const STATUS_ORDER = ['饮用中', '未开封', '已喝完'];
   const ALLOWED_STATUS = new Set(['未开封', '饮用中', '已喝完']);
   const ALLOWED_ROAST = new Set(['浅烘', '中浅烘', '中烘', '中深烘', '深烘']);
-  const TEXT_FIELDS = ['name', 'roaster', 'origin', 'process', 'roastDate', 'openedDate', 'purchaseDate', 'purchaseUrl', 'tastingNotes', 'status', 'roastLevel', 'bagImagePath', 'labelImagePath'];
+  const TEXT_FIELDS = ['name', 'roaster', 'origin', 'process', 'roastDate', 'openedDate', 'purchaseDate', 'purchaseUrl', 'tastingNotes', 'status', 'roastLevel', 'bagImagePath', 'bagCutoutImagePath', 'labelImagePath'];
   const NUMBER_FIELDS = ['initialWeight', 'remainingWeight', 'price', 'bestFlavorDays'];
   const SEARCH_FIELDS = ['name', 'roaster', 'origin', 'process', 'tastingNotes'];
   const PRESET_BREW_PLANS = Object.freeze([
@@ -321,6 +321,7 @@
     bean.purchaseUrl = normalizePurchaseUrl(source.purchaseUrl);
     bean.tastingNotes = cleanText(source.tastingNotes, 4000);
     bean.bagImagePath = cleanText(source.bagImagePath, 1000);
+    bean.bagCutoutImagePath = cleanText(source.bagCutoutImagePath, 1000);
     bean.labelImagePath = cleanText(source.labelImagePath, 1000);
     bean.bestFlavorDays = bean.bestFlavorDays == null ? null : Math.min(3650, Math.max(1, Math.round(bean.bestFlavorDays)));
     bean.status = ALLOWED_STATUS.has(bean.status) ? bean.status : '未开封';
@@ -813,7 +814,7 @@
         const entry = payload.beanImages[bean.id];
         if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return;
         const next = {};
-        ['bag', 'label'].forEach((role) => {
+        ['bag', 'bagCutout', 'label'].forEach((role) => {
           const image = entry[role];
           if (!image || typeof image !== 'object' || !cleanText(image.data, 20000000)) return;
           next[role] = {
@@ -822,7 +823,7 @@
             mimeType: cleanText(image.mimeType, 80) || 'image/jpeg'
           };
         });
-        if (next.bag || next.label) beanImages[bean.id] = next;
+        if (next.bag || next.bagCutout || next.label) beanImages[bean.id] = next;
       });
     }
     const drinkImages = {};
@@ -851,7 +852,7 @@
       exportScope,
       exportedAt: exportedAt || new Date().toISOString(),
       app: '豆仓',
-      appVersion: '2.3.7'
+      appVersion: '2.3.8'
     };
     if (exportScope === 'all' || exportScope === 'library') {
       payload.beans = (beans || []).map((bean) => normalizeBean(bean, bean.updatedAt));

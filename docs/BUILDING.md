@@ -57,7 +57,9 @@ Set-Location android
 - 构建前先运行测试和 `cap sync`，产物命名为 `dist/coffee-vault-<version>-release.apk`。
 - 没有特殊说明时只执行正式版构建。
 
-数据库当前 `PRAGMA user_version = 10`。以后改变表结构时，在 `www/repository.js` 中增加顺序迁移，禁止删除数据库或清空旧表。（本地 SQLite 迁移与云端 D1 迁移是两回事，后者见 `RELEASING.md`。）
+数据库当前 `PRAGMA user_version = 11`。以后改变表结构时，在 `www/repository.js` 中增加顺序迁移，禁止删除数据库或清空旧表。（本地 SQLite 迁移与云端 D1 迁移是两回事，后者见 `RELEASING.md`。）
+
+2.3.8 验收包从 `codex/subject-crop-integration` 构建，已用 `aapt2 dump badging` 核对 `versionName=2.3.8`、`versionCode=66`；权限仍为 `CAMERA`、`INTERNET`、既有 Haptics 引入的 `VIBRATE` 及 Android 自动生成的应用内接收器权限，未新增权限。`apksigner verify --print-certs` 核对证书 SHA-256 为 `aab5e3d3bd224b98f885945ecd868d54a99e2c96bf099a0c9e6ee59ca02151ae`，与既有正式版一致。SQLite 升至 `user_version 11`，新增原图与手账封面双路径；验收产物为 `dist/coffee-vault-2.3.8-release.apk`，APK SHA-256 为 `c22a1a372aa5422d3f917ff963bd9d8d351ae63f260bfe48b90f0b2160f4a118`。正式发布前仍须合并 `main` 后重建。
 
 2.2.3 验收包从 `release/2.2.3` 构建，已用 `aapt2 dump badging` 核对 `versionName=2.2.3`、`versionCode=51`，权限仍为 `CAMERA`、`INTERNET` 及 Android 自动生成的应用内接收器权限；`apksigner verify --print-certs` 核对证书 SHA-256 为 `aab5e3d3bd224b98f885945ecd868d54a99e2c96bf099a0c9e6ee59ca02151ae`。本版 SQLite 升至 user_version 10、备份 schema 升至 7，新增待评分状态；验收产物为 `dist/coffee-vault-2.2.3-release.apk`，尚未合并、打 tag 或发布。
 

@@ -36,14 +36,17 @@ test('image-mapping: push 把本地 idb 图片上传并改写为 r2', async () =
   const base = mockBase();
   const img = mockImageStore();
   img.store.set('idb:x', new Blob(['bag'], { type: 'image/webp' }));
+  img.store.set('idb:cutout', new Blob(['cutout'], { type: 'image/png' }));
   const t = createImageMappingTransport(base, img);
 
-  const local = { beans: [{ id: 'b1', name: '豆', bagImagePath: 'idb:x', labelImagePath: '' }], drinkLogs: [], brewPlans: [] };
+  const local = { beans: [{ id: 'b1', name: '豆', bagImagePath: 'idb:x', bagCutoutImagePath: 'idb:cutout', labelImagePath: '' }], drinkLogs: [], brewPlans: [] };
   await t.push(local);
 
   assert.equal(base.calls.pushed.beans[0].bagImagePath, R2_A, '推给云端的记录应为 r2 引用');
-  assert.equal(base.calls.uploaded.length, 1, '应上传一次');
+  assert.equal(base.calls.pushed.beans[0].bagCutoutImagePath, R2_A, '手账封面也应改写为 r2 引用');
+  assert.equal(base.calls.uploaded.length, 2, '原图与手账封面应分别上传');
   assert.equal(local.beans[0].bagImagePath, 'idb:x', '本地记录不被改写');
+  assert.equal(local.beans[0].bagCutoutImagePath, 'idb:cutout', '本地手账封面引用不被改写');
 });
 
 test('image-mapping: drink photos push/pull between local refs and r2', async () => {

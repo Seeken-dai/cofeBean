@@ -38,6 +38,10 @@
   let suppressListEnter = false;
   let activeQuickDrinkButton = null;
   let dialogScrimTimer = null;
+  let subjectCropStatus = '';
+  let subjectCropBusy = false;
+  let subjectCropJob = 0;
+  let beanImagesToDelete = [];
   const previousStats = new Map();
   const els = { list: $('#beanList'), empty: $('#emptyState'), count: $('#recordCount'), searchPanel: $('#searchPanel'), search: $('#searchInput'), personal: $('#personalDialog'), backup: $('#dataBackupDialog'), calendar: $('#coffeeCalendarDialog'), insights: $('#insightsDialog'), detail: $('#detailDialog'), drinkDetail: $('#drinkDetailDialog'), planDetail: $('#planDetailDialog'), planEditor: $('#planEditorDialog'), editor: $('#editorDialog'), form: $('#beanForm'), planForm: $('#planForm'), drink: $('#drinkDialog'), drinkForm: $('#drinkForm'), brewAssist: $('#brewAssistDialog'), choice: $('#choiceDialog'), datePicker: $('#datePickerDialog'), photoSource: $('#photoSourceDialog'), scanImage: $('#scanImageDialog'), imagePreview: $('#imagePreviewDialog'), shareChoice: $('#shareImageChoiceDialog'), drinkShareChoice: $('#drinkShareChoiceDialog'), planShareChoice: $('#planShareChoiceDialog'), planImport: $('#planImportDialog'), manager: $('#smartManagerDialog'), settings: $('#settingsDialog'), sync: $('#syncDialog'), syncAuth: $('#syncAuthDialog'), about: $('#aboutDialog'), migration: $('#migrationDialog'), confirm: $('#confirmDialog'), sharePreview: $('#sharePreviewDialog'), toast: $('#toast'), scanResult: $('#scanResult') };
 
@@ -322,10 +326,11 @@
     if (path && String(path).indexOf('idb:') === 0) return webImageUrls.get(path) || '';
     return path && window.Capacitor && window.Capacitor.convertFileSrc ? window.Capacitor.convertFileSrc(path) : path;
   }
+  const subjectCropUi = window.AppSubjectCrop.create({ core: window.SubjectCropCore });
   async function resolveWebImages(beans, drinkLogs) {
     if (BeanRepository.isNative()) return;
     const refs = new Set();
-    (beans || []).forEach((bean) => ['bagImagePath', 'labelImagePath'].forEach((key) => { if (bean[key] && String(bean[key]).indexOf('idb:') === 0) refs.add(bean[key]); }));
+    (beans || []).forEach((bean) => ['bagImagePath', 'bagCutoutImagePath', 'labelImagePath'].forEach((key) => { if (bean[key] && String(bean[key]).indexOf('idb:') === 0) refs.add(bean[key]); }));
     (drinkLogs || []).forEach((log) => (log.photos || []).forEach((ref) => { if (ref && String(ref).indexOf('idb:') === 0) refs.add(ref); }));
     for (const [ref, url] of webImageUrls) { if (!refs.has(ref)) { URL.revokeObjectURL(url); webImageUrls.delete(ref); } }
     for (const ref of refs) {
@@ -343,7 +348,6 @@
     canvas.width = width; canvas.height = height;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     ctx.drawImage(bitmap, 0, 0, width, height);
-    if (state.settings.photoJournal && window.PhotoTone) window.PhotoTone.normalizeCanvas(ctx, width, height);
     if (bitmap.close) bitmap.close();
     return new Promise((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('压缩失败')), 'image/webp', 0.8));
   }
@@ -366,8 +370,15 @@
   }
   function imageCard(label, path, role, editable) { return path ? `<article class="vault-image-card" data-preview-image="${esc(path)}" data-preview-label="${esc(label)}" tabindex="0" role="button" aria-label="查看${esc(label)}大图"><img src="${esc(imageSrc(path))}" alt="${esc(label)}"><span>${esc(label)}</span>${editable ? `<div class="vault-image-actions"><button data-add-image-role="${role}" type="button">更换</button><button class="vault-image-remove" data-remove-image-role="${role}" type="button">删除</button></div>` : ''}</article>` : ''; }
   function imageSlot(label, path, role) { return path ? imageCard(label, path, role, true) : `<button class="vault-image-empty" data-add-image-role="${role}" type="button"><span>${esc(label)}</span><small>拍摄或读取图片</small></button>`; }
-  function currentImageBean() { return { bagImagePath: $('#field-bagImagePath').value, labelImagePath: $('#field-labelImagePath').value }; }
-  function renderImageVault(bean) { const source = bean || currentImageBean(); $('#editorImageVault').hidden = false; $('#editorImageVault').innerHTML = `<div class="section-heading"><div><span>袋子与标签</span><small>保存前可先预览，图片只留在本机</small></div></div>${imageSlot('咖啡袋', source.bagImagePath, 'bag')}${imageSlot('标签', source.labelImagePath, 'label')}`; }
+  function currentImageBean() { return { bagImagePath: $('#field-bagImagePath').value, bagCutoutImagePath: $('#field-bagCutoutImagePath').value, labelImagePath: $('#field-labelImagePath').value }; }
+  function cropDraftState(source) {
+    if (!state.settings.photoJournal || !source.bagImagePath) return '';
+    if (subjectCropBusy) return '<div class="subject-crop-draft is-working"><i aria-hidden="true"></i><span><b>正在生成手账封面</b><small>本地识别中，完成后即可保存</small></span></div>';
+    if (source.bagCutoutImagePath) return `<div class="subject-crop-draft is-ready"><i aria-hidden="true">✓</i><span><b>手账封面已生成</b><small>详情页会优先展示撕纸风主体</small></span><div><button data-preview-cutout type="button">查看</button><button data-remove-cutout type="button">删除</button></div></div>`;
+    const failed = subjectCropStatus === 'error';
+    return `<div class="subject-crop-draft${failed ? ' is-error' : ''}"><i aria-hidden="true">${failed ? '!' : '○'}</i><span><b>${failed ? '手账封面生成失败' : '还没有手账封面'}</b><small>${failed ? '原图仍可正常保存和展示' : '可以为这张原图生成撕纸风封面'}</small></span><button data-regenerate-cutout type="button">${failed ? '重试' : '生成'}</button></div>`;
+  }
+  function renderImageVault(bean) { const source = bean || currentImageBean(); $('#editorImageVault').hidden = false; $('#editorImageVault').innerHTML = `<div class="section-heading"><div><span>袋子与标签</span><small>编辑页始终显示原图，手账封面只用于展示</small></div></div>${imageSlot('咖啡袋原图', source.bagImagePath, 'bag')}${imageSlot('标签', source.labelImagePath, 'label')}${cropDraftState(source)}`; }
   function renderDrinkPhotoVault() {
     const photos = (state.drinkPhotoDraft || []).slice(0, 3);
     const remain = Math.max(0, 3 - photos.length);
@@ -485,8 +496,9 @@
   // 缩略图容器：设置开启后列表展示封面；有袋图走照片，无袋图走生成式占位。A/B 共用同一 .bean-thumb 容器。
   function beanThumb(bean, options) {
     const config = options || {};
-    const src = bean.bagImagePath ? imageSrc(bean.bagImagePath) : '';
-    if (src && !config.forcePlaceholder) return `<div class="bean-thumb has-photo" aria-hidden="true"><img src="${esc(src)}" alt="" loading="lazy"></div>`;
+    const cutout = state.settings.photoJournal && bean.bagCutoutImagePath ? imageSrc(bean.bagCutoutImagePath) : '';
+    const src = cutout || (bean.bagImagePath ? imageSrc(bean.bagImagePath) : '');
+    if (src && !config.forcePlaceholder) return `<div class="bean-thumb has-photo${cutout ? ' journal-cutout' : ''}" aria-hidden="true"><img src="${esc(src)}" alt="" loading="lazy"></div>`;
     const ph = BeanCore.beanPlaceholder(bean);
     const badge = bean.bagImagePath && config.markPhoto ? '<span class="bean-thumb-photo-badge" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8.5 6 10 4h4l1.5 2H19a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3.5Z"/><circle cx="12" cy="12.5" r="3.5"/></svg></span>' : '';
     return `<div class="bean-thumb generated bean-thumb--${esc(ph.roastKey)}${badge ? ' has-photo-badge' : ''}" aria-hidden="true">${thumbMotif(ph)}<span class="bean-thumb-glyph">${esc(ph.glyph)}</span>${processBadge(bean)}${badge}</div>`;
@@ -708,9 +720,16 @@
   // 详情页 hero（1.5 方案 C）：有图→模糊照片当氛围底 + 右上角清晰缩略图（点击进大图预览）；无图→烘焙度渐变兜底，结构不变。
   function renderDetailHero(bean) {
     const hero = $('#detailHero'); const bg = $('#detailHeroBg'); const thumbHost = $('#detailHeroThumb');
+    const cutout = state.settings.photoJournal && bean.bagCutoutImagePath ? imageSrc(bean.bagCutoutImagePath) : '';
     const src = bean.bagImagePath ? imageSrc(bean.bagImagePath) : '';
+    hero.classList.toggle('journal-hero', Boolean(cutout));
     hero.classList.toggle('has-photo', Boolean(src));
-    if (src) {
+    if (cutout) {
+      const ph = BeanCore.beanPlaceholder(bean);
+      bg.className = `profile-hero-bg bean-thumb--${ph.roastKey}`; bg.style.backgroundImage = '';
+      const previewPath = bean.bagImagePath || bean.bagCutoutImagePath;
+      thumbHost.innerHTML = `<div class="profile-hero-cutout" data-preview-image="${esc(previewPath)}" data-preview-label="咖啡袋原图" role="button" tabindex="0" aria-label="查看咖啡袋原图"><img src="${esc(cutout)}" alt="" loading="lazy"></div>`;
+    } else if (src) {
       bg.className = 'profile-hero-bg has-photo'; bg.style.backgroundImage = `url("${src.replace(/["\\]/g, '\\$&')}")`;
       thumbHost.innerHTML = `<div class="bean-thumb has-photo" data-preview-image="${esc(bean.bagImagePath)}" data-preview-label="咖啡袋" role="button" tabindex="0" aria-label="查看咖啡袋大图"><img src="${esc(src)}" alt="" loading="lazy"></div>`;
     } else {
@@ -810,7 +829,7 @@
   }
 
   async function openEditor(bean, scanResult) {
-    state.editingId = bean ? bean.id : null; if (!scanResult) clearPendingImages(true); $('#editorTitle').textContent = bean ? '编辑咖啡豆' : '新增咖啡豆'; $('#deleteBean').hidden = !bean; els.form.reset(); $$('.field', els.form).forEach((field) => field.classList.remove('needs-review')); els.scanResult.hidden = true; els.scanResult.innerHTML = ''; SMART_FIELDS.forEach((field) => { $(`#field-${field}`).value = ''; });
+    state.editingId = bean ? bean.id : null; subjectCropJob += 1; subjectCropBusy = false; subjectCropStatus = ''; beanImagesToDelete = []; if (!scanResult) clearPendingImages(true); $('#editorTitle').textContent = bean ? '编辑咖啡豆' : '新增咖啡豆'; $('#deleteBean').hidden = !bean; els.form.reset(); const submit = els.form.querySelector('[type="submit"]'); if (submit) submit.disabled = false; $$('.field', els.form).forEach((field) => field.classList.remove('needs-review')); els.scanResult.hidden = true; els.scanResult.innerHTML = ''; SMART_FIELDS.forEach((field) => { $(`#field-${field}`).value = ''; });
     $('#field-remainingWeight').dataset.userEdited = bean ? '1' : '';
     if (bean) fillForm(bean); else if (scanResult) { fillForm(scanResult.fields); $('#field-remainingWeight').dataset.userEdited = $('#field-remainingWeight').value ? '1' : ''; syncInitialWeightToRemaining(); } else { $('#field-status').value = '未开封'; renderImageVault(); } await initSmartSelects(); syncAllChoiceTriggers(); if (scanResult) showScanResult(scanResult); setDialog(els.editor, true); setTimeout(() => $('#field-name').focus(), 120);
   }
@@ -860,7 +879,7 @@
         width: 2200,
         correctOrientation: true,
         allowEditing: false,
-        resultType: 'uri',
+        resultType: options && options.resultType || 'uri',
         source: source === 'camera' ? 'CAMERA' : 'PHOTOS',
         saveToGallery: false
       });
@@ -871,6 +890,8 @@
   }
   async function askScanImageRole(path, preview) { return new Promise((resolve) => { $('#scanImagePreview').src = imageSrc(preview || path); const finish = (role) => { cleanup(); setDialog(els.scanImage, false); resolve(role); }; const choose = (event) => { const button = event.target.closest('[data-image-role]'); if (button) finish(button.dataset.imageRole); }; const skip = () => finish(null); const cleanup = () => { $('#scanImageClose').removeEventListener('click', skip); $('#scanImageSkip').removeEventListener('click', skip); els.scanImage.removeEventListener('close', skip); els.scanImage.removeEventListener('click', choose); }; $('#scanImageClose').addEventListener('click', skip); $('#scanImageSkip').addEventListener('click', skip); els.scanImage.addEventListener('click', choose); els.scanImage.addEventListener('close', skip); setDialog(els.scanImage, true); }); }
   async function clearPendingImages(discard) {
+    subjectCropJob += 1; subjectCropBusy = false; subjectCropStatus = '';
+    const submit = els.form && els.form.querySelector('[type="submit"]'); if (submit) submit.disabled = false;
     const pending = state.pendingImages.slice(); state.pendingImages = [];
     if (!discard || !pending.length) return;
     const scanner = capPlugin('CoffeeLabelScanner');
@@ -879,19 +900,76 @@
       else if (scanner && scanner.discardImage) scanner.discardImage({ path: item.path }).catch(() => {});
     });
   }
-  async function scanCoffeeLabel() { const button = $('#scanBean'); const scanner = capPlugin('CoffeeLabelScanner'); if (!BeanRepository.isNative() || !scanner) return toast('拍照识别仅在 Android App 中可用'); button.disabled = true; try { const photo = await pickCoffeePhoto({ eyebrow: 'OCR', title: '识别咖啡包装', intro: '选择拍摄包装，或读取已有咖啡袋/标签图片。' }); if (!photo) return; const path = photo.path || photo.webPath; if (!path) throw new Error('没有取得照片路径'); toast('正在离线识别包装文字…'); const scan = await scanner.recognize({ path, deleteSource: false }); const parsed = CoffeeParser.parse(scan, { knownRoasters: [...new Set(state.beans.map((bean) => bean.roaster).filter(Boolean))] }); const role = scanner.archiveImage ? await askScanImageRole(path, photo.webPath || path) : null; if (role) { state.pendingImages.push({ path, role }); parsed.fields[role === 'bag' ? 'bagImagePath' : 'labelImagePath'] = path; } else if (scanner.discardImage) await scanner.discardImage({ path }).catch(() => {}); await openEditor(null, parsed); } catch (error) { const message = String(error && error.message || error || ''); if (!/cancel|取消/i.test(message)) { console.error(error); toast(/permission|权限/i.test(message) ? '需要相机权限才能拍照或读取图片' : '识别失败，请重新拍摄'); } } finally { button.disabled = false; } }
-  function setImageField(role, value) { $(`#field-${role === 'bag' ? 'bagImagePath' : 'labelImagePath'}`).value = value; }
+  async function scanCoffeeLabel() { const button = $('#scanBean'); const scanner = capPlugin('CoffeeLabelScanner'); if (!BeanRepository.isNative() || !scanner) return toast('拍照识别仅在 Android App 中可用'); button.disabled = true; try { const photo = await pickCoffeePhoto({ eyebrow: 'OCR', title: '识别咖啡包装', intro: '选择拍摄包装，或读取已有咖啡袋/标签图片。' }); if (!photo) return; const path = photo.path || photo.webPath; if (!path) throw new Error('没有取得照片路径'); toast('正在离线识别包装文字…'); const scan = await scanner.recognize({ path, deleteSource: false }); const parsed = CoffeeParser.parse(scan, { knownRoasters: [...new Set(state.beans.map((bean) => bean.roaster).filter(Boolean))] }); const role = scanner.archiveImage ? await askScanImageRole(path, photo.webPath || path) : null; if (role) { state.pendingImages.push({ path, role }); parsed.fields[role === 'bag' ? 'bagImagePath' : 'labelImagePath'] = path; } else if (scanner.discardImage) await scanner.discardImage({ path }).catch(() => {}); await openEditor(null, parsed); if (role === 'bag' && state.settings.photoJournal) await generateDraftCutout(path); } catch (error) { const message = String(error && error.message || error || ''); if (!/cancel|取消/i.test(message)) { console.error(error); toast(/permission|权限/i.test(message) ? '需要相机权限才能拍照或读取图片' : '识别失败，请重新拍摄'); } } finally { button.disabled = false; } }
+  const IMAGE_FIELD_BY_ROLE = { bag: 'bagImagePath', bagCutout: 'bagCutoutImagePath', label: 'labelImagePath' };
+  function setImageField(role, value) { $(`#field-${IMAGE_FIELD_BY_ROLE[role]}`).value = value; }
+  function pendingImageValue(item) { return item && (item.ref || item.path) || ''; }
+  function scheduleImageDeletion(path) {
+    if (!path || state.pendingImages.some((item) => pendingImageValue(item) === path) || beanImagesToDelete.includes(path)) return;
+    beanImagesToDelete.push(path);
+  }
+  function discardPendingRoles(roles) {
+    const selected = state.pendingImages.filter((item) => roles.includes(item.role));
+    state.pendingImages = state.pendingImages.filter((item) => !roles.includes(item.role));
+    selected.forEach((item) => deleteImageRef(pendingImageValue(item), false));
+  }
+  function replacePendingImage(item) {
+    discardPendingRoles([item.role]);
+    state.pendingImages.push(item);
+  }
+  function setCropBusy(busy, status) {
+    subjectCropBusy = Boolean(busy); subjectCropStatus = status || '';
+    const submit = els.form.querySelector('[type="submit"]'); if (submit) submit.disabled = subjectCropBusy;
+    renderImageVault();
+  }
+  async function storeCutoutDataUrl(dataUrl) {
+    if (BeanRepository.isNative()) {
+      const filesystem = capPlugin('Filesystem');
+      const data = String(dataUrl || '').split(',')[1];
+      if (!filesystem || !data) throw new Error('无法保存手账封面');
+      const stored = await filesystem.writeFile({ path: `subject-crop/crop-${Date.now()}.png`, data, directory: 'CACHE', recursive: true });
+      return { path: stored.uri, role: 'bagCutout' };
+    }
+    const blob = await fetch(dataUrl).then((response) => response.blob());
+    const ref = await BeanRepository.saveWebImage(blob);
+    webImageUrls.set(ref, URL.createObjectURL(blob));
+    return { ref, role: 'bagCutout', web: true };
+  }
+  async function generateDraftCutout(sourcePath) {
+    if (!state.settings.photoJournal || !sourcePath) return;
+    const job = ++subjectCropJob;
+    setCropBusy(true, 'working');
+    try {
+      const result = await subjectCropUi.generate({ src: imageSrc(sourcePath) });
+      if (job !== subjectCropJob) return;
+      const stored = await storeCutoutDataUrl(result.dataUrl);
+      if (job !== subjectCropJob) { deleteImageRef(pendingImageValue(stored), false); return; }
+      scheduleImageDeletion($('#field-bagCutoutImagePath').value);
+      replacePendingImage(stored);
+      setImageField('bagCutout', pendingImageValue(stored));
+      subjectCropStatus = 'ready';
+    } catch (error) {
+      if (job !== subjectCropJob) return;
+      console.error(error); subjectCropStatus = 'error';
+      toast('手账封面生成失败，原图仍可正常保存');
+    } finally {
+      if (job === subjectCropJob) setCropBusy(false, subjectCropStatus);
+    }
+  }
   async function addBeanImageWeb(role) {
     const file = await pickWebImageFile();
     if (!file) return;
     const blob = await compressImageFile(file);
     const ref = await BeanRepository.saveWebImage(blob);
     webImageUrls.set(ref, URL.createObjectURL(blob));
-    state.pendingImages.filter((item) => item.role === role && item.web).forEach((item) => BeanRepository.deleteWebImage(item.ref));
-    state.pendingImages = state.pendingImages.filter((item) => item.role !== role);
-    state.pendingImages.push({ ref, role, web: true });
+    if (role === 'bag') {
+      scheduleImageDeletion($('#field-bagImagePath').value); scheduleImageDeletion($('#field-bagCutoutImagePath').value);
+      discardPendingRoles(['bag', 'bagCutout']); setImageField('bagCutout', ''); subjectCropStatus = '';
+    } else scheduleImageDeletion($('#field-labelImagePath').value);
+    replacePendingImage({ ref, role, web: true });
     setImageField(role, ref);
     renderImageVault();
+    if (role === 'bag' && state.settings.photoJournal) await generateDraftCutout(ref);
     toast(role === 'bag' ? '已添加咖啡袋图片' : '已添加标签图片');
   }
   async function addBeanImage(role) {
@@ -901,20 +979,49 @@
     }
     const scanner = capPlugin('CoffeeLabelScanner');
     if (!scanner) return toast('图片留存仅在 Android App 中可用');
-    try { const photo = await pickCoffeePhoto({ eyebrow: 'BEAN PHOTO', title: role === 'bag' ? '添加咖啡袋图片' : '添加标签图片', intro: '图片会先显示在编辑页，保存咖啡豆后才正式归档。' }); if (!photo) return; const path = photo.path || photo.webPath; if (!path) throw new Error('没有取得照片路径'); state.pendingImages = state.pendingImages.filter((item) => item.role !== role); state.pendingImages.push({ path, role }); setImageField(role, path); renderImageVault(); toast(role === 'bag' ? '已添加咖啡袋图片' : '已添加标签图片'); } catch (error) { const message = String(error && error.message || error || ''); if (!/cancel|取消/i.test(message)) { console.error(error); toast(/permission|权限/i.test(message) ? '需要相机权限才能拍照或读取图片' : '添加图片失败'); } }
+    try {
+      const cropEnabled = role === 'bag' && state.settings.photoJournal;
+      const photo = await pickCoffeePhoto({
+        eyebrow: 'BEAN PHOTO',
+        title: role === 'bag' ? '添加咖啡袋图片' : '添加标签图片',
+        intro: cropEnabled ? '选择后会在本机自动生成手账封面，编辑页仍保留原图。' : '图片会先显示在编辑页，保存咖啡豆后才正式归档。',
+        resultType: cropEnabled ? 'dataUrl' : 'uri'
+      });
+      if (!photo) return;
+      let path = photo.path || photo.webPath;
+      const filesystem = capPlugin('Filesystem');
+      if (photo.dataUrl) {
+        if (!filesystem) throw new Error('无法暂存系统转换后的图片');
+        const data = String(photo.dataUrl).split(',')[1];
+        if (!data) throw new Error('系统没有返回可处理的图片数据');
+        const stored = await filesystem.writeFile({ path: `subject-crop/source-${Date.now()}.jpg`, data, directory: 'CACHE', recursive: true });
+        path = stored.uri;
+      }
+      if (!path) throw new Error('没有取得照片路径');
+      if (role === 'bag') {
+        scheduleImageDeletion($('#field-bagImagePath').value); scheduleImageDeletion($('#field-bagCutoutImagePath').value);
+        discardPendingRoles(['bag', 'bagCutout']); setImageField('bagCutout', ''); subjectCropStatus = '';
+      } else scheduleImageDeletion($('#field-labelImagePath').value);
+      replacePendingImage({ path, role });
+      setImageField(role, path); renderImageVault();
+      if (cropEnabled) await generateDraftCutout(path);
+      toast(role === 'bag' ? '已添加咖啡袋图片' : '已添加标签图片');
+    } catch (error) {
+      const message = String(error && error.message || error || '');
+      if (!/cancel|取消/i.test(message)) { console.error(error); toast(/permission|权限/i.test(message) ? '需要相机权限才能拍照或读取图片' : '添加图片失败'); }
+    }
   }
   function removeBeanImage(role) {
-    const scanner = capPlugin('CoffeeLabelScanner');
-    state.pendingImages.filter((item) => item.role === role).forEach((item) => {
-      if (item.web) BeanRepository.deleteWebImage(item.ref);
-      else if (scanner && scanner.discardImage) scanner.discardImage({ path: item.path }).catch(() => {});
-    });
-    state.pendingImages = state.pendingImages.filter((item) => item.role !== role);
+    const roles = role === 'bag' ? ['bag', 'bagCutout'] : [role];
+    roles.forEach((itemRole) => scheduleImageDeletion($(`#field-${IMAGE_FIELD_BY_ROLE[itemRole]}`).value));
+    discardPendingRoles(roles);
     setImageField(role, '');
+    if (role === 'bag') { subjectCropJob += 1; subjectCropBusy = false; subjectCropStatus = ''; setImageField('bagCutout', ''); }
     renderImageVault();
     toast(role === 'bag' ? '已移除咖啡袋图片' : '已移除标签图片');
   }
-  async function archivePendingImages(fields) { if (!state.pendingImages.length) return fields; if (!BeanRepository.isNative()) { state.pendingImages = []; return fields; } const scanner = capPlugin('CoffeeLabelScanner'); if (!scanner || !scanner.archiveImage) return fields; let next = { ...fields }; for (const item of state.pendingImages) { const result = await scanner.archiveImage({ path: item.path, role: item.role, deleteSource: true }); next[item.role === 'bag' ? 'bagImagePath' : 'labelImagePath'] = result.path || result.uri || next[item.role === 'bag' ? 'bagImagePath' : 'labelImagePath'] || ''; } state.pendingImages = []; return next; }
+  function removeDraftCutout() { scheduleImageDeletion($('#field-bagCutoutImagePath').value); discardPendingRoles(['bagCutout']); setImageField('bagCutout', ''); subjectCropStatus = ''; renderImageVault(); }
+  async function archivePendingImages(fields) { if (!state.pendingImages.length) return fields; if (!BeanRepository.isNative()) { state.pendingImages = []; return fields; } const scanner = capPlugin('CoffeeLabelScanner'); if (!scanner || !scanner.archiveImage) return fields; let next = { ...fields }; for (const item of state.pendingImages) { const field = IMAGE_FIELD_BY_ROLE[item.role]; const result = await scanner.archiveImage({ path: item.path, role: item.role === 'bagCutout' ? 'bag' : item.role, deleteSource: true }); next[field] = result.path || result.uri || next[field] || ''; } state.pendingImages = []; return next; }
   async function addDrinkPhoto() {
     const remain = Math.max(0, 3 - (state.drinkPhotoDraft || []).length);
     if (!remain) return toast('每条记录最多 3 张照片');
@@ -1005,6 +1112,7 @@
   async function openPurchaseUrl(url) { return openExternalUrl(url, '无法打开购买链接'); }
   async function saveForm(event) {
     event.preventDefault();
+    if (subjectCropBusy) return toast('手账封面仍在生成，请稍候');
     const fd = new FormData(els.form);
     const old = state.editingId ? state.beans.find((bean) => bean.id === state.editingId) : null;
     const isFirstBean = !old && state.beans.length === 0;
@@ -1015,6 +1123,8 @@
       const payload = BeanCore.normalizeBean({ ...(old || {}), ...fields, id: state.editingId || undefined, favorite: $('#field-favorite').checked, createdAt: old ? old.createdAt : stamp, updatedAt: stamp }, stamp);
       const justFinished = Boolean(old && old.status !== '已喝完' && payload.status === '已喝完');
       await BeanRepository.save(payload);
+      const retained = new Set([payload.bagImagePath, payload.bagCutoutImagePath, payload.labelImagePath].filter(Boolean));
+      beanImagesToDelete.filter((path) => !retained.has(path)).forEach((path) => deleteImageRef(path, true)); beanImagesToDelete = [];
       setDialog(els.editor, false); state.editingId = null; await reload();
       let savedMsg = isFirstBean ? '第一包豆子已入仓，故事开始了' : justFinished ? '这一包喝完了，故事留在豆仓里' : old ? '记录已更新' : '咖啡豆已入仓';
       const nudgeKey = `coffee-vault-photo-nudge:${payload.id}`;
@@ -1823,7 +1933,35 @@
     state.exitPromptAt = Date.now();
     toast('再次操作退出程序');
   }
-  function closeTopLayerOrExit() { if (els.confirm.open) return resolveConfirm(false); if (els.sharePreview.open) return closeSharePreview(); if (els.drinkShareChoice.open) return els.drinkShareChoice.close(); if (els.choice.open) return els.choice.close(); if (els.datePicker.open) return els.datePicker.close(); if (els.photoSource.open) return els.photoSource.close(); if (els.scanImage.open) return els.scanImage.close(); if (els.imagePreview.open) return els.imagePreview.close(); if (els.shareChoice.open) return els.shareChoice.close(); if (els.brewAssist.open) return cancelBrewAssist(); if (els.drink.open) { discardDrinkPhotoDraft(); return els.drink.close(); } if (els.planEditor.open) return els.planEditor.close(); if (els.syncAuth.open) return syncAuthBack(); if (els.sync.open) return els.sync.close(); if (els.backup.open) return els.backup.close(); if (els.insights.open) return insightsUi.handleBack() || els.insights.close(); if (els.calendar.open) return els.calendar.close(); if (els.drinkDetail.open) return els.drinkDetail.close(); if (els.planDetail.open) return els.planDetail.close(); if (els.about.open) return els.about.close(); if (els.manager.open) return els.manager.close(); if (els.settings.open) return els.settings.close(); if (els.personal.open) return els.personal.close(); if (els.editor.open) { clearPendingImages(true); return els.editor.close(); } if (els.detail.open) return els.detail.close(); if (els.migration.open) return els.migration.close(); return requestExit(); }
+  function closeTopLayerOrExit() {
+    if (els.confirm.open) return resolveConfirm(false);
+    if (els.sharePreview.open) return closeSharePreview();
+    if (els.drinkShareChoice.open) return els.drinkShareChoice.close();
+    if (els.choice.open) return els.choice.close();
+    if (els.datePicker.open) return els.datePicker.close();
+    if (els.photoSource.open) return els.photoSource.close();
+    if (els.scanImage.open) return els.scanImage.close();
+    if (els.imagePreview.open) return els.imagePreview.close();
+    if (els.shareChoice.open) return els.shareChoice.close();
+    if (els.brewAssist.open) return cancelBrewAssist();
+    if (els.drink.open) { discardDrinkPhotoDraft(); return els.drink.close(); }
+    if (els.planEditor.open) return els.planEditor.close();
+    if (els.syncAuth.open) return syncAuthBack();
+    if (els.sync.open) return els.sync.close();
+    if (els.backup.open) return els.backup.close();
+    if (els.insights.open) return insightsUi.handleBack() || els.insights.close();
+    if (els.calendar.open) return els.calendar.close();
+    if (els.drinkDetail.open) return els.drinkDetail.close();
+    if (els.planDetail.open) return els.planDetail.close();
+    if (els.about.open) return els.about.close();
+    if (els.manager.open) return els.manager.close();
+    if (els.settings.open) return els.settings.close();
+    if (els.personal.open) return els.personal.close();
+    if (els.editor.open) { clearPendingImages(true); return els.editor.close(); }
+    if (els.detail.open) return els.detail.close();
+    if (els.migration.open) return els.migration.close();
+    return requestExit();
+  }
   function attachLongPress(container, selector, onLongPress) {
     if (!container) return;
     let startX = 0, startY = 0;
@@ -1887,7 +2025,7 @@
     $('#drink-param-mokaPotSize-choice').addEventListener('change', () => syncMokaSize('drink-param'));
     $('#drink-param-mokaPotSize-custom').addEventListener('input', () => syncMokaSize('drink-param'));
     ['addBean', 'scanBean', 'planImportFab'].forEach((id) => $(`#${id}`).addEventListener('click', floatingActionClickGuard, true));
-    $('#addBean').addEventListener('click', () => { expandFloatingActions(); return state.view === 'plans' ? openPlanEditor(null) : state.view === 'drinks' ? openDrinkTypePicker() : openEditor(null); }); $('#scanBean').addEventListener('click', () => { expandFloatingActions(); scanCoffeeLabel(); }); $('#editorClose').addEventListener('click', () => { clearPendingImages(true); setDialog(els.editor, false); }); $('#editorCancel').addEventListener('click', () => { clearPendingImages(true); setDialog(els.editor, false); }); $('#deleteBean').addEventListener('click', removeCurrent); els.form.addEventListener('submit', saveForm); $('#field-initialWeight').addEventListener('input', syncInitialWeightToRemaining); $('#field-remainingWeight').addEventListener('input', markRemainingWeightEdited); $('#editorImageVault').addEventListener('click', (event) => { const remove = event.target.closest('[data-remove-image-role]'); if (remove) return removeBeanImage(remove.dataset.removeImageRole); const button = event.target.closest('[data-add-image-role]'); if (button) return addBeanImage(button.dataset.addImageRole); const card = event.target.closest('[data-preview-image]'); if (card) openImagePreview(card.dataset.previewImage, card.dataset.previewLabel); });
+    $('#addBean').addEventListener('click', () => { expandFloatingActions(); return state.view === 'plans' ? openPlanEditor(null) : state.view === 'drinks' ? openDrinkTypePicker() : openEditor(null); }); $('#scanBean').addEventListener('click', () => { expandFloatingActions(); scanCoffeeLabel(); }); $('#editorClose').addEventListener('click', () => { clearPendingImages(true); beanImagesToDelete = []; setDialog(els.editor, false); }); $('#editorCancel').addEventListener('click', () => { clearPendingImages(true); beanImagesToDelete = []; setDialog(els.editor, false); }); $('#deleteBean').addEventListener('click', removeCurrent); els.form.addEventListener('submit', saveForm); $('#field-initialWeight').addEventListener('input', syncInitialWeightToRemaining); $('#field-remainingWeight').addEventListener('input', markRemainingWeightEdited); $('#editorImageVault').addEventListener('click', (event) => { if (event.target.closest('[data-preview-cutout]')) return openImagePreview($('#field-bagCutoutImagePath').value, '手账封面'); if (event.target.closest('[data-remove-cutout]')) return removeDraftCutout(); if (event.target.closest('[data-regenerate-cutout]')) return generateDraftCutout($('#field-bagImagePath').value); const remove = event.target.closest('[data-remove-image-role]'); if (remove) return removeBeanImage(remove.dataset.removeImageRole); const button = event.target.closest('[data-add-image-role]'); if (button) return addBeanImage(button.dataset.addImageRole); const card = event.target.closest('[data-preview-image]'); if (card) openImagePreview(card.dataset.previewImage, card.dataset.previewLabel); });
     els.empty.addEventListener('click', (event) => {
       const button = event.target.closest('[data-empty-action]');
       if (!button) return;

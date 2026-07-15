@@ -228,10 +228,10 @@ test('image gc: 换图时旧图回收，仍被其它记录引用的图保留', a
   seedImage(env, 'user-1', SHA_A, ANCIENT);
   seedImage(env, 'user-1', SHA_B, ANCIENT);
 
-  // b1 用 A，b2 也用 A；b1 换成 B 后 A 仍被 b2 引用，不能删。
+  // b1 原图用 A，b2 手账封面也用 A；b1 换成 B 后 A 仍被 b2 引用，不能删。
   await worker.fetch(pushRequest({ beans: [
     { id: 'b1', revision: 1, updatedAt: iso(1), deviceId: 'A', payload: { bagImagePath: 'r2:' + SHA_A } },
-    { id: 'b2', revision: 1, updatedAt: iso(1), deviceId: 'A', payload: { bagImagePath: 'r2:' + SHA_A } }
+    { id: 'b2', revision: 1, updatedAt: iso(1), deviceId: 'A', payload: { bagCutoutImagePath: 'r2:' + SHA_A } }
   ] }), env);
   await worker.fetch(pushRequest({ beans: [
     { id: 'b1', revision: 2, updatedAt: iso(3), deviceId: 'A', payload: { bagImagePath: 'r2:' + SHA_B } }
@@ -240,7 +240,7 @@ test('image gc: 换图时旧图回收，仍被其它记录引用的图保留', a
 
   // b2 也换掉 A 之后，A 才失去最后一个引用。
   await worker.fetch(pushRequest({ beans: [
-    { id: 'b2', revision: 2, updatedAt: iso(4), deviceId: 'A', payload: { bagImagePath: 'r2:' + SHA_B } }
+    { id: 'b2', revision: 2, updatedAt: iso(4), deviceId: 'A', payload: { bagCutoutImagePath: 'r2:' + SHA_B } }
   ] }), env);
   assert.equal(env.images.has(`user-1/${SHA_A}`), false, '最后一个引用消失后回收 A');
   assert.equal(env.images.has(`user-1/${SHA_B}`), true, 'B 在用，不得回收');
