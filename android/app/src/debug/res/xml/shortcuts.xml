@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="quick_drink_bean"
+        android:enabled="true"
+        android:icon="@drawable/ic_widget_bean"
+        android:shortcutShortLabel="@string/shortcut_drink_bean_short"
+        android:shortcutLongLabel="@string/shortcut_drink_bean_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.coffeebean.vault.debug"
+            android:targetClass="com.coffeebean.vault.MainActivity"
+            android:data="coffeebean://quick-drink/bean" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="quick_drink_external"
+        android:enabled="true"
+        android:icon="@drawable/ic_widget_cafe"
+        android:shortcutShortLabel="@string/shortcut_drink_external_short"
+        android:shortcutLongLabel="@string/shortcut_drink_external_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.coffeebean.vault.debug"
+            android:targetClass="com.coffeebean.vault.MainActivity"
+            android:data="coffeebean://quick-drink/external" />
+    </shortcut>
+</shortcuts>

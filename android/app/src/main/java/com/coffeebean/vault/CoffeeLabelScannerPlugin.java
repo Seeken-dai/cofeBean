@@ -340,6 +340,75 @@ public class CoffeeLabelScannerPlugin extends Plugin {
         }
     }
 
+    @PluginMethod
+    public void saveArchivedImage(PluginCall call) {
+        String path = call.getString("path");
+        if (path == null || path.trim().isEmpty()) {
+            call.reject("缺少图片路径");
+            return;
+        }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            call.reject("当前安卓版本无法在不申请存储权限的情况下保存到相册");
+            return;
+        }
+
+        Uri parsedUri = Uri.parse(path);
+        Uri source = parsedUri.getScheme() == null ? Uri.fromFile(new File(path)) : parsedUri;
+        if (!"file".equalsIgnoreCase(source.getScheme())) {
+            call.reject("只支持保存本机归档图片");
+            return;
+        }
+
+        File file = new File(source.getPath());
+        try {
+            File archiveDir = new File(getContext().getFilesDir(), "bean-images");
+            String archivePath = archiveDir.getCanonicalPath() + File.separator;
+            if (!file.getCanonicalPath().startsWith(archivePath) || !file.isFile()) {
+                call.reject("只支持保存本机归档图片");
+                return;
+            }
+        } catch (IOException | SecurityException error) {
+            call.reject("无法读取归档图片", error);
+            return;
+        }
+
+        String extension = guessExtension(source);
+        String filename = safeImageFilename(call.getString("filename", "豆仓图片-" + UUID.randomUUID().toString()), extension);
+        String mimeType = ".png".equals(extension) ? "image/png" : ".webp".equals(extension) ? "image/webp" : "image/jpeg";
+        ContentResolver resolver = getContext().getContentResolver();
+        ContentValues values = new ContentValues();
+        values.put(MediaStore.Images.Media.DISPLAY_NAME, filename);
+        values.put(MediaStore.Images.Media.MIME_TYPE, mimeType);
+        values.put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + File.separator + "豆仓");
+        values.put(MediaStore.Images.Media.IS_PENDING, 1);
+
+        Uri target = null;
+        try {
+            target = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+            if (target == null) {
+                call.reject("无法在相册中创建图片");
+                return;
+            }
+            try (InputStream input = new FileInputStream(file);
+                 OutputStream output = resolver.openOutputStream(target)) {
+                if (output == null) throw new IOException("无法打开相册输出流");
+                byte[] buffer = new byte[8192];
+                int length;
+                while ((length = input.read(buffer)) != -1) output.write(buffer, 0, length);
+            }
+            ContentValues done = new ContentValues();
+            done.put(MediaStore.Images.Media.IS_PENDING, 0);
+            resolver.update(target, done, null, null);
+            JSObject payload = new JSObject();
+            payload.put("uri", target.toString());
+            payload.put("folder", "Pictures/豆仓");
+            call.resolve(payload);
+        } catch (IOException | SecurityException error) {
+            if (target != null) resolver.delete(target, null, null);
+            call.reject("保存图片到相册失败", error);
+        }
+    }
+
     private void deleteTemporaryFile(Uri uri) {
         if (!"file".equalsIgnoreCase(uri.getScheme())) return;
         try {
@@ -372,6 +441,20 @@ public class CoffeeLabelScannerPlugin extends Plugin {
         if (name.length() > 96) {
             String suffix = ".png";
             name = name.substring(0, 96 - suffix.length()) + suffix;
+        }
+        return name;
+    }
+
+    private String safeImageFilename(String value, String extension) {
+        String name = value == null ? "" : value.trim();
+        if (name.isEmpty()) name = "豆仓图片-" + UUID.randomUUID().toString();
+        name = name.replaceAll("[\\\\/:*?\"<>|]", "");
+        String lower = name.toLowerCase(Locale.ROOT);
+        if (!lower.endsWith(".jpg") && !lower.endsWith(".jpeg") && !lower.endsWith(".png") && !lower.endsWith(".webp")) {
+            name = name + extension;
+        }
+        if (name.length() > 96) {
+            name = name.substring(0, Math.max(1, 96 - extension.length())) + extension;
         }
         return name;
     }

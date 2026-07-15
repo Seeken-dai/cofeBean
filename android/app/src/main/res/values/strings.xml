@@ -12,4 +12,8 @@
     <string name="quick_drink_widget_bean">用豆喝一杯</string>
     <string name="quick_drink_widget_external_hint">咖啡馆 / 外卖</string>
     <string name="quick_drink_widget_external">在店喝</string>
+    <string name="shortcut_drink_bean_short">记录冲煮</string>
+    <string name="shortcut_drink_bean_long">从豆仓记录一杯</string>
+    <string name="shortcut_drink_external_short">记录外饮</string>
+    <string name="shortcut_drink_external_long">记录咖啡馆外饮</string>
 </resources>

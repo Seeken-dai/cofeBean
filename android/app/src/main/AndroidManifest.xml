@@ -31,6 +31,9 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="coffeebean" android:host="quick-drink" />
             </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity>
 
         <receiver

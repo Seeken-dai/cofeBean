@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#1a1412">
   <meta name="color-scheme" content="dark light">
   <title>豆仓</title>
-  <link rel="stylesheet" href="styles.css?v=2.3.8">
+  <link rel="stylesheet" href="styles.css?v=2.3.9">
   <style>
     #aboutDialog .about-actions { display:flex; align-items:center; justify-content:center; gap:8px; color:var(--faint); font-size:12px; }
     #aboutDialog .about-actions .text-link-button { width:auto; min-width:0; min-height:0; padding:2px; border:0; border-radius:0; background:transparent; box-shadow:none; color:var(--accent); font:700 12px/1 inherit; text-decoration:underline; text-underline-offset:4px; }
@@ -371,7 +371,7 @@
         <label class="field" data-bean-only><span>本次用豆 *</span><div class="input-unit"><input id="drink-grams" name="grams" type="number" min="0.1" step="0.1" inputmode="decimal" required><em>g</em></div></label>
         <label class="field" data-bean-only><span>冲煮方式</span><select id="drink-method" name="brewMethod"></select><input class="sub-input" id="drink-method-custom" type="text" maxlength="80" placeholder="输入自定义方式" hidden></label>
         <div class="field cafe-name-field" data-external-only hidden><label for="drink-cafeName">店名/来源</label><input id="drink-cafeName" name="cafeName" type="text" maxlength="120" autocomplete="off" placeholder="例如：街角咖啡"><div class="cafe-suggestions" id="drinkCafeSuggestions" aria-live="polite"></div></div>
-        <label class="field" data-external-only hidden><span>饮品名称</span><input id="drink-drinkName" name="drinkName" type="text" maxlength="120" placeholder="例如：Dirty"></label>
+        <div class="field cafe-name-field" data-external-only hidden><label for="drink-drinkName">饮品名称</label><input id="drink-drinkName" name="drinkName" type="text" maxlength="120" autocomplete="off" placeholder="例如：Dirty"><div class="cafe-suggestions" id="drinkNameSuggestions" aria-live="polite"></div></div>
         <label class="field" data-external-only hidden><span>价格</span><div class="input-unit currency"><em>¥</em><input id="drink-price" name="price" type="number" min="0" step="0.01" inputmode="decimal"></div></label>
         <label class="field" data-external-only hidden><span>地点/城市</span><input id="drink-location" name="location" type="text" maxlength="120" placeholder="例如：杭州"></label>
         <section class="drink-plan-picker full" id="drinkPlanPicker" data-bean-only></section>
@@ -456,7 +456,7 @@
   </dialog>
 
   <dialog class="sheet image-preview-sheet" id="imagePreviewDialog">
-    <header class="sheet-header"><div><p class="eyebrow">BEAN PHOTO</p><h2 id="imagePreviewTitle">图片预览</h2><p class="sheet-subtitle">点击“保存到手机”可通过系统面板保存或分享</p></div><button class="icon-button" id="imagePreviewClose" type="button" aria-label="关闭">×</button></header>
+    <header class="sheet-header"><div><p class="eyebrow">BEAN PHOTO</p><h2 id="imagePreviewTitle">图片预览</h2><p class="sheet-subtitle">点击“保存到手机”会保存到系统相册「豆仓」</p></div><button class="icon-button" id="imagePreviewClose" type="button" aria-label="关闭">×</button></header>
     <div class="image-preview-body"><img id="imagePreviewPhoto" alt="咖啡图片大图预览"></div>
     <footer class="sheet-footer"><span></span><div><button class="secondary-button" id="imagePreviewCancel" type="button">关闭</button><button class="primary-button" id="imagePreviewSave" type="button">保存到手机</button></div></footer>
   </dialog>
@@ -609,7 +609,7 @@
 
   <dialog class="sheet compact" id="aboutDialog">
     <header class="sheet-header"><div><p class="eyebrow">ABOUT</p><h2>关于豆仓</h2></div><button class="icon-button" id="aboutClose" type="button" aria-label="关闭">×</button></header>
-    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 2.3.8</p></section>
+    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 2.3.9</p></section>
     <section class="about-update" aria-live="polite">
       <div class="about-actions"><button class="text-link-button" id="aboutCheckUpdate" type="button">检查更新</button><span aria-hidden="true">·</span><button class="text-link-button" id="aboutOpenReleases" type="button">查看发布页</button></div>
       <div class="update-status" id="updateStatus" hidden></div>
@@ -618,8 +618,8 @@
     <section class="about-copy">
       <h3>收藏咖啡，也收藏与咖啡相处的时间。</h3>
       <p>豆仓是一款为咖啡爱好者设计的本地优先记录工具。你可以保存每一包咖啡豆的产地、风味与价格，记录每次饮用和冲煮方案，让日常里喝过的咖啡慢慢有迹可循。</p>
-      <h4>2.3.8 最新功能</h4>
-      <ul><li>新增完全离线的咖啡袋主体抠图，拍照或上传后自动生成 5% 撕纸白边手账封面</li><li>原图与手账封面分开保存：编辑页保留原图，详情页优先展示无边框抠图</li><li>同时开启“列表咖啡袋封面”后，豆仓列表也会使用抠图；识别失败时自动回退原图</li></ul>
+      <h4>2.3.9 最新功能</h4>
+      <ul><li>修复咖啡袋、标签和饮用照片无法保存到手机相册的问题</li><li>长按桌面图标可快速进入“记录冲煮”或“记录外饮”</li><li>外饮饮品名称支持同店历史联想，最近喝过的内容更快回填</li></ul>
       <div class="privacy-note"><b>离线与隐私</b><p>豆仓默认完全离线使用，数据保存在你的设备中。云同步为可选功能，仅在登录并开启后使用。</p><p>检查更新仅在你主动点击时联网，不会影响本地记录使用。</p></div>
     </section>
   </dialog>
