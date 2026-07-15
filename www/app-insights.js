@@ -185,14 +185,21 @@
   }
 
   function handBrewHomeSection(result) {
-    return `<section class="insight-section handbrew-home-section"><div class="insight-section-title"><span>04</span><div><h3>冲煮回顾</h3><p>基于全部历史手冲记录，看看平时怎么冲</p></div></div>${handBrewSummaryCard(result)}</section>`;
+    return `<section class="insight-section handbrew-home-section" id="insightsSectionBrew"><div class="insight-section-title"><span>04</span><div><h3>冲煮回顾</h3><p>基于全部历史手冲记录，看看平时怎么冲</p></div></div>${handBrewSummaryCard(result)}</section>`;
   }
 
   function coffeeReportHomeSection(reports) {
     const latest = Array.isArray(reports) && reports[0];
     const count = Array.isArray(reports) ? reports.length : 0;
     const summary = latest ? `${latest.label}已有 ${latest.cups} 杯记录，打开看看这一阶段的咖啡日常。` : '完整自然月内记录满 5 杯后，这里会生成第一份咖啡月报。';
-    return `<section class="insight-section report-home-section"><div class="insight-section-title"><span>05</span><div><h3>咖啡月报 / 咖啡年报</h3><p>把已经走完的一段咖啡日常收成一页</p></div></div><article class="insight-card coffee-report-summary-card" data-insights-reports role="button" tabindex="0" aria-label="打开咖啡月报与年报"><div class="insight-card-head"><div><span>阶段报告</span><h4>${latest ? esc(latest.title) : '咖啡月报与年报'}${helpButton('report')}</h4></div><strong>${count}<small>份报告</small></strong></div><p>${esc(summary)}</p><i aria-hidden="true">›</i></article></section>`;
+    return `<section class="insight-section report-home-section" id="insightsSectionReports"><div class="insight-section-title"><span>05</span><div><h3>咖啡月报 / 咖啡年报</h3><p>把已经走完的一段咖啡日常收成一页</p></div></div><article class="insight-card coffee-report-summary-card" data-insights-reports role="button" tabindex="0" aria-label="打开咖啡月报与年报"><div class="insight-card-head"><div><span>阶段报告</span><h4>${latest ? esc(latest.title) : '咖啡月报与年报'}${helpButton('report')}</h4></div><strong>${count}<small>份报告</small></strong></div><p>${esc(summary)}</p><i aria-hidden="true">›</i></article></section>`;
+  }
+
+  function coffeeCatalogHomeSection(result) {
+    const ready = result && result.ok;
+    const summary = ready ? result.data.summary : '加入第一支咖啡豆，就能从这里开始收藏探索轨迹。';
+    const count = ready ? result.data.wall.filter((item) => item.lit).length : 0;
+    return `<section class="insight-section catalog-home-section" id="insightsSectionCatalog"><div class="insight-section-title"><span>06</span><div><h3>咖啡图鉴</h3><p>一路喝过什么，也是一种咖啡记忆</p></div></div><article class="insight-card catalog-summary-card" data-insights-catalog role="button" tabindex="0" aria-label="打开咖啡图鉴"><div class="insight-card-head"><div><span>全部历史</span><h4>我的咖啡收藏</h4></div><strong>${count}<small>款点亮</small></strong></div><p>${esc(summary)}</p><i aria-hidden="true">›</i></article></section>`;
   }
 
   function reportMoney(value) {
@@ -284,17 +291,21 @@
     const setDialog = options.setDialog;
     const toast = typeof options.toast === 'function' ? options.toast : null;
     const shareReport = typeof options.shareReport === 'function' ? options.shareReport : null;
+    const shareCatalog = typeof options.shareCatalog === 'function' ? options.shareCatalog : null;
+    const imageSrc = typeof options.imageSrc === 'function' ? options.imageSrc : (path) => path;
     const content = dialog.querySelector('#insightsContent');
     const homePage = dialog.querySelector('#insightsHomePage') || content;
     const brewReviewPage = dialog.querySelector('#brewReviewPage');
     const brewReviewContent = dialog.querySelector('#brewReviewContent');
     const reportReviewPage = dialog.querySelector('#reportReviewPage');
     const reportReviewContent = dialog.querySelector('#reportReviewContent');
+    const catalogPage = dialog.querySelector('#catalogPage');
+    const catalogContent = dialog.querySelector('#catalogContent');
     const title = dialog.querySelector('#insightsTitle');
     const subtitle = dialog.querySelector('#insightsSubtitle');
     const eyebrow = dialog.querySelector('#insightsEyebrow');
     const backButton = dialog.querySelector('#insightsBack');
-    if (!content || !brewReviewPage || !brewReviewContent || !reportReviewPage || !reportReviewContent) throw new Error('回顾页面骨架不完整');
+    if (!content || !brewReviewPage || !brewReviewContent || !reportReviewPage || !reportReviewContent || !catalogPage || !catalogContent) throw new Error('回顾页面骨架不完整');
 
     function globalUnlock(logs) {
       const required = core.MIN_SAMPLE || 3;
@@ -343,7 +354,7 @@
         const max = Math.max(1, ...data.map((row) => row.cups));
         return `<div class="weekday-chart" role="img" aria-label="${esc(data.map((row) => `${row.label}${row.cups}杯`).join('，'))}">${data.map((row) => `<span><b>${row.cups || ''}</b><i style="--height:${Math.max(row.cups ? 10 : 2, row.cups / max * 100).toFixed(1)}%"></i><small>${esc(row.shortLabel)}</small></span>`).join('')}</div>`;
       })}</article>`;
-      return `<section class="insight-section"><div class="insight-section-title"><span>02</span><div><h3>喝咖啡的习惯</h3><p>看看咖啡如何落进你的日常节奏</p></div></div><div class="insight-card-stack two-up">${timeCard}${weekdayCard}</div></section>`;
+      return `<section class="insight-section" id="insightsSectionHabits"><div class="insight-section-title"><span>02</span><div><h3>喝咖啡的习惯</h3><p>看看咖啡如何落进你的日常节奏</p></div></div><div class="insight-card-stack two-up">${timeCard}${weekdayCard}</div></section>`;
     }
 
     function spendCard(result) {
@@ -404,7 +415,36 @@
       const source = core.homeVsExternal(logs, state.beans);
       const value = core.beanValueRanking(logs, state.beans);
       const freshness = core.freshnessRatingGap(logs, state.beans);
-      return `<section class="insight-section"><div class="insight-section-title"><span>03</span><div><h3>花费与回购</h3><p>金额只统计能够估算的记录</p></div></div><div class="insight-card-stack">${spendCard(monthly)}<div class="two-up">${sourceCompareCard(source)}${freshnessCard(freshness)}</div>${valueCard(value)}</div></section>`;
+      return `<section class="insight-section" id="insightsSectionSpend"><div class="insight-section-title"><span>03</span><div><h3>花费与回购</h3><p>金额只统计能够估算的记录</p></div></div><div class="insight-card-stack">${spendCard(monthly)}<div class="two-up">${sourceCompareCard(source)}${freshnessCard(freshness)}</div>${valueCard(value)}</div></section>`;
+    }
+
+    function catalogCover(item) {
+      const cover = item.cover || {};
+      const placeholder = cover.placeholder || {};
+      const paths = (cover.candidates || []).map((candidate) => ({ src: imageSrc(candidate.path), type: candidate.type || 'bag' })).filter((candidate) => candidate.src);
+      const image = paths.length ? `<img class="${paths[0].type === 'cutout' ? 'is-cutout' : 'is-photo'}" src="${esc(paths[0].src)}" data-catalog-candidates="${esc(JSON.stringify(paths))}" data-catalog-index="0" alt="" loading="lazy">` : '';
+      return `<div class="catalog-cover bean-thumb--${esc(placeholder.roastKey || 'neutral')}" style="--catalog-tilt:${Number(placeholder.rotation) || 0}deg"><span aria-hidden="true">${esc(placeholder.glyph || '豆')}</span>${image}</div>`;
+    }
+
+    function catalogMilestoneCopy(progress, unit) {
+      if (!progress) return '';
+      if (progress.complete) return `已走过全部既定档位 · 当前 ${progress.value}${unit}`;
+      if (!progress.achieved) return `下一档 ${progress.next}${unit} · 还差 ${progress.remaining}${unit}`;
+      return `已达成 ${progress.achieved}${unit} · 下一档还差 ${progress.remaining}${unit}`;
+    }
+
+    function renderCatalogPage() {
+      const result = core.coffeeCatalog(state.drinkLogs, state.beans, { photoJournal: Boolean(state.settings && state.settings.photoJournal) });
+      if (!result.ok) {
+        catalogContent.innerHTML = '<div class="catalog-page-intro"><p class="eyebrow">COFFEE ATLAS</p><h3>咖啡图鉴</h3><p>固定基于全部历史数据，不随回顾范围变化。</p></div><div class="catalog-empty"><span class="insight-bean-mark" aria-hidden="true"></span><div><strong>从第一支豆开始收藏</strong><p>把咖啡豆加入豆仓后，它会出现在这里；喝过以后，格子就会被点亮。</p></div></div>';
+        return;
+      }
+      const data = result.data;
+      const wall = data.wall.map((item) => `<article class="catalog-bean${item.lit ? ' is-lit' : ' is-unlit'}"><div>${catalogCover(item)}<i>${item.lit ? `${item.cups} 杯` : '待点亮'}</i></div><h4 title="${esc(item.name)}">${esc(item.name)}</h4><p title="${esc(item.origin || '产地未记录')}">${esc(item.origin || '产地未记录')}</p>${item.cover.needsCutoutPrompt ? '<small>可在该豆编辑页生成手账封面</small>' : ''}</article>`).join('');
+      const origins = data.origins.items.length ? `<div class="catalog-origin-list">${data.origins.items.map((item) => `<div><span>${esc(item.name)}</span><small>${item.beanCount} 款 · ${item.cups} 杯</small></div>`).join('')}</div>` : '<p class="catalog-muted">豆子资料里还没有产地，补充后会在这里形成足迹。</p>';
+      const processes = data.processes.map((item) => `<article class="catalog-process${item.lit ? ' is-lit' : ''}"><span aria-hidden="true">${item.lit ? '✓' : '○'}</span><div><h4>${esc(item.label)}</h4><p>${item.lit ? `${item.beanCount} 款 · ${item.cups} 杯` : '还没有喝过这类处理法'}</p></div></article>`).join('');
+      const milestones = [['累计杯数', data.milestones.cups, '杯'], ['最长连续记录', data.milestones.streak, '天']].map(([label, progress, unit]) => `<article class="catalog-milestone"><span>${label}</span><strong>${progress.value}<small>${unit}</small></strong><p>${esc(catalogMilestoneCopy(progress, unit))}</p></article>`).join('');
+      catalogContent.innerHTML = `<div class="catalog-page-intro"><p class="eyebrow">COFFEE ATLAS · ALL TIME</p><h3>咖啡图鉴</h3><p>固定基于全部历史数据，不随回顾范围变化。图片只改变收藏墙的样子，不影响点亮与统计。</p></div><section class="catalog-section"><div class="catalog-heading"><div><span>01</span><h3>豆款收集墙</h3></div><small>${data.mode === 'journal' ? '照片手账 · 贴纸收集册' : '标准收集墙'}</small></div><div class="catalog-wall is-${data.mode}">${wall}</div></section><section class="catalog-section"><div class="catalog-heading"><div><span>02</span><h3>产地足迹</h3></div><strong>${data.origins.items.length}<small>个产地</small></strong></div><p class="catalog-progress-copy">${esc(catalogMilestoneCopy(data.origins.milestone, '个'))}</p>${origins}</section><section class="catalog-section"><div class="catalog-heading"><div><span>03</span><h3>处理法收集</h3></div></div><div class="catalog-process-grid">${processes}</div></section><section class="catalog-section"><div class="catalog-heading"><div><span>04</span><h3>记录里程碑</h3></div></div><div class="catalog-milestone-grid">${milestones}</div></section><button class="coffee-report-share catalog-share" data-insights-catalog-share type="button"><span>分享咖啡图鉴</span><strong aria-hidden="true">↗</strong></button>`;
     }
 
     function updatePageFrame() {
@@ -412,13 +452,15 @@
       const isBeanReview = isBrewReview && Boolean(state.insightsBeanId);
       const isReportPage = state.insightsPage === 'reports' || state.insightsPage === 'report';
       const isReportDetail = state.insightsPage === 'report';
-      homePage.hidden = isBrewReview || isReportPage;
+      const isCatalogPage = state.insightsPage === 'catalog';
+      homePage.hidden = isBrewReview || isReportPage || isCatalogPage;
       brewReviewPage.hidden = !isBrewReview;
       reportReviewPage.hidden = !isReportPage;
-      if (backButton) backButton.hidden = !isBrewReview && !isReportPage;
-      if (title) title.textContent = isBrewReview ? '手冲回顾' : isReportDetail ? (state.insightsReportType === 'year' ? '咖啡年报' : '咖啡月报') : isReportPage ? '咖啡月报与年报' : '回顾';
-      if (subtitle) subtitle.textContent = isBrewReview ? '基于全部手冲记录 · 页内回看你的冲煮习惯' : isReportPage ? '只看已经走完的自然月与自然年' : '从每一杯里，慢慢看见自己的口味';
-      if (eyebrow) eyebrow.textContent = isBrewReview ? 'POUR-OVER NOTES' : isReportPage ? 'COFFEE REPORT' : 'YOUR COFFEE';
+      catalogPage.hidden = !isCatalogPage;
+      if (backButton) backButton.hidden = !isBrewReview && !isReportPage && !isCatalogPage;
+      if (title) title.textContent = isCatalogPage ? '咖啡图鉴' : isBrewReview ? '手冲回顾' : isReportDetail ? (state.insightsReportType === 'year' ? '咖啡年报' : '咖啡月报') : isReportPage ? '咖啡月报与年报' : '回顾';
+      if (subtitle) subtitle.textContent = isCatalogPage ? '基于全部历史 · 看见一路喝过什么' : isBrewReview ? '基于全部手冲记录 · 页内回看你的冲煮习惯' : isReportPage ? '只看已经走完的自然月与自然年' : '从每一杯里，慢慢看见自己的口味';
+      if (eyebrow) eyebrow.textContent = isCatalogPage ? 'COFFEE ATLAS' : isBrewReview ? 'POUR-OVER NOTES' : isReportPage ? 'COFFEE REPORT' : 'YOUR COFFEE';
       if (backButton) {
         backButton.setAttribute('aria-label', isBeanReview ? '返回手冲回顾' : isReportDetail ? '返回咖啡月报与年报' : '返回回顾首页');
       }
@@ -433,15 +475,16 @@
       const handBrew = core.handBrewSummary(state.drinkLogs, state.beans);
       const handBrewSection = handBrewHomeSection(handBrew);
       const reportSection = coffeeReportHomeSection(core.availableCoffeeReports(state.drinkLogs, new Date()));
+      const catalogSection = coffeeCatalogHomeSection(core.coffeeCatalog(state.drinkLogs, state.beans, { photoJournal: Boolean(state.settings && state.settings.photoJournal) }));
       if (logs.length < (core.MIN_SAMPLE || 3)) {
-        content.innerHTML = `${globalUnlock(logs)}${handBrewSection}${reportSection}`;
+        content.innerHTML = `${globalUnlock(logs)}${handBrewSection}${reportSection}${catalogSection}`;
         return;
       }
       const dimensions = core.averageDimensions(logs, { enabled: Boolean(state.settings.advancedRatings), enabledDimensions: state.settings.enabledDimensions });
       const flavor = core.flavorProfile(logs);
       const time = core.timeBuckets(logs);
       const radar = state.settings.advancedRatings ? radarCard(dimensions) : '';
-      content.innerHTML = `${openingCard(logs, flavor, time)}<section class="insight-section"><div class="insight-section-title"><span>01</span><div><h3>口味与偏好</h3><p>从饮用笔记和个人评价里慢慢整理</p></div></div><div class="insight-card-stack">${radar}${flavorCard(flavor)}${preferenceCard(logs)}</div></section>${habitsSection(logs)}${spendSection(logs)}${handBrewSection}${reportSection}`;
+      content.innerHTML = `${openingCard(logs, flavor, time)}<section class="insight-section" id="insightsSectionTaste"><div class="insight-section-title"><span>01</span><div><h3>口味与偏好</h3><p>从饮用笔记和个人评价里慢慢整理</p></div></div><div class="insight-card-stack">${radar}${flavorCard(flavor)}${preferenceCard(logs)}</div></section>${habitsSection(logs)}${spendSection(logs)}${handBrewSection}${reportSection}${catalogSection}`;
     }
 
     function renderBrewReview() {
@@ -473,6 +516,10 @@
       }
       if (state.insightsPage === 'reports' || state.insightsPage === 'report') {
         renderReportReview();
+        return;
+      }
+      if (state.insightsPage === 'catalog') {
+        renderCatalogPage();
         return;
       }
       renderHome();
@@ -507,6 +554,13 @@
       setDialog(dialog, true);
     }
 
+    function openCatalog() {
+      hideHelp();
+      state.insightsPage = 'catalog';
+      render();
+      setDialog(dialog, true);
+    }
+
     function openReport(type, key) {
       hideHelp();
       state.insightsPage = 'report';
@@ -526,6 +580,12 @@
         return true;
       }
       if (state.insightsPage === 'reports') {
+        state.insightsPage = 'home';
+        hideHelp();
+        render();
+        return true;
+      }
+      if (state.insightsPage === 'catalog') {
         state.insightsPage = 'home';
         hideHelp();
         render();
@@ -557,12 +617,27 @@
       if (beanLink) { openBrewReview(beanLink.dataset.insightsBrewBean); return true; }
       const reports = event.target.closest('[data-insights-reports]');
       if (reports) { openReports(); return true; }
+      const catalog = event.target.closest('[data-insights-catalog]');
+      if (catalog) { openCatalog(); return true; }
+      const anchor = event.target.closest('[data-insights-anchor]');
+      if (anchor) {
+        const ids = { taste: 'insightsSectionTaste', habits: 'insightsSectionHabits', spend: 'insightsSectionSpend', brew: 'insightsSectionBrew', reports: 'insightsSectionReports' };
+        const target = dialog.querySelector(`#${ids[anchor.dataset.insightsAnchor] || ''}`);
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return true;
+      }
       const reportLink = event.target.closest('[data-insights-report-type][data-insights-report-key]');
       if (reportLink) { openReport(reportLink.dataset.insightsReportType, reportLink.dataset.insightsReportKey); return true; }
       const share = event.target.closest('[data-insights-report-share]');
       if (share && shareReport) {
         const result = core.coffeePeriodReport(state.drinkLogs, state.beans, { type: state.insightsReportType, key: state.insightsReportKey });
         if (result.ok) Promise.resolve(shareReport(result.data)).catch(() => { if (toast) toast('分享失败'); });
+        return true;
+      }
+      const catalogShare = event.target.closest('[data-insights-catalog-share]');
+      if (catalogShare && shareCatalog) {
+        const result = core.coffeeCatalog(state.drinkLogs, state.beans, { photoJournal: Boolean(state.settings && state.settings.photoJournal) });
+        if (result.ok) Promise.resolve(shareCatalog(result.data)).catch(() => { if (toast) toast('分享失败'); });
         return true;
       }
       const spendView = event.target.closest('[data-insights-spend-view]');
@@ -580,13 +655,22 @@
     }
 
     dialog.addEventListener('close', hideHelp);
+    dialog.addEventListener('error', (event) => {
+      const image = event.target.closest && event.target.closest('img[data-catalog-candidates]');
+      if (!image) return;
+      let paths = [];
+      try { paths = JSON.parse(image.dataset.catalogCandidates || '[]'); } catch (_) { paths = []; }
+      const next = Number(image.dataset.catalogIndex || 0) + 1;
+      if (paths[next]) { image.dataset.catalogIndex = String(next); image.className = paths[next].type === 'cutout' ? 'is-cutout' : 'is-photo'; image.src = paths[next].src; }
+      else image.remove();
+    }, true);
     dialog.addEventListener('keydown', (event) => {
-      if (!['Enter', ' '].includes(event.key) || !event.target.closest('[data-insights-brew-review],[data-insights-brew-bean],[data-insights-reports],[data-insights-report-type]')) return;
+      if (!['Enter', ' '].includes(event.key) || !event.target.closest('[data-insights-brew-review],[data-insights-brew-bean],[data-insights-reports],[data-insights-report-type],[data-insights-catalog]')) return;
       event.preventDefault();
       handleClick(event);
     });
-    return { render, open, close, handleClick, handleBack, openBrewReview, openBeanReview: openBrewReview, openReports, openReport };
+    return { render, open, close, handleClick, handleBack, openBrewReview, openBeanReview: openBrewReview, openReports, openReport, openCatalog };
   }
 
-  return { HELP_CONTENT, create, buildRadar, buildSpendLineChart, emptyCard, helpButton, remainingText, handBrewSummaryCard, handBrewRecordCard, handBrewBeanPage, coffeeReportHomeSection, coffeeReportDetail };
+  return { HELP_CONTENT, create, buildRadar, buildSpendLineChart, emptyCard, helpButton, remainingText, handBrewSummaryCard, handBrewRecordCard, handBrewBeanPage, coffeeReportHomeSection, coffeeCatalogHomeSection, coffeeReportDetail };
 });

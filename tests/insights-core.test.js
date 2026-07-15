@@ -407,3 +407,140 @@ test('回顾提供第05类咖啡月报与年报，并按报告列表返回', () 
   assert.match(html, /id="calendarReportOpen"/);
   assert.doesNotMatch(source + html, /时光报告/);
 });
+
+test('咖啡图鉴 0 豆时使用独立 required=1 门槛', () => {
+  const result = insights.coffeeCatalog([], [], { now: new Date(2026, 6, 15) });
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'emptyBeans');
+  assert.deepEqual(result.meta, { sampleSize: 0, required: 1, excludedCount: 0 });
+});
+
+test('首次饮用时间排除未来、删除、外饮与无效日期并取最早一杯', () => {
+  const now = new Date(2026, 6, 15, 18);
+  const rows = [
+    log('later', atLocal(2026, 7, 10)), log('earlier', atLocal(2026, 7, 2)),
+    log('external', atLocal(2026, 7, 1), { source: 'external', beanId: null }),
+    log('deleted', atLocal(2026, 7, 1), { deletedAt: atLocal(2026, 7, 2) }),
+    log('future', atLocal(2026, 7, 16)), log('bad', 'bad-date')
+  ];
+  assert.equal(insights.firstBeanConsumedAt(rows, 'bean-a', now), atLocal(2026, 7, 2));
+  assert.equal(insights.firstBeanConsumedAt(rows, 'missing', now), null);
+});
+
+test('处理法支持常见中英文写法，特殊处理优先于基础处理', () => {
+  assert.equal(insights.classifyCatalogProcess('Washed'), 'washed');
+  assert.equal(insights.classifyCatalogProcess('日晒 Natural'), 'natural');
+  assert.equal(insights.classifyCatalogProcess('Black Honey'), 'honey');
+  assert.equal(insights.classifyCatalogProcess('厌氧日晒 Anaerobic Natural'), 'special');
+  assert.equal(insights.classifyCatalogProcess('乳酸发酵水洗'), 'special');
+  assert.equal(insights.classifyCatalogProcess('小农自创处理'), 'other');
+});
+
+test('图鉴收集墙按首次饮用排序，未点亮排尾，保留已喝完并排除删除豆', () => {
+  const now = new Date(2026, 6, 15, 18);
+  const beans = [
+    bean('late', { name: '后喝', origin: '肯尼亚', bagImagePath: 'late.jpg' }),
+    bean('early', { name: '先喝', origin: '埃塞俄比亚', bagImagePath: 'early.jpg', bagCutoutImagePath: 'early.png', status: '已喝完' }),
+    bean('unlit', { name: '还没喝', origin: '哥伦比亚' }),
+    bean('gone', { name: '已删除', deletedAt: atLocal(2026, 7, 1) })
+  ];
+  const rows = [
+    log('late-log', atLocal(2026, 7, 10), { beanId: 'late' }),
+    log('early-log', atLocal(2026, 7, 2), { beanId: 'early' }),
+    log('gone-log', atLocal(2026, 7, 1), { beanId: 'gone' })
+  ];
+  const result = insights.coffeeCatalog(rows, beans, { now, photoJournal: true });
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.data.wall.map((item) => item.id), ['early', 'late', 'unlit']);
+  assert.deepEqual(result.data.wall.map((item) => item.lit), [true, true, false]);
+  assert.equal(result.data.wall[0].cover.candidates[0].type, 'cutout');
+  assert.deepEqual(result.data.wall[1].cover.candidates.map((item) => item.type), ['bag']);
+  assert.equal(result.data.wall[2].cover.needsCutoutPrompt, true);
+});
+
+test('切换照片手账只改变封面回退链，不改变图鉴统计', () => {
+  const beans = [bean('bean-a', { bagImagePath: 'bag.jpg', bagCutoutImagePath: 'cutout.png' })];
+  const rows = [log('cup', atLocal(2026, 7, 1))];
+  const options = { now: new Date(2026, 6, 15, 18) };
+  const journal = insights.coffeeCatalog(rows, beans, { ...options, photoJournal: true }).data;
+  const standard = insights.coffeeCatalog(rows, beans, { ...options, photoJournal: false }).data;
+  assert.deepEqual(journal.wall[0].cover.candidates.map((item) => item.type), ['cutout', 'bag']);
+  assert.deepEqual(standard.wall[0].cover.candidates.map((item) => item.type), ['bag']);
+  assert.equal(standard.wall[0].cover.needsCutoutPrompt, false);
+  assert.deepEqual(journal.origins, standard.origins);
+  assert.deepEqual(journal.processes, standard.processes);
+  assert.deepEqual(journal.milestones, standard.milestones);
+});
+
+test('产地自由文本精确去重并只统计现存豆关联杯数', () => {
+  const now = new Date(2026, 6, 15, 18);
+  const beans = [
+    bean('a', { origin: ' 埃塞俄比亚 ', createdAt: atLocal(2026, 1, 1) }),
+    bean('b', { origin: '埃塞俄比亚', createdAt: atLocal(2026, 2, 1) }),
+    bean('c', { origin: ' Ethiopia ', createdAt: atLocal(2026, 3, 1) }),
+    bean('empty', { origin: '  ' }), bean('gone', { origin: '肯尼亚', deletedAt: atLocal(2026, 7, 1) })
+  ];
+  const rows = [
+    log('a1', atLocal(2026, 4, 1), { beanId: 'a' }), log('b1', atLocal(2026, 4, 2), { beanId: 'b' }),
+    log('external', atLocal(2026, 4, 3), { source: 'external', beanId: null }), log('gone', atLocal(2026, 4, 4), { beanId: 'gone' })
+  ];
+  const origins = insights.coffeeCatalog(rows, beans, { now }).data.origins;
+  assert.deepEqual(origins.items.map((item) => item.name), ['埃塞俄比亚', 'Ethiopia']);
+  assert.deepEqual(origins.items[0], { name: '埃塞俄比亚', beanCount: 2, cups: 2, firstSeenAt: atLocal(2026, 1, 1) });
+  assert.deepEqual(origins.milestone, { value: 2, achieved: 1, next: 3, remaining: 1, complete: false });
+});
+
+test('处理法点亮只使用现存豆关联记录，其他分类仅在确有豆子时出现', () => {
+  const now = new Date(2026, 6, 15, 18);
+  const beans = [bean('washed', { process: '水洗' }), bean('natural', { process: 'Natural' })];
+  const rows = [log('washed-cup', atLocal(2026, 7, 1), { beanId: 'washed' }), log('outside', atLocal(2026, 7, 2), { source: 'external', beanId: null })];
+  const result = insights.coffeeCatalog(rows, beans, { now }).data.processes;
+  assert.equal(result.some((item) => item.key === 'other'), false);
+  assert.deepEqual(result.find((item) => item.key === 'washed'), { key: 'washed', label: '水洗', lit: true, beanCount: 1, cups: 1 });
+  assert.equal(result.find((item) => item.key === 'natural').lit, false);
+  const withOther = insights.coffeeCatalog(rows, beans.concat(bean('odd', { process: '冷冻处理' })), { now }).data.processes;
+  assert.equal(withOther.find((item) => item.key === 'other').lit, false);
+});
+
+test('记录里程碑计入自家与外饮，同日多杯只算一个连续日并排除无效记录', () => {
+  const now = new Date(2026, 6, 15, 18);
+  const rows = [];
+  for (let i = 0; i < 8; i += 1) rows.push(log(`home-${i}`, atLocal(2026, 7, 1 + Math.min(i, 2))));
+  rows.push(log('external-1', atLocal(2026, 7, 2), { source: 'external', beanId: null }));
+  rows.push(log('external-2', atLocal(2026, 7, 3), { source: 'external', beanId: null }));
+  rows.push(log('deleted', atLocal(2026, 7, 4), { deletedAt: atLocal(2026, 7, 5) }));
+  rows.push(log('future', atLocal(2026, 7, 16))); rows.push(log('bad', 'bad-date'));
+  const milestones = insights.coffeeCatalog(rows, [bean('bean-a')], { now }).data.milestones;
+  assert.deepEqual(milestones.cups, { value: 10, achieved: 10, next: 50, remaining: 40, complete: false });
+  assert.deepEqual(milestones.streak, { value: 3, achieved: 3, next: 7, remaining: 4, complete: false });
+  assert.deepEqual(insights.catalogMilestone(1001, insights.CATALOG_CUP_MILESTONES), { value: 1001, achieved: 1000, next: null, remaining: null, complete: true });
+});
+
+test('图鉴分享 payload 限制封面数量、给出 +X 并隐藏空产地', () => {
+  const beans = Array.from({ length: 10 }, (_, index) => bean(`bean-${index}`, { name: `豆${index}`, origin: '' }));
+  const result = insights.coffeeCatalog([], beans, { now: new Date(2026, 6, 15) });
+  const payload = insights.buildCoffeeCatalogSharePayload(result.data, { coverLimit: 6 });
+  assert.equal(payload.style, 'catalog');
+  assert.equal(payload.covers.length, 6);
+  assert.equal(payload.remainingCovers, 4);
+  assert.deepEqual(payload.origins, []);
+  assert.equal(payload.originCount, 0);
+});
+
+test('咖啡图鉴 UI 具备首页 06 入口、二级路由、个人中心直达和分享 renderer', () => {
+  const appSource = fs.readFileSync(path.join(__dirname, '..', 'www', 'app.js'), 'utf8');
+  const insightsSource = fs.readFileSync(path.join(__dirname, '..', 'www', 'app-insights.js'), 'utf8');
+  const shareSource = fs.readFileSync(path.join(__dirname, '..', 'www', 'app-share-card.js'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '..', 'www', 'index.html'), 'utf8');
+  assert.match(insightsSource, /<span>06<\/span><div><h3>咖啡图鉴<\/h3>/);
+  assert.match(insightsSource, /if \(state\.insightsPage === 'catalog'\)[\s\S]*?state\.insightsPage = 'home'/);
+  assert.match(insightsSource, /openCatalog/);
+  assert.match(insightsSource, /data-insights-catalog-share/);
+  assert.match(shareSource, /catalog: renderCatalogShareCard/);
+  assert.match(appSource, /personalCatalogOpen/);
+  assert.match(appSource, /openInsightsFromPersonal/);
+  assert.match(html, /id="catalogPage"/);
+  assert.match(html, /class="insights-section-nav"/);
+  assert.match(html, /id="personalCatalogOpen"/);
+  assert.match(html, /id="personalReportsOpen"/);
+});

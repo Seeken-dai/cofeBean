@@ -15,6 +15,17 @@
   const HAND_BREW_MIN = 5;
   const HAND_BREW_BEAN_MIN = 3;
   const COFFEE_REPORT_MIN = 5;
+  const CATALOG_REQUIRED = 1;
+  const CATALOG_ORIGIN_MILESTONES = [1, 3, 5, 8, 12, 18, 25];
+  const CATALOG_CUP_MILESTONES = [10, 50, 100, 300, 500, 1000];
+  const CATALOG_STREAK_MILESTONES = [3, 7, 14, 30, 60];
+  const CATALOG_PROCESS_GROUPS = [
+    { key: 'washed', label: '水洗' },
+    { key: 'natural', label: '日晒' },
+    { key: 'honey', label: '蜜处理' },
+    { key: 'special', label: '厌氧与特殊处理' },
+    { key: 'other', label: '其他' }
+  ];
   const DIMENSION_LABELS = {
     aroma: '香气', acidity: '酸质', sweetness: '甜感', body: '醇厚',
     aftertaste: '余韵', balance: '平衡', bitterness: '苦感'
@@ -595,6 +606,152 @@
     };
   }
 
+  function catalogMilestone(value, levels) {
+    const current = Math.max(0, Number(value) || 0);
+    const milestones = Array.isArray(levels) ? levels : [];
+    const achieved = milestones.filter((level) => current >= level).pop() || null;
+    const next = milestones.find((level) => current < level) || null;
+    return { value: current, achieved, next, remaining: next == null ? null : next - current, complete: next == null };
+  }
+
+  function classifyCatalogProcess(value) {
+    const text = String(value == null ? '' : value).trim().toLocaleLowerCase('en-US');
+    if (/厌氧|无氧|anaerob|carbonic|二氧化碳|乳酸|lactic|发酵|ferment|特殊|special|实验|experimental|酵母|yeast|酒桶|barrel/.test(text)) return 'special';
+    if (/蜜处理|红蜜|黄蜜|黑蜜|白蜜|honey|pulped[ -]?natural|semi[ -]?washed|半水洗|湿刨|wet[ -]?hulled|giling/.test(text)) return 'honey';
+    if (/水洗|washed|wash process|fully[ -]?washed/.test(text)) return 'washed';
+    if (/日晒|natural|dry[ -]?process|dry process/.test(text)) return 'natural';
+    return 'other';
+  }
+
+  function firstBeanConsumedAt(logs, beanId, now) {
+    const rows = filterLogsByRange(logs, 'all', now).filter((log) => log && log.source !== 'external' && log.beanId === beanId);
+    if (!rows.length) return null;
+    return rows.map((log) => validDate(log.consumedAt)).filter(Boolean).sort((a, b) => a - b)[0].toISOString();
+  }
+
+  function catalogCover(bean, photoJournal) {
+    const candidates = [];
+    if (photoJournal && bean.bagCutoutImagePath) candidates.push({ type: 'cutout', path: bean.bagCutoutImagePath });
+    if (bean.bagImagePath) candidates.push({ type: 'bag', path: bean.bagImagePath });
+    return {
+      candidates,
+      placeholder: beanCore.beanPlaceholder(bean),
+      needsCutoutPrompt: Boolean(photoJournal && !bean.bagCutoutImagePath)
+    };
+  }
+
+  function coffeeCatalog(logs, beans, options) {
+    const opts = options || {};
+    const currentBeans = (Array.isArray(beans) ? beans : []).filter((bean) => bean && bean.id && !bean.deletedAt);
+    if (!currentBeans.length) return response(false, 'emptyBeans', null, { sampleSize: 0, required: CATALOG_REQUIRED });
+    const now = validDate(opts.now || new Date()) || new Date();
+    const validLogs = filterLogsByRange(logs, 'all', now);
+    const beanById = new Map(currentBeans.map((bean) => [bean.id, bean]));
+    const linkedLogs = validLogs.filter((log) => log.source !== 'external' && beanById.has(log.beanId));
+    const logsByBean = new Map();
+    linkedLogs.forEach((log) => {
+      if (!logsByBean.has(log.beanId)) logsByBean.set(log.beanId, []);
+      logsByBean.get(log.beanId).push(log);
+    });
+    const mode = opts.photoJournal ? 'journal' : 'standard';
+    const wall = currentBeans.map((bean, index) => {
+      const beanLogs = logsByBean.get(bean.id) || [];
+      const firstConsumedAt = firstBeanConsumedAt(validLogs, bean.id, now);
+      return {
+        id: bean.id,
+        name: String(bean.name || '未命名咖啡豆').trim() || '未命名咖啡豆',
+        origin: String(bean.origin || '').trim(),
+        process: String(bean.process || '').trim(),
+        roastLevel: String(bean.roastLevel || '').trim(),
+        cups: beanLogs.length,
+        lit: beanLogs.length > 0,
+        firstConsumedAt,
+        cover: catalogCover(bean, Boolean(opts.photoJournal)),
+        _index: index
+      };
+    }).sort((a, b) => Number(b.lit) - Number(a.lit)
+      || (a.firstConsumedAt && b.firstConsumedAt ? new Date(a.firstConsumedAt) - new Date(b.firstConsumedAt) : 0)
+      || a._index - b._index).map(({ _index, ...item }) => item);
+
+    const originMap = new Map();
+    currentBeans.forEach((bean, index) => {
+      const name = String(bean.origin || '').trim();
+      if (!name) return;
+      if (!originMap.has(name)) {
+        const firstBeanDate = validDate(bean.createdAt) || validDate(firstBeanConsumedAt(validLogs, bean.id, now));
+        originMap.set(name, { name, beanIds: new Set(), cups: 0, firstSeenAt: firstBeanDate ? firstBeanDate.toISOString() : null, _index: index });
+      }
+      const item = originMap.get(name);
+      const beanLogs = logsByBean.get(bean.id) || [];
+      if (beanLogs.length) item.beanIds.add(bean.id);
+      item.cups += beanLogs.length;
+    });
+    const origins = Array.from(originMap.values()).sort((a, b) => {
+      if (a.firstSeenAt && b.firstSeenAt) return new Date(a.firstSeenAt) - new Date(b.firstSeenAt) || a._index - b._index;
+      if (a.firstSeenAt) return -1;
+      if (b.firstSeenAt) return 1;
+      return a._index - b._index;
+    }).map((item) => ({ name: item.name, beanCount: item.beanIds.size, cups: item.cups, firstSeenAt: item.firstSeenAt }));
+
+    const processMap = new Map(CATALOG_PROCESS_GROUPS.map((group) => [group.key, { ...group, beanIds: new Set(), cups: 0, present: false }]));
+    currentBeans.forEach((bean) => {
+      const key = classifyCatalogProcess(bean.process);
+      const item = processMap.get(key);
+      item.present = true;
+      const beanLogs = logsByBean.get(bean.id) || [];
+      if (beanLogs.length) item.beanIds.add(bean.id);
+      item.cups += beanLogs.length;
+    });
+    const processes = CATALOG_PROCESS_GROUPS.map((group) => processMap.get(group.key))
+      .filter((item) => item.key !== 'other' || item.present)
+      .map((item) => ({ key: item.key, label: item.label, lit: item.cups > 0, beanCount: item.beanIds.size, cups: item.cups }));
+
+    const longestStreak = longestReportStreak(validLogs);
+    const data = {
+      mode,
+      summary: `已探索 ${origins.length} 个产地 · 点亮 ${wall.filter((item) => item.lit).length} 款豆`,
+      wall,
+      origins: { items: origins, milestone: catalogMilestone(origins.length, CATALOG_ORIGIN_MILESTONES) },
+      processes,
+      milestones: {
+        cups: catalogMilestone(validLogs.length, CATALOG_CUP_MILESTONES),
+        streak: catalogMilestone(longestStreak, CATALOG_STREAK_MILESTONES)
+      }
+    };
+    return response(true, null, data, { sampleSize: currentBeans.length, required: CATALOG_REQUIRED, excludedCount: Math.max(0, (Array.isArray(logs) ? logs.length : 0) - validLogs.length) });
+  }
+
+  function buildCoffeeCatalogSharePayload(catalog, options) {
+    if (!catalog) throw new Error('缺少咖啡图鉴');
+    const opts = options || {};
+    const limit = Math.max(1, Number(opts.coverLimit) || 8);
+    const covers = (catalog.wall || []).slice(0, limit).map((item) => ({
+      name: item.name,
+      origin: item.origin,
+      lit: item.lit,
+      candidates: item.cover && item.cover.candidates || [],
+      placeholder: item.cover && item.cover.placeholder || beanCore.beanPlaceholder(item)
+    }));
+    const originItems = catalog.origins && catalog.origins.items || [];
+    return {
+      type: 'coffeeCatalog',
+      style: 'catalog',
+      mode: catalog.mode === 'journal' ? 'journal' : 'standard',
+      eyebrow: '咖啡图鉴',
+      title: '一路喝过的咖啡',
+      subtitle: catalog.summary || '',
+      covers,
+      remainingCovers: Math.max(0, (catalog.wall || []).length - covers.length),
+      origins: originItems.slice(0, 8).map((item) => item.name),
+      originCount: originItems.length,
+      milestones: [
+        { label: '累计记录', value: `${catalog.milestones && catalog.milestones.cups ? catalog.milestones.cups.value : 0} 杯` },
+        { label: '最长连续', value: `${catalog.milestones && catalog.milestones.streak ? catalog.milestones.streak.value : 0} 天` }
+      ],
+      footer: '本地记录 · 私人豆仓'
+    };
+  }
+
   function monthlySpendSeries(logs, beans, now) {
     const current = validDate(now || new Date()) || new Date();
     const start = new Date(current.getFullYear(), current.getMonth() - 11, 1);
@@ -723,11 +880,13 @@
 
   return {
     MIN_SAMPLE, HAND_BREW_MIN, HAND_BREW_BEAN_MIN, COFFEE_REPORT_MIN, DIMENSION_LABELS, FLAVOR_LABELS,
+    CATALOG_REQUIRED, CATALOG_ORIGIN_MILESTONES, CATALOG_CUP_MILESTONES, CATALOG_STREAK_MILESTONES, CATALOG_PROCESS_GROUPS,
     filterLogsByRange, filterHandBrewLogs, groupStats,
     averageDimensions, flavorProfile, preferenceGap, timeBuckets, weekdayStats,
     handBrewSummary, handBrewHabits: handBrewSummary, handBrewBeanReview, beanHandBrewReview: handBrewBeanReview,
     formatHandBrewRatio, formatHandBrewDuration,
     estimateKnownCost, monthlySpendSeries, homeVsExternal, beanValueRanking, freshnessRatingGap,
-    availableCoffeeReports, coffeePeriodReport, coffeeReportReminders, buildCoffeeReportSharePayload
+    availableCoffeeReports, coffeePeriodReport, coffeeReportReminders, buildCoffeeReportSharePayload,
+    catalogMilestone, classifyCatalogProcess, firstBeanConsumedAt, coffeeCatalog, buildCoffeeCatalogSharePayload
   };
 });

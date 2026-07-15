@@ -288,7 +288,81 @@
       octx.drawImage(content, 0, 0);
       return out;
     }
-    const SHARE_CARD_RENDERERS = { receipt: renderReceiptShareCard, report: renderReportShareCard };
+
+    async function loadCatalogCover(item) {
+      const candidates = item && item.candidates || [];
+      for (let index = 0; index < candidates.length; index += 1) {
+        const img = await loadCanvasImage(candidates[index].path);
+        if (img) return { img, type: candidates[index].type || 'bag' };
+      }
+      return { img: null, type: 'placeholder' };
+    }
+
+    function drawCatalogPlaceholder(ctx, item, x, y, w, h, palette) {
+      const placeholder = item && item.placeholder || {};
+      const colors = { light: '#decaa7', 'medium-light': '#c9a979', medium: '#aa7950', 'medium-dark': '#76503d', dark: '#46342f', neutral: '#b8aa98' };
+      ctx.fillStyle = colors[placeholder.roastKey] || colors.neutral;
+      ctx.fillRect(x, y, w, h);
+      setCanvasFont(ctx, Math.round(Math.min(w, h) * .34), 800, true);
+      ctx.fillStyle = '#fff8ec';
+      const glyph = String(placeholder.glyph || (item.name || '豆').trim().charAt(0) || '豆');
+      ctx.fillText(glyph, x + (w - ctx.measureText(glyph).width) / 2, y + h * .61);
+    }
+
+    async function drawCatalogWall(ctx, payload, palette, x, y, w) {
+      const items = payload.covers || [];
+      if (!items.length) return y;
+      setCanvasFont(ctx, 24, 750, false); ctx.fillStyle = palette.muted; ctx.fillText(payload.mode === 'journal' ? '贴纸收集册' : '豆款收集墙', x, y); y += 42;
+      const cols = 4; const gap = 16; const cardW = (w - gap * (cols - 1)) / cols; const imageH = 190; const cardH = 258;
+      const loaded = await Promise.all(items.map(loadCatalogCover));
+      items.forEach((item, index) => {
+        const col = index % cols; const row = Math.floor(index / cols); const px = x + col * (cardW + gap); const py = y + row * (cardH + gap); const cover = loaded[index];
+        ctx.save();
+        if (payload.mode === 'journal') { const tilt = (index % 2 ? 1 : -1) * .012; ctx.translate(px + cardW / 2, py + cardH / 2); ctx.rotate(tilt); ctx.translate(-(px + cardW / 2), -(py + cardH / 2)); }
+        fillRound(ctx, px, py, cardW, cardH, 18, item.lit ? palette.surface : palette.paper, palette.border);
+        ctx.save(); roundRect(ctx, px + 9, py + 9, cardW - 18, imageH, 13); ctx.clip();
+        if (cover.img) {
+          if (cover.type === 'cutout') {
+            ctx.fillStyle = palette.cutout; ctx.fillRect(px + 9, py + 9, cardW - 18, imageH);
+            const scale = Math.min((cardW - 28) / cover.img.width, (imageH - 18) / cover.img.height); const iw = cover.img.width * scale; const ih = cover.img.height * scale;
+            ctx.drawImage(cover.img, px + (cardW - iw) / 2, py + 9 + (imageH - ih) / 2, iw, ih);
+          } else drawCoverImage(ctx, cover.img, px + 9, py + 9, cardW - 18, imageH);
+        } else drawCatalogPlaceholder(ctx, item, px + 9, py + 9, cardW - 18, imageH, palette);
+        ctx.restore();
+        if (!item.lit) { ctx.fillStyle = 'rgba(244,234,220,.52)'; ctx.fillRect(px + 9, py + 9, cardW - 18, imageH); }
+        setCanvasFont(ctx, 22, 800, true); ctx.fillStyle = item.lit ? palette.ink : palette.muted; ctx.fillText(clipCanvasText(ctx, item.name, cardW - 28), px + 14, py + 226);
+        setCanvasFont(ctx, 17, 600, false); ctx.fillStyle = palette.muted; ctx.fillText(clipCanvasText(ctx, item.origin || '产地未记录', cardW - 28), px + 14, py + 249);
+        ctx.restore();
+      });
+      const rows = Math.ceil(items.length / cols); y += rows * (cardH + gap) + 18;
+      if (payload.remainingCovers) { setCanvasFont(ctx, 25, 800, false); ctx.fillStyle = palette.accent; ctx.fillText(`还有 +${payload.remainingCovers} 款收藏`, x, y); y += 42; }
+      return y;
+    }
+
+    async function renderCatalogShareCard(payload) {
+      const palette = { bg: '#1a1412', paper: '#f4eadc', surface: '#eadcc8', ink: '#251811', muted: '#806b59', accent: '#b7783d', border: '#d9c6ac', line: '#d5b58e', cutout: '#dfcfb9' };
+      const width = 1080; const maxHeight = 3600; const content = document.createElement('canvas'); content.width = width; content.height = maxHeight; const ctx = content.getContext('2d');
+      const x = 96; const w = width - x * 2; let y = 140;
+      setCanvasFont(ctx, 28, 800, false); ctx.fillStyle = palette.accent; ctx.fillText('豆仓 COFFEE VAULT', x, y); y += 66;
+      setCanvasFont(ctx, 25, 800, false); ctx.fillStyle = palette.muted; ctx.fillText('咖啡图鉴 · COFFEE ATLAS', x, y); y += 72;
+      setCanvasFont(ctx, 62, 850, true); ctx.fillStyle = palette.ink; ctx.fillText(payload.title || '一路喝过的咖啡', x, y); y += 52;
+      setCanvasFont(ctx, 27, 600, false); ctx.fillStyle = palette.muted; y = drawCanvasTextBlock(ctx, payload.subtitle || '', x, y, w, 38, 2) + 34;
+      drawReceiptDivider(ctx, palette, x, y, w); y += 48;
+      y = await drawCatalogWall(ctx, payload, palette, x, y, w);
+      if (payload.origins && payload.origins.length) y = drawReportChips(ctx, `探索过的产地 · ${payload.originCount} 个`, payload.origins, palette, x, y, w);
+      if (payload.milestones && payload.milestones.length) {
+        const gap = 16; const cardW = (w - gap) / 2; const h = 116;
+        payload.milestones.forEach((item, index) => { const px = x + index * (cardW + gap); fillRound(ctx, px, y, cardW, h, 20, palette.surface, palette.border); setCanvasFont(ctx, 20, 700, false); ctx.fillStyle = palette.muted; ctx.fillText(item.label, px + 22, y + 36); setCanvasFont(ctx, 40, 850, true); ctx.fillStyle = palette.accent; ctx.fillText(item.value, px + 22, y + 88); });
+        y += h + 38;
+      }
+      drawReceiptDivider(ctx, palette, x, y, w); y += 52; setCanvasFont(ctx, 24, 800, false); ctx.fillStyle = palette.accent; ctx.fillText(payload.footer || '本地记录 · 私人豆仓', x, y);
+      const cardHeight = Math.min(Math.max(Math.round(y + 116), 760), maxHeight); const out = document.createElement('canvas'); out.width = width; out.height = cardHeight; const octx = out.getContext('2d');
+      octx.fillStyle = palette.bg; octx.fillRect(0, 0, width, cardHeight); fillRound(octx, 54, 54, width - 108, cardHeight - 108, 42, palette.paper, '#6f4d33');
+      for (let dy = 170; dy <= cardHeight - 150; dy += 190) { octx.fillStyle = palette.bg; octx.beginPath(); octx.arc(54, dy, 16, 0, Math.PI * 2); octx.arc(width - 54, dy, 16, 0, Math.PI * 2); octx.fill(); }
+      octx.drawImage(content, 0, 0); return out;
+    }
+
+    const SHARE_CARD_RENDERERS = { receipt: renderReceiptShareCard, report: renderReportShareCard, catalog: renderCatalogShareCard };
     async function renderShareCard(payload, style) { const renderer = SHARE_CARD_RENDERERS[style || payload.style] || SHARE_CARD_RENDERERS.receipt; return renderer({ ...payload, style: style || payload.style || 'receipt' }); }
 
     // clipCanvasText / wrapCanvasLines 一并导出,供 Node 测试用假 ctx 验证换行/截断逻辑。

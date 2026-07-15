@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#1a1412">
   <meta name="color-scheme" content="dark light">
   <title>豆仓</title>
-  <link rel="stylesheet" href="styles.css?v=2.3.9">
+  <link rel="stylesheet" href="styles.css?v=2.3.10">
   <style>
     #aboutDialog .about-actions { display:flex; align-items:center; justify-content:center; gap:8px; color:var(--faint); font-size:12px; }
     #aboutDialog .about-actions .text-link-button { width:auto; min-width:0; min-height:0; padding:2px; border:0; border-radius:0; background:transparent; box-shadow:none; color:var(--accent); font:700 12px/1 inherit; text-decoration:underline; text-underline-offset:4px; }
@@ -119,18 +119,30 @@
   <dialog class="sheet compact personal-sheet" id="personalDialog">
     <header class="sheet-header"><div><p class="eyebrow">PERSONAL BREW</p><h2>个人中心</h2><p class="sheet-subtitle">你的咖啡日常和常用设置</p></div><button class="icon-button" id="personalClose" type="button" aria-label="关闭">×</button></header>
     <section class="personal-body">
-      <button class="calendar-entry-card" id="coffeeCalendarOpen" type="button">
-        <div class="calendar-entry-copy"><span>咖啡日历</span><small>查看哪些天喝了咖啡、用了多少豆、花了多少钱</small></div>
-        <div class="mini-heatmap" id="profileHeatmap" aria-hidden="true"></div>
-        <div class="calendar-entry-stats" id="profileCalendarStats">本月 0 杯 · 0g · ¥0</div>
-      </button>
-      <div class="personal-actions">
-        <button class="settings-action" id="personalInsightsOpen" type="button"><span><b>回顾</b><small>回看你的口味、习惯和值得再喝的豆子</small></span><strong>›</strong></button>
-        <button class="settings-action" id="personalSettingsOpen" type="button"><span><b>设置</b><small>饮用偏好、价格单位、主题和评价维度</small></span><strong>›</strong></button>
-        <button class="settings-action" id="personalSyncOpen" type="button"><span><b>云同步</b><small>登录账号、开启同步和管理云端数据</small></span><strong>›</strong></button>
-        <button class="settings-action" id="dataBackupOpen" type="button"><span><b>数据备份</b><small>按范围导出或导入本机数据</small></span><strong>›</strong></button>
+      <section class="personal-section personal-life-section">
+        <h3>咖啡生活</h3>
+        <button class="calendar-entry-card" id="coffeeCalendarOpen" type="button">
+          <div class="calendar-entry-copy"><span>咖啡日历</span><small>查看哪些天喝了咖啡、用了多少豆、花了多少钱</small></div>
+          <div class="mini-heatmap" id="profileHeatmap" aria-hidden="true"></div>
+          <div class="calendar-entry-stats" id="profileCalendarStats">本月 0 杯 · 0g · ¥0</div>
+        </button>
+        <div class="personal-insights-card">
+          <button class="personal-insights-main" id="personalInsightsOpen" type="button"><span><b>回顾</b><small>回看你的口味、习惯和值得再喝的豆子</small></span><strong>›</strong></button>
+          <nav class="personal-insights-links" aria-label="回顾直达入口">
+            <button id="personalCatalogOpen" type="button">咖啡图鉴</button>
+            <button id="personalReportsOpen" type="button">月报 · 年报</button>
+          </nav>
+        </div>
+      </section>
+      <section class="personal-section personal-tools-section">
+        <h3>数据与应用</h3>
+        <div class="personal-actions compact-actions">
+          <button class="settings-action" id="personalSettingsOpen" type="button"><span><b>设置</b><small>饮用偏好、价格单位与主题</small></span><strong>›</strong></button>
+          <button class="settings-action" id="personalSyncOpen" type="button"><span><b>云同步</b><small>账号与云端数据</small></span><strong>›</strong></button>
+          <button class="settings-action" id="dataBackupOpen" type="button"><span><b>数据备份</b><small>导出或导入本机数据</small></span><strong>›</strong></button>
+        </div>
         <input id="webImportInput" type="file" accept="application/json,.json" hidden>
-      </div>
+      </section>
       <button class="about-link-bottom" id="aboutOpen" type="button"><span>关于豆仓</span><strong>›</strong></button>
     </section>
   </dialog>
@@ -203,6 +215,9 @@
         <button data-insights-range="all" type="button">全部</button>
       </nav>
       <p class="insights-range-note">用于口味与偏好、饮用习惯、自家与外饮、赏味期和日常好豆；咖啡开销单独统计近 12 个月。</p>
+      <nav class="insights-section-nav" aria-label="回顾章节">
+        <button data-insights-anchor="taste" type="button">口味</button><button data-insights-anchor="habits" type="button">习惯</button><button data-insights-anchor="spend" type="button">花费</button><button data-insights-anchor="brew" type="button">冲煮</button><button data-insights-anchor="reports" type="button">报告</button><button data-insights-catalog type="button">图鉴</button>
+      </nav>
       <div id="insightsContent" aria-live="polite"></div>
     </section>
     <section class="insights-body" id="brewReviewPage" hidden>
@@ -210,6 +225,9 @@
     </section>
     <section class="insights-body" id="reportReviewPage" hidden>
       <div id="reportReviewContent" aria-live="polite"></div>
+    </section>
+    <section class="insights-body" id="catalogPage" hidden>
+      <div id="catalogContent" aria-live="polite"></div>
     </section>
   </dialog>
 
@@ -609,7 +627,7 @@
 
   <dialog class="sheet compact" id="aboutDialog">
     <header class="sheet-header"><div><p class="eyebrow">ABOUT</p><h2>关于豆仓</h2></div><button class="icon-button" id="aboutClose" type="button" aria-label="关闭">×</button></header>
-    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 2.3.9</p></section>
+    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 2.3.10</p></section>
     <section class="about-update" aria-live="polite">
       <div class="about-actions"><button class="text-link-button" id="aboutCheckUpdate" type="button">检查更新</button><span aria-hidden="true">·</span><button class="text-link-button" id="aboutOpenReleases" type="button">查看发布页</button></div>
       <div class="update-status" id="updateStatus" hidden></div>
@@ -618,8 +636,8 @@
     <section class="about-copy">
       <h3>收藏咖啡，也收藏与咖啡相处的时间。</h3>
       <p>豆仓是一款为咖啡爱好者设计的本地优先记录工具。你可以保存每一包咖啡豆的产地、风味与价格，记录每次饮用和冲煮方案，让日常里喝过的咖啡慢慢有迹可循。</p>
-      <h4>2.3.9 最新功能</h4>
-      <ul><li>修复咖啡袋、标签和饮用照片无法保存到手机相册的问题</li><li>长按桌面图标可快速进入“记录冲煮”或“记录外饮”</li><li>外饮饮品名称支持同店历史联想，最近喝过的内容更快回填</li></ul>
+      <h4>2.3.10 最新功能</h4>
+      <ul><li>新增咖啡图鉴：收藏墙、产地足迹、处理法收集与记录里程碑</li><li>照片手账开启时使用贴纸收集册，关闭时使用标准收集墙</li><li>回顾新增章节直达，个人中心按咖啡生活与数据工具重新分区</li><li>咖啡图鉴支持生成离线分享长图</li></ul>
       <div class="privacy-note"><b>离线与隐私</b><p>豆仓默认完全离线使用，数据保存在你的设备中。云同步为可选功能，仅在登录并开启后使用。</p><p>检查更新仅在你主动点击时联网，不会影响本地记录使用。</p></div>
     </section>
   </dialog>
