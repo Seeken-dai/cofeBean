@@ -8,8 +8,9 @@
   const RANGE_LABELS = { '30d': '近30天', '90d': '近90天', thisYear: '今年', all: '全部' };
   const PREFERENCE_LABELS = { origin: '产地', process: '处理法', roastLevel: '烘焙度' };
   const FLAVOR_CLASSES = {
-    ferment: 'wine', berry: 'berry', citrus: 'citrus', floral: 'floral', tea: 'tea',
-    nutty: 'nutty', caramel: 'caramel', fruit: 'fruit', other: 'other'
+    ferment: 'wine', berry: 'berry', sour: 'sour', citrus: 'citrus', floral: 'floral', tea: 'tea', spice: 'spice',
+    green: 'green', papery: 'papery', chemical: 'chemical', roasted: 'roasted', nutty: 'nutty', dairy: 'dairy',
+    caramel: 'caramel', fruit: 'fruit', other: 'other'
   };
   const HELP_CONTENT = {
     dimensions: { title: '口味感受怎么统计', body: '只统计所选时间内已填写的高级评价。每个维度至少有 3 次评分才计算平均，至少凑齐 3 个维度后显示雷达图。' },
@@ -75,7 +76,9 @@
       return `<line x1="${cx}" y1="${cy}" x2="${point.x.toFixed(1)}" y2="${point.y.toFixed(1)}"></line>`;
     }).join('');
     const dataPoints = values.map((axis, index) => {
-      const point = polarPoint(cx, cy, radius * Math.max(0, Math.min(5, Number(axis.value))) / 5, index, values.length);
+      const raw = Math.max(0, Math.min(5, Number(axis.value)));
+      const plotted = axis.key === 'bitterness' ? 6 - Math.max(1, raw) : raw;
+      const point = polarPoint(cx, cy, radius * plotted / 5, index, values.length);
       return point;
     });
     const labels = values.map((axis, index) => {

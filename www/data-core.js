@@ -851,7 +851,7 @@
       exportScope,
       exportedAt: exportedAt || new Date().toISOString(),
       app: '豆仓',
-      appVersion: '2.3.6'
+      appVersion: '2.3.7'
     };
     if (exportScope === 'all' || exportScope === 'library') {
       payload.beans = (beans || []).map((bean) => normalizeBean(bean, bean.updatedAt));
@@ -1249,14 +1249,21 @@
   // 风味笔记 → 彩色风味标签（纯逻辑，可测试）。按分隔符/空白拆词，再按风味轮关键词归类配色。
   // 顺序即优先级：更具体的类别在前，避免通用词（如「花」「果」）误抢更精确的归类。
   const FLAVOR_LEXICON = [
-    ['ferment', ['酒', '发酵', '厌氧', '威士忌', '朗姆', '白兰地', '红酒']],
+    ['dairy', ['酸奶', '优格', '乳酸', '奶酪', '芝士', '牛奶', '鲜奶', '奶香', '乳脂', '奶油']],
+    ['ferment', ['葡萄酒感', '酒香', '酒感', '发酵', '厌氧', '威士忌', '朗姆', '白兰地', '红酒', '过熟', '酒']],
     ['berry', ['莓', '浆果', '加仑', '覆盆']],
+    ['sour', ['酸香', '乙酸', '醋酸', '丁酸', '异戊酸', '柠檬酸', '苹果酸']],
     ['citrus', ['柠檬', '柑', '橘', '橙', '柚', '青柠', '佛手']],
     ['floral', ['花', '茉莉', '玫瑰', '桂花', '薰衣草', '甘菊', '接骨木']],
-    ['tea', ['茶', '乌龙', '伯爵', '草本', '香料', '肉桂', '丁香', '豆蔻', '木质', '雪松', '烟草']],
+    ['tea', ['红茶', '乌龙', '伯爵', '茶']],
+    ['spice', ['棕色香料', '辛冲', '胡椒', '茴香', '肉豆蔻', '肉桂', '丁香', '豆蔻', '香料']],
+    ['green', ['橄榄油', '生青', '未加工', '未成熟', '豌豆荚', '深绿色蔬菜', '植物感', '草本感', '草本', '干草感', '干草', '豆腥', '豆类感']],
+    ['papery', ['陈旧', '纸板', '纸质', '木质', '雪松', '霉湿', '霉尘', '霉土', '霉味', '潮湿', '尘土', '土味', '动物性', '肉汤感', '肉汤', '酚味']],
+    ['chemical', ['药味', '石油味', '石油', '臭鼬味', '臭鼬', '橡胶味', '橡胶', '咸味', '咸', '苦味', '苦']],
+    ['roasted', ['烟斗烟草', '烟草', '刺鼻焦味', '灰烬味', '灰烬', '烟熏味', '烟熏', '深烘焦香', '焦糊', '谷物', '麦芽']],
     ['nutty', ['坚果', '榛', '杏仁', '花生', '核桃', '腰果', '巧克力', '可可']],
-    ['caramel', ['焦糖', '红糖', '蜂蜜', '枫糖', '太妃', '奶油', '香草', '麦芽']],
-    ['fruit', ['桃', '杏', '李', '芒果', '菠萝', '凤梨', '百香果', '荔枝', '瓜', '葡萄', '苹果', '梨', '樱桃', '果']]
+    ['caramel', ['焦糖化', '焦糖', '枫糖浆', '糖蜜', '红糖', '棕糖', '蜂蜜', '枫糖', '太妃', '香兰素', '香草', '甜香']],
+    ['fruit', ['葡萄干', '西梅干', '果干', '椰子', '石榴', '桃', '杏', '李', '芒果', '菠萝', '凤梨', '百香果', '荔枝', '瓜', '葡萄', '苹果', '梨', '樱桃', '果']]
   ];
   function classifyFlavor(term) {
     for (let i = 0; i < FLAVOR_LEXICON.length; i += 1) {
@@ -1349,6 +1356,29 @@
     if (createdDiff) return createdDiff;
     return cleanText(a && a.id).localeCompare(cleanText(b && b.id));
   }
+  function fuzzyTextRank(value, query) {
+    const candidate = cleanText(value, 120).toLocaleLowerCase('zh-CN').replace(/\s+/g, '');
+    const wanted = cleanText(query, 120).toLocaleLowerCase('zh-CN').replace(/\s+/g, '');
+    if (!candidate) return null;
+    if (!wanted) return 0;
+    if (candidate === wanted) return 0;
+    if (candidate.startsWith(wanted)) return 1;
+    if (candidate.includes(wanted)) return 2;
+    let cursor = 0;
+    for (let i = 0; i < candidate.length && cursor < wanted.length; i += 1) {
+      if (candidate[i] === wanted[cursor]) cursor += 1;
+    }
+    return cursor === wanted.length ? 3 : null;
+  }
+  function recentCafeNames(logs, query, limit) {
+    const seen = new Set();
+    const recent = (Array.isArray(logs) ? logs : []).filter((log) => log && !log.deletedAt && log.source === 'external' && cleanText(log.cafeName, 120))
+      .slice().sort((a, b) => compareDrinkChronology(b, a)).map((log, recentIndex) => ({ name: cleanText(log.cafeName, 120), recentIndex }))
+      .filter((item) => { const key = item.name.toLocaleLowerCase('zh-CN'); if (seen.has(key)) return false; seen.add(key); return true; })
+      .map((item) => ({ ...item, rank: fuzzyTextRank(item.name, query) })).filter((item) => item.rank != null)
+      .sort((a, b) => a.rank - b.rank || a.recentIndex - b.recentIndex);
+    return recent.slice(0, Math.max(1, Number(limit) || 4)).map((item) => item.name);
+  }
   function previousComparableDrink(logs, current) {
     if (!current || !current.beanId) return null;
     if (!Number.isFinite(new Date(current.consumedAt).getTime())) return null;
@@ -1359,5 +1389,5 @@
     }).sort((a, b) => compareDrinkChronology(b, a))[0] || null;
   }
 
-  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, hasTastingContent, resolveTastingStatus, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, selectHomeReminder, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, buildAiPlanPrompt, parseAiPlanJson, prepareBrewAssistSteps, brewAssistStatus, resolveOpenedDate, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareAppVersions, isAppVersionNewer, selectReleaseApkAsset, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, FLAVOR_LEXICON, flavorTags, beanFreshness, recentDrinkSeries, compareDrinkChronology, previousComparableDrink, beanProcessKind };
+  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, hasTastingContent, resolveTastingStatus, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, selectHomeReminder, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, buildAiPlanPrompt, parseAiPlanJson, prepareBrewAssistSteps, brewAssistStatus, resolveOpenedDate, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareAppVersions, isAppVersionNewer, selectReleaseApkAsset, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, FLAVOR_LEXICON, flavorTags, beanFreshness, recentDrinkSeries, compareDrinkChronology, recentCafeNames, previousComparableDrink, beanProcessKind };
 });

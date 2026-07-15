@@ -186,6 +186,28 @@ test('回顾 SVG 输出包含可访问说明并转义标签', () => {
   assert.doesNotMatch(radar, /<香气>/);
 });
 
+test('回顾雷达图将苦感反向绘制但保留原始分值文案', () => {
+  const radar = appInsights.buildRadar([
+    { key: 'bitterness', label: '苦感', value: 5 },
+    { key: 'aroma', label: '香气', value: 4 },
+    { key: 'sweetness', label: '甜感', value: 3 }
+  ]);
+  assert.match(radar, /<polygon class="radar-shape" points="150\.0,107\.6/);
+  assert.match(radar, /苦感5分/);
+});
+
+test('乳脂奶香风味可进入回顾统计', () => {
+  const rows = [
+    log('dairy-1', atLocal(2026, 7, 1), { notes: '酸奶、柑橘' }),
+    log('dairy-2', atLocal(2026, 7, 2), { notes: '牛奶、焦糖' }),
+    log('dairy-3', atLocal(2026, 7, 3), { notes: '酸奶、牛奶巧克力' })
+  ];
+  const result = insights.flavorProfile(rows);
+  assert.equal(result.ok, true);
+  assert.equal(result.data.categories.find((item) => item.category === 'dairy').label, '乳脂奶香');
+  assert.equal(result.data.tags.some((item) => item.label === '酸奶'), true);
+});
+
 test('回顾的每类统计都提供口径说明按钮', () => {
   const keys = ['dimensions', 'flavor', 'preference', 'time', 'weekday', 'spend', 'source', 'freshness', 'value', 'handBrew', 'report'];
   assert.deepEqual(Object.keys(appInsights.HELP_CONTENT), keys);

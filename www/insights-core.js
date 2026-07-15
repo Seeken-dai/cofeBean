@@ -20,8 +20,9 @@
     aftertaste: '余韵', balance: '平衡', bitterness: '苦感'
   };
   const FLAVOR_LABELS = {
-    ferment: '发酵酒香', berry: '莓果', citrus: '柑橘', floral: '花香',
-    tea: '茶与香料', nutty: '坚果可可', caramel: '焦糖甜香', fruit: '其他水果', other: '其他'
+    ferment: '发酵酒香', berry: '莓果', sour: '酸味', citrus: '柑橘', floral: '花香',
+    tea: '茶香', spice: '香料', green: '青植', papery: '纸霉木质', chemical: '化学与缺陷', roasted: '烘烤',
+    nutty: '坚果可可', dairy: '乳脂奶香', caramel: '焦糖甜香', fruit: '其他水果', other: '其他'
   };
   const TIME_BUCKETS = [
     { key: 'dawn', label: '凌晨', hint: '0–5时', start: 0, end: 6 },

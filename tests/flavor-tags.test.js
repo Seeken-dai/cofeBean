@@ -29,6 +29,20 @@ test('flavorTags 归类命中风味轮', () => {
   assert.equal(cat('红酒发酵感'), 'ferment');
 });
 
+test('flavorTags 覆盖风味轮补充分类与乳脂奶香', () => {
+  const cat = (s) => core.flavorTags(s)[0].category;
+  assert.equal(cat('酸奶'), 'dairy');
+  assert.equal(cat('牛奶巧克力'), 'dairy');
+  assert.equal(cat('柠檬酸'), 'sour');
+  assert.equal(cat('豌豆荚'), 'green');
+  assert.equal(cat('纸板'), 'papery');
+  assert.equal(cat('橡胶味'), 'chemical');
+  assert.equal(cat('烟熏味'), 'roasted');
+  assert.equal(cat('肉豆蔻'), 'spice');
+  assert.equal(cat('糖蜜'), 'caramel');
+  assert.equal(cat('椰子'), 'fruit');
+});
+
 test('flavorTags 未知词归类 other', () => {
   assert.equal(core.flavorTags('矿物感')[0].category, 'other');
   assert.equal(core.flavorTags('圆润平衡')[0].category, 'other');
