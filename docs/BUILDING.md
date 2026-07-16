@@ -59,7 +59,7 @@ Set-Location android
 
 数据库当前 `PRAGMA user_version = 11`。以后改变表结构时，在 `www/repository.js` 中增加顺序迁移，禁止删除数据库或清空旧表。（本地 SQLite 迁移与云端 D1 迁移是两回事，后者见 `RELEASING.md`。）
 
-2.3.13 正式包从 `main` 发布提交构建（`clean assembleRelease`），版本 `versionName=2.3.13`、`versionCode=71`；本版为咖啡图鉴体验增强（收集墙照片炸开散落、外饮多图封面错峰轮播、≤3 格单行、去掉返回箭头并修正个人中心返回路径），不修改 SQLite、备份或同步 schema，未新增 Android 权限。正式产物为 `dist/coffee-vault-2.3.13-release.apk`（构建后补记 aapt2/apksigner/APK SHA-256）。
+2.3.13 正式包从 `main` 发布提交构建（`cap sync` + `assembleRelease`），已用 `aapt2 dump badging` 核对 `versionName=2.3.13`、`versionCode=71`；`aapt2 dump permissions` 与 2.3.12 逐项一致，仍为 `CAMERA`、`INTERNET`、既有 Haptics 引入的 `VIBRATE` 及 Android 自动生成的应用内接收器权限，未新增权限。`apksigner verify --print-certs` 核对证书 SHA-256 为 `aab5e3d3bd224b98f885945ecd868d54a99e2c96bf099a0c9e6ee59ca02151ae`，与既有正式版一致，可覆盖升级并保留数据库。本版为咖啡图鉴体验增强（收集墙照片炸开散落、外饮多图封面错峰轮播、≤3 格单行、去掉返回箭头并修正个人中心返回路径），交互已在 Web 预览验收；不修改 SQLite、备份或同步 schema。正式产物为 `dist/coffee-vault-2.3.13-release.apk`，APK SHA-256 为 `976b6b1445ef147fbc562b63a5232b8a5125e90fc3d5a621cf548d0adadd7c14`。
 
 2.3.12 正式包从 `main` 发布提交构建（`clean assembleRelease`），已用 `aapt2 dump badging` 核对 `versionName=2.3.12`、`versionCode=70`；`aapt2 dump permissions` 与 2.3.11 逐项一致，仍为 `CAMERA`、`INTERNET`、既有 Haptics 引入的 `VIBRATE` 及 Android 自动生成的应用内接收器权限，未新增权限。`apksigner verify --print-certs` 核对证书 SHA-256 为 `aab5e3d3bd224b98f885945ecd868d54a99e2c96bf099a0c9e6ee59ca02151ae`，与既有正式版一致，可覆盖升级并保留数据库。本版拆分咖啡图鉴的自家冲煮与外饮两栏、新增外饮地点联想，并修复记一杯弹窗自动关闭与编辑页未保存图片被覆盖两个问题；不修改 SQLite、备份或同步 schema。正式产物为 `dist/coffee-vault-2.3.12-release.apk`，APK SHA-256 为 `8ec4686e8517d642c890770a53226a05555a35fae3a830cf0a7f5976170738e2`。
 
