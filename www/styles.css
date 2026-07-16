@@ -487,9 +487,6 @@ html.number-picker-open { overflow:hidden; }
 .insights-sheet .sheet-header h2 { font-size:31px; }
 .insights-header-lead { display:flex; flex:1 1 auto; align-items:center; gap:6px; min-width:0; }
 .insights-header-lead > div { min-width:0; }
-.insights-back-button { display:grid; flex:0 0 44px; place-items:center; width:44px; min-width:44px; min-height:44px; margin-left:-8px; padding:0; border:0; background:transparent; color:var(--accent); }
-.insights-back-button svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
-.insights-back-button:active { transform:translateX(-1px); color:var(--text); }
 .insights-body { padding:14px 16px calc(28px + env(safe-area-inset-bottom,0px)); }
 .insights-range-label { margin:0 3px 7px; color:var(--muted); font-size:10px; font-weight:750; letter-spacing:.06em; }
 .insights-range { display:grid; grid-template-columns:repeat(4,1fr); gap:5px; margin-bottom:7px; padding:4px; border:1px solid color-mix(in srgb,var(--border) 76%,transparent); border-radius:15px; background:var(--surface-2); }
@@ -722,6 +719,35 @@ html.number-picker-open { overflow:hidden; }
 .catalog-wall.is-journal .catalog-bean.is-unlit::before { opacity:.45; }
 .catalog-wall.is-journal .catalog-bean.is-unlit::after { opacity:0; }
 .catalog-bean.is-unlit .catalog-cover img { opacity:.46; }
+/* 一行装得下就不硬掰成两行，否则 2 款豆会被排成上下两格的竖排 */
+.catalog-wall.is-single-row { grid-template-rows:auto; justify-content:start; }
+/* 有饮用照片的格子才可点：给一点按下反馈 */
+.catalog-bean[data-catalog-burst] { cursor:pointer; transition:transform var(--ease); }
+.catalog-bean[data-catalog-burst]:active { transform:scale(.96); }
+.catalog-wall.is-journal .catalog-bean[data-catalog-burst]:active { transform:rotate(var(--photo-tilt,1deg)) scale(.96); }
+/* 外饮封面轮播：两层图片交叉滑动，同店铺的照片轮着露脸 */
+/* 手账墙 .catalog-cover 是 overflow:visible（specificity 更高），轮播必须用同级+属性选择器压回去，否则第二张会露在格子外 */
+.catalog-cover[data-catalog-rotator],
+.catalog-wall.is-journal .catalog-cover[data-catalog-rotator] { overflow:hidden; border-radius:4px; }
+.catalog-cover img.is-current,.catalog-cover img.is-incoming { transition:transform .42s var(--ease); will-change:transform; }
+.catalog-cover img.is-current { z-index:1; transform:translateX(0); }
+.catalog-cover img.is-incoming { z-index:2; transform:translateX(100%); }
+/* 还没装图的 incoming 层彻底藏起，避免空 src 破图露边 */
+.catalog-cover img.is-incoming:not([src]),
+.catalog-cover img.is-incoming[src=""] { visibility:hidden; opacity:0; }
+/* 炸开期间禁止 sheet 滚动：蒙版/照片与内容会脱节，必须锁死 */
+.insights-sheet.is-catalog-burst-open { overflow:hidden !important; overscroll-behavior:none; }
+/* 炸开层：不用 fixed（transform+可滚动 sheet 下覆盖不全），由 JS 按 scrollTop 铺满当前可视区 */
+.catalog-burst { position:absolute; left:0; width:100%; z-index:20; touch-action:none; overscroll-behavior:none; pointer-events:auto; }
+.catalog-burst-scrim { position:absolute; inset:0; background:color-mix(in srgb,var(--bg) 78%,transparent); opacity:0; transition:opacity .22s var(--ease); backdrop-filter:blur(7px); }
+.catalog-burst.is-open .catalog-burst-scrim { opacity:1; }
+.catalog-burst-photo { position:absolute; top:0; left:0; z-index:1; padding:6px 6px 12px; border-radius:5px; background:var(--photo-frame-bg); box-shadow:0 10px 26px rgb(0 0 0 / .34); object-fit:cover; opacity:0; cursor:pointer; touch-action:manipulation; transition:transform .36s var(--ease-spring),opacity .2s var(--ease); }
+.catalog-burst.is-open .catalog-burst-photo { opacity:1; }
+.catalog-burst-photo:active { filter:brightness(1.08); }
+@media (prefers-reduced-motion:reduce) {
+  .catalog-burst-photo { transition:opacity .16s linear; }
+  .catalog-cover img.is-current,.catalog-cover img.is-incoming { transition:none; }
+}
 .catalog-progress-copy { margin:-2px 1px 11px; color:var(--muted); font-size:9px; }
 /* 产地足迹：收集到的邮票格 */
 .catalog-stamp-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(92px,1fr)); gap:9px; }
@@ -832,7 +858,6 @@ html.number-picker-open { overflow:hidden; }
   .insights-sheet .sheet-header { gap:8px; padding-inline:16px; }
   .insights-sheet .sheet-header h2 { font-size:28px; }
   .insights-header-lead { gap:4px; }
-  .insights-back-button { margin-left:-4px; }
   .insights-range button { font-size:10px; }
   .insight-opening { grid-template-columns:1fr; }
   .insight-opening-stamp { grid-template-columns:auto auto auto; justify-content:start; gap:6px; width:100%; transform:none; }

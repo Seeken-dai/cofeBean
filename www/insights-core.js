@@ -23,6 +23,10 @@
   const CATALOG_PLACE_MILESTONES = [1, 3, 5, 8, 12, 18, 25];
   const CATALOG_EXTERNAL_CUP_MILESTONES = [5, 20, 50, 100, 200, 500];
   const CATALOG_UNNAMED_CAFE = '未记名咖啡馆';
+  // 收集墙一屏放得下 3 格(grid-auto-columns:29%)，不超过就排单行，超过才回到两行横向滚动。
+  const CATALOG_WALL_SINGLE_ROW_MAX = 3;
+  // 单格最多留存的饮用照片数：炸开每次只随机取其中几张，存太多没意义还占内存。
+  const CATALOG_PHOTO_LIMIT = 12;
   const CATALOG_PROCESS_GROUPS = [
     { key: 'washed', label: '水洗' },
     { key: 'natural', label: '日晒' },
@@ -644,6 +648,35 @@
     };
   }
 
+  // 收集墙格子的饮用照片：按传入记录的既有顺序摊平，去重后截断。
+  // 只收记录里拍的照片，豆袋照与手账抠图不进来——那两张已经是封面。
+  function catalogPhotos(rows) {
+    const photos = [];
+    (Array.isArray(rows) ? rows : []).forEach((log) => {
+      if (!log || !Array.isArray(log.photos)) return;
+      log.photos.forEach((path) => {
+        const clean = String(path || '').trim();
+        if (clean && !photos.includes(clean)) photos.push(clean);
+      });
+    });
+    return photos.slice(0, CATALOG_PHOTO_LIMIT);
+  }
+
+  // 每次炸开随机挑几张：rng 可注入，便于测试。
+  function sampleCatalogPhotos(photos, count, rng) {
+    const pool = (Array.isArray(photos) ? photos : []).filter(Boolean).slice();
+    const size = Math.max(0, Math.min(Math.floor(Number(count) || 0), pool.length));
+    if (!size) return [];
+    const random = typeof rng === 'function' ? rng : Math.random;
+    for (let i = pool.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(random() * (i + 1));
+      const swap = pool[i];
+      pool[i] = pool[j];
+      pool[j] = swap;
+    }
+    return pool.slice(0, size);
+  }
+
   function coffeeCatalog(logs, beans, options) {
     const opts = options || {};
     const currentBeans = (Array.isArray(beans) ? beans : []).filter((bean) => bean && bean.id && !bean.deletedAt);
@@ -681,6 +714,15 @@
       const cover = sorted.find((m) => (opts.photoJournal && m.bean.bagCutoutImagePath) || m.bean.bagImagePath) || sorted[0];
       const cups = members.reduce((sum, m) => sum + (logsByBean.get(m.bean.id) || []).length, 0);
       const firstConsumedAt = members.map((m) => firstBeanConsumedAt(validLogs, m.bean.id, now)).filter(Boolean).sort()[0] || null;
+      // 同款豆的多次购买合并成一格，照片也跟着合并，最近喝的排前面。
+      const memberLogs = members.reduce((all, m) => all.concat(logsByBean.get(m.bean.id) || []), []).sort((a, b) => {
+        const da = validDate(a.consumedAt);
+        const db = validDate(b.consumedAt);
+        if (da && db) return db - da;
+        if (da) return -1;
+        if (db) return 1;
+        return 0;
+      });
       return {
         id: primary.id,
         name: String(primary.name || '未命名咖啡豆').trim() || '未命名咖啡豆',
@@ -691,6 +733,7 @@
         lit: cups > 0,
         purchaseCount: members.length,
         firstConsumedAt,
+        photos: catalogPhotos(memberLogs),
         cover: catalogCover(cover.bean, Boolean(opts.photoJournal)),
         _index: sorted[0].index
       };
@@ -736,6 +779,7 @@
       mode,
       summary: `已探索 ${origins.length} 个产地 · 点亮 ${wall.filter((item) => item.lit).length} 款豆`,
       wall,
+      singleRow: wall.length <= CATALOG_WALL_SINGLE_ROW_MAX,
       origins: { items: origins, milestone: catalogMilestone(origins.length, CATALOG_ORIGIN_MILESTONES) },
       processes,
       milestones: {
@@ -803,6 +847,8 @@
         lastVisitAt: dates.length ? dates[dates.length - 1].toISOString() : null,
         topDrink: topDrinkName(entry.rows),
         places,
+        // rows 承袭 byRecent 的倒序，所以同店铺的照片天然是最近优先。
+        photos: catalogPhotos(entry.rows),
         cover: {
           candidates: withPhoto ? [{ type: 'drink', path: withPhoto.photos[0] }] : [],
           placeholder: beanCore.beanPlaceholder({ id: entry.key, name: entry.name }),
@@ -838,6 +884,7 @@
     const data = {
       mode: opts.photoJournal ? 'journal' : 'standard',
       summary: `去过 ${namedCafeCount} 家咖啡馆 · 喝过 ${externalLogs.length} 杯`,
+      singleRow: cafes.length <= CATALOG_WALL_SINGLE_ROW_MAX,
       cafes: { items: cafes, milestone: catalogMilestone(namedCafeCount, CATALOG_CAFE_MILESTONES) },
       places: { items: places, milestone: catalogMilestone(places.length, CATALOG_PLACE_MILESTONES) },
       milestones: {
@@ -1052,6 +1099,7 @@
     MIN_SAMPLE, HAND_BREW_MIN, HAND_BREW_BEAN_MIN, COFFEE_REPORT_MIN, DIMENSION_LABELS, FLAVOR_LABELS,
     CATALOG_REQUIRED, CATALOG_ORIGIN_MILESTONES, CATALOG_CUP_MILESTONES, CATALOG_STREAK_MILESTONES, CATALOG_PROCESS_GROUPS,
     CATALOG_CAFE_MILESTONES, CATALOG_PLACE_MILESTONES, CATALOG_EXTERNAL_CUP_MILESTONES, CATALOG_UNNAMED_CAFE,
+    CATALOG_WALL_SINGLE_ROW_MAX, CATALOG_PHOTO_LIMIT, sampleCatalogPhotos,
     filterLogsByRange, filterHandBrewLogs, groupStats,
     averageDimensions, flavorProfile, preferenceGap, timeBuckets, weekdayStats,
     handBrewSummary, handBrewHabits: handBrewSummary, handBrewBeanReview, beanHandBrewReview: handBrewBeanReview,
