@@ -312,7 +312,8 @@
     async function drawCatalogWall(ctx, payload, palette, x, y, w) {
       const items = payload.covers || [];
       if (!items.length) return y;
-      setCanvasFont(ctx, 24, 750, false); ctx.fillStyle = palette.muted; ctx.fillText(payload.mode === 'journal' ? '贴纸收集册' : '豆款收集墙', x, y); y += 42;
+      const wallLabel = payload.wallLabel || (payload.mode === 'journal' ? '贴纸收集册' : '豆款收集墙');
+      setCanvasFont(ctx, 24, 750, false); ctx.fillStyle = palette.muted; ctx.fillText(wallLabel, x, y); y += 42;
       const cols = 4; const gap = 16; const cardW = (w - gap * (cols - 1)) / cols; const imageH = 190; const cardH = 258;
       const loaded = await Promise.all(items.map(loadCatalogCover));
       items.forEach((item, index) => {
@@ -331,7 +332,7 @@
         ctx.restore();
         if (!item.lit) { ctx.fillStyle = 'rgba(244,234,220,.52)'; ctx.fillRect(px + 9, py + 9, cardW - 18, imageH); }
         setCanvasFont(ctx, 22, 800, true); ctx.fillStyle = item.lit ? palette.ink : palette.muted; ctx.fillText(clipCanvasText(ctx, item.name, cardW - 28), px + 14, py + 226);
-        setCanvasFont(ctx, 17, 600, false); ctx.fillStyle = palette.muted; ctx.fillText(clipCanvasText(ctx, item.origin || '产地未记录', cardW - 28), px + 14, py + 249);
+        setCanvasFont(ctx, 17, 600, false); ctx.fillStyle = palette.muted; ctx.fillText(clipCanvasText(ctx, item.origin || payload.coverFallback || '产地未记录', cardW - 28), px + 14, py + 249);
         ctx.restore();
       });
       const rows = Math.ceil(items.length / cols); y += rows * (cardH + gap) + 18;
@@ -344,12 +345,12 @@
       const width = 1080; const maxHeight = 3600; const content = document.createElement('canvas'); content.width = width; content.height = maxHeight; const ctx = content.getContext('2d');
       const x = 96; const w = width - x * 2; let y = 140;
       setCanvasFont(ctx, 28, 800, false); ctx.fillStyle = palette.accent; ctx.fillText('豆仓 COFFEE VAULT', x, y); y += 66;
-      setCanvasFont(ctx, 25, 800, false); ctx.fillStyle = palette.muted; ctx.fillText('咖啡图鉴 · COFFEE ATLAS', x, y); y += 72;
+      setCanvasFont(ctx, 25, 800, false); ctx.fillStyle = palette.muted; ctx.fillText(`${payload.eyebrow || '咖啡图鉴'} · ${payload.atlasCode || 'COFFEE ATLAS'}`, x, y); y += 72;
       setCanvasFont(ctx, 62, 850, true); ctx.fillStyle = palette.ink; ctx.fillText(payload.title || '一路喝过的咖啡', x, y); y += 52;
       setCanvasFont(ctx, 27, 600, false); ctx.fillStyle = palette.muted; y = drawCanvasTextBlock(ctx, payload.subtitle || '', x, y, w, 38, 2) + 34;
       drawReceiptDivider(ctx, palette, x, y, w); y += 48;
       y = await drawCatalogWall(ctx, payload, palette, x, y, w);
-      if (payload.origins && payload.origins.length) y = drawReportChips(ctx, `探索过的产地 · ${payload.originCount} 个`, payload.origins, palette, x, y, w);
+      if (payload.origins && payload.origins.length) y = drawReportChips(ctx, payload.originsLabel || `探索过的产地 · ${payload.originCount} 个`, payload.origins, palette, x, y, w);
       if (payload.milestones && payload.milestones.length) {
         const gap = 16; const cardW = (w - gap) / 2; const h = 116;
         payload.milestones.forEach((item, index) => { const px = x + index * (cardW + gap); fillRound(ctx, px, y, cardW, h, 20, palette.surface, palette.border); setCanvasFont(ctx, 20, 700, false); ctx.fillStyle = palette.muted; ctx.fillText(item.label, px + 22, y + 36); setCanvasFont(ctx, 40, 850, true); ctx.fillStyle = palette.accent; ctx.fillText(item.value, px + 22, y + 88); });

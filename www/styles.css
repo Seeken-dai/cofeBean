@@ -750,6 +750,13 @@ html.number-picker-open { overflow:hidden; }
 .catalog-milestone > b { font-size:11px; }
 .catalog-milestone > p { margin:5px 0 0; color:var(--muted); font-size:8px; line-height:1.45; }
 .catalog-share { margin-top:16px; margin-bottom:8px; }
+.catalog-tabs { display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-bottom:12px; padding:4px; border:1px solid color-mix(in srgb,var(--border) 76%,transparent); border-radius:15px; background:var(--surface-2); }
+.catalog-tabs button { min-width:0; min-height:38px; padding:0 5px; border:0; border-radius:11px; background:transparent; color:var(--faint); font-size:11px; font-weight:700; }
+.catalog-tabs button.active { background:var(--accent); color:var(--accent-ink); }
+.catalog-milestone--spend { grid-column:1 / -1; }
+.catalog-milestone--spend .catalog-seal { width:auto; min-width:66px; height:auto; min-height:48px; padding:9px 18px; border-radius:999px; }
+.catalog-milestone--spend .catalog-seal strong { font-size:20px; }
+.catalog-bean.is-unnamed h4 { color:var(--muted); font-style:italic; }
 .insight-radar { display:block; width:min(100%,340px); margin:-5px auto -4px; overflow:visible; }
 .radar-grid polygon,.radar-grid line { fill:none; stroke:color-mix(in srgb,var(--border) 80%,transparent); stroke-width:1; }
 .radar-shape { fill:color-mix(in srgb,var(--accent) 24%,transparent); stroke:var(--accent); stroke-width:2; stroke-linejoin:round; }

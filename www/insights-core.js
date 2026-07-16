@@ -19,6 +19,10 @@
   const CATALOG_ORIGIN_MILESTONES = [1, 3, 5, 8, 12, 18, 25];
   const CATALOG_CUP_MILESTONES = [10, 50, 100, 300, 500, 1000];
   const CATALOG_STREAK_MILESTONES = [3, 7, 14, 30, 60];
+  const CATALOG_CAFE_MILESTONES = [1, 3, 5, 10, 15, 25, 40];
+  const CATALOG_PLACE_MILESTONES = [1, 3, 5, 8, 12, 18, 25];
+  const CATALOG_EXTERNAL_CUP_MILESTONES = [5, 20, 50, 100, 200, 500];
+  const CATALOG_UNNAMED_CAFE = '未记名咖啡馆';
   const CATALOG_PROCESS_GROUPS = [
     { key: 'washed', label: '水洗' },
     { key: 'natural', label: '日晒' },
@@ -647,7 +651,9 @@
     const now = validDate(opts.now || new Date()) || new Date();
     const validLogs = filterLogsByRange(logs, 'all', now);
     const beanById = new Map(currentBeans.map((bean) => [bean.id, bean]));
-    const linkedLogs = validLogs.filter((log) => log.source !== 'external' && beanById.has(log.beanId));
+    // 自家图鉴只认自家冲煮：外饮有独立图鉴（externalCatalog），两边杯数与连续天数互不计入。
+    const homeLogs = validLogs.filter((log) => log.source !== 'external');
+    const linkedLogs = homeLogs.filter((log) => beanById.has(log.beanId));
     const logsByBean = new Map();
     linkedLogs.forEach((log) => {
       if (!logsByBean.has(log.beanId)) logsByBean.set(log.beanId, []);
@@ -725,7 +731,7 @@
       .filter((item) => item.key !== 'other' || item.present)
       .map((item) => ({ key: item.key, label: item.label, lit: item.cups > 0, beanCount: item.beanIds.size, cups: item.cups }));
 
-    const longestStreak = longestReportStreak(validLogs);
+    const longestStreak = longestReportStreak(homeLogs);
     const data = {
       mode,
       summary: `已探索 ${origins.length} 个产地 · 点亮 ${wall.filter((item) => item.lit).length} 款豆`,
@@ -733,11 +739,117 @@
       origins: { items: origins, milestone: catalogMilestone(origins.length, CATALOG_ORIGIN_MILESTONES) },
       processes,
       milestones: {
-        cups: catalogMilestone(validLogs.length, CATALOG_CUP_MILESTONES),
+        cups: catalogMilestone(homeLogs.length, CATALOG_CUP_MILESTONES),
         streak: catalogMilestone(longestStreak, CATALOG_STREAK_MILESTONES)
       }
     };
-    return response(true, null, data, { sampleSize: currentBeans.length, required: CATALOG_REQUIRED, excludedCount: Math.max(0, (Array.isArray(logs) ? logs.length : 0) - validLogs.length) });
+    return response(true, null, data, { sampleSize: currentBeans.length, required: CATALOG_REQUIRED, excludedCount: Math.max(0, (Array.isArray(logs) ? logs.length : 0) - homeLogs.length) });
+  }
+
+  function externalLogCost(log) {
+    return beanCore.estimateDrinkCost(log, []);
+  }
+
+  function topDrinkName(rows) {
+    const counts = new Map();
+    rows.forEach((log) => {
+      const name = String(log.drinkName || '').trim();
+      if (!name) return;
+      counts.set(name, (counts.get(name) || 0) + 1);
+    });
+    return Array.from(counts.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'zh-CN')).map(([name]) => name)[0] || '';
+  }
+
+  // 外饮图鉴：只认 source === 'external'，与自家冲煮图鉴各算各的，杯数与连续天数互不计入。
+  // 外饮记录没有豆款、产地和处理法，所以收集维度换成咖啡馆与地点；店名留空的记录归入一个未记名格子，避免杯数凭空消失。
+  function externalCatalog(logs, options) {
+    const opts = options || {};
+    const now = validDate(opts.now || new Date()) || new Date();
+    const validLogs = filterLogsByRange(logs, 'all', now);
+    const externalLogs = validLogs.filter((log) => log.source === 'external');
+    if (!externalLogs.length) return response(false, 'emptyExternal', null, { sampleSize: 0, required: CATALOG_REQUIRED });
+
+    const byRecent = externalLogs.slice().sort((a, b) => {
+      const da = validDate(a.consumedAt);
+      const db = validDate(b.consumedAt);
+      if (da && db) return db - da;
+      if (da) return -1;
+      if (db) return 1;
+      return 0;
+    });
+
+    const cafeMap = new Map();
+    byRecent.forEach((log) => {
+      const name = String(log.cafeName || '').trim();
+      const key = name ? name.toLocaleLowerCase('zh-CN') : '__unnamed__';
+      if (!cafeMap.has(key)) cafeMap.set(key, { key, name: name || CATALOG_UNNAMED_CAFE, named: Boolean(name), rows: [] });
+      cafeMap.get(key).rows.push(log);
+    });
+    const cafes = Array.from(cafeMap.values()).map((entry) => {
+      const dates = entry.rows.map((log) => validDate(log.consumedAt)).filter(Boolean).sort((a, b) => a - b);
+      const visits = new Set(dates.map(localDateKey)).size;
+      // rows 承袭 byRecent 的倒序，所以第一张有效照片就是最近一次的照片。
+      const withPhoto = entry.rows.find((log) => Array.isArray(log.photos) && log.photos.length && log.photos[0]);
+      const places = Array.from(new Set(entry.rows.map((log) => String(log.location || '').trim()).filter(Boolean)));
+      return {
+        id: entry.key,
+        name: entry.name,
+        named: entry.named,
+        cups: entry.rows.length,
+        visits,
+        spend: round(entry.rows.reduce((sum, log) => sum + externalLogCost(log), 0), 2),
+        unknownCostCount: entry.rows.filter((log) => !(externalLogCost(log) > 0)).length,
+        firstVisitAt: dates.length ? dates[0].toISOString() : null,
+        lastVisitAt: dates.length ? dates[dates.length - 1].toISOString() : null,
+        topDrink: topDrinkName(entry.rows),
+        places,
+        cover: {
+          candidates: withPhoto ? [{ type: 'drink', path: withPhoto.photos[0] }] : [],
+          placeholder: beanCore.beanPlaceholder({ id: entry.key, name: entry.name }),
+          needsCutoutPrompt: false
+        }
+      };
+    }).sort((a, b) => Number(a.named === false) - Number(b.named === false)
+      || b.cups - a.cups
+      || (a.firstVisitAt && b.firstVisitAt ? new Date(a.firstVisitAt) - new Date(b.firstVisitAt) : 0)
+      || a.name.localeCompare(b.name, 'zh-CN'));
+
+    const placeMap = new Map();
+    byRecent.slice().reverse().forEach((log) => {
+      const name = String(log.location || '').trim();
+      if (!name) return;
+      const key = name.toLocaleLowerCase('zh-CN');
+      if (!placeMap.has(key)) placeMap.set(key, { name, cafeKeys: new Set(), cups: 0, firstSeenAt: null });
+      const item = placeMap.get(key);
+      const cafe = String(log.cafeName || '').trim();
+      if (cafe) item.cafeKeys.add(cafe.toLocaleLowerCase('zh-CN'));
+      item.cups += 1;
+      const date = validDate(log.consumedAt);
+      if (date && !item.firstSeenAt) item.firstSeenAt = date.toISOString();
+    });
+    const places = Array.from(placeMap.values()).sort((a, b) => {
+      if (a.firstSeenAt && b.firstSeenAt) return new Date(a.firstSeenAt) - new Date(b.firstSeenAt) || a.name.localeCompare(b.name, 'zh-CN');
+      if (a.firstSeenAt) return -1;
+      if (b.firstSeenAt) return 1;
+      return a.name.localeCompare(b.name, 'zh-CN');
+    }).map((item) => ({ name: item.name, cafeCount: item.cafeKeys.size, cups: item.cups, firstSeenAt: item.firstSeenAt }));
+
+    const namedCafeCount = cafes.filter((item) => item.named).length;
+    const data = {
+      mode: opts.photoJournal ? 'journal' : 'standard',
+      summary: `去过 ${namedCafeCount} 家咖啡馆 · 喝过 ${externalLogs.length} 杯`,
+      cafes: { items: cafes, milestone: catalogMilestone(namedCafeCount, CATALOG_CAFE_MILESTONES) },
+      places: { items: places, milestone: catalogMilestone(places.length, CATALOG_PLACE_MILESTONES) },
+      milestones: {
+        cups: catalogMilestone(externalLogs.length, CATALOG_EXTERNAL_CUP_MILESTONES),
+        streak: catalogMilestone(longestReportStreak(externalLogs), CATALOG_STREAK_MILESTONES)
+      },
+      spend: {
+        total: round(externalLogs.reduce((sum, log) => sum + externalLogCost(log), 0), 2),
+        unknownCostCount: externalLogs.filter((log) => !(externalLogCost(log) > 0)).length
+      }
+    };
+    return response(true, null, data, { sampleSize: externalLogs.length, required: CATALOG_REQUIRED, excludedCount: Math.max(0, (Array.isArray(logs) ? logs.length : 0) - externalLogs.length) });
   }
 
   function buildCoffeeCatalogSharePayload(catalog, options) {
@@ -756,7 +868,8 @@
       type: 'coffeeCatalog',
       style: 'catalog',
       mode: catalog.mode === 'journal' ? 'journal' : 'standard',
-      eyebrow: '咖啡图鉴',
+      eyebrow: '冲煮图鉴',
+      atlasCode: 'COFFEE ATLAS',
       title: '一路喝过的咖啡',
       subtitle: catalog.summary || '',
       covers,
@@ -764,8 +877,46 @@
       origins: originItems.slice(0, 8).map((item) => item.name),
       originCount: originItems.length,
       milestones: [
-        { label: '累计记录', value: `${catalog.milestones && catalog.milestones.cups ? catalog.milestones.cups.value : 0} 杯` },
-        { label: '最长连续', value: `${catalog.milestones && catalog.milestones.streak ? catalog.milestones.streak.value : 0} 天` }
+        { label: '冲煮杯数', value: `${catalog.milestones && catalog.milestones.cups ? catalog.milestones.cups.value : 0} 杯` },
+        { label: '最长连续冲煮', value: `${catalog.milestones && catalog.milestones.streak ? catalog.milestones.streak.value : 0} 天` }
+      ],
+      footer: '本地记录 · 私人豆仓'
+    };
+  }
+
+  function buildExternalCatalogSharePayload(catalog, options) {
+    if (!catalog) throw new Error('缺少外饮图鉴');
+    const opts = options || {};
+    const limit = Math.max(1, Number(opts.coverLimit) || 8);
+    const items = catalog.cafes && catalog.cafes.items || [];
+    const covers = items.slice(0, limit).map((item) => ({
+      name: item.name,
+      // 收集墙副标题位：外饮没有产地，改放常点饮品，其次是地点。
+      origin: item.topDrink || (item.places || [])[0] || '',
+      lit: true,
+      candidates: item.cover && item.cover.candidates || [],
+      placeholder: item.cover && item.cover.placeholder || beanCore.beanPlaceholder({ id: item.id, name: item.name })
+    }));
+    const placeItems = catalog.places && catalog.places.items || [];
+    const spendTotal = catalog.spend && Number(catalog.spend.total) || 0;
+    return {
+      type: 'externalCatalog',
+      style: 'catalog',
+      mode: catalog.mode === 'journal' ? 'journal' : 'standard',
+      eyebrow: '外饮图鉴',
+      atlasCode: 'CAFE ATLAS',
+      title: '一路喝过的咖啡馆',
+      subtitle: catalog.summary || '',
+      wallLabel: '咖啡馆收集墙',
+      coverFallback: '饮品未记录',
+      covers,
+      remainingCovers: Math.max(0, items.length - covers.length),
+      origins: placeItems.slice(0, 8).map((item) => item.name),
+      originCount: placeItems.length,
+      originsLabel: `去过的地点 · ${placeItems.length} 个`,
+      milestones: [
+        { label: '外饮杯数', value: `${catalog.milestones && catalog.milestones.cups ? catalog.milestones.cups.value : 0} 杯` },
+        { label: '累计花费', value: spendTotal > 0 ? `¥${round(spendTotal, 2)}` : '未记录' }
       ],
       footer: '本地记录 · 私人豆仓'
     };
@@ -900,12 +1051,14 @@
   return {
     MIN_SAMPLE, HAND_BREW_MIN, HAND_BREW_BEAN_MIN, COFFEE_REPORT_MIN, DIMENSION_LABELS, FLAVOR_LABELS,
     CATALOG_REQUIRED, CATALOG_ORIGIN_MILESTONES, CATALOG_CUP_MILESTONES, CATALOG_STREAK_MILESTONES, CATALOG_PROCESS_GROUPS,
+    CATALOG_CAFE_MILESTONES, CATALOG_PLACE_MILESTONES, CATALOG_EXTERNAL_CUP_MILESTONES, CATALOG_UNNAMED_CAFE,
     filterLogsByRange, filterHandBrewLogs, groupStats,
     averageDimensions, flavorProfile, preferenceGap, timeBuckets, weekdayStats,
     handBrewSummary, handBrewHabits: handBrewSummary, handBrewBeanReview, beanHandBrewReview: handBrewBeanReview,
     formatHandBrewRatio, formatHandBrewDuration,
     estimateKnownCost, monthlySpendSeries, homeVsExternal, beanValueRanking, freshnessRatingGap,
     availableCoffeeReports, coffeePeriodReport, coffeeReportReminders, buildCoffeeReportSharePayload,
-    catalogMilestone, classifyCatalogProcess, firstBeanConsumedAt, coffeeCatalog, buildCoffeeCatalogSharePayload
+    catalogMilestone, classifyCatalogProcess, firstBeanConsumedAt, coffeeCatalog, buildCoffeeCatalogSharePayload,
+    externalCatalog, buildExternalCatalogSharePayload
   };
 });

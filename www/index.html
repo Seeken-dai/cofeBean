@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#1a1412">
   <meta name="color-scheme" content="dark light">
   <title>豆仓</title>
-  <link rel="stylesheet" href="styles.css?v=2.3.11">
+  <link rel="stylesheet" href="styles.css?v=2.3.12">
   <style>
     #aboutDialog .about-actions { display:flex; align-items:center; justify-content:center; gap:8px; color:var(--faint); font-size:12px; }
     #aboutDialog .about-actions .text-link-button { width:auto; min-width:0; min-height:0; padding:2px; border:0; border-radius:0; background:transparent; box-shadow:none; color:var(--accent); font:700 12px/1 inherit; text-decoration:underline; text-underline-offset:4px; }
@@ -227,6 +227,10 @@
       <div id="reportReviewContent" aria-live="polite"></div>
     </section>
     <section class="insights-body" id="catalogPage" hidden>
+      <nav class="catalog-tabs" id="catalogTabs" aria-label="图鉴类型">
+        <button data-insights-catalog-tab="home" type="button">自家冲煮</button>
+        <button data-insights-catalog-tab="external" type="button">外饮</button>
+      </nav>
       <div id="catalogContent" aria-live="polite"></div>
     </section>
   </dialog>
@@ -391,7 +395,7 @@
         <div class="field cafe-name-field" data-external-only hidden><label for="drink-cafeName">店名/来源</label><input id="drink-cafeName" name="cafeName" type="text" maxlength="120" autocomplete="off" placeholder="例如：街角咖啡"><div class="cafe-suggestions" id="drinkCafeSuggestions" aria-live="polite"></div></div>
         <div class="field cafe-name-field" data-external-only hidden><label for="drink-drinkName">饮品名称</label><input id="drink-drinkName" name="drinkName" type="text" maxlength="120" autocomplete="off" placeholder="例如：Dirty"><div class="cafe-suggestions" id="drinkNameSuggestions" aria-live="polite"></div></div>
         <label class="field" data-external-only hidden><span>价格</span><div class="input-unit currency"><em>¥</em><input id="drink-price" name="price" type="number" min="0" step="0.01" inputmode="decimal"></div></label>
-        <label class="field" data-external-only hidden><span>地点/城市</span><input id="drink-location" name="location" type="text" maxlength="120" placeholder="例如：杭州"></label>
+        <div class="field cafe-name-field" data-external-only hidden><label for="drink-location">地点/城市</label><input id="drink-location" name="location" type="text" maxlength="120" autocomplete="off" placeholder="例如：杭州"><div class="cafe-suggestions" id="drinkLocationSuggestions" aria-live="polite"></div></div>
         <section class="drink-plan-picker full" id="drinkPlanPicker" data-bean-only></section>
         <section class="drink-param-panel full" id="drinkParamPanel" data-bean-only>
           <div class="section-heading"><div><span>本次参数</span><small>只保存到这条饮用记录，不写入方案库</small></div></div>
@@ -627,7 +631,7 @@
 
   <dialog class="sheet compact" id="aboutDialog">
     <header class="sheet-header"><div><p class="eyebrow">ABOUT</p><h2>关于豆仓</h2></div><button class="icon-button" id="aboutClose" type="button" aria-label="关闭">×</button></header>
-    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 2.3.11</p></section>
+    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 2.3.12</p></section>
     <section class="about-update" aria-live="polite">
       <div class="about-actions"><button class="text-link-button" id="aboutCheckUpdate" type="button">检查更新</button><span aria-hidden="true">·</span><button class="text-link-button" id="aboutOpenReleases" type="button">查看发布页</button></div>
       <div class="update-status" id="updateStatus" hidden></div>
@@ -636,8 +640,8 @@
     <section class="about-copy">
       <h3>收藏咖啡，也收藏与咖啡相处的时间。</h3>
       <p>豆仓是一款为咖啡爱好者设计的本地优先记录工具。你可以保存每一包咖啡豆的产地、风味与价格，记录每次饮用和冲煮方案，让日常里喝过的咖啡慢慢有迹可循。</p>
-      <h4>2.3.11 最新功能</h4>
-      <ul><li>咖啡图鉴升级为收藏册视觉，收集墙支持两行横向浏览</li><li>同名同烘焙商豆款自动合并，并显示复购次数与累计杯数</li><li>个人中心的咖啡日历与回顾并排展示，图鉴和报告入口更清晰</li><li>优化回顾锚点吸顶与图鉴、月报的分层返回路径</li></ul>
+      <h4>2.3.12 最新功能</h4>
+      <ul><li>咖啡图鉴拆成「自家冲煮」和「外饮」两栏，页顶可直接切换</li><li>新增外饮图鉴：咖啡馆收集墙、地点足迹与外饮里程碑</li><li>冲煮里程碑不再把外饮混入，杯数与连续天数各算各的</li><li>两栏各自支持离线分享长图</li><li>外饮地点自动带上最近一次填写，并支持历史联想与模糊搜索</li></ul>
       <div class="privacy-note"><b>离线与隐私</b><p>豆仓默认完全离线使用，数据保存在你的设备中。云同步为可选功能，仅在登录并开启后使用。</p><p>检查更新仅在你主动点击时联网，不会影响本地记录使用。</p></div>
     </section>
   </dialog>

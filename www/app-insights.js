@@ -288,6 +288,7 @@
     const reportReviewContent = dialog.querySelector('#reportReviewContent');
     const catalogPage = dialog.querySelector('#catalogPage');
     const catalogContent = dialog.querySelector('#catalogContent');
+    const catalogTabs = dialog.querySelector('#catalogTabs');
     const title = dialog.querySelector('#insightsTitle');
     const subtitle = dialog.querySelector('#insightsSubtitle');
     const eyebrow = dialog.querySelector('#insightsEyebrow');
@@ -420,18 +421,50 @@
       return `已达成 ${progress.achieved}${unit} · 下一档还差 ${progress.remaining}${unit}`;
     }
 
-    function renderCatalogPage() {
+    function catalogTab() {
+      return state.insightsCatalogTab === 'external' ? 'external' : 'home';
+    }
+
+    function renderHomeCatalog() {
       const result = core.coffeeCatalog(state.drinkLogs, state.beans, { photoJournal: Boolean(state.settings && state.settings.photoJournal) });
       if (!result.ok) {
-        catalogContent.innerHTML = '<div class="catalog-page-intro"><span class="catalog-page-stamp" aria-hidden="true">ALL<br>TIME</span><p class="eyebrow">COFFEE ATLAS</p><h3>咖啡图鉴</h3><p>一路喝过的豆子和走过的产地，收进这本咖啡收藏册。</p></div><div class="catalog-empty"><span class="insight-bean-mark" aria-hidden="true"></span><div><strong>从第一支豆开始收藏</strong><p>把咖啡豆加入豆仓后，它会出现在这里；喝过以后，格子就会被点亮。</p></div></div>';
+        catalogContent.innerHTML = '<div class="catalog-page-intro"><span class="catalog-page-stamp" aria-hidden="true">ALL<br>TIME</span><p class="eyebrow">COFFEE ATLAS</p><h3>冲煮图鉴</h3><p>一路喝过的豆子和走过的产地，收进这本咖啡收藏册。</p></div><div class="catalog-empty"><span class="insight-bean-mark" aria-hidden="true"></span><div><strong>从第一支豆开始收藏</strong><p>把咖啡豆加入豆仓后，它会出现在这里；自家冲煮过以后，格子就会被点亮。</p></div></div>';
         return;
       }
       const data = result.data;
       const wall = data.wall.map((item) => `<article class="catalog-bean${item.lit ? ' is-lit' : ' is-unlit'}"><div>${catalogCover(item)}<i>${item.lit ? `${item.cups} 杯` : '待点亮'}</i>${item.purchaseCount > 1 ? `<em class="catalog-repurchase" title="同款复购 ${item.purchaseCount} 次">复购 ×${item.purchaseCount}</em>` : ''}</div><h4 title="${esc(item.name)}">${esc(item.name)}</h4><p title="${esc(item.origin || '产地未记录')}">${esc(item.origin || '产地未记录')}</p>${item.cover.needsCutoutPrompt ? '<small>可在该豆编辑页生成手账封面</small>' : ''}</article>`).join('');
       const origins = data.origins.items.length ? `<div class="catalog-stamp-grid">${data.origins.items.map((item) => `<div class="catalog-stamp"><b title="${esc(item.name)}">${esc(item.name)}</b><span>${item.beanCount} 款 · ${item.cups} 杯</span></div>`).join('')}</div>` : '<p class="catalog-muted">豆子资料里还没有产地，补充后会在这里形成足迹。</p>';
       const processes = data.processes.map((item) => `<div class="catalog-medal${item.lit ? ' is-lit' : ''}"><span class="catalog-medal-seal" aria-hidden="true">${esc((item.label || '·').charAt(0))}</span><div><b title="${esc(item.label)}">${esc(item.label)}</b><small>${item.lit ? `${item.beanCount} 款 · ${item.cups} 杯` : '未解锁'}</small></div></div>`).join('');
-      const milestones = [['累计杯数', data.milestones.cups, '杯'], ['最长连续记录', data.milestones.streak, '天']].map(([label, progress, unit]) => `<article class="catalog-milestone"><div class="catalog-seal"><strong>${progress.value}</strong><small>${esc(unit)}</small></div><b>${esc(label)}</b><p>${esc(catalogMilestoneCopy(progress, unit))}</p></article>`).join('');
-      catalogContent.innerHTML = `<div class="catalog-page-intro"><span class="catalog-page-stamp" aria-hidden="true">ALL<br>TIME</span><p class="eyebrow">COFFEE ATLAS</p><h3>咖啡图鉴</h3><p>一路喝过的豆子和走过的产地，收进这本咖啡收藏册。固定基于全部历史，图片只改变收藏册的样子，不影响点亮与统计。</p></div><section class="catalog-section"><div class="catalog-heading"><div><span>01</span><h3>豆款收集墙</h3></div><small>${data.mode === 'journal' ? '照片手账 · 贴纸册' : '标准收集册'}</small></div><div class="catalog-wall is-${data.mode}">${wall}</div></section><section class="catalog-section"><div class="catalog-heading"><div><span>02</span><h3>产地足迹</h3></div><strong>${data.origins.items.length}<small>个产地</small></strong></div><p class="catalog-progress-copy">${esc(catalogMilestoneCopy(data.origins.milestone, '个'))}</p>${origins}</section><section class="catalog-section"><div class="catalog-heading"><div><span>03</span><h3>处理法收集</h3></div></div><div class="catalog-medal-row">${processes}</div></section><section class="catalog-section"><div class="catalog-heading"><div><span>04</span><h3>记录里程碑</h3></div></div><div class="catalog-milestone-grid">${milestones}</div></section><button class="coffee-report-share catalog-share" data-insights-catalog-share type="button"><span>分享咖啡图鉴</span><strong aria-hidden="true">↗</strong></button>`;
+      const milestones = [['冲煮杯数', data.milestones.cups, '杯'], ['最长连续冲煮', data.milestones.streak, '天']].map(([label, progress, unit]) => `<article class="catalog-milestone"><div class="catalog-seal"><strong>${progress.value}</strong><small>${esc(unit)}</small></div><b>${esc(label)}</b><p>${esc(catalogMilestoneCopy(progress, unit))}</p></article>`).join('');
+      catalogContent.innerHTML = `<div class="catalog-page-intro"><span class="catalog-page-stamp" aria-hidden="true">ALL<br>TIME</span><p class="eyebrow">COFFEE ATLAS</p><h3>冲煮图鉴</h3><p>自己冲过的豆子和走过的产地，收进这本咖啡收藏册。只统计自家冲煮，外饮在隔壁那页。固定基于全部历史，图片只改变收藏册的样子，不影响点亮与统计。</p></div><section class="catalog-section"><div class="catalog-heading"><div><span>01</span><h3>豆款收集墙</h3></div><small>${data.mode === 'journal' ? '照片手账 · 贴纸册' : '标准收集册'}</small></div><div class="catalog-wall is-${data.mode}">${wall}</div></section><section class="catalog-section"><div class="catalog-heading"><div><span>02</span><h3>产地足迹</h3></div><strong>${data.origins.items.length}<small>个产地</small></strong></div><p class="catalog-progress-copy">${esc(catalogMilestoneCopy(data.origins.milestone, '个'))}</p>${origins}</section><section class="catalog-section"><div class="catalog-heading"><div><span>03</span><h3>处理法收集</h3></div></div><div class="catalog-medal-row">${processes}</div></section><section class="catalog-section"><div class="catalog-heading"><div><span>04</span><h3>冲煮里程碑</h3></div><small>只含自家冲煮</small></div><div class="catalog-milestone-grid">${milestones}</div></section><button class="coffee-report-share catalog-share" data-insights-catalog-share type="button"><span>分享冲煮图鉴</span><strong aria-hidden="true">↗</strong></button>`;
+    }
+
+    function renderExternalCatalog() {
+      const result = core.externalCatalog(state.drinkLogs, { photoJournal: Boolean(state.settings && state.settings.photoJournal) });
+      if (!result.ok) {
+        catalogContent.innerHTML = '<div class="catalog-page-intro"><span class="catalog-page-stamp" aria-hidden="true">ALL<br>TIME</span><p class="eyebrow">CAFE ATLAS</p><h3>外饮图鉴</h3><p>去过的咖啡馆和走过的地点，收进这本外饮收藏册。</p></div><div class="catalog-empty"><span class="insight-bean-mark" aria-hidden="true"></span><div><strong>从第一杯外饮开始收藏</strong><p>在记录里选「外饮记录」，填上咖啡馆名字；记下来以后，这里就会出现它的格子。</p></div></div>';
+        return;
+      }
+      const data = result.data;
+      const cafes = data.cafes.items.map((item) => `<article class="catalog-bean is-lit${item.named ? '' : ' is-unnamed'}"><div>${catalogCover(item)}<i>${item.cups} 杯</i>${item.visits > 1 ? `<em class="catalog-repurchase" title="去过 ${item.visits} 次">去过 ×${item.visits}</em>` : ''}</div><h4 title="${esc(item.name)}">${esc(item.name)}</h4><p title="${esc(item.topDrink || '饮品未记录')}">${esc(item.topDrink || '饮品未记录')}</p></article>`).join('');
+      const places = data.places.items.length ? `<div class="catalog-stamp-grid">${data.places.items.map((item) => `<div class="catalog-stamp"><b title="${esc(item.name)}">${esc(item.name)}</b><span>${item.cafeCount} 家 · ${item.cups} 杯</span></div>`).join('')}</div>` : '<p class="catalog-muted">外饮记录里还没有填地点，补充后会在这里形成足迹。</p>';
+      const milestones = [['外饮杯数', data.milestones.cups, '杯'], ['最长连续外饮', data.milestones.streak, '天']].map(([label, progress, unit]) => `<article class="catalog-milestone"><div class="catalog-seal"><strong>${progress.value}</strong><small>${esc(unit)}</small></div><b>${esc(label)}</b><p>${esc(catalogMilestoneCopy(progress, unit))}</p></article>`).join('');
+      const spendCopy = data.spend.unknownCostCount ? `另有 ${data.spend.unknownCostCount} 杯没记价格` : '所有外饮都记了价格';
+      const spendCard = `<article class="catalog-milestone catalog-milestone--spend"><div class="catalog-seal"><strong>${data.spend.total > 0 ? esc(money(data.spend.total)) : '—'}</strong></div><b>累计花费</b><p>${esc(spendCopy)}</p></article>`;
+      catalogContent.innerHTML = `<div class="catalog-page-intro"><span class="catalog-page-stamp" aria-hidden="true">ALL<br>TIME</span><p class="eyebrow">CAFE ATLAS</p><h3>外饮图鉴</h3><p>去过的咖啡馆和走过的地点，收进这本外饮收藏册。只统计外饮，自家冲煮在隔壁那页。固定基于全部历史。</p></div><section class="catalog-section"><div class="catalog-heading"><div><span>01</span><h3>咖啡馆收集墙</h3></div><small>${data.mode === 'journal' ? '照片手账 · 贴纸册' : '标准收集册'}</small></div><div class="catalog-wall is-${data.mode}">${cafes}</div></section><section class="catalog-section"><div class="catalog-heading"><div><span>02</span><h3>地点足迹</h3></div><strong>${data.places.items.length}<small>个地点</small></strong></div><p class="catalog-progress-copy">${esc(catalogMilestoneCopy(data.places.milestone, '个'))}</p>${places}</section><section class="catalog-section"><div class="catalog-heading"><div><span>03</span><h3>外饮里程碑</h3></div><small>只含外饮</small></div><div class="catalog-milestone-grid">${milestones}${spendCard}</div></section><button class="coffee-report-share catalog-share" data-insights-catalog-share type="button"><span>分享外饮图鉴</span><strong aria-hidden="true">↗</strong></button>`;
+    }
+
+    function renderCatalogPage() {
+      const tab = catalogTab();
+      if (catalogTabs) {
+        catalogTabs.querySelectorAll('[data-insights-catalog-tab]').forEach((button) => {
+          const active = button.dataset.insightsCatalogTab === tab;
+          button.classList.toggle('active', active);
+          button.setAttribute('aria-pressed', String(active));
+        });
+      }
+      if (tab === 'external') renderExternalCatalog();
+      else renderHomeCatalog();
     }
 
     function updatePageFrame() {
@@ -445,9 +478,10 @@
       reportReviewPage.hidden = !isReportPage;
       catalogPage.hidden = !isCatalogPage;
       if (backButton) backButton.hidden = !isBrewReview && !isReportPage && !isCatalogPage;
+      const isExternalCatalog = isCatalogPage && catalogTab() === 'external';
       if (title) title.textContent = isCatalogPage ? '咖啡图鉴' : isBrewReview ? '手冲回顾' : isReportDetail ? (state.insightsReportType === 'year' ? '咖啡年报' : '咖啡月报') : isReportPage ? '咖啡报告' : '回顾';
-      if (subtitle) subtitle.textContent = isCatalogPage ? '基于全部历史 · 看见一路喝过什么' : isBrewReview ? '基于全部手冲记录 · 页内回看你的冲煮习惯' : isReportPage ? '只看已经走完的自然月与自然年' : '从每一杯里，慢慢看见自己的口味';
-      if (eyebrow) eyebrow.textContent = isCatalogPage ? 'COFFEE ATLAS' : isBrewReview ? 'POUR-OVER NOTES' : isReportPage ? 'COFFEE REPORT' : 'YOUR COFFEE';
+      if (subtitle) subtitle.textContent = isCatalogPage ? (isExternalCatalog ? '基于全部外饮 · 看见去过哪些咖啡馆' : '基于全部自家冲煮 · 看见喝过哪些豆子') : isBrewReview ? '基于全部手冲记录 · 页内回看你的冲煮习惯' : isReportPage ? '只看已经走完的自然月与自然年' : '从每一杯里，慢慢看见自己的口味';
+      if (eyebrow) eyebrow.textContent = isCatalogPage ? (isExternalCatalog ? 'CAFE ATLAS' : 'COFFEE ATLAS') : isBrewReview ? 'POUR-OVER NOTES' : isReportPage ? 'COFFEE REPORT' : 'YOUR COFFEE';
       if (backButton) {
         const reportDetailFromList = isReportDetail && state.insightsReportFromList;
         const backToPersonal = isCatalogPage || state.insightsPage === 'reports';
@@ -552,9 +586,10 @@
       setDialog(dialog, true);
     }
 
-    function openCatalog() {
+    function openCatalog(tab) {
       hideHelp();
       state.insightsPage = 'catalog';
+      state.insightsCatalogTab = tab === 'external' ? 'external' : 'home';
       state.insightsExitTo = 'personal';
       render();
       setDialog(dialog, true);
@@ -638,10 +673,20 @@
         if (result.ok) Promise.resolve(shareReport(result.data)).catch(() => { if (toast) toast('分享失败'); });
         return true;
       }
+      const catalogTabButton = event.target.closest('[data-insights-catalog-tab]');
+      if (catalogTabButton) {
+        state.insightsCatalogTab = catalogTabButton.dataset.insightsCatalogTab === 'external' ? 'external' : 'home';
+        render();
+        return true;
+      }
       const catalogShare = event.target.closest('[data-insights-catalog-share]');
       if (catalogShare && shareCatalog) {
-        const result = core.coffeeCatalog(state.drinkLogs, state.beans, { photoJournal: Boolean(state.settings && state.settings.photoJournal) });
-        if (result.ok) Promise.resolve(shareCatalog(result.data)).catch(() => { if (toast) toast('分享失败'); });
+        const photoJournal = Boolean(state.settings && state.settings.photoJournal);
+        const external = catalogTab() === 'external';
+        const result = external
+          ? core.externalCatalog(state.drinkLogs, { photoJournal })
+          : core.coffeeCatalog(state.drinkLogs, state.beans, { photoJournal });
+        if (result.ok) Promise.resolve(shareCatalog(result.data, { external })).catch(() => { if (toast) toast('分享失败'); });
         return true;
       }
       const spendView = event.target.closest('[data-insights-spend-view]');

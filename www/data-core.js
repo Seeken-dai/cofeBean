@@ -852,7 +852,7 @@
       exportScope,
       exportedAt: exportedAt || new Date().toISOString(),
       app: '豆仓',
-      appVersion: '2.3.11'
+      appVersion: '2.3.12'
     };
     if (exportScope === 'all' || exportScope === 'library') {
       payload.beans = (beans || []).map((bean) => normalizeBean(bean, bean.updatedAt));
@@ -1380,6 +1380,16 @@
       .sort((a, b) => a.rank - b.rank || a.recentIndex - b.recentIndex);
     return recent.slice(0, Math.max(1, Number(limit) || 4)).map((item) => item.name);
   }
+  // 地点与店名一样取全局最近（不按店铺过滤）：同一座城市会跨很多家店，按店过滤反而漏候选。
+  function recentDrinkLocations(logs, query, limit) {
+    const seen = new Set();
+    const recent = (Array.isArray(logs) ? logs : []).filter((log) => log && !log.deletedAt && log.source === 'external' && cleanText(log.location, 120))
+      .slice().sort((a, b) => compareDrinkChronology(b, a)).map((log, recentIndex) => ({ name: cleanText(log.location, 120), recentIndex }))
+      .filter((item) => { const key = item.name.toLocaleLowerCase('zh-CN'); if (seen.has(key)) return false; seen.add(key); return true; })
+      .map((item) => ({ ...item, rank: fuzzyTextRank(item.name, query) })).filter((item) => item.rank != null)
+      .sort((a, b) => a.rank - b.rank || a.recentIndex - b.recentIndex);
+    return recent.slice(0, Math.max(1, Number(limit) || 4)).map((item) => item.name);
+  }
   function recentExternalDrinkNames(logs, cafeName, query, limit) {
     const cafeKey = cleanText(cafeName, 120).toLocaleLowerCase('zh-CN');
     if (!cafeKey) return [];
@@ -1402,5 +1412,5 @@
     }).sort((a, b) => compareDrinkChronology(b, a))[0] || null;
   }
 
-  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, hasTastingContent, resolveTastingStatus, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, selectHomeReminder, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, buildAiPlanPrompt, parseAiPlanJson, prepareBrewAssistSteps, brewAssistStatus, resolveOpenedDate, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareAppVersions, isAppVersionNewer, selectReleaseApkAsset, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, FLAVOR_LEXICON, flavorTags, beanFreshness, recentDrinkSeries, compareDrinkChronology, recentCafeNames, recentExternalDrinkNames, previousComparableDrink, beanProcessKind };
+  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, hasTastingContent, resolveTastingStatus, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, selectHomeReminder, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, buildAiPlanPrompt, parseAiPlanJson, prepareBrewAssistSteps, brewAssistStatus, resolveOpenedDate, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareAppVersions, isAppVersionNewer, selectReleaseApkAsset, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, FLAVOR_LEXICON, flavorTags, beanFreshness, recentDrinkSeries, compareDrinkChronology, recentCafeNames, recentExternalDrinkNames, previousComparableDrink, beanProcessKind, recentDrinkLocations };
 });

@@ -59,6 +59,10 @@ Set-Location android
 
 数据库当前 `PRAGMA user_version = 11`。以后改变表结构时，在 `www/repository.js` 中增加顺序迁移，禁止删除数据库或清空旧表。（本地 SQLite 迁移与云端 D1 迁移是两回事，后者见 `RELEASING.md`。）
 
+2.3.12 正式包从 `main` 发布提交构建（`clean assembleRelease`），已用 `aapt2 dump badging` 核对 `versionName=2.3.12`、`versionCode=70`；`aapt2 dump permissions` 与 2.3.11 逐项一致，仍为 `CAMERA`、`INTERNET`、既有 Haptics 引入的 `VIBRATE` 及 Android 自动生成的应用内接收器权限，未新增权限。`apksigner verify --print-certs` 核对证书 SHA-256 为 `aab5e3d3bd224b98f885945ecd868d54a99e2c96bf099a0c9e6ee59ca02151ae`，与既有正式版一致，可覆盖升级并保留数据库。本版拆分咖啡图鉴的自家冲煮与外饮两栏、新增外饮地点联想，并修复记一杯弹窗自动关闭与编辑页未保存图片被覆盖两个问题；不修改 SQLite、备份或同步 schema。正式产物为 `dist/coffee-vault-2.3.12-release.apk`，APK SHA-256 为 `8ec4686e8517d642c890770a53226a05555a35fae3a830cf0a7f5976170738e2`。
+
+**⚠️ 2.3.12 经用户明确决定跳过真机验收发布**，与既往版本不同：改动已在 Web 预览充分验证（图鉴两栏、分享长图渲染、地点联想、弹窗复用），但未做真机覆盖升级冒烟。其中「编辑咖啡豆时未保存图片被自动同步覆盖」的修复，其触发路径（切后台 → 回前台 `appStateChange` → `scheduleAutoSync` → `reload()`）为 Android + 已登录云同步专属，Web 预览无法复现，该修复未在真实环境验证过。
+
 2.3.11 正式包从 `main` 发布提交构建，已用 `aapt2 dump badging` 核对 `versionName=2.3.11`、`versionCode=69`；`aapt2 dump permissions` 与 2.3.10 逐项一致，仍为 `CAMERA`、`INTERNET`、既有 Haptics 引入的 `VIBRATE` 及 Android 自动生成的应用内接收器权限，未新增权限。`apksigner verify --print-certs` 核对证书 SHA-256 为 `aab5e3d3bd224b98f885945ecd868d54a99e2c96bf099a0c9e6ee59ca02151ae`，与既有正式版一致。已在保留数据的三星设备上从 2.3.10 覆盖升级，启动、回顾各子页、图鉴与月报分层返回均通过真机验收。本版不修改 SQLite、备份或同步 schema；正式产物为 `dist/coffee-vault-2.3.11-release.apk`，APK SHA-256 为 `acb65e13d2f1cc5a2f22d101ab1ba11820467e57e0455ef0142e8fa7ca85529c`。
 
 2.3.10 验收包从 `release/2.3.10` 构建，已用 `aapt2 dump badging` 核对 `versionName=2.3.10`、`versionCode=68`；权限与 2.3.9 逐项一致，仍为 `CAMERA`、`INTERNET`、既有 Haptics 引入的 `VIBRATE` 及 Android 自动生成的应用内接收器权限，未新增权限。`apksigner verify --print-certs` 核对证书 SHA-256 为 `aab5e3d3bd224b98f885945ecd868d54a99e2c96bf099a0c9e6ee59ca02151ae`，与既有正式版一致。本版新增咖啡图鉴与分享长图，不修改 SQLite、备份或同步 schema；验收产物为 `dist/coffee-vault-2.3.10-release.apk`，APK SHA-256 为 `487974a1d96e8b5be6a3abd8f91ec6f7bb61661d150d84da518e3dc4998d7fe8`。正式发布前仍须合并 `main` 后重建。
