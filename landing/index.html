@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>豆仓 Coffee Vault · 本地优先的咖啡豆管理 App</title>
-  <meta name="description" content="豆仓 Coffee Vault 是一款本地优先的咖啡豆管理与冲煮记录 App，支持 Android 与 Web。默认离线、无需账号，可选加密云同步。" />
+  <meta name="description" content="豆仓 Coffee Vault 是一款本地优先的咖啡豆管理与冲煮记录 App，支持咖啡图鉴、日历、回顾与 Android / Web。默认离线、无需账号，可选云同步。" />
   <meta name="theme-color" content="#1a1412" />
   <link rel="icon" href="assets/icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="assets/icon-512.png" />
@@ -13,7 +13,7 @@
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://cofevault.top/" />
   <meta property="og:title" content="豆仓 Coffee Vault · 本地优先的咖啡豆管理 App" />
-  <meta property="og:description" content="保存每包豆子的产地、风味与价格，记录每次冲煮与饮用。默认离线、无需账号，可选云同步。" />
+  <meta property="og:description" content="保存每包豆子的产地、风味与价格，记录每次冲煮与外饮，再从图鉴、日历与回顾里看见自己的咖啡日常。默认离线、无需账号。" />
   <meta property="og:image" content="https://cofevault.top/assets/icon-512.png" />
   <meta property="og:locale" content="zh_CN" />
   <meta property="og:locale:alternate" content="en_US" />
@@ -22,7 +22,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=2.3.13-3" />
 </head>
 <body>
   <!-- ===== Header ===== -->
@@ -45,15 +45,15 @@
 
   <main id="top">
     <!-- ===== Hero ===== -->
-    <section class="hero">
+    <section class="hero hero-enter">
       <div class="hero-copy">
         <p class="eyebrow" data-i18n data-zh="本地优先 · Android 与 Web" data-en="Local-first · Android & Web">本地优先 · Android 与 Web</p>
         <h1 class="hero-title">豆仓 <span>Coffee Vault</span></h1>
         <p class="slogan" data-i18n data-zh="一包豆子 · 一段风味 · 一页日常" data-en="One bag of beans. One flavor journey. One page of daily life.">一包豆子 · 一段风味 · 一页日常</p>
         <p class="hero-sub" data-i18n
-           data-zh="为咖啡爱好者设计的本地优先记录工具。保存每包豆子的产地、风味与价格，记录每次冲煮与饮用，让日常里喝过的咖啡慢慢有迹可循。"
-           data-en="A local-first companion for coffee lovers. Save every bag's origin, flavor and price, log every brew and cup, and watch your daily coffee slowly leave a trace.">
-          为咖啡爱好者设计的本地优先记录工具。保存每包豆子的产地、风味与价格，记录每次冲煮与饮用，让日常里喝过的咖啡慢慢有迹可循。
+           data-zh="为咖啡爱好者设计的本地优先记录工具。记下每包豆子、每次冲煮与外饮，把喝过的豆子和咖啡馆点亮成图鉴，再从日历与回顾里看见自己的咖啡日常。"
+           data-en="A local-first companion for coffee lovers. Log every bag, brew and café visit, collect the beans and cafés you have explored, then discover your coffee rhythm through the calendar and review.">
+          为咖啡爱好者设计的本地优先记录工具。记下每包豆子、每次冲煮与外饮，把喝过的豆子和咖啡馆点亮成图鉴，再从日历与回顾里看见自己的咖啡日常。
         </p>
         <div class="cta-row">
           <a class="btn btn-primary" href="https://github.com/Seeken-dai/cofeBean/releases/latest" rel="noopener">
@@ -76,9 +76,9 @@
           <div class="carousel" id="heroCarousel" aria-label="应用界面轮播">
             <div class="carousel-track" id="heroTrack">
               <img class="carousel-slide" src="assets/screens/dark-roast/home.webp" alt="首页豆仓列表" width="390" height="844" />
-              <img class="carousel-slide" src="assets/screens/dark-roast/detail.webp" alt="咖啡豆详情" width="390" height="844" />
               <img class="carousel-slide" src="assets/screens/dark-roast/records.webp" alt="饮用记录与风味雷达图" width="390" height="844" />
               <img class="carousel-slide" src="assets/screens/dark-roast/calendar.webp" alt="咖啡日历" width="390" height="844" />
+              <img class="carousel-slide" src="assets/screens/dark-roast/insights.webp" alt="咖啡回顾与口味雷达图" width="390" height="844" />
               <img class="carousel-slide" src="assets/screens/dark-roast/assist.webp" alt="冲煮辅助计时" width="390" height="844" />
             </div>
           </div>
@@ -89,100 +89,84 @@
     <!-- ===== Features ===== -->
     <section id="features" class="section">
       <header class="section-head">
-        <p class="eyebrow" data-i18n data-zh="功能" data-en="Features">功能</p>
-        <h2 data-i18n data-zh="从一包豆子到一杯咖啡，都记下来" data-en="From the bag to the cup — all in one place">从一包豆子到一杯咖啡，都记下来</h2>
+        <p class="eyebrow" data-i18n data-zh="从入仓到回望" data-en="From the bag to the memories">从入仓到回望</p>
+        <h2 data-i18n data-zh="一套围绕咖啡日常生长的工具" data-en="A toolkit that grows with your coffee life">一套围绕咖啡日常生长的工具</h2>
+        <p class="section-lede" data-i18n
+           data-zh="从建档、记录和冲煮，到日历、回顾与图鉴，所有功能都围绕同一份本地数据自然衔接。"
+           data-en="From cataloging and logging to brewing, calendars, reviews and collections, every feature grows from the same local data.">
+          从建档、记录和冲煮，到日历、回顾与图鉴，所有功能都围绕同一份本地数据自然衔接。
+        </p>
       </header>
       <div class="feature-grid">
         <article class="feature">
-          <div class="feature-ic">🫘</div>
-          <h3 data-i18n data-zh="咖啡豆管理" data-en="Bean library">咖啡豆管理</h3>
+          <div class="feature-top"><span class="feature-index">01</span><span class="feature-stage" data-i18n data-zh="入仓" data-en="Catalog">入仓</span></div>
+          <h3 data-i18n data-zh="从咖啡袋开始建档" data-en="Start with the coffee bag">从咖啡袋开始建档</h3>
           <p data-i18n
-             data-zh="产地、处理法、烘焙度与每克单价一处记全；设定开封赏味期后首页自动倒计时，赏味将至或余量不足都会提醒。多维排序、状态筛选，还能存咖啡袋与标签图。"
-             data-en="Origin, process, roast and price-per-gram in one place. Set a freshness window and the home screen counts down, nudging you before beans go stale or run low — with sorting, status filters and bag photos.">
-            产地、处理法、烘焙度与每克单价一处记全；设定开封赏味期后首页自动倒计时，赏味将至或余量不足都会提醒。多维排序、状态筛选，还能存咖啡袋与标签图。
+             data-zh="产地、处理法、烘焙度、克重、价格与赏味期一处记全。APK 可离线识别包装文字，也能在本机抠出咖啡袋主体做成撕纸边手账封面；赏味将至和余量不足会主动提醒。"
+             data-en="Keep origin, process, roast, weight, price and freshness together. The APK reads bag labels offline and can cut out the bag into a torn-edge journal cover on-device, with timely freshness and low-stock reminders.">
+            产地、处理法、烘焙度、克重、价格与赏味期一处记全。APK 可离线识别包装文字，也能在本机抠出咖啡袋主体做成撕纸边手账封面；赏味将至和余量不足会主动提醒。
           </p>
+          <ul class="feature-tags" aria-label="入仓功能"><li data-i18n data-zh="豆仓管理" data-en="Bean vault">豆仓管理</li><li data-i18n data-zh="离线识别" data-en="Offline scan">离线识别</li><li data-i18n data-zh="照片手账" data-en="Photo journal">照片手账</li><li data-i18n data-zh="赏味提醒" data-en="Freshness alerts">赏味提醒</li></ul>
         </article>
         <article class="feature">
-          <div class="feature-ic">📷</div>
-          <h3 data-i18n data-zh="拍照识别（离线）" data-en="Offline label scan">拍照识别（离线）</h3>
+          <div class="feature-top"><span class="feature-index">02</span><span class="feature-stage" data-i18n data-zh="记录" data-en="Log">记录</span></div>
+          <h3 data-i18n data-zh="家里冲的、店里喝的，都留下" data-en="Keep home brews and café cups together">家里冲的、店里喝的，都留下</h3>
           <p data-i18n
-             data-zh="APK 内置 ML Kit 模型，离线拍下包装就能解析日期、克重、处理法、烘焙度、产地与风味，直接填进编辑器；低可信字段黄色标出，确认即可入库。"
-             data-en="The APK bundles ML Kit to read CN/EN bags fully offline — date, weight, process, roast, origin and notes parsed straight into the editor, with low-confidence fields flagged for a quick check.">
-            APK 内置 ML Kit 模型，离线拍下包装就能解析日期、克重、处理法、烘焙度、产地与风味，直接填进编辑器；低可信字段黄色标出，确认即可入库。
+             data-zh="自家冲煮会自动扣减库存，外饮则记录咖啡馆、饮品、价格、地点与照片。店铺、同店饮品和地点会从本机历史联想补全，每杯都能留下总评、多维风味、笔记和最多 3 张照片。"
+             data-en="Home brews deduct stock automatically, while café visits keep the shop, drink, price, place and photos. On-device history suggests familiar details, and every cup can carry ratings, a flavor radar, notes and up to three photos.">
+            自家冲煮会自动扣减库存，外饮则记录咖啡馆、饮品、价格、地点与照片。店铺、同店饮品和地点会从本机历史联想补全，每杯都能留下总评、多维风味、笔记和最多 3 张照片。
           </p>
+          <ul class="feature-tags" aria-label="记录功能"><li data-i18n data-zh="喝一杯" data-en="Quick log">喝一杯</li><li data-i18n data-zh="外饮记录" data-en="Café visits">外饮记录</li><li data-i18n data-zh="历史联想" data-en="Local suggestions">历史联想</li><li data-i18n data-zh="风味雷达" data-en="Flavor radar">风味雷达</li></ul>
         </article>
         <article class="feature">
-          <div class="feature-ic">☕</div>
-          <h3 data-i18n data-zh="喝一杯" data-en="Drink a cup">喝一杯</h3>
+          <div class="feature-top"><span class="feature-index">03</span><span class="feature-stage" data-i18n data-zh="冲煮" data-en="Brew">冲煮</span></div>
+          <h3 data-i18n data-zh="把满意的一杯变成可复现的方案" data-en="Turn a good cup into a repeatable recipe">把满意的一杯变成可复现的方案</h3>
           <p data-i18n
-             data-zh="点一下「喝一杯」记下这次用了多少克，自动从豆仓扣量；随后从容打分——五星总评加多维风味雷达，也可只留评分、备注和最多 3 张照片。"
-             data-en="Tap Drink a cup to log how many grams you used and deduct it from the bag automatically. Rate it whenever — an overall score plus a flavor radar, or just notes and up to three photos.">
-            点一下「喝一杯」记下这次用了多少克，自动从豆仓扣量；随后从容打分——五星总评加多维风味雷达，也可只留评分、备注和最多 3 张照片。
+             data-zh="按冲煮方式保存粉水比、水温、研磨、设备与分段步骤；手冲时进入大字计时辅助，逐段提示注水并保存实际用时。满意的饮用记录可另存方案，也能用离线分享码和二维码带走。"
+             data-en="Save ratio, temperature, grind, gear and step-by-step pours by method. The pour-over assistant times each stage in a focused view and keeps actual timings; good brews can become recipes or travel through offline codes and QR.">
+            按冲煮方式保存粉水比、水温、研磨、设备与分段步骤；手冲时进入大字计时辅助，逐段提示注水并保存实际用时。满意的饮用记录可另存方案，也能用离线分享码和二维码带走。
           </p>
+          <ul class="feature-tags" aria-label="冲煮功能"><li data-i18n data-zh="冲煮方案" data-en="Brew recipes">冲煮方案</li><li data-i18n data-zh="分段计时" data-en="Step timer">分段计时</li><li data-i18n data-zh="实测参数" data-en="Actual timing">实测参数</li><li data-i18n data-zh="离线分享码" data-en="Offline codes">离线分享码</li></ul>
         </article>
         <article class="feature">
-          <div class="feature-ic">🏪</div>
-          <h3 data-i18n data-zh="外饮记录" data-en="Coffee out">外饮记录</h3>
+          <div class="feature-top"><span class="feature-index">04</span><span class="feature-stage" data-i18n data-zh="回看" data-en="Review">回看</span></div>
+          <h3 data-i18n data-zh="从日历到报告，读懂自己的节奏" data-en="Read your rhythm through calendars and reports">从日历到报告，读懂自己的节奏</h3>
           <p data-i18n
-             data-zh="在外面喝到的咖啡也记得下：店名、饮品、价格与地点，不关联豆子、不扣库存，却一样计入咖啡日历的花费与评分。"
-             data-en="Log the coffees you drink out too — shop, drink, price and place. They don't touch your beans or stock, yet still count toward the calendar's spend and ratings.">
-            在外面喝到的咖啡也记得下：店名、饮品、价格与地点，不关联豆子、不扣库存，却一样计入咖啡日历的花费与评分。
+             data-zh="月历按天查看杯数、用豆、花费与评分，年历用热力图串起全年。回顾继续整理口味、习惯、近 12 个月开销和手冲表现，走完的自然月与年份会沉淀成咖啡月报、年报。"
+             data-en="The monthly calendar reveals cups, beans, spend and ratings by day, while the yearly heatmap connects the whole year. Review adds flavor, habits, 12-month spending and pour-over patterns, with completed periods becoming coffee reports.">
+            月历按天查看杯数、用豆、花费与评分，年历用热力图串起全年。回顾继续整理口味、习惯、近 12 个月开销和手冲表现，走完的自然月与年份会沉淀成咖啡月报、年报。
           </p>
+          <ul class="feature-tags" aria-label="回看功能"><li data-i18n data-zh="月历 · 年历" data-en="Month · year">月历 · 年历</li><li data-i18n data-zh="口味与习惯" data-en="Taste & habits">口味与习惯</li><li data-i18n data-zh="花费回顾" data-en="Spending review">花费回顾</li><li data-i18n data-zh="月报 · 年报" data-en="Monthly · yearly">月报 · 年报</li></ul>
         </article>
         <article class="feature">
-          <div class="feature-ic">📋</div>
-          <h3 data-i18n data-zh="冲煮方案" data-en="Brew recipes">冲煮方案</h3>
+          <div class="feature-top"><span class="feature-index">05</span><span class="feature-stage" data-i18n data-zh="收藏" data-en="Collect">收藏</span></div>
+          <h3 data-i18n data-zh="图鉴收藏喝过的豆与咖啡馆" data-en="Collect the beans and cafés you have explored">图鉴收藏喝过的豆与咖啡馆</h3>
           <p data-i18n
-             data-zh="按冲煮方式管理配方，粉水比、水温、研磨度与设备都能存；喝一杯时优先推上次与同方式的方案，一次满意的冲煮也能随手另存为新方案。"
-             data-en="Organize recipes by method — ratio, temperature, grind and gear all saved. Your last and same-method plans surface first when logging, and any good brew can become a new recipe.">
-            按冲煮方式管理配方，粉水比、水温、研磨度与设备都能存；喝一杯时优先推上次与同方式的方案，一次满意的冲煮也能随手另存为新方案。
+             data-zh="冲煮图鉴与外饮图鉴分开点亮豆款、咖啡馆、产地、处理法、地点和里程碑。豆袋与饮用照片可散开浏览，同店多张照片会在封面轮播；整本图鉴还能离线生成分享长图。"
+             data-en="Separate brew and café atlases light up beans, shops, origins, processes, places and milestones. Bag and tasting photos can fan open, multi-photo cafés rotate their covers, and the whole atlas can become an offline share image.">
+            冲煮图鉴与外饮图鉴分开点亮豆款、咖啡馆、产地、处理法、地点和里程碑。豆袋与饮用照片可散开浏览，同店多张照片会在封面轮播；整本图鉴还能离线生成分享长图。
           </p>
+          <ul class="feature-tags" aria-label="收藏功能"><li data-i18n data-zh="冲煮图鉴" data-en="Brew atlas">冲煮图鉴</li><li data-i18n data-zh="外饮图鉴" data-en="Café atlas">外饮图鉴</li><li data-i18n data-zh="照片浏览" data-en="Photo browsing">照片浏览</li><li data-i18n data-zh="里程碑" data-en="Milestones">里程碑</li></ul>
         </article>
         <article class="feature">
-          <div class="feature-ic">⏱️</div>
-          <h3 data-i18n data-zh="冲煮辅助（手冲）" data-en="Pour-over assist">冲煮辅助（手冲）</h3>
+          <div class="feature-top"><span class="feature-index">06</span><span class="feature-stage" data-i18n data-zh="安心使用" data-en="Keep control">安心使用</span></div>
+          <h3 data-i18n data-zh="默认离线，也给跨设备留一扇门" data-en="Offline by default, connected when you choose">默认离线，也给跨设备留一扇门</h3>
           <p data-i18n
-             data-zh="手冲时打开冲煮辅助，按方案步骤自动计时，放大显示本段注水量、常驻下一段预览；结束后自动存下实际用时、扣减库存，紧接着评分。"
-             data-en="For pour-over, the brew assistant times each step — enlarging the current pour and previewing the next. When you finish it saves the real timings, deducts stock and moves you to rating.">
-            手冲时打开冲煮辅助，按方案步骤自动计时，放大显示本段注水量、常驻下一段预览；结束后自动存下实际用时、扣减库存，紧接着评分。
+             data-zh="Android 使用私有 SQLite，Web 使用 IndexedDB；不登录、不联网也能完整使用，并可随时导出备份。云同步默认关闭，只有登录并主动开启后才在 Android 与 Web 间同步数据与图片。"
+             data-en="Android uses private SQLite and the web app uses IndexedDB. Everything works without an account or network, with backups available anytime; cloud sync stays off until you sign in and explicitly enable it across Android and Web.">
+            Android 使用私有 SQLite，Web 使用 IndexedDB；不登录、不联网也能完整使用，并可随时导出备份。云同步默认关闭，只有登录并主动开启后才在 Android 与 Web 间同步数据与图片。
           </p>
-        </article>
-        <article class="feature">
-          <div class="feature-ic">📅</div>
-          <h3 data-i18n data-zh="咖啡日历" data-en="Coffee calendar">咖啡日历</h3>
-          <p data-i18n
-             data-zh="咖啡日历把每天喝了什么串成线：月历看当天详情，年历用格子热力图铺满整年，随手就能看到那天的花费与评分。"
-             data-en="The coffee calendar threads your days together — a monthly view for the day's detail, a yearly heatmap across the whole year, each cell showing that day's spend and score.">
-            咖啡日历把每天喝了什么串成线：月历看当天详情，年历用格子热力图铺满整年，随手就能看到那天的花费与评分。
-          </p>
-        </article>
-        <article class="feature">
-          <div class="feature-ic">🎫</div>
-          <h3 data-i18n data-zh="分享" data-en="Share cards">分享</h3>
-          <p data-i18n
-             data-zh="咖啡豆、饮用记录、冲煮方案与咖啡日历都能生成统一的票据风卡片，含雷达图、备注与手账照片；方案还带离线分享码（DC1-）与二维码，扫码即可导入。"
-             data-en="Beans, tastings, recipes and the calendar all become unified receipt-style cards — radar, notes and journal photos included. Recipes also carry an offline DC1- code and QR to import in a scan.">
-            咖啡豆、饮用记录、冲煮方案与咖啡日历都能生成统一的票据风卡片，含雷达图、备注与手账照片；方案还带离线分享码（DC1-）与二维码，扫码即可导入。
-          </p>
-        </article>
-        <article class="feature">
-          <div class="feature-ic">☁️</div>
-          <h3 data-i18n data-zh="云同步（可选）" data-en="Optional cloud sync">云同步（可选）</h3>
-          <p data-i18n
-             data-zh="默认关闭、不登录不联网。需要时登录，就能在 Android 与 Web 之间同步豆子、记录、方案与图片；数据经 HTTPS 传输、仅你可见，云端副本可随时删除。"
-             data-en="Off by default — no login, no network. Sign in when you want to sync beans, logs, plans and images across Android and Web; sent over HTTPS, visible to you alone, deletable anytime.">
-            默认关闭、不登录不联网。需要时登录，就能在 Android 与 Web 之间同步豆子、记录、方案与图片；数据经 HTTPS 传输、仅你可见，云端副本可随时删除。
-          </p>
+          <ul class="feature-tags" aria-label="安心使用功能"><li data-i18n data-zh="本地数据库" data-en="Local database">本地数据库</li><li data-i18n data-zh="备份恢复" data-en="Backup & restore">备份恢复</li><li data-i18n data-zh="可选同步" data-en="Optional sync">可选同步</li><li data-i18n data-zh="Android · Web" data-en="Android · Web">Android · Web</li></ul>
         </article>
       </div>
       <p class="rail-hint" aria-hidden="true" data-i18n data-zh="← 左右滑动查看全部 →" data-en="← swipe to see more →">← 左右滑动查看全部 →</p>
     </section>
 
-    <!-- ===== Calendar & Insights ===== -->
+    <!-- ===== Calendar, insights & atlas ===== -->
     <section id="calendar-insights" class="section calendar-insights">
       <div class="calendar-insights-card">
         <div class="calendar-insights-copy">
-          <p class="eyebrow" data-i18n data-zh="咖啡日历与回顾" data-en="Calendar & review">咖啡日历与回顾</p>
+          <p class="eyebrow" data-i18n data-zh="咖啡日历 · 回顾 · 图鉴" data-en="Calendar · review · atlas">咖啡日历 · 回顾 · 图鉴</p>
           <h2 data-i18n
               data-zh="让每一杯留下痕迹，也慢慢读懂自己的咖啡日常"
               data-en="Trace every cup, then discover the rhythm behind it.">
@@ -203,11 +187,22 @@
             <article class="calendar-insights-point">
               <span aria-hidden="true">02</span>
               <div>
-                <h3 data-i18n data-zh="从记录里看见自己" data-en="See the patterns behind your logs">从记录里看见自己</h3>
+                <h3 data-i18n data-zh="回顾与咖啡报告" data-en="Review & coffee reports">回顾与咖啡报告</h3>
                 <p data-i18n
-                   data-zh="回顾会从评价和饮用笔记中整理口味偏好、饮用时段、近 12 个月花费，以及值得再喝的豆子。"
-                   data-en="Review turns your ratings and tasting notes into flavor preferences, drinking habits, 12-month spending trends and beans worth returning to.">
-                  回顾会从评价和饮用笔记中整理口味偏好、饮用时段、近 12 个月花费，以及值得再喝的豆子。
+                   data-zh="从评价和饮用笔记中整理口味、习惯、花费与冲煮表现；走完的月份和年份，还会留下咖啡月报与年报。"
+                   data-en="Ratings and notes become flavor, habit, spending and brew insights; completed months and years leave behind coffee reports of their own.">
+                  从评价和饮用笔记中整理口味、习惯、花费与冲煮表现；走完的月份和年份，还会留下咖啡月报与年报。
+                </p>
+              </div>
+            </article>
+            <article class="calendar-insights-point">
+              <span aria-hidden="true">03</span>
+              <div>
+                <h3 data-i18n data-zh="点亮咖啡图鉴" data-en="Build your coffee atlas">点亮咖啡图鉴</h3>
+                <p data-i18n
+                   data-zh="自家冲煮与外饮分栏收藏：喝过的豆款、咖啡馆、产地、处理法、地点和里程碑，都会在记录累积后慢慢亮起来。"
+                   data-en="Home brews and café visits form separate collections. Beans, cafés, origins, processes, places and milestones light up as your history grows.">
+                  自家冲煮与外饮分栏收藏：喝过的豆款、咖啡馆、产地、处理法、地点和里程碑，都会在记录累积后慢慢亮起来。
                 </p>
               </div>
             </article>
@@ -219,10 +214,10 @@
           </p>
         </div>
         <figure class="device calendar-insights-visual">
-          <div class="calendar-insights-screen">
-            <img src="assets/screens/insights.webp"
+          <div class="calendar-insights-screen shot" data-screen="insights">
+            <img class="shot-img" src="assets/screens/dark-roast/insights.webp"
                  alt="回顾页面，展示咖啡日常摘要与口味雷达图 / Review screen with a coffee rhythm summary and flavor radar"
-                 width="305" height="790" loading="lazy" decoding="async" />
+                 width="390" height="844" loading="lazy" decoding="async" />
           </div>
         </figure>
       </div>
@@ -253,6 +248,14 @@
         <figure class="device">
           <div class="shot" data-screen="calendar"><img class="shot-img" src="assets/screens/dark-roast/calendar.webp" alt="咖啡日历" width="390" height="844" /></div>
           <figcaption data-i18n data-zh="咖啡日历" data-en="Coffee calendar">咖啡日历</figcaption>
+        </figure>
+        <figure class="device">
+          <div class="shot" data-screen="insights"><img class="shot-img" src="assets/screens/dark-roast/insights.webp" alt="咖啡回顾与口味雷达图" width="390" height="844" /></div>
+          <figcaption data-i18n data-zh="回顾与雷达图" data-en="Review & flavor radar">回顾与雷达图</figcaption>
+        </figure>
+        <figure class="device">
+          <div class="shot" data-screen="atlas"><img class="shot-img" src="assets/screens/dark-roast/atlas.webp" alt="咖啡图鉴与豆款收集墙" width="390" height="844" /></div>
+          <figcaption data-i18n data-zh="咖啡图鉴" data-en="Coffee atlas">咖啡图鉴</figcaption>
         </figure>
         <figure class="device">
           <div class="shot" data-screen="assist"><img class="shot-img" src="assets/screens/dark-roast/assist.webp" alt="冲煮辅助计时" width="390" height="844" /></div>
@@ -311,14 +314,13 @@
       <a href="https://github.com/Seeken-dai/cofeBean" rel="noopener">GitHub</a>
       <a href="https://github.com/Seeken-dai/cofeBean/releases/latest" rel="noopener" data-i18n data-zh="下载" data-en="Download">下载</a>
       <a href="https://github.com/Seeken-dai/cofeBean/blob/main/docs/CHANGELOG.md" rel="noopener" data-i18n data-zh="更新日志" data-en="Changelog">更新日志</a>
-      <a href="https://github.com/Seeken-dai/cofeBean/blob/main/docs/SYNC.md" rel="noopener" data-i18n data-zh="同步说明" data-en="Sync docs">同步说明</a>
     </nav>
     <p class="foot-meta">
-      <span data-i18n data-zh="当前版本" data-en="Version">当前版本</span> <span id="appVersion">2.2.4</span> ·
+      <span data-i18n data-zh="当前版本" data-en="Version">当前版本</span> <span id="appVersion">2.3.13</span> ·
       <span>© <span id="year">2026</span> 豆仓 Coffee Vault</span>
     </p>
   </footer>
 
-  <script src="main.js"></script>
+  <script src="main.js?v=2.3.13-2"></script>
 </body>
 </html>

@@ -188,6 +188,25 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 700; line-height: 1.2; marg
 }
 .hero-sub { margin: 0 0 28px; max-width: 30em; font-size: clamp(15px, 1.6vw, 17px); color: var(--muted); }
 
+/* One concise entrance sequence for the hero copy. The stagger stays under 500ms. */
+.hero-enter .hero-copy > .eyebrow,
+.hero-enter .hero-title,
+.hero-enter .slogan,
+.hero-enter .hero-sub,
+.hero-enter .cta-row,
+.hero-enter .trust {
+  animation: hero-copy-enter .32s cubic-bezier(.22, .75, .28, 1) both;
+}
+.hero-enter .hero-title { animation-delay: .035s; }
+.hero-enter .slogan { animation-delay: .07s; }
+.hero-enter .hero-sub { animation-delay: .105s; }
+.hero-enter .cta-row { animation-delay: .14s; }
+.hero-enter .trust { animation-delay: .175s; }
+@keyframes hero-copy-enter {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .cta-row { display: flex; flex-wrap: wrap; gap: 14px; }
 .cta-center { justify-content: center; }
 .btn {
@@ -262,8 +281,13 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 700; line-height: 1.2; marg
   grid-template-columns: repeat(3, 1fr);
   gap: 18px;
 }
-/* mobile/tablet: swap the 3×3 grid for a horizontal snap rail so 9 cards
-   neither leave an orphan row nor force a very long vertical scroll */
+.section-lede {
+  max-width: 62ch;
+  margin: 18px 0 0;
+  color: var(--muted);
+  font-size: clamp(15px, 1.7vw, 17px);
+}
+/* mobile/tablet: keep the six capability stages in a compact horizontal rail. */
 .rail-hint { display: none; }
 @media (max-width: 900px) {
   .feature-grid {
@@ -294,6 +318,8 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 700; line-height: 1.2; marg
   }
 }
 .feature {
+  display: flex;
+  flex-direction: column;
   padding: 26px 24px;
   background: color-mix(in srgb, var(--surface) 88%, transparent);
   border: 1px solid var(--border);
@@ -301,17 +327,49 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 700; line-height: 1.2; marg
   transition: transform .2s ease, border-color .45s, background .45s, color .45s;
 }
 .feature:hover { transform: translateY(-4px); border-color: color-mix(in srgb, var(--accent) 46%, var(--border)); background: var(--surface); }
-.feature-ic {
-  width: 46px; height: 46px;
-  display: grid; place-items: center;
-  margin-bottom: 16px;
-  font-size: 22px;
-  border-radius: 13px;
-  background: color-mix(in srgb, var(--accent) 14%, var(--surface-2));
+.feature-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.feature-index {
+  color: var(--accent);
+  font-family: var(--serif);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: .12em;
+}
+.feature-stage {
+  padding: 5px 10px;
   border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .08em;
 }
 .feature h3 { font-size: 19px; margin-bottom: 9px; }
 .feature p { margin: 0; font-size: 14.5px; color: var(--muted); }
+.feature-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: auto 0 0;
+  padding: 22px 0 0;
+  list-style: none;
+}
+.feature-tags li {
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-2) 82%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  color: var(--faint);
+  font-size: 11.5px;
+  line-height: 1.35;
+}
 
 /* ===== Calendar & insights ===== */
 .calendar-insights-card {
@@ -368,11 +426,23 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 700; line-height: 1.2; marg
   margin: 0;
 }
 .calendar-insights-screen {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 390 / 844;
   overflow: hidden;
   border-radius: 26px;
   background: var(--bg);
 }
-.calendar-insights-visual img { display: block; width: 100%; height: auto; border-radius: 0; }
+.calendar-insights-visual img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 0;
+  transition: opacity .55s ease;
+}
 
 /* ===== Theme switch (editorial text + sliding underline) ===== */
 .section-head--wide { max-width: 760px; }
@@ -445,7 +515,25 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 700; line-height: 1.2; marg
   overflow-x: auto;
   padding: 6px 4px 22px;
   scroll-snap-type: x mandatory;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--accent) 64%, var(--surface-3)) color-mix(in srgb, var(--surface-2) 74%, transparent);
   -webkit-overflow-scrolling: touch;
+}
+.screens-rail::-webkit-scrollbar { height: 10px; }
+.screens-rail::-webkit-scrollbar-track {
+  margin-inline: 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-2) 74%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border) 58%, transparent);
+}
+.screens-rail::-webkit-scrollbar-thumb {
+  min-width: 64px;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 68%, var(--surface-3)), var(--accent)) padding-box;
+}
+.screens-rail::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 82%, var(--surface-3)), var(--accent)) padding-box;
 }
 .screens-rail .device { scroll-snap-align: center; padding: 7px; border-radius: 30px; }
 .screens-rail .shot { position: relative; width: 100%; aspect-ratio: 390 / 844; border-radius: 23px; overflow: hidden; background: var(--bg); }
@@ -514,5 +602,5 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 700; line-height: 1.2; marg
 }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  *, *::before, *::after { transition: none !important; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
 }
