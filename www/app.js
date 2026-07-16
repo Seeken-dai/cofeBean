@@ -1933,7 +1933,7 @@
   // 备份导出/导入与旧版迁移在 app-backup.js(拆分第三批)。
   const { exportBackup, startImport, webImport, loadMockData, offerMigration, migrateLegacy } =
     window.AppBackup.create({ $, state, els, core: BeanCore, repository: BeanRepository, capPlugin, toast, setDialog, reload, confirmFn: (message) => askConfirm({ eyebrow: 'LOCAL TEST', title: '载入 Mock 数据？', message, confirmText: '载入' }) });
-  const insightsUi = window.AppInsights.create({ state, dialog: els.insights, core: BeanInsights, setDialog, toast, imageSrc, shareReport: shareCoffeeReport, shareCatalog: shareCoffeeCatalog });
+  const insightsUi = window.AppInsights.create({ state, dialog: els.insights, core: BeanInsights, setDialog, toast, imageSrc, shareReport: shareCoffeeReport, shareCatalog: shareCoffeeCatalog, reopenPersonal: openPersonal });
   function openInsights() { insightsUi.open(); }
   function openInsightsFromPersonal(openPage) { if (els.personal.open) els.personal.close(); openPage(); }
 

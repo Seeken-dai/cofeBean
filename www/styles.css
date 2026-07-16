@@ -446,6 +446,14 @@ html.number-picker-open { overflow:hidden; }
 .personal-section { display:grid; gap:9px; }
 .personal-section + .personal-section { margin-top:8px; padding-top:14px; border-top:1px solid color-mix(in srgb,var(--border) 62%,transparent); }
 .personal-section > h3 { margin:0 2px 2px; color:var(--faint); font-size:9px; font-weight:800; letter-spacing:.12em; }
+.personal-life-section { grid-template-columns:1fr 1fr; align-items:stretch; gap:9px; }
+.personal-life-section > h3 { grid-column:1 / -1; }
+.personal-life-section > .calendar-entry-card,.personal-life-section > .personal-insights-card { display:flex; flex-direction:column; height:100%; }
+.personal-life-section .calendar-entry-copy span { font-size:16px; }
+.personal-life-section .calendar-entry-stats { margin-top:auto; }
+.personal-life-section .personal-insights-main { flex:0 0 auto; min-height:0; padding-bottom:12px; }
+.personal-life-section .personal-insights-links { flex-direction:column; margin-top:auto; padding-top:2px; gap:6px; }
+.personal-life-section .personal-insights-links button { min-height:34px; }
 .calendar-entry-card { width:100%; padding:14px; border:1px solid color-mix(in srgb,var(--accent) 38%,var(--border)); border-radius:18px; background:radial-gradient(circle at 90% 8%, color-mix(in srgb,var(--accent) 12%,transparent), transparent 42%), linear-gradient(145deg,var(--surface-2),var(--surface)); color:var(--text); text-align:left; }
 .calendar-entry-copy span,.calendar-entry-copy small { display:block; }.calendar-entry-copy span { font:700 18px "Vault Serif",serif; color:var(--accent); }.calendar-entry-copy small { margin-top:4px; color:var(--muted); font-size:10px; line-height:1.5; }
 .mini-heatmap { display:grid; grid-template-rows:repeat(6,7px); grid-auto-flow:column; grid-auto-columns:7px; gap:4px; width:max-content; max-width:100%; margin:12px 0 10px; overflow:hidden; }
@@ -488,7 +496,7 @@ html.number-picker-open { overflow:hidden; }
 .insights-range button { min-width:0; min-height:38px; padding:0 5px; border:0; border-radius:11px; background:transparent; color:var(--faint); font-size:11px; font-weight:700; }
 .insights-range button.active { background:var(--accent); color:var(--accent-ink); }
 .insights-range-note { margin:0 3px 14px; color:var(--faint); font-size:9px; line-height:1.55; }
-.insights-section-nav { position:sticky; z-index:3; top:-14px; display:flex; gap:6px; margin:0 -2px 15px; padding:7px 2px; overflow-x:auto; background:linear-gradient(var(--surface),color-mix(in srgb,var(--surface) 92%,transparent)); scrollbar-width:none; }
+.insights-section-nav { position:sticky; z-index:2; top:var(--insights-nav-top,100px); display:flex; gap:6px; margin:0 -2px 15px; padding:7px 2px; overflow-x:auto; background:var(--surface); scrollbar-width:none; }
 .insights-section-nav::-webkit-scrollbar { display:none; }
 .insights-section-nav button { flex:0 0 auto; min-height:30px; padding:0 11px; border:1px solid color-mix(in srgb,var(--border) 72%,transparent); border-radius:999px; background:var(--surface-2); color:var(--muted); font-size:9px; font-weight:750; }
 .insight-opening { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:14px; align-items:center; padding:18px; border:1px solid color-mix(in srgb,var(--accent) 35%,var(--border)); border-radius:20px; background:color-mix(in srgb,var(--accent) 7%,var(--surface)); }
@@ -602,6 +610,8 @@ html.number-picker-open { overflow:hidden; }
 .report-page-intro h3 { margin:5px 0 7px; font:700 23px "Vault Serif",serif; }
 .report-page-intro > p:last-child { margin:0; color:var(--muted); font-size:10px; line-height:1.6; }
 .report-page-intro .insight-help-button { margin-left:4px; vertical-align:middle; }
+.report-list-note { margin:0 3px 14px; color:var(--muted); font-size:10px; line-height:1.6; }
+.report-list-note .insight-help-button { margin-left:4px; vertical-align:middle; }
 .coffee-report-list { display:grid; gap:9px; margin-top:18px; }
 .coffee-report-link { position:relative; display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:88px; overflow:hidden; padding:15px; border:1px solid color-mix(in srgb,var(--border) 78%,transparent); border-radius:17px; background:color-mix(in srgb,var(--surface-2) 65%,var(--surface)); cursor:pointer; }
 .coffee-report-link::before { content:""; position:absolute; inset:0 auto 0 0; width:3px; background:var(--accent); opacity:.72; }
@@ -655,59 +665,91 @@ html.number-picker-open { overflow:hidden; }
 .catalog-summary-card .insight-card-head > strong small { color:var(--faint); font-size:8px; font-weight:650; }
 .catalog-summary-card > p { margin:0; color:var(--muted); font-size:10px; line-height:1.55; }
 .catalog-summary-card > i { position:absolute; right:15px; top:50%; color:var(--accent); font-size:24px; font-style:normal; transform:translateY(-50%); }
-.catalog-page-intro { padding:4px 3px 2px; }
-.catalog-page-intro h3 { margin:5px 0 7px; font:700 23px "Vault Serif",serif; }
-.catalog-page-intro > p:last-child { margin:0; color:var(--muted); font-size:10px; line-height:1.65; }
-.catalog-empty { display:flex; align-items:center; gap:12px; margin-top:18px; padding:18px; border:1px solid color-mix(in srgb,var(--border) 72%,transparent); border-radius:18px; background:var(--surface-2); }
+/* 图鉴 = 咖啡收藏册：暖纸底 + 集邮册母题，明确区别于统计回顾页 */
+#catalogPage { background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 6%,var(--surface)),var(--surface) 240px); }
+.catalog-page-intro { position:relative; overflow:hidden; margin-bottom:4px; padding:17px 16px 15px; border:1px solid color-mix(in srgb,var(--accent) 34%,var(--border)); border-radius:20px; background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 14%,var(--surface-2)),var(--surface)); }
+.catalog-page-intro::after { content:""; position:absolute; inset:0; z-index:0; background-image:var(--photo-grain); background-size:120px 120px; mix-blend-mode:overlay; opacity:calc(var(--photo-grain-opacity,.05) + .02); pointer-events:none; }
+.catalog-page-intro > * { position:relative; z-index:1; }
+.catalog-page-intro h3 { margin:6px 0 7px; font:700 24px "Vault Serif",serif; letter-spacing:.01em; }
+.catalog-page-intro > p:last-child { margin:0; max-width:29em; color:var(--muted); font-size:10px; line-height:1.7; }
+.catalog-page-stamp { position:absolute; right:13px; top:13px; z-index:1; display:grid; place-items:center; width:58px; height:58px; border:1.5px dashed color-mix(in srgb,var(--accent) 55%,var(--border)); border-radius:50%; background:color-mix(in srgb,var(--surface) 66%,transparent); color:var(--accent); font:700 8px/1.25 "Vault Serif",serif; letter-spacing:.08em; text-align:center; transform:rotate(-9deg); }
+.catalog-empty { display:flex; align-items:center; gap:12px; margin-top:14px; padding:18px; border:1px solid color-mix(in srgb,var(--border) 72%,transparent); border-radius:18px; background:var(--surface-2); }
 .catalog-empty strong { display:block; font-size:13px; }
 .catalog-empty p { margin:5px 0 0; color:var(--muted); font-size:9px; line-height:1.55; }
-.catalog-section { margin-top:25px; scroll-margin-top:54px; }
-.catalog-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 3px 11px; }
-.catalog-heading > div { display:flex; align-items:center; gap:9px; }
-.catalog-heading > div > span { display:grid; place-items:center; width:30px; height:30px; border:1px solid color-mix(in srgb,var(--accent) 42%,var(--border)); border-radius:50%; color:var(--accent); font:700 10px "Vault Serif",serif; }
-.catalog-heading h3 { margin:0; font:700 18px "Vault Serif",serif; }
-.catalog-heading > small { color:var(--faint); font-size:8px; text-align:right; }
-.catalog-heading > strong { display:flex; align-items:baseline; gap:3px; color:var(--accent); font:700 19px "Vault Serif",serif; }
+.catalog-section { position:relative; margin-top:14px; padding:15px 14px 16px; border:1px solid color-mix(in srgb,var(--border) 60%,transparent); border-radius:18px; background:color-mix(in srgb,var(--surface-2) 46%,var(--surface)); scroll-margin-top:60px; }
+.catalog-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0 0 13px; padding-bottom:10px; border-bottom:1.5px dashed color-mix(in srgb,var(--accent) 28%,var(--border)); }
+.catalog-heading > div { display:flex; align-items:center; gap:10px; }
+.catalog-heading > div > span { display:grid; flex:0 0 auto; place-items:center; width:29px; height:29px; border:1.5px dashed color-mix(in srgb,var(--accent) 55%,var(--border)); border-radius:8px; background:color-mix(in srgb,var(--accent) 9%,var(--surface)); color:var(--accent); font:700 11px "Vault Serif",serif; transform:rotate(-4deg); }
+.catalog-heading h3 { margin:0; font:700 17px "Vault Serif",serif; }
+.catalog-heading > small { flex:0 0 auto; color:var(--faint); font-size:8px; text-align:right; }
+.catalog-heading > strong { display:flex; flex:0 0 auto; align-items:baseline; gap:3px; color:var(--accent); font:700 18px "Vault Serif",serif; }
 .catalog-heading > strong small { color:var(--faint); font:650 8px system-ui; }
-.catalog-wall { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px 8px; overflow:hidden; }
-.catalog-bean { min-width:0; padding:7px 7px 9px; border:1px solid color-mix(in srgb,var(--border) 72%,transparent); border-radius:15px; background:color-mix(in srgb,var(--surface-2) 70%,var(--surface)); }
-.catalog-bean > div { position:relative; }
-.catalog-cover { position:relative; display:grid; place-items:center; width:100%; aspect-ratio:4/5; overflow:hidden; border-radius:10px; background:var(--surface-3); color:color-mix(in srgb,var(--text) 76%,transparent); }
-.catalog-cover > span { font:800 31px "Vault Serif",serif; opacity:.8; }
+/* 收集墙：两行横向滚动的收藏架，不再纵向无限延伸占版面 */
+.catalog-wall { display:grid; grid-auto-flow:column; grid-template-rows:repeat(2,auto); grid-auto-columns:29%; gap:14px 10px; padding:9px 2px 4px; overflow-x:auto; overscroll-behavior-x:contain; scroll-snap-type:x proximity; scrollbar-width:none; }
+.catalog-wall::-webkit-scrollbar { display:none; }
+.catalog-wall > .catalog-bean { scroll-snap-align:start; }
+.catalog-bean { position:relative; min-width:0; }
+.catalog-bean > div { position:relative; z-index:0; }
+.catalog-cover { position:relative; display:grid; place-items:center; width:100%; aspect-ratio:4/5; overflow:hidden; border-radius:9px; background:var(--surface-3); color:color-mix(in srgb,var(--text) 76%,transparent); }
+.catalog-cover > span { font:800 30px "Vault Serif",serif; opacity:.8; }
 .catalog-cover img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
-.catalog-wall.is-journal .catalog-bean:nth-child(odd) { transform:rotate(-.6deg); }
-.catalog-wall.is-journal .catalog-bean:nth-child(even) { transform:rotate(.6deg); }
-.catalog-wall.is-journal .catalog-bean { padding:8px 8px 11px; border-color:color-mix(in srgb,var(--accent) 24%,var(--border)); background:color-mix(in srgb,var(--surface) 88%,var(--accent)); box-shadow:0 5px 12px color-mix(in srgb,var(--shadow) 45%,transparent); }
-.catalog-wall.is-journal .catalog-cover { overflow:visible; background:color-mix(in srgb,var(--accent) 8%,var(--surface-2)); }
-.catalog-wall.is-journal .catalog-cover img.is-cutout { object-fit:contain; filter:drop-shadow(0 3px 4px color-mix(in srgb,var(--shadow) 42%,transparent)); }
-.catalog-bean > div > i { position:absolute; right:5px; bottom:5px; padding:3px 6px; border-radius:999px; background:color-mix(in srgb,var(--bg) 72%,transparent); color:var(--text); font-size:7px; font-style:normal; font-weight:800; backdrop-filter:blur(5px); }
-.catalog-bean h4,.catalog-bean p { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.catalog-bean h4 { margin:8px 0 0; font-size:10px; }
-.catalog-bean p { margin:3px 0 0; color:var(--muted); font-size:8px; }
-.catalog-bean > small { display:block; margin-top:5px; color:var(--faint); font-size:7px; line-height:1.35; }
-.catalog-bean.is-unlit { border-style:dashed; box-shadow:none; filter:saturate(.42); opacity:.66; transform:none; }
-.catalog-bean.is-unlit .catalog-cover img { opacity:.48; }
-.catalog-progress-copy { margin:-4px 3px 10px; color:var(--muted); font-size:9px; }
-.catalog-origin-list { display:grid; gap:0; overflow:hidden; border:1px solid color-mix(in srgb,var(--border) 70%,transparent); border-radius:16px; background:var(--surface-2); }
-.catalog-origin-list > div { display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:44px; padding:9px 12px; }
-.catalog-origin-list > div + div { border-top:1px solid color-mix(in srgb,var(--border) 55%,transparent); }
-.catalog-origin-list span { min-width:0; overflow:hidden; font-size:10px; font-weight:700; text-overflow:ellipsis; white-space:nowrap; }
-.catalog-origin-list small,.catalog-muted { color:var(--faint); font-size:8px; }
-.catalog-muted { margin:0; padding:14px; border-radius:14px; background:var(--surface-2); line-height:1.5; }
-.catalog-process-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-.catalog-process { display:flex; align-items:center; gap:9px; min-height:67px; padding:11px; border:1px dashed color-mix(in srgb,var(--border) 76%,transparent); border-radius:14px; background:color-mix(in srgb,var(--surface-2) 64%,var(--surface)); opacity:.68; }
-.catalog-process > span { display:grid; flex:0 0 26px; place-items:center; width:26px; height:26px; border-radius:50%; background:var(--surface-3); color:var(--faint); font-size:12px; }
-.catalog-process h4 { margin:0; font-size:10px; }
-.catalog-process p { margin:4px 0 0; color:var(--faint); font-size:7px; line-height:1.4; }
-.catalog-process.is-lit { border-style:solid; border-color:color-mix(in srgb,var(--accent) 38%,var(--border)); opacity:1; }
-.catalog-process.is-lit > span { background:color-mix(in srgb,var(--accent) 16%,var(--surface)); color:var(--accent); }
-.catalog-milestone-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-.catalog-milestone { min-width:0; padding:14px; border:1px solid color-mix(in srgb,var(--accent) 28%,var(--border)); border-radius:16px; background:linear-gradient(145deg,color-mix(in srgb,var(--accent) 8%,var(--surface-2)),var(--surface)); }
-.catalog-milestone > span { color:var(--faint); font-size:8px; }
-.catalog-milestone > strong { display:block; margin-top:7px; color:var(--accent); font:700 28px/1 "Vault Serif",serif; }
-.catalog-milestone > strong small { margin-left:3px; color:var(--muted); font:650 9px system-ui; }
-.catalog-milestone > p { margin:8px 0 0; color:var(--muted); font-size:8px; line-height:1.45; }
-.catalog-share { margin-bottom:8px; }
+.catalog-bean > div > i { position:absolute; right:5px; bottom:5px; z-index:4; padding:3px 6px; border-radius:999px; background:color-mix(in srgb,var(--bg) 72%,transparent); color:var(--text); font-size:7px; font-style:normal; font-weight:800; backdrop-filter:blur(5px); }
+.catalog-repurchase { position:absolute; left:5px; top:5px; z-index:4; padding:2px 6px; border-radius:999px; background:color-mix(in srgb,var(--accent) 88%,#000); color:var(--accent-ink); font:800 7px/1.3 system-ui; font-style:normal; letter-spacing:.02em; box-shadow:0 1px 3px rgb(0 0 0 / .28); }
+.catalog-bean h4,.catalog-bean p { position:relative; z-index:2; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.catalog-bean h4 { margin:8px 2px 0; font-size:10px; }
+.catalog-bean p { margin:3px 2px 0; color:var(--muted); font-size:8px; }
+.catalog-bean > small { position:relative; z-index:2; display:block; margin:5px 2px 0; color:var(--faint); font-size:7px; line-height:1.35; }
+/* 标准形态：集卡册相册页 */
+.catalog-wall.is-standard .catalog-bean { padding:6px 6px 8px; border:1px solid color-mix(in srgb,var(--border) 66%,transparent); border-radius:11px; background:color-mix(in srgb,var(--surface) 80%,var(--accent)); box-shadow:0 2px 7px rgb(0 0 0 / .13); }
+.catalog-wall.is-standard .catalog-cover { border:1px solid color-mix(in srgb,var(--border) 55%,transparent); }
+/* 手账形态：撕纸相纸 + 胶带 + 颗粒的贴纸 */
+.catalog-wall.is-journal .catalog-bean { padding:8px 8px 12px; border:1px solid color-mix(in srgb,var(--photo-frame-bg) 55%,var(--border)); border-radius:5px; background:var(--photo-frame-bg); box-shadow:0 6px 15px rgb(0 0 0 / .18); transform:rotate(var(--photo-tilt,1deg)); }
+.catalog-wall.is-journal .catalog-bean:nth-child(even) { transform:rotate(calc(var(--photo-tilt,1deg) * -1)); }
+.catalog-wall.is-journal .catalog-bean:nth-child(3n) { transform:rotate(calc(var(--photo-tilt,1deg) * .35)); }
+.catalog-wall.is-journal .catalog-bean::before { content:""; position:absolute; top:-7px; left:50%; z-index:3; width:44px; height:15px; border:1px solid rgb(255 255 255 / .2); border-radius:2px; background:var(--photo-tape-bg); box-shadow:0 2px 6px rgb(0 0 0 / .12); transform:translateX(-50%) rotate(-4deg); pointer-events:none; }
+.catalog-wall.is-journal .catalog-bean::after { content:""; position:absolute; inset:6px; z-index:1; border-radius:4px; background-image:var(--photo-grain); background-size:88px 88px; mix-blend-mode:overlay; opacity:var(--photo-grain-opacity,.05); pointer-events:none; }
+.catalog-wall.is-journal .catalog-cover { overflow:visible; background:transparent; }
+.catalog-wall.is-journal .catalog-cover > span { color:#7a6a58; }
+.catalog-wall.is-journal .catalog-cover img.is-photo { border-radius:4px; box-shadow:0 1px 3px rgb(0 0 0 / .22); filter:var(--photo-filter); }
+.catalog-wall.is-journal .catalog-cover img.is-cutout { object-fit:contain; filter:drop-shadow(0 3px 4px rgb(0 0 0 / .3)); }
+.catalog-wall.is-journal .catalog-bean h4 { color:#3a2f27; }
+.catalog-wall.is-journal .catalog-bean p { color:#7a6a58; }
+.catalog-wall.is-journal .catalog-bean > small { color:#93826f; }
+/* 未点亮：中性的空相册位 */
+.catalog-bean.is-unlit { filter:saturate(.45); opacity:.66; transform:none; }
+.catalog-wall.is-standard .catalog-bean.is-unlit { border-style:dashed; box-shadow:none; background:color-mix(in srgb,var(--surface-2) 58%,var(--surface)); }
+.catalog-wall.is-journal .catalog-bean.is-unlit { box-shadow:0 2px 6px rgb(0 0 0 / .1); }
+.catalog-wall.is-journal .catalog-bean.is-unlit::before { opacity:.45; }
+.catalog-wall.is-journal .catalog-bean.is-unlit::after { opacity:0; }
+.catalog-bean.is-unlit .catalog-cover img { opacity:.46; }
+.catalog-progress-copy { margin:-2px 1px 11px; color:var(--muted); font-size:9px; }
+/* 产地足迹：收集到的邮票格 */
+.catalog-stamp-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(92px,1fr)); gap:9px; }
+.catalog-stamp { position:relative; padding:11px 11px 10px; border:1.5px dashed color-mix(in srgb,var(--accent) 34%,var(--border)); border-radius:11px; background:color-mix(in srgb,var(--surface) 84%,var(--surface-2)); }
+.catalog-stamp::after { content:""; position:absolute; right:8px; top:8px; width:9px; height:9px; border:1.5px solid color-mix(in srgb,var(--accent) 42%,var(--border)); border-radius:50%; opacity:.55; }
+.catalog-stamp b { display:block; overflow:hidden; padding-right:12px; font-size:11px; text-overflow:ellipsis; white-space:nowrap; }
+.catalog-stamp span { display:block; margin-top:5px; color:var(--faint); font-size:8px; }
+.catalog-muted { margin:0; padding:14px; border-radius:12px; background:color-mix(in srgb,var(--surface) 80%,var(--surface-2)); color:var(--faint); font-size:8px; line-height:1.5; }
+/* 处理法收集：像火漆印章的集章徽记，均匀两列，不再 3+1 */
+.catalog-medal-row { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+.catalog-medal { display:flex; align-items:center; gap:11px; min-height:60px; padding:9px 12px; border-radius:13px; background:color-mix(in srgb,var(--surface) 78%,var(--surface-2)); opacity:.62; }
+.catalog-medal-seal { position:relative; display:grid; flex:0 0 auto; place-items:center; width:42px; height:42px; border-radius:50%; background:radial-gradient(circle at 36% 30%,color-mix(in srgb,var(--surface-3) 60%,var(--surface)),var(--surface-3)); box-shadow:inset 0 1px 2px rgb(255 255 255 / .18),inset 0 -2px 4px rgb(0 0 0 / .18); color:var(--faint); font:700 17px "Vault Serif",serif; }
+.catalog-medal-seal::after { content:""; position:absolute; inset:3px; border:1px dashed color-mix(in srgb,var(--faint) 45%,transparent); border-radius:50%; }
+.catalog-medal > div { min-width:0; }
+.catalog-medal b { display:-webkit-box; overflow:hidden; font-size:11px; line-height:1.2; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+.catalog-medal small { display:block; margin-top:3px; color:var(--faint); font-size:8px; font-weight:600; }
+.catalog-medal.is-lit { opacity:1; }
+.catalog-medal.is-lit .catalog-medal-seal { background:radial-gradient(circle at 36% 30%,color-mix(in srgb,var(--accent) 55%,#fff),color-mix(in srgb,var(--accent) 92%,#000) 92%); box-shadow:inset 0 1px 2px rgb(255 255 255 / .4),inset 0 -3px 5px rgb(0 0 0 / .28),0 2px 5px rgb(0 0 0 / .2); color:var(--accent-ink); }
+.catalog-medal.is-lit .catalog-medal-seal::after { border-color:color-mix(in srgb,var(--accent-ink) 40%,transparent); }
+/* 里程碑：藏品印章徽章 */
+.catalog-milestone-grid { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+.catalog-milestone { position:relative; display:grid; justify-items:center; min-width:0; padding:15px 12px 13px; border:1px solid color-mix(in srgb,var(--accent) 26%,var(--border)); border-radius:15px; background:linear-gradient(160deg,color-mix(in srgb,var(--accent) 9%,var(--surface-2)),var(--surface)); text-align:center; }
+.catalog-seal { display:grid; place-items:center; width:66px; height:66px; margin-bottom:9px; border:2px dashed color-mix(in srgb,var(--accent) 40%,var(--border)); border-radius:50%; background:radial-gradient(circle,color-mix(in srgb,var(--accent) 12%,var(--surface)),var(--surface) 78%); }
+.catalog-seal strong { color:var(--accent); font:700 24px/1 "Vault Serif",serif; }
+.catalog-seal small { margin-top:2px; color:var(--muted); font-size:8px; }
+.catalog-milestone > b { font-size:11px; }
+.catalog-milestone > p { margin:5px 0 0; color:var(--muted); font-size:8px; line-height:1.45; }
+.catalog-share { margin-top:16px; margin-bottom:8px; }
 .insight-radar { display:block; width:min(100%,340px); margin:-5px auto -4px; overflow:visible; }
 .radar-grid polygon,.radar-grid line { fill:none; stroke:color-mix(in srgb,var(--border) 80%,transparent); stroke-width:1; }
 .radar-shape { fill:color-mix(in srgb,var(--accent) 24%,transparent); stroke:var(--accent); stroke-width:2; stroke-linejoin:round; }
@@ -795,11 +837,14 @@ html.number-picker-open { overflow:hidden; }
   .coffee-report-highlights span { grid-column:1/-1; }
   .coffee-report-highlights small { text-align:right; }
   .coffee-report-rhythm > div:first-child { display:grid; gap:3px; }
-  .catalog-wall { gap:8px 6px; }
-  .catalog-bean { padding:6px; }
-  .catalog-process-grid,.catalog-milestone-grid { grid-template-columns:1fr; }
+  .catalog-wall { gap:11px 6px; }
   .personal-body { padding-inline:14px; }
-  .personal-insights-links button { flex:1 1 0; padding-inline:8px; }
+}
+@media (max-width:340px) {
+  .personal-life-section { grid-template-columns:1fr; }
+  .personal-life-section .calendar-entry-copy span { font-size:18px; }
+  .personal-life-section .personal-insights-links { flex-direction:row; }
+  .personal-life-section .personal-insights-links button { flex:1 1 0; padding-inline:8px; }
 }
 
 .calendar-sheet { width:min(100% - 18px,610px); }

@@ -654,20 +654,39 @@
       logsByBean.get(log.beanId).push(log);
     });
     const mode = opts.photoJournal ? 'journal' : 'standard';
-    const wall = currentBeans.map((bean, index) => {
-      const beanLogs = logsByBean.get(bean.id) || [];
-      const firstConsumedAt = firstBeanConsumedAt(validLogs, bean.id, now);
+    // 同名 + 同烘焙商视为同一款咖啡：多次购买合并成一格，杯数累加、复购次数记为 purchaseCount。
+    const wallIdentity = (bean) => `${String(bean.name || '').trim().toLocaleLowerCase('en-US')}|${String(bean.roaster || '').trim().toLocaleLowerCase('en-US')}`;
+    const wallGroups = new Map();
+    currentBeans.forEach((bean, index) => {
+      const key = wallIdentity(bean);
+      if (!wallGroups.has(key)) wallGroups.set(key, []);
+      wallGroups.get(key).push({ bean, index });
+    });
+    const wall = Array.from(wallGroups.values()).map((members) => {
+      const sorted = members.slice().sort((a, b) => {
+        const da = validDate(a.bean.openedDate) || validDate(a.bean.createdAt);
+        const db = validDate(b.bean.openedDate) || validDate(b.bean.createdAt);
+        if (da && db) return db - da;
+        if (da) return -1;
+        if (db) return 1;
+        return a.index - b.index;
+      });
+      const primary = sorted[0].bean;
+      const cover = sorted.find((m) => (opts.photoJournal && m.bean.bagCutoutImagePath) || m.bean.bagImagePath) || sorted[0];
+      const cups = members.reduce((sum, m) => sum + (logsByBean.get(m.bean.id) || []).length, 0);
+      const firstConsumedAt = members.map((m) => firstBeanConsumedAt(validLogs, m.bean.id, now)).filter(Boolean).sort()[0] || null;
       return {
-        id: bean.id,
-        name: String(bean.name || '未命名咖啡豆').trim() || '未命名咖啡豆',
-        origin: String(bean.origin || '').trim(),
-        process: String(bean.process || '').trim(),
-        roastLevel: String(bean.roastLevel || '').trim(),
-        cups: beanLogs.length,
-        lit: beanLogs.length > 0,
+        id: primary.id,
+        name: String(primary.name || '未命名咖啡豆').trim() || '未命名咖啡豆',
+        origin: String(primary.origin || '').trim(),
+        process: String(primary.process || '').trim(),
+        roastLevel: String(primary.roastLevel || '').trim(),
+        cups,
+        lit: cups > 0,
+        purchaseCount: members.length,
         firstConsumedAt,
-        cover: catalogCover(bean, Boolean(opts.photoJournal)),
-        _index: index
+        cover: catalogCover(cover.bean, Boolean(opts.photoJournal)),
+        _index: sorted[0].index
       };
     }).sort((a, b) => Number(b.lit) - Number(a.lit)
       || (a.firstConsumedAt && b.firstConsumedAt ? new Date(a.firstConsumedAt) - new Date(b.firstConsumedAt) : 0)

@@ -59,6 +59,8 @@ Set-Location android
 
 数据库当前 `PRAGMA user_version = 11`。以后改变表结构时，在 `www/repository.js` 中增加顺序迁移，禁止删除数据库或清空旧表。（本地 SQLite 迁移与云端 D1 迁移是两回事，后者见 `RELEASING.md`。）
 
+2.3.11 正式包从 `main` 发布提交构建，已用 `aapt2 dump badging` 核对 `versionName=2.3.11`、`versionCode=69`；`aapt2 dump permissions` 与 2.3.10 逐项一致，仍为 `CAMERA`、`INTERNET`、既有 Haptics 引入的 `VIBRATE` 及 Android 自动生成的应用内接收器权限，未新增权限。`apksigner verify --print-certs` 核对证书 SHA-256 为 `aab5e3d3bd224b98f885945ecd868d54a99e2c96bf099a0c9e6ee59ca02151ae`，与既有正式版一致。已在保留数据的三星设备上从 2.3.10 覆盖升级，启动、回顾各子页、图鉴与月报分层返回均通过真机验收。本版不修改 SQLite、备份或同步 schema；正式产物为 `dist/coffee-vault-2.3.11-release.apk`，APK SHA-256 为 `acb65e13d2f1cc5a2f22d101ab1ba11820467e57e0455ef0142e8fa7ca85529c`。
+
 2.3.10 验收包从 `release/2.3.10` 构建，已用 `aapt2 dump badging` 核对 `versionName=2.3.10`、`versionCode=68`；权限与 2.3.9 逐项一致，仍为 `CAMERA`、`INTERNET`、既有 Haptics 引入的 `VIBRATE` 及 Android 自动生成的应用内接收器权限，未新增权限。`apksigner verify --print-certs` 核对证书 SHA-256 为 `aab5e3d3bd224b98f885945ecd868d54a99e2c96bf099a0c9e6ee59ca02151ae`，与既有正式版一致。本版新增咖啡图鉴与分享长图，不修改 SQLite、备份或同步 schema；验收产物为 `dist/coffee-vault-2.3.10-release.apk`，APK SHA-256 为 `487974a1d96e8b5be6a3abd8f91ec6f7bb61661d150d84da518e3dc4998d7fe8`。正式发布前仍须合并 `main` 后重建。
 
 2.3.8 验收包从 `codex/subject-crop-integration` 构建，已用 `aapt2 dump badging` 核对 `versionName=2.3.8`、`versionCode=66`；权限仍为 `CAMERA`、`INTERNET`、既有 Haptics 引入的 `VIBRATE` 及 Android 自动生成的应用内接收器权限，未新增权限。`apksigner verify --print-certs` 核对证书 SHA-256 为 `aab5e3d3bd224b98f885945ecd868d54a99e2c96bf099a0c9e6ee59ca02151ae`，与既有正式版一致。SQLite 升至 `user_version 11`，新增原图与手账封面双路径；验收产物为 `dist/coffee-vault-2.3.8-release.apk`，APK SHA-256 为 `c22a1a372aa5422d3f917ff963bd9d8d351ae63f260bfe48b90f0b2160f4a118`。正式发布前仍须合并 `main` 后重建。
