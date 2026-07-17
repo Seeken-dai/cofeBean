@@ -1,7 +1,7 @@
 'use strict';
 
 // 同步合并本地模拟测试（Web 同步演进 · 阶段 3）。
-// 覆盖 plan/SYNC_PROTOCOL_DESIGN.md §5 合并算法与 §10 验收项：
+// 覆盖本地 privateDocs/plan/doneThings/2.0.0_SYNC_PROTOCOL_DESIGN.md §5 合并算法与 §10 验收项：
 // LWW、墓碑删除、不复活、确定性裁决、饮用记录并集不丢、预置方案排除、未知字段 round-trip。
 // 纯逻辑、无网络、无云端、不触存储。
 

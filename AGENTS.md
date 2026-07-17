@@ -132,6 +132,7 @@ $env:ANDROID_SDK_ROOT='C:\tmp\android-sdk'
 - 没有特殊说明时只打正式 release 包；debug 包仅用于开发验收或定位问题。
 - 涉及 UI 时，在移动端尺寸下检查文本不溢出、按钮可点、弹窗可关闭、空状态可用。
 - README、BUILDING、CHANGELOG、RELEASING 只在行为、构建或发布信息变化时更新；各文档职责边界见 `docs/RELEASING.md` 开头的索引，同一内容不要在多处重复，用引用代替复制。
+- 更新记录分两份：`docs/CHANGELOG.md` 面向用户，用日常语言只写用户可感知的变化，不写 versionCode、schema 版本、内部模块名等实现细节；完整技术记录（Keep a Changelog 格式）写入本地 `privateDocs/CHANGELOG.md`（gitignore，不入库）。发版时两份都要更新。
 
 ## Review 标准
 

@@ -3,7 +3,7 @@
 // 跨端数据契约（Web 同步演进 · 阶段 0 冻结）。
 // 目的：把 bean / drinkLog / brewPlan / settings 经 normalize* 后的「字段集合、默认值、取值范围」钉死，
 // 保证 Android(SQLite) 与未来 Web(IndexedDB) 通过同一套 data-core 产出一致语义，防止两端悄悄分叉。
-// 若下列断言因「有意的字段变更」失败：请先同步更新 plan/DATA_CONTRACT.md、两端存储层与备份/同步逻辑，最后再改本测试。
+// 若下列断言因「有意的字段变更」失败：请先同步更新本地 privateDocs/plan/doneThings/2.0.0_DATA_CONTRACT.md、两端存储层与备份/同步逻辑，最后再改本测试。
 
 const test = require('node:test');
 const assert = require('node:assert');

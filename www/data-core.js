@@ -1208,7 +1208,7 @@
   // 记录信封形状：{ id, updatedAt, revision, deviceId, deletedAt, payload }
   // 合并：按 (updatedAt, revision, deviceId) 的 last-write-wins；胜者的 deletedAt 即最终删除态（墓碑）。
   // 删除必须写墓碑（deletedAt 非空且刷新 updatedAt），否则会被对端当作缺失而复活。
-  // 详见 plan/SYNC_PROTOCOL_DESIGN.md §4/§5。
+  // 详见本地 privateDocs/plan/doneThings/2.0.0_SYNC_PROTOCOL_DESIGN.md §4/§5（不入库）。
   // 裁决实现与云端 Worker 共用 sync-compare.js,禁止在此另写一份(两端分歧 = 数据不收敛)。
   const compareSyncRecords = syncCompare.compareSyncRecords;
   function mergeSyncRecords(local, remote) {

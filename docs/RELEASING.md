@@ -7,7 +7,7 @@
 - 构建环境、SDK 路径、`gradlew` 命令、APK 校验工具 → [`BUILDING.md`](BUILDING.md)
 - 云同步的架构、协议、数据模型 → [`SYNC.md`](SYNC.md)
 - Agent 协作约定、中断恢复、Git 安全规则 → [`../AGENTS.md`](../AGENTS.md)
-- 每个版本改了什么 → [`CHANGELOG.md`](CHANGELOG.md)
+- 每个版本改了什么（面向用户）→ [`CHANGELOG.md`](CHANGELOG.md)；详细技术变更记录 → 本地 `privateDocs/CHANGELOG.md`（不入库）
 
 ## 发布物一览
 

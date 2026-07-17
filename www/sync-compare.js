@@ -1,5 +1,5 @@
 // 同步 LWW 裁决 —— 客户端(data-core)与云端 Worker(sync-logic)共用的唯一实现。
-// 详见 plan/SYNC_PROTOCOL_DESIGN.md §5:按 (updatedAt, revision, deviceId) 三级裁决。
+// 详见本地 privateDocs/plan/doneThings/2.0.0_SYNC_PROTOCOL_DESIGN.md §5:按 (updatedAt, revision, deviceId) 三级裁决。
 // deviceId 平局位必须用码元比较(> / <),禁止 localeCompare:后者随运行环境的
 // locale/ICU 数据变化,两端可能裁出不同胜者,导致设备间数据永不收敛。
 (function (root, factory) {
