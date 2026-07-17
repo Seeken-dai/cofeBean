@@ -1370,7 +1370,8 @@
     try { await BeanRepository.deleteBrewPlan(id); setDialog(els.planDetail, false); setDialog(els.planEditor, false); state.viewingPlanId = null; state.editingPlanId = null; await reload(); toast('方案已删除'); } catch (error) { console.error(error); toast(error.message || '删除失败'); }
   }
 
-  function selectLabel(select) { const field = select.closest('.field'); const label = field && field.querySelector('.field-heading label, :scope > span'); return label ? label.textContent.trim() : '选择选项'; }
+  // 设置行的 span 里还包着说明小字，取 b 才是标题；普通 .field 的 span 本身就是标题。
+  function selectLabel(select) { const field = select.closest('.field'); if (!field) return '选择选项'; const own = field.querySelector(':scope > span'); const label = field.querySelector('.field-heading label') || (own && own.querySelector('b')) || own; return label ? label.textContent.trim() : '选择选项'; }
   function syncChoiceTrigger(select) { const trigger = select.nextElementSibling && select.nextElementSibling.classList.contains('select-trigger') ? select.nextElementSibling : null; if (!trigger) return; const option = select.options[select.selectedIndex]; trigger.querySelector('span').textContent = option && option.value ? option.textContent : '请选择'; trigger.classList.toggle('has-value', Boolean(option && option.value)); }
   function enhanceSelect(select) { if (select.nextElementSibling && select.nextElementSibling.classList.contains('select-trigger')) return syncChoiceTrigger(select); select.classList.add('native-control-hidden'); const trigger = document.createElement('button'); trigger.type = 'button'; trigger.className = 'select-trigger'; trigger.innerHTML = '<span>请选择</span><b aria-hidden="true"></b>'; trigger.addEventListener('click', () => openChoicePicker(select)); select.insertAdjacentElement('afterend', trigger); syncChoiceTrigger(select); }
   function syncAllChoiceTriggers() { $$('.field select').forEach((select) => { enhanceSelect(select); syncChoiceTrigger(select); }); }

@@ -1000,10 +1000,12 @@ html.number-picker-open { overflow:hidden; }
 .sync-privacy { margin:2px 2px 0; color:var(--faint); font-size:12px; line-height:1.6; }
 @keyframes sync-spin { to { transform:rotate(360deg); } }
 .settings-footnote { margin:0; padding:16px 20px calc(20px + env(safe-area-inset-bottom,0px)); color:var(--faint); font-size:10px; line-height:1.6; }
-.settings-number,.settings-toggle { display:flex; justify-content:space-between; align-items:center; gap:16px; }
-.settings-number + .settings-number { margin-top:14px; padding-top:14px; border-top:1px solid color-mix(in srgb,var(--border) 52%,transparent); }
+.settings-number,.settings-toggle,.settings-select { display:flex; flex-direction:row; justify-content:space-between; align-items:center; gap:16px; }
+/* 设置行右侧控件统一宽度：选择器与数字步进器右边缘对齐 */
+.settings-select > .select-trigger { flex:0 0 auto; width:min(210px,58vw); }
+.settings-number + .settings-number,.settings-number + .settings-select { margin-top:14px; padding-top:14px; border-top:1px solid color-mix(in srgb,var(--border) 52%,transparent); }
 .settings-toggle + .settings-toggle { margin-top:12px; padding-top:12px; border-top:1px solid color-mix(in srgb,var(--border) 62%,transparent); }
-.settings-number b,.settings-number small,.settings-toggle b,.settings-toggle small { display:block; }.settings-number b,.settings-toggle b { font-size:13px; }.settings-number small,.settings-toggle small { margin-top:5px; color:var(--faint); font-size:10px; line-height:1.45; }
+.settings-number b,.settings-number small,.settings-toggle b,.settings-toggle small,.settings-select b,.settings-select small { display:block; }.settings-number b,.settings-toggle b,.settings-select b { color:var(--text); font-size:13px; }.settings-number small,.settings-toggle small,.settings-select small { margin-top:5px; color:var(--faint); font-size:10px; line-height:1.45; }
 .settings-number > span:last-child { position:relative; flex:0 0 auto; }.settings-number input { width:92px; min-height:46px; padding:8px 30px 8px 10px; border:1px solid var(--border); border-radius:12px; background:var(--surface-2); color:var(--text); text-align:right; }.settings-number em { position:absolute; right:11px; top:14px; color:var(--faint); font-style:normal; font-size:11px; }
 .settings-toggle input { width:44px; height:24px; accent-color:var(--accent); }
 .dimension-panel { margin-top:12px; padding:11px; border:1px solid color-mix(in srgb,var(--border) 72%,transparent); border-radius:13px; background:color-mix(in srgb,var(--surface-2) 72%,var(--surface)); }
