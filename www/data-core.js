@@ -41,6 +41,8 @@
     advancedRatings: false,
     enabledDimensions: DIMENSION_KEYS.slice(),
     lastBrewMethod: '手冲',
+    lastCoffeeType: '黑咖',
+    defaultView: 'beans',
     priceUnit: 'g',
     theme: 'dark-roast',
     showBeanPhotosInList: false,
@@ -49,6 +51,8 @@
     lowStockCups: 4
   });
   const STATUS_ORDER = ['饮用中', '未开封', '已喝完'];
+  const COFFEE_TYPES = ['黑咖', '奶咖', '特调'];
+  const ALLOWED_COFFEE_TYPE = new Set(COFFEE_TYPES);
   const ALLOWED_STATUS = new Set(['未开封', '饮用中', '已喝完']);
   const ALLOWED_ROAST = new Set(['浅烘', '中浅烘', '中烘', '中深烘', '深烘']);
   const TEXT_FIELDS = ['name', 'roaster', 'origin', 'process', 'roastDate', 'openedDate', 'purchaseDate', 'purchaseUrl', 'tastingNotes', 'status', 'roastLevel', 'bagImagePath', 'bagCutoutImagePath', 'labelImagePath'];
@@ -371,6 +375,7 @@
       id: cleanText(source.id, 100) || makeId(),
       beanId: logSource === 'external' ? null : (cleanText(source.beanId, 100) || null),
       beanName: cleanText(source.beanName, 120) || '已删除的咖啡豆',
+      coffeeType: ALLOWED_COFFEE_TYPE.has(source.coffeeType) ? source.coffeeType : COFFEE_TYPES[0],
       grams: logSource === 'external' ? 0 : cleanNumber(source.grams),
       brewMethod: logSource === 'external' ? '' : (cleanText(source.brewMethod, 80) || '手冲'),
       brewPlanId: cleanText(source.brewPlanId, 100) || null,
@@ -740,6 +745,8 @@
       advancedRatings: source.advancedRatings === true || source.advancedRatings === 1 || source.advancedRatings === '1',
       enabledDimensions: Array.isArray(source.enabledDimensions) ? [...new Set(enabled)] : DEFAULT_SETTINGS.enabledDimensions.slice(),
       lastBrewMethod: cleanText(source.lastBrewMethod, 80) || DEFAULT_SETTINGS.lastBrewMethod,
+      lastCoffeeType: ALLOWED_COFFEE_TYPE.has(source.lastCoffeeType) ? source.lastCoffeeType : DEFAULT_SETTINGS.lastCoffeeType,
+      defaultView: ['beans', 'drinks'].includes(source.defaultView) ? source.defaultView : DEFAULT_SETTINGS.defaultView,
       priceUnit: ['g', '50g', '100g', 'jin'].includes(source.priceUnit) ? source.priceUnit : DEFAULT_SETTINGS.priceUnit,
       theme: ['dark-roast', 'frost', 'obsidian', 'blaze'].includes(source.theme) ? source.theme : DEFAULT_SETTINGS.theme,
       showBeanPhotosInList: source.showBeanPhotosInList === true || source.showBeanPhotosInList === 1 || source.showBeanPhotosInList === '1',
@@ -852,7 +859,7 @@
       exportScope,
       exportedAt: exportedAt || new Date().toISOString(),
       app: '豆仓',
-      appVersion: '2.3.13'
+      appVersion: '2.3.14'
     };
     if (exportScope === 'all' || exportScope === 'library') {
       payload.beans = (beans || []).map((bean) => normalizeBean(bean, bean.updatedAt));
@@ -1412,5 +1419,5 @@
     }).sort((a, b) => compareDrinkChronology(b, a))[0] || null;
   }
 
-  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, hasTastingContent, resolveTastingStatus, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, selectHomeReminder, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, buildAiPlanPrompt, parseAiPlanJson, prepareBrewAssistSteps, brewAssistStatus, resolveOpenedDate, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareAppVersions, isAppVersionNewer, selectReleaseApkAsset, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, FLAVOR_LEXICON, flavorTags, beanFreshness, recentDrinkSeries, compareDrinkChronology, recentCafeNames, recentExternalDrinkNames, previousComparableDrink, beanProcessKind, recentDrinkLocations };
+  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, COFFEE_TYPES, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, hasTastingContent, resolveTastingStatus, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, selectHomeReminder, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, buildAiPlanPrompt, parseAiPlanJson, prepareBrewAssistSteps, brewAssistStatus, resolveOpenedDate, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareAppVersions, isAppVersionNewer, selectReleaseApkAsset, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, FLAVOR_LEXICON, flavorTags, beanFreshness, recentDrinkSeries, compareDrinkChronology, recentCafeNames, recentExternalDrinkNames, previousComparableDrink, beanProcessKind, recentDrinkLocations };
 });

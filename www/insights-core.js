@@ -1073,26 +1073,16 @@
     return response(true, null, rows, { sampleSize: rows.reduce((sum, row) => sum + row.sampleSize, 0), required: MIN_SAMPLE, excludedCount });
   }
 
-  function freshnessRatingGap(logs, beans) {
-    const beansById = beanMapOf(beans);
-    const fresh = [];
-    const expired = [];
-    let excludedCount = 0;
-    (Array.isArray(logs) ? logs : []).forEach((log) => {
-      const bean = log && log.source !== 'external' ? beansById.get(log.beanId) : null;
-      const rating = Number(log && log.overallRating);
-      const freshness = bean && rating > 0 ? beanCore.beanFreshness(bean, log.consumedAt) : null;
-      if (!freshness) { excludedCount += 1; return; }
-      (freshness.level === 'expired' ? expired : fresh).push(rating);
+  // 类型顺序取自 BeanCore.COFFEE_TYPES：零杯的类型也要出现，否则条形图会随记录增减跳来跳去。
+  function coffeeTypeMix(logs) {
+    const rows = (Array.isArray(logs) ? logs : []).filter((log) => log && !log.deletedAt);
+    if (rows.length < MIN_SAMPLE) return insufficient(rows.length, MIN_SAMPLE);
+    const grouped = new Map(groupStats(rows, (log) => log.coffeeType).map(({ key, values }) => [key, values.length]));
+    const data = beanCore.COFFEE_TYPES.map((type) => {
+      const cups = grouped.get(type) || 0;
+      return { key: type, label: type, cups, percent: round(cups / rows.length * 100) };
     });
-    if (fresh.length < MIN_SAMPLE || expired.length < MIN_SAMPLE) return insufficient(Math.min(fresh.length, expired.length), MIN_SAMPLE, excludedCount);
-    const freshAverage = round(fresh.reduce((sum, value) => sum + value, 0) / fresh.length);
-    const expiredAverage = round(expired.reduce((sum, value) => sum + value, 0) / expired.length);
-    return response(true, null, {
-      fresh: { cups: fresh.length, averageRating: freshAverage },
-      expired: { cups: expired.length, averageRating: expiredAverage },
-      difference: round(freshAverage - expiredAverage)
-    }, { sampleSize: fresh.length + expired.length, required: MIN_SAMPLE * 2, excludedCount });
+    return response(true, null, data, { sampleSize: rows.length, required: MIN_SAMPLE });
   }
 
   return {
@@ -1104,7 +1094,7 @@
     averageDimensions, flavorProfile, preferenceGap, timeBuckets, weekdayStats,
     handBrewSummary, handBrewHabits: handBrewSummary, handBrewBeanReview, beanHandBrewReview: handBrewBeanReview,
     formatHandBrewRatio, formatHandBrewDuration,
-    estimateKnownCost, monthlySpendSeries, homeVsExternal, beanValueRanking, freshnessRatingGap,
+    estimateKnownCost, monthlySpendSeries, homeVsExternal, beanValueRanking, coffeeTypeMix,
     availableCoffeeReports, coffeePeriodReport, coffeeReportReminders, buildCoffeeReportSharePayload,
     catalogMilestone, classifyCatalogProcess, firstBeanConsumedAt, coffeeCatalog, buildCoffeeCatalogSharePayload,
     externalCatalog, buildExternalCatalogSharePayload

@@ -57,7 +57,7 @@ test('native reads use the existing read/write SQLite connection', async () => {
   const migrations = calls.filter(([name]) => name === 'execute').map(([, options]) => options.statements).join('\n');
   const query = calls.find(([name]) => name === 'query')[1];
   assert.equal(create.readonly, false);
-  assert.equal(create.version, 11);
+  assert.equal(create.version, 12);
   assert.match(migrations, /opened_date/);
   assert.match(migrations, /bag_image_path/);
   assert.match(migrations, /bag_cutout_image_path/);
@@ -69,7 +69,9 @@ test('native reads use the existing read/write SQLite connection', async () => {
   assert.match(migrations, /ALTER TABLE beans ADD COLUMN deleted_at/);
   assert.match(migrations, /ALTER TABLE drink_logs ADD COLUMN revision/);
   assert.match(migrations, /ALTER TABLE drink_logs ADD COLUMN tasting_status/);
-  assert.match(migrations, /user_version = 11/);
+  // 老库缺 coffee_type 时必须补列，否则 saveDrinkLog 的 INSERT 会整条失败
+  assert.match(migrations, /ALTER TABLE drink_logs ADD COLUMN coffee_type/);
+  assert.match(migrations, /user_version = 12/);
   assert.equal(query.readonly, false);
   cleanupNativeRepository();
 });

@@ -21,7 +21,7 @@ const BEAN_FIELDS = [
   'revision', 'deviceId', 'deletedAt'
 ];
 const DRINK_LOG_FIELDS = [
-  'id', 'beanId', 'beanName', 'grams', 'brewMethod', 'brewPlanId', 'brewPlanVersion',
+  'id', 'beanId', 'beanName', 'coffeeType', 'grams', 'brewMethod', 'brewPlanId', 'brewPlanVersion',
   'brewPlanName', 'brewPlanSnapshot', 'photos', 'source', 'cafeName', 'drinkName', 'price', 'location', 'tastingStatus',
   'overallRating', 'notes', 'consumedAt', 'createdAt', 'updatedAt',
   'aroma', 'acidity', 'sweetness', 'body', 'aftertaste', 'balance', 'bitterness',
@@ -36,7 +36,7 @@ const BREW_PLAN_FIELDS = [
 ];
 const SETTINGS_FIELDS = [
   'quickGrams', 'enableBrewPlans', 'advancedRatings', 'enabledDimensions',
-  'lastBrewMethod', 'priceUnit', 'theme', 'showBeanPhotosInList', 'photoJournal', 'flavorReminderDays', 'lowStockCups'
+  'lastBrewMethod', 'lastCoffeeType', 'defaultView', 'priceUnit', 'theme', 'showBeanPhotosInList', 'photoJournal', 'flavorReminderDays', 'lowStockCups'
 ];
 
 test('contract: 各实体字段集合稳定', () => {
@@ -83,6 +83,7 @@ test('contract: drinkLog 默认值与评分范围', () => {
   assert.equal(log.source, 'bean');
   assert.deepEqual(log.photos, []);
   assert.equal(log.brewMethod, '手冲');
+  assert.equal(log.coffeeType, '黑咖');
   assert.equal(log.tastingStatus, 'completed');
   assert.equal(log.overallRating, null);
   assert.equal(log.aroma, null);
@@ -94,6 +95,11 @@ test('contract: drinkLog 默认值与评分范围', () => {
   assert.equal(core.normalizeDrinkLog({ aroma: 4 }).aroma, 4);
   assert.equal(core.normalizeDrinkLog({ tastingStatus: 'pending' }).tastingStatus, 'pending');
   assert.equal(core.normalizeDrinkLog({ tastingStatus: 'unknown' }).tastingStatus, 'completed');
+
+  // coffeeType 白名单；外饮同样保留类型，不随 source 清零
+  assert.equal(core.normalizeDrinkLog({ coffeeType: '奶咖' }).coffeeType, '奶咖');
+  assert.equal(core.normalizeDrinkLog({ coffeeType: '乱写' }).coffeeType, '黑咖');
+  assert.equal(core.normalizeDrinkLog({ source: 'external', coffeeType: '特调' }).coffeeType, '特调');
   assert.equal(core.hasTastingContent({}), false);
   assert.equal(core.hasTastingContent({ notes: '柑橘' }), true);
   assert.equal(core.hasTastingContent({ photos: ['idb:cup'] }), true);
@@ -157,6 +163,10 @@ test('contract: settings 默认值与取值范围', () => {
   assert.equal(core.normalizeSettings({ priceUnit: '两' }).priceUnit, 'g');
   assert.equal(core.normalizeSettings({ theme: '彩虹' }).theme, 'dark-roast');
   assert.equal(core.normalizeSettings({ priceUnit: 'jin' }).priceUnit, 'jin');
+  assert.equal(core.normalizeSettings({ defaultView: '方案库' }).defaultView, 'beans');
+  assert.equal(core.normalizeSettings({ defaultView: 'drinks' }).defaultView, 'drinks');
+  assert.equal(core.normalizeSettings({ lastCoffeeType: '乱写' }).lastCoffeeType, '黑咖');
+  assert.equal(core.normalizeSettings({ lastCoffeeType: '特调' }).lastCoffeeType, '特调');
   assert.equal(core.normalizeSettings({ showBeanPhotosInList: '1' }).showBeanPhotosInList, true);
   assert.equal(core.normalizeSettings({ photoJournal: '1' }).photoJournal, true);
 

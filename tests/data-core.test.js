@@ -39,7 +39,9 @@ test('local demo backup stays valid and covers sharing and full review scenarios
   assert.ok(spend.meta.excludedCount > 0);
   assert.equal(insights.homeVsExternal(recent, imported.beans).ok, true);
   assert.ok(insights.beanValueRanking(recent, imported.beans).data.length >= 3);
-  assert.equal(insights.freshnessRatingGap(recent, imported.beans).ok, true);
+  const mix = insights.coffeeTypeMix(recent);
+  assert.equal(mix.ok, true);
+  assert.ok(mix.data.filter((row) => row.cups > 0).length >= 2, 'mock 数据应覆盖多种咖啡类型');
   assert.ok(recent.filter((log) => log.brewPlanSnapshot && log.brewPlanSnapshot.name === 'V60 三段式' && log.overallRating).length >= 3);
 });
 

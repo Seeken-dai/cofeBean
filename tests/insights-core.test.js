@@ -161,14 +161,28 @@ test('beanValueRanking 每支豆至少三杯，并按评分与单杯成本标记
   assert.equal(single.data[0].highValue, false);
 });
 
-test('freshnessRatingGap 按每杯 consumedAt 判断期内与超期', () => {
-  const beans = [bean('bean-a', { openedDate: '2026-07-01', bestFlavorDays: 5 })];
-  const rows = [];
-  [1, 2, 3].forEach((day) => rows.push(log(`in${day}`, atLocal(2026, 7, day), { overallRating: 5 })));
-  [8, 9, 10].forEach((day) => rows.push(log(`out${day}`, atLocal(2026, 7, day), { overallRating: 3 })));
-  const result = insights.freshnessRatingGap(rows, beans);
+test('coffeeTypeMix 样本不足时不给结论', () => {
+  const rows = [log('a', atLocal(2026, 7, 1), { coffeeType: '黑咖' }), log('b', atLocal(2026, 7, 2), { coffeeType: '奶咖' })];
+  const result = insights.coffeeTypeMix(rows);
+  assert.equal(result.ok, false);
+  assert.equal(result.meta.sampleSize, 2);
+});
+
+test('coffeeTypeMix 按类型统计杯数与占比，零杯类型也保留', () => {
+  const rows = [
+    log('a', atLocal(2026, 7, 1), { coffeeType: '黑咖' }),
+    log('b', atLocal(2026, 7, 2), { coffeeType: '黑咖' }),
+    log('c', atLocal(2026, 7, 3), { coffeeType: '奶咖' }),
+    log('d', atLocal(2026, 7, 4), { coffeeType: '奶咖', deletedAt: '2026-07-05T00:00:00.000Z' })
+  ];
+  const result = insights.coffeeTypeMix(rows);
   assert.equal(result.ok, true);
-  assert.deepEqual(result.data, { fresh: { cups: 3, averageRating: 5 }, expired: { cups: 3, averageRating: 3 }, difference: 2 });
+  assert.equal(result.meta.sampleSize, 3, '软删除的记录不计入');
+  assert.deepEqual(result.data, [
+    { key: '黑咖', label: '黑咖', cups: 2, percent: 66.7 },
+    { key: '奶咖', label: '奶咖', cups: 1, percent: 33.3 },
+    { key: '特调', label: '特调', cups: 0, percent: 0 }
+  ]);
 });
 
 test('小样本提示只显示还需记录的杯数，不渲染统计数据', () => {
@@ -209,7 +223,7 @@ test('乳脂奶香风味可进入回顾统计', () => {
 });
 
 test('回顾的每类统计都提供口径说明按钮', () => {
-  const keys = ['dimensions', 'flavor', 'preference', 'catalogHome', 'catalogExternal', 'time', 'weekday', 'spend', 'source', 'freshness', 'value', 'handBrew', 'report'];
+  const keys = ['dimensions', 'flavor', 'preference', 'catalogHome', 'catalogExternal', 'time', 'weekday', 'spend', 'source', 'coffeeType', 'value', 'handBrew', 'report'];
   assert.deepEqual(Object.keys(appInsights.HELP_CONTENT), keys);
   keys.forEach((key) => {
     assert.match(appInsights.helpButton(key), new RegExp(`data-insights-help="${key}"`));
@@ -319,9 +333,9 @@ test('近12个月花费折线图默认展示三组，也支持单独查看', () 
 
 test('回顾卡片使用清楚、日常的标题措辞', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'www', 'app-insights.js'), 'utf8');
-  ['杯中常出现的风味', '常喝的，也更喜欢吗', '一天里什么时候喝得多', '一周里哪天喝得多', '近 12 个月的咖啡开销', '喜欢在家还是在外', '赏味期内，会更喜欢吗']
+  ['杯中常出现的风味', '常喝的，也更喜欢吗', '一天里什么时候喝得多', '一周里哪天喝得多', '近 12 个月的咖啡开销', '喜欢在家还是在外', '黑咖、奶咖还是特调']
     .forEach((title) => assert.match(source, new RegExp(title)));
-  ['你实际喝到的风味', '你喝得多，也真的喜欢吗', '通常在什么时候喝', '哪几天更常来一杯', '近 12 个月咖啡花费', '两种喝法的差别', '新鲜时真的更喜欢吗']
+  ['你实际喝到的风味', '你喝得多，也真的喜欢吗', '通常在什么时候喝', '哪几天更常来一杯', '近 12 个月咖啡花费', '两种喝法的差别', '咖啡类型占比分布']
     .forEach((title) => assert.doesNotMatch(source, new RegExp(title)));
 });
 

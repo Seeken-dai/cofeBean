@@ -36,7 +36,7 @@
     weekday: { title: '一周里的日期怎么统计', body: '按每杯记录的本地日期归入星期一到星期日；至少记录 3 杯后展示。' },
     spend: { title: '咖啡开销怎么统计', body: '不随上方回顾范围变化，固定查看最近 12 个月。自家冲煮按豆价、初始重量和本次用豆量估算，外饮使用实付金额；没填金额的记录不计入。' },
     source: { title: '在家与在外怎么比较', body: '自家冲煮和外饮各至少 3 杯才比较。杯数使用全部有效记录，评分只使用已评分记录，开销只汇总能够估算的金额。' },
-    freshness: { title: '赏味期怎么统计', body: '按每杯饮用日期与当前豆子的开封日、赏味期计算当时状态。期内和超期后各至少 3 杯有效评分才展示，只说明记录差异。' },
+    coffeeType: { title: '咖啡类型怎么统计', body: '按每杯记录里选择的咖啡类型分组，自家冲煮和外饮都参与。2.3.14 之前的历史记录没有这一项，会按黑咖计入。' },
     value: { title: '日常好豆怎么统计', body: '同一支豆至少有 3 杯评分和可估算成本才进入列表。至少有两支候选豆时，才标记相对高分且单杯成本较低的豆子。' },
     handBrew: { title: '手冲回顾怎么统计', body: '只统计全部历史中明确标记为手冲的自家记录；外饮、其他冲煮方式和已删除豆子不参与。缺少某项参数只影响该项，不会让整杯记录失效。全局习惯 5 杯解锁，单豆回顾 3 杯带总评分解锁。' },
     report: { title: '咖啡月报与年报怎么统计', body: '只生成已经结束的自然月和自然年，周期内至少要有 5 杯有效记录。总杯数包含自家和外饮；豆款、产地等内容只读取当前仍在豆仓里的豆子，未填写的金额不会按零元计算。' }
@@ -368,8 +368,9 @@
     function spendCard(result) {
       return `<article class="insight-card spend-card"><div class="insight-card-head"><div><span>不随上方范围变化</span><h4>近 12 个月的咖啡开销${helpButton('spend')}</h4></div></div>${unlockOr(result, (data, meta) => {
         const view = state.insightsSpendView || 'all';
-        const metric = (id, label, value, className) => `<button class="${className || ''}${view === 'all' || view === id ? ' is-active' : ''}" data-insights-spend-view="${id}" type="button" aria-pressed="${view === 'all' || view === id}"><span>${label}</span><strong>${money(value)}</strong></button>`;
-        return `<div class="spend-breakdown" aria-label="切换花费图表">${metric('total', '总开销', data.total, 'is-total')}${metric('home', '自家冲煮', data.homeTotal)}${metric('external', '外饮', data.externalTotal)}</div>${buildSpendLineChart(data.series, view)}<p class="spend-chart-hint">点击上方金额可单独查看，再点一次恢复全部。</p>${meta.excludedCount ? '<p class="insight-cost-note">部分记录未填写价格，未计入估算。</p>' : ''}`;
+        // 色块与折线共用 --chart-*，图例和线条必须对得上，改色时两边一起改。
+        const metric = (id, label, value, className) => `<button class="${className || ''}${view === 'all' || view === id ? ' is-active' : ''}" data-insights-spend-view="${id}" type="button" aria-pressed="${view === 'all' || view === id}"><span><i aria-hidden="true"></i>${label}</span><strong>${money(value)}</strong></button>`;
+        return `<div class="spend-breakdown" aria-label="切换花费图表">${metric('total', '总开销', data.total, 'is-total')}${metric('home', '自家冲煮', data.homeTotal, 'is-home')}${metric('external', '外饮', data.externalTotal, 'is-external')}</div>${buildSpendLineChart(data.series, view)}<p class="spend-chart-hint">点击上方金额可单独查看，再点一次恢复全部。</p>${meta.excludedCount ? '<p class="insight-cost-note">部分记录未填写价格，未计入估算。</p>' : ''}`;
       }, '再补充几杯的价格，豆仓就能画出你的花费节奏。')}</article>`;
     }
 
@@ -384,8 +385,8 @@
       return `<article class="insight-card value-card"><div class="insight-card-head"><div><span>评分与成本</span><h4>值得再买的日常好豆${helpButton('value')}</h4></div><small>每款至少3杯</small></div>${unlockOr(result, (data) => `<div class="value-list">${data.slice(0, 6).map((row) => `<div class="value-row${row.highValue ? ' is-highlight' : ''}"><div><b>${esc(row.beanName)}</b><small>${row.sampleSize} 杯有效记录</small></div><span><b>${row.averageRating}★</b><small>${money(row.costPerCup)} / 杯</small></span>${row.highValue ? '<em>高分低成本</em>' : ''}</div>`).join('')}</div>`, '同一支豆积累 3 杯评分和价格记录后，豆仓会帮你寻找日常好豆。')}</article>`;
     }
 
-    function freshnessCard(result) {
-      return `<article class="insight-card freshness-card"><div class="insight-card-head"><div><span>赏味期记录</span><h4>赏味期内，会更喜欢吗${helpButton('freshness')}</h4></div></div>${unlockOr(result, (data) => `<div class="freshness-compare"><div><span>赏味期内</span><b>${data.fresh.averageRating}★</b><small>${data.fresh.cups} 杯</small></div><i aria-hidden="true">${data.difference > 0 ? `+${data.difference}` : data.difference}</i><div><span>超期以后</span><b>${data.expired.averageRating}★</b><small>${data.expired.cups} 杯</small></div></div><p class="insight-cost-note">这是你记录中的评分差异，不代表赏味期是唯一原因。</p>`, '赏味期内和超期后各记录 3 杯，才能看出稳定差异。')}</article>`;
+    function coffeeTypeCard(result) {
+      return `<article class="insight-card"><div class="insight-card-head"><div><span>杯子的样子</span><h4>黑咖、奶咖还是特调${helpButton('coffeeType')}</h4></div></div>${unlockOr(result, (data) => barRows(data, 'cups', (row) => `${row.cups} 杯 · ${row.percent}%`))}</article>`;
     }
 
     function showHelp(key, anchor) {
@@ -422,8 +423,7 @@
       const monthly = core.monthlySpendSeries(state.drinkLogs, state.beans, new Date());
       const source = core.homeVsExternal(logs, state.beans);
       const value = core.beanValueRanking(logs, state.beans);
-      const freshness = core.freshnessRatingGap(logs, state.beans);
-      return `<section class="insight-section" id="insightsSectionSpend"><div class="insight-section-title"><span>03</span><div><h3>花费与回购</h3><p>金额只统计能够估算的记录</p></div></div><div class="insight-card-stack">${spendCard(monthly)}<div class="two-up">${sourceCompareCard(source)}${freshnessCard(freshness)}</div>${valueCard(value)}</div></section>`;
+      return `<section class="insight-section" id="insightsSectionSpend"><div class="insight-section-title"><span>03</span><div><h3>花费与回购</h3><p>金额只统计能够估算的记录</p></div></div><div class="insight-card-stack">${spendCard(monthly)}${sourceCompareCard(source)}${valueCard(value)}</div></section>`;
     }
 
     function catalogCover(item, options) {
@@ -742,7 +742,7 @@
     }
 
     function renderHome() {
-      state.insightsRange = RANGE_LABELS[state.insightsRange] ? state.insightsRange : 'all';
+      state.insightsRange = RANGE_LABELS[state.insightsRange] ? state.insightsRange : '30d';
       state.insightsPreference = PREFERENCE_LABELS[state.insightsPreference] ? state.insightsPreference : 'origin';
       state.insightsSpendView = ['all', 'total', 'home', 'external'].includes(state.insightsSpendView) ? state.insightsSpendView : 'all';
       dialog.querySelectorAll('[data-insights-range]').forEach((button) => button.classList.toggle('active', button.dataset.insightsRange === state.insightsRange));
@@ -757,7 +757,8 @@
       const flavor = core.flavorProfile(logs);
       const time = core.timeBuckets(logs);
       const radar = state.settings.advancedRatings ? radarCard(dimensions) : '';
-      content.innerHTML = `${openingCard(logs, flavor, time)}<section class="insight-section" id="insightsSectionTaste"><div class="insight-section-title"><span>01</span><div><h3>口味与偏好</h3><p>从饮用笔记和个人评价里慢慢整理</p></div></div><div class="insight-card-stack">${radar}${flavorCard(flavor)}${preferenceCard(logs)}</div></section>${habitsSection(logs)}${spendSection(logs)}${handBrewSection}`;
+      const coffeeTypes = core.coffeeTypeMix(logs);
+      content.innerHTML = `${openingCard(logs, flavor, time)}<section class="insight-section" id="insightsSectionTaste"><div class="insight-section-title"><span>01</span><div><h3>口味与偏好</h3><p>从饮用笔记和个人评价里慢慢整理</p></div></div><div class="insight-card-stack">${radar}${flavorCard(flavor)}${preferenceCard(logs)}${coffeeTypeCard(coffeeTypes)}</div></section>${habitsSection(logs)}${spendSection(logs)}${handBrewSection}`;
     }
 
     function renderBrewReview() {

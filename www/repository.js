@@ -2,13 +2,13 @@
   'use strict';
 
   const DB_NAME = 'coffee_vault';
-  const DB_VERSION = 11;
+  const DB_VERSION = 12;
   const DEVICE_KEY = 'coffee-vault-device-id';
   const LEGACY_KEYS = ['coffee-vault-data', 'beans-data', 'bean-data'];
   const BEAN_COLUMNS = ['id', 'name', 'roaster', 'origin', 'process', 'roastLevel', 'roastDate', 'openedDate', 'purchaseDate', 'purchaseUrl', 'initialWeight', 'remainingWeight', 'price', 'bestFlavorDays', 'tastingNotes', 'status', 'favorite', 'bagImagePath', 'bagCutoutImagePath', 'labelImagePath', 'createdAt', 'updatedAt', 'revision', 'deviceId', 'deletedAt'];
   const BEAN_NATIVE = { roastLevel: 'roast_level', roastDate: 'roast_date', openedDate: 'opened_date', purchaseDate: 'purchase_date', purchaseUrl: 'purchase_url', initialWeight: 'initial_weight', remainingWeight: 'remaining_weight', bestFlavorDays: 'best_flavor_days', tastingNotes: 'tasting_notes', bagImagePath: 'bag_image_path', bagCutoutImagePath: 'bag_cutout_image_path', labelImagePath: 'label_image_path', createdAt: 'created_at', updatedAt: 'updated_at', deviceId: 'device_id', deletedAt: 'deleted_at' };
-  const LOG_COLUMNS = ['id', 'beanId', 'beanName', 'grams', 'brewMethod', 'brewPlanId', 'brewPlanVersion', 'brewPlanName', 'brewPlanSnapshot', 'photos', 'source', 'cafeName', 'drinkName', 'price', 'location', 'tastingStatus', 'overallRating', 'aroma', 'acidity', 'sweetness', 'body', 'aftertaste', 'balance', 'bitterness', 'notes', 'consumedAt', 'createdAt', 'updatedAt', 'revision', 'deviceId', 'deletedAt'];
-  const LOG_NATIVE = { beanId: 'bean_id', beanName: 'bean_name', brewMethod: 'brew_method', brewPlanId: 'brew_plan_id', brewPlanVersion: 'brew_plan_version', brewPlanName: 'brew_plan_name', brewPlanSnapshot: 'brew_plan_snapshot', cafeName: 'cafe_name', drinkName: 'drink_name', tastingStatus: 'tasting_status', overallRating: 'overall_rating', consumedAt: 'consumed_at', createdAt: 'created_at', updatedAt: 'updated_at', deviceId: 'device_id', deletedAt: 'deleted_at' };
+  const LOG_COLUMNS = ['id', 'beanId', 'beanName', 'grams', 'brewMethod', 'brewPlanId', 'brewPlanVersion', 'brewPlanName', 'brewPlanSnapshot', 'photos', 'source', 'cafeName', 'drinkName', 'price', 'location', 'tastingStatus', 'overallRating', 'aroma', 'acidity', 'sweetness', 'body', 'aftertaste', 'balance', 'bitterness', 'notes', 'consumedAt', 'createdAt', 'updatedAt', 'revision', 'deviceId', 'deletedAt', 'coffeeType'];
+  const LOG_NATIVE = { beanId: 'bean_id', beanName: 'bean_name', brewMethod: 'brew_method', brewPlanId: 'brew_plan_id', brewPlanVersion: 'brew_plan_version', brewPlanName: 'brew_plan_name', brewPlanSnapshot: 'brew_plan_snapshot', cafeName: 'cafe_name', drinkName: 'drink_name', tastingStatus: 'tasting_status', overallRating: 'overall_rating', consumedAt: 'consumed_at', createdAt: 'created_at', updatedAt: 'updated_at', deviceId: 'device_id', deletedAt: 'deleted_at', coffeeType: 'coffee_type' };
   const PLAN_COLUMNS = ['id', 'name', 'brewMethod', 'version', 'source', 'beanIds', 'payload', 'createdAt', 'updatedAt'];
   const PLAN_NATIVE = { brewMethod: 'brew_method', beanIds: 'bean_ids', createdAt: 'created_at', updatedAt: 'updated_at' };
   let native = false;
@@ -87,7 +87,7 @@
         cafe_name TEXT NOT NULL DEFAULT '', drink_name TEXT NOT NULL DEFAULT '', price REAL, location TEXT NOT NULL DEFAULT '', tasting_status TEXT NOT NULL DEFAULT 'completed',
         aroma INTEGER, acidity INTEGER, sweetness INTEGER, body INTEGER, aftertaste INTEGER,
         balance INTEGER, bitterness INTEGER, notes TEXT NOT NULL DEFAULT '', consumed_at TEXT NOT NULL,
-        created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL, coffee_type TEXT NOT NULL DEFAULT '黑咖'
       );
       CREATE INDEX IF NOT EXISTS idx_drink_logs_bean ON drink_logs(bean_id);
       CREATE INDEX IF NOT EXISTS idx_drink_logs_consumed ON drink_logs(consumed_at DESC);
@@ -143,7 +143,9 @@
       body: 'INTEGER', aftertaste: 'INTEGER', balance: 'INTEGER', bitterness: 'INTEGER',
       notes: "TEXT NOT NULL DEFAULT ''", consumed_at: "TEXT NOT NULL DEFAULT ''",
       created_at: "TEXT NOT NULL DEFAULT ''", updated_at: "TEXT NOT NULL DEFAULT ''",
-      revision: 'INTEGER NOT NULL DEFAULT 1', device_id: "TEXT NOT NULL DEFAULT ''", deleted_at: 'TEXT'
+      revision: 'INTEGER NOT NULL DEFAULT 1', device_id: "TEXT NOT NULL DEFAULT ''", deleted_at: 'TEXT',
+      // 老库补列时 DEFAULT 会把既有记录一并填成「黑咖」，这就是历史数据的回填手段，不另写迁移脚本。
+      coffee_type: "TEXT NOT NULL DEFAULT '黑咖'"
     };
     const logAdds = Object.entries(logColumnDdl)
       .filter(([name]) => !logNames.includes(name))
@@ -151,7 +153,7 @@
       .join('\n');
     if (logAdds) await nativeDb().execute({ database: DB_NAME, statements: logAdds, transaction: true, readonly: false });
     await seedPresetPlans();
-    await nativeDb().execute({ database: DB_NAME, statements: 'PRAGMA user_version = 11;', transaction: true, readonly: false });
+    await nativeDb().execute({ database: DB_NAME, statements: 'PRAGMA user_version = 12;', transaction: true, readonly: false });
   }
 
   function fromBeanRow(row) {
@@ -175,7 +177,7 @@
 
   function logValues(log) {
     const l = root.BeanCore.normalizeDrinkLog(log, log.updatedAt);
-    return [l.id, l.beanId, l.beanName, l.grams, l.brewMethod, l.brewPlanId, l.brewPlanVersion, l.brewPlanName, l.brewPlanSnapshot ? JSON.stringify(l.brewPlanSnapshot) : '', JSON.stringify(l.photos || []), l.source, l.cafeName, l.drinkName, l.price, l.location, l.tastingStatus, l.overallRating, l.aroma, l.acidity, l.sweetness, l.body, l.aftertaste, l.balance, l.bitterness, l.notes, l.consumedAt, l.createdAt, l.updatedAt, l.revision, l.deviceId, l.deletedAt];
+    return [l.id, l.beanId, l.beanName, l.grams, l.brewMethod, l.brewPlanId, l.brewPlanVersion, l.brewPlanName, l.brewPlanSnapshot ? JSON.stringify(l.brewPlanSnapshot) : '', JSON.stringify(l.photos || []), l.source, l.cafeName, l.drinkName, l.price, l.location, l.tastingStatus, l.overallRating, l.aroma, l.acidity, l.sweetness, l.body, l.aftertaste, l.balance, l.bitterness, l.notes, l.consumedAt, l.createdAt, l.updatedAt, l.revision, l.deviceId, l.deletedAt, l.coffeeType];
   }
 
   function planValues(plan) {
