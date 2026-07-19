@@ -36,6 +36,73 @@ test('share-card: wrapCanvasLines 按宽换行并限行', () => {
   assert.deepEqual(limited, ['aaaaa', 'aaaaa']);
 });
 
+test('share-card: 单图 contain 在横图、竖图和极端长图下都完整落入画框', () => {
+  const api = createShareCard();
+  const landscape = api.fitImageRect(1600, 900, 10, 20, 800, 500, 'contain');
+  assert.deepEqual(
+    { x: landscape.x, y: landscape.y, w: landscape.w, h: landscape.h, mode: landscape.mode },
+    { x: 10, y: 45, w: 800, h: 450, mode: 'contain' }
+  );
+  const portrait = api.fitImageRect(900, 1600, 0, 0, 500, 500, 'contain');
+  assert.equal(portrait.x, 109.375);
+  assert.equal(portrait.y, 0);
+  assert.equal(portrait.w, 281.25);
+  assert.equal(portrait.h, 500);
+  const extreme = api.fitImageRect(400, 2400, 0, 0, 600, 720, 'contain');
+  assert.equal(extreme.x, 240);
+  assert.equal(extreme.y, 0);
+  assert.equal(extreme.w, 120);
+  assert.equal(extreme.h, 720);
+});
+
+test('share-card: 多图 smart 仅在裁切不超过约 20% 时使用 cover', () => {
+  const api = createShareCard();
+  const closeAspect = api.fitImageRect(1200, 900, 0, 0, 400, 320, 'smart');
+  assert.equal(closeAspect.mode, 'cover');
+  assert.ok(closeAspect.cropRatio >= .8);
+  const portraitInLandscape = api.fitImageRect(900, 1600, 0, 0, 400, 220, 'smart');
+  assert.equal(portraitInLandscape.mode, 'contain');
+  assert.ok(portraitInLandscape.cropRatio < .8);
+  assert.ok(portraitInLandscape.x >= 0 && portraitInLandscape.y >= 0);
+  assert.ok(portraitInLandscape.x + portraitInLandscape.w <= 400);
+  assert.ok(portraitInLandscape.y + portraitInLandscape.h <= 220);
+});
+
+test('share-card: receipt 根据内容和照片方向选择自适应组合', () => {
+  const api = createShareCard();
+  const radar = [{ value: 4 }, { value: 3 }, { value: 5 }];
+  const landscapeDrink = api.resolveReceiptComposition({ type: 'drink', radar }, [{ aspect: 1.6 }]);
+  assert.equal(landscapeDrink.kind, 'drink-photo-radar');
+  assert.equal(landscapeDrink.photoRatio, .56);
+  const portraitDrink = api.resolveReceiptComposition({ type: 'drink', radar }, [{ aspect: .65 }]);
+  assert.equal(portraitDrink.kind, 'drink-photo-radar');
+  assert.equal(portraitDrink.photoRatio, .42);
+  const radarWithNotes = api.resolveReceiptComposition({ type: 'drink', radar, notes: '花香、柑橘与白桃' }, []);
+  assert.equal(radarWithNotes.kind, 'drink-radar-notes');
+  assert.equal(radarWithNotes.radarRatio, .58);
+  const radarOnly = api.resolveReceiptComposition({ type: 'drink', radar }, []);
+  assert.equal(radarOnly.kind, 'drink-radar-compact');
+  assert.equal(radarOnly.radarRatio, .66);
+  assert.equal(api.resolveReceiptComposition({ type: 'bean' }, [{ aspect: .75 }]).kind, 'bean-photo-sidebar');
+  assert.equal(api.resolveReceiptComposition({ type: 'bean' }, [{ aspect: 1.4 }]).kind, 'bean');
+  assert.equal(api.resolveReceiptComposition({ type: 'brewPlan', steps: Array(8) }, []).stepColumns, 3);
+  assert.equal(api.resolveReceiptComposition({ type: 'calendarMonth' }, []).kind, 'calendar-split');
+});
+
+test('share-card: 总评分只生成一个数值和一组星级', () => {
+  const api = createShareCard();
+  assert.deepEqual(api.receiptRatingPresentation({ value: 5, max: 5 }), { score: '5.0', stars: '★★★★★' });
+  assert.deepEqual(api.receiptRatingPresentation({ value: 3.6, max: 5 }), { score: '3.6', stars: '★★★★☆' });
+  assert.equal(api.receiptRatingPresentation({ value: 0, max: 5 }), null);
+});
+
+test('share-card: 空字段和加载失败图片仍返回稳定的默认布局', () => {
+  const api = createShareCard();
+  assert.deepEqual(api.fitImageRect(0, 0, 0, 0, 400, 300, 'smart'), { x: 0, y: 0, w: 0, h: 0, mode: 'contain', cropRatio: 0 });
+  assert.equal(api.resolveReceiptComposition({}, []).kind, 'receipt');
+  assert.equal(api.resolveReceiptComposition({ type: 'drink', radar: null }, [{ aspect: 1 }]).kind, 'drink');
+});
+
 // ---- app-sync-ui ----
 
 function fakeElement() {

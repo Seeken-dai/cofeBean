@@ -4,7 +4,7 @@
 
 需要 Node.js、JDK 21，以及包含 Android API 36 的 SDK。当前工作机使用：
 
-- JDK：`C:\tmp\jdk21\jdk-21.0.11+10`
+- JDK：`C:\Program Files\Microsoft\jdk-21.0.11.10-hotspot`
 - Android SDK：`C:\tmp\android-sdk`
 
 首次安装依赖：
@@ -24,7 +24,7 @@ npm.cmd exec cap -- sync android
 在当前 PowerShell 会话设置环境：
 
 ```powershell
-$env:JAVA_HOME='C:\tmp\jdk21\jdk-21.0.11+10'
+$env:JAVA_HOME='C:\Program Files\Microsoft\jdk-21.0.11.10-hotspot'
 $env:ANDROID_HOME='C:\tmp\android-sdk'
 $env:ANDROID_SDK_ROOT='C:\tmp\android-sdk'
 ```

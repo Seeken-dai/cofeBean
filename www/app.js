@@ -191,6 +191,7 @@
   function syncDialogScrim() {
     clearTimeout(dialogScrimTimer);
     const hasOpenDialog = Boolean(document.querySelector('dialog[open]'));
+    document.documentElement.classList.toggle('dialog-scroll-locked', hasOpenDialog);
     if (hasOpenDialog) {
       document.body.classList.add('dialog-scrim-active'); document.body.classList.remove('dialog-scrim-closing');
       return;

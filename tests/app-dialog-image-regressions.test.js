@@ -8,6 +8,7 @@ const path = require('node:path');
 // 2.3.12 修的两个遗留问题都在 app.js 的 DOM/生命周期层，没有可抽出的纯逻辑，
 // 因此用源码级断言锁住三条不变量，避免以后重构时又踩回去。
 const appSource = fs.readFileSync(path.join(__dirname, '..', 'www', 'app.js'), 'utf8');
+const stylesSource = fs.readFileSync(path.join(__dirname, '..', 'www', 'styles.css'), 'utf8');
 
 test('setDialog 重新打开同一个 dialog 时会撤销挂起的关闭', () => {
   // 关闭是异步的（等 sheet-out 动画，期间 dialog.open 仍为 true）。「记一杯 → 从豆仓记一杯」
@@ -18,6 +19,15 @@ test('setDialog 重新打开同一个 dialog 时会撤销挂起的关闭', () =>
   assert.doesNotMatch(appSource, /if \(open && !dialog\.open\)/);
   // 挂起的关闭必须可撤销：定时器与 animationend 监听都要存下来。
   assert.match(appSource, /pendingDialogCloses\.set\(dialog, \{ timer: setTimeout\(finish, 260\), onEnd \}\)/);
+});
+
+test('任意层级弹窗打开时锁定底层页面滚动', () => {
+  // 锁定状态由所有 dialog 的统一查询驱动：关闭最上层弹窗时，只要下面仍有 dialog，
+  // documentElement 就必须继续保持锁定。
+  assert.match(appSource, /const hasOpenDialog = Boolean\(document\.querySelector\('dialog\[open\]'\)\);[\s\S]{0,140}?document\.documentElement\.classList\.toggle\('dialog-scroll-locked', hasOpenDialog\)/);
+  assert.match(stylesSource, /html\.dialog-scroll-locked,html\.dialog-scroll-locked body\s*\{\s*overflow:hidden;\s*overscroll-behavior:none;\s*\}/);
+  // 弹窗自身仍可滚动，但到达边缘后不能把滚轮/触摸滚动继续传给底层。
+  assert.match(stylesSource, /\.sheet\s*\{[^}]*overflow:auto;\s*overscroll-behavior:contain;/);
 });
 
 test('自动同步的 reload 带 keepForm，不覆盖正在编辑的表单', () => {
