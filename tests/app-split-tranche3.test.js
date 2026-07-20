@@ -35,7 +35,7 @@ function createAssist(overrides) {
   const deps = {
     $, $$: () => [], state, els: { drink: {}, planDetail: {}, brewAssist: {}, drinkForm: {} }, core,
     toast: (message) => toasts.push(message),
-    setDialog: () => {}, esc: fmt.esc, formatWeight: fmt.formatWeight, durationText: fmt.durationText,
+    setDialog: () => {}, esc: fmt.esc, formatWeight: fmt.formatWeight, durationText: fmt.durationText, secondsFromText: fmt.secondsFromText,
     setDurationControl: () => {}, syncRatioValue: () => {}, syncDurationField: () => {},
     currentDrinkMethod: () => '手冲', selectedDrinkPlan: () => null, drinkParamSnapshot: () => null, openPlanDetail: () => {},
     ...overrides
@@ -94,6 +94,31 @@ test('brew-assist: 手冲含分段 → 建立进行态并进入 ready 阶段', (
     assert.equal(state.brewAssist.phase, 'countdown');
     api.cancelBrewAssist();
     assert.equal(state.brewAssist, null);
+  } finally { delete global.requestAnimationFrame; delete global.cancelAnimationFrame; }
+});
+
+test('brew-assist: 最大建议时长决定注水结束后还要继续走多久', () => {
+  global.requestAnimationFrame = () => 1; global.cancelAnimationFrame = () => {};
+  try {
+    const steps = [{ label: '闷蒸', water: 30, startTime: '0:00', endTime: '0:30' }, { label: '注水', water: 195, startTime: '0:30', endTime: '1:30' }];
+    const open = (targetDuration) => {
+      const { api, state } = createAssist({ drinkParamSnapshot: () => ({ brewMethod: '手冲', name: '测试方案', targetDuration, steps }) });
+      api.openDrinkBrewAssist();
+      return state.brewAssist;
+    };
+    // 没填目标时长：注水一结束就算超时，limit 落在最后一段结束点。
+    const none = open('');
+    assert.equal(none.total, 90);
+    assert.equal(none.limit, 90);
+    assert.equal(none.targetLimit, null);
+    // 填了更晚的时长：多出来的部分留给滴滤，圆环继续转到 limit。
+    const later = open('2:30');
+    assert.equal(later.targetLimit, 150);
+    assert.equal(later.limit, 150);
+    // 区间写法取上界；比注水结束还早的目标不生效，避免一开始就是红的。
+    assert.equal(open('2:00-2:45').limit, 165);
+    assert.equal(open('1:00').limit, 90);
+    assert.equal(open('1:00').targetLimit, null);
   } finally { delete global.requestAnimationFrame; delete global.cancelAnimationFrame; }
 });
 

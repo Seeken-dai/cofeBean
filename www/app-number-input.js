@@ -345,15 +345,23 @@
       clearTimeout(scrollTimer);
       scrollTimer = setTimeout(() => {
         if (!active) return;
-        if (safeIndex < 8 || safeIndex > column.window.values.length - 9) {
-          column.value = column.window.values[safeIndex];
-          const columnIndex = active.columns.indexOf(column);
-          column.window = buildWheelWindow(column.value, column);
-          const replacement = document.createElement('div');
-          replacement.innerHTML = renderColumn(column, columnIndex);
-          wheel.closest('.number-wheel-column').replaceWith(replacement.firstElementChild);
-          requestAnimationFrame(() => scrollToSelected(columnIndex));
-        }
+        const values = column.window.values;
+        // 只有窗口在该侧还能继续延伸时才补窗。范围本身就短的列(分钟 0-999 停在 2、秒 0-59 步长 5)
+        // 索引永远落在 8 格边界内,不加这个判断会每次滚动停下都重建一次同样的列表并重新 scrollTo,
+        // 表现为滚轮莫名闪一下。
+        const canGrowUp = safeIndex < 8 && values[0] > column.min;
+        const canGrowDown = safeIndex > values.length - 9 && values[values.length - 1] < column.max;
+        if (!canGrowUp && !canGrowDown) return;
+        column.value = values[safeIndex];
+        const columnIndex = active.columns.indexOf(column);
+        const next = buildWheelWindow(column.value, column);
+        // 兜底：算出来的窗口和当前窗口完全一致时也不重建 DOM。
+        if (next.values.length === values.length && next.values[0] === values[0]) { column.window = next; return; }
+        column.window = next;
+        const replacement = document.createElement('div');
+        replacement.innerHTML = renderColumn(column, columnIndex);
+        wheel.closest('.number-wheel-column').replaceWith(replacement.firstElementChild);
+        requestAnimationFrame(() => scrollToSelected(columnIndex));
       }, 130);
     }
 

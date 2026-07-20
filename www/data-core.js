@@ -1296,6 +1296,36 @@
     return tags;
   }
 
+  // 最近自己写过的风味词：按饮用时间倒序扫备注，拆成短词去重。
+  // 备注是自由书写，逗号分隔出来的常是「柑橘和红糖」「整体很平衡」这类短句而不是风味词，
+  // 所以命中风味轮的最多留 4 字，没命中的收得更紧（≤3 字），把句子碎片挡在胶囊外面。
+  function isFlavorWord(tag) {
+    const length = Array.from(tag.label).length;
+    return length <= (tag.category === 'other' ? 3 : 4);
+  }
+  function recentFlavorTags(logs, options) {
+    const config = options && typeof options === 'object' ? options : {};
+    const limit = Math.max(1, Math.round(Number(config.limit) || 10));
+    const excludeId = cleanText(config.excludeId, 100);
+    const skip = new Set((config.exclude || []).map((label) => String(label).toLocaleLowerCase('zh-CN')));
+    const seen = new Set();
+    const tags = [];
+    (Array.isArray(logs) ? logs : [])
+      .filter((log) => log && !log.deletedAt && cleanText(log.notes, 2000) && (!excludeId || log.id !== excludeId))
+      .slice().sort((a, b) => compareDrinkChronology(b, a))
+      .forEach((log) => {
+        if (tags.length >= limit) return;
+        flavorTags(log.notes).forEach((tag) => {
+          if (tags.length >= limit || !isFlavorWord(tag)) return;
+          const key = tag.label.toLocaleLowerCase('zh-CN');
+          if (seen.has(key) || skip.has(key)) return;
+          seen.add(key);
+          tags.push(tag);
+        });
+      });
+    return tags;
+  }
+
   // 处理法 → 类别（纯逻辑，可测试）。用于生成封面右下角小角标。顺序即优先级。
   const PROCESS_LEXICON = [
     ['anaerobic', ['厌氧', '双厌氧', '酒香', '酵素', 'anaerobic']],
@@ -1419,5 +1449,5 @@
     }).sort((a, b) => compareDrinkChronology(b, a))[0] || null;
   }
 
-  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, COFFEE_TYPES, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, hasTastingContent, resolveTastingStatus, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, selectHomeReminder, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, buildAiPlanPrompt, parseAiPlanJson, prepareBrewAssistSteps, brewAssistStatus, resolveOpenedDate, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareAppVersions, isAppVersionNewer, selectReleaseApkAsset, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, FLAVOR_LEXICON, flavorTags, beanFreshness, recentDrinkSeries, compareDrinkChronology, recentCafeNames, recentExternalDrinkNames, previousComparableDrink, beanProcessKind, recentDrinkLocations };
+  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, COFFEE_TYPES, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, hasTastingContent, resolveTastingStatus, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, selectHomeReminder, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, buildAiPlanPrompt, parseAiPlanJson, prepareBrewAssistSteps, brewAssistStatus, resolveOpenedDate, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareAppVersions, isAppVersionNewer, selectReleaseApkAsset, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, FLAVOR_LEXICON, flavorTags, recentFlavorTags, beanFreshness, recentDrinkSeries, compareDrinkChronology, recentCafeNames, recentExternalDrinkNames, previousComparableDrink, beanProcessKind, recentDrinkLocations };
 });

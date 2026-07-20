@@ -25,6 +25,23 @@ test('number-input: buildWheelWindow 可处理大范围而不生成完整列表'
   assert.equal(window.values.at(-1), 5050);
 });
 
+// 滚轮闪动的根因：时长选择器这类短量程列（分钟停在 0-4、秒步长 5 只有 12 格），
+// 选中项永远落在「靠近边缘」的判定里，每次滚停都会重建一次完全相同的列并重新 scrollTo。
+// 这里锁住「同一个值重建出的窗口逐值相同」，控制器据此跳过重建。
+test('number-input: buildWheelWindow 在量程边界处重建结果稳定', () => {
+  const minuteColumn = { step: 1, min: 0, max: 999, radius: 50 };
+  const first = numberInput.buildWheelWindow(2, minuteColumn);
+  const again = numberInput.buildWheelWindow(first.values[first.index], minuteColumn);
+  assert.deepEqual(again.values, first.values);
+  assert.equal(again.index, first.index);
+  assert.equal(first.values[0], 0);
+
+  const secondColumn = { step: 5, min: 0, max: 59, radius: 50 };
+  const seconds = numberInput.buildWheelWindow(39, secondColumn);
+  assert.deepEqual(seconds.values, [4, 9, 14, 19, 24, 29, 34, 39, 44, 49, 54, 59]);
+  assert.deepEqual(numberInput.buildWheelWindow(39, secondColumn).values, seconds.values);
+});
+
 test('number-input: rankSuggestions 当前值和上下文值优先、重复值按频率排序', () => {
   const result = numberInput.rankSuggestions([
     { value: 18, timestamp: '2026-07-01' },

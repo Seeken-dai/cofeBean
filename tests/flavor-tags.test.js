@@ -48,6 +48,44 @@ test('flavorTags 未知词归类 other', () => {
   assert.equal(core.flavorTags('圆润平衡')[0].category, 'other');
 });
 
+// 喝一杯的风味胶囊：取自己最近写过的短词，按饮用时间倒序去重。
+const flavorLog = (id, consumedAt, notes, extra) => ({ id, source: 'bean', consumedAt, updatedAt: consumedAt, notes, deletedAt: null, ...extra });
+
+test('recentFlavorTags 按饮用时间倒序取词并去重', () => {
+  const logs = [
+    flavorLog('a', '2026-07-01T08:00:00.000Z', '柑橘、蜂蜜'),
+    flavorLog('c', '2026-07-03T08:00:00.000Z', '茉莉花、柑橘'),
+    flavorLog('b', '2026-07-02T08:00:00.000Z', '红茶')
+  ];
+  assert.deepEqual(core.recentFlavorTags(logs).map((t) => t.label), ['茉莉花', '柑橘', '红茶', '蜂蜜']);
+});
+
+test('recentFlavorTags 只留短风味词，挡掉备注里的句子碎片', () => {
+  const logs = [flavorLog('a', '2026-07-01T08:00:00.000Z', '柑橘和红糖，酸甜很明亮，整体很平衡、白桃、矿物感、黑加仑')];
+  // 「柑橘和红糖」「酸甜很明亮」命中风味轮但超过 4 字；「整体很平衡」既没命中也超过 3 字。
+  assert.deepEqual(core.recentFlavorTags(logs).map((t) => t.label), ['白桃', '矿物感', '黑加仑']);
+});
+
+test('recentFlavorTags 跳过长句、已删除记录与当前正在编辑的记录', () => {
+  const logs = [
+    flavorLog('long', '2026-07-04T08:00:00.000Z', '今天这杯前段偏酸后段回甘明显'),
+    flavorLog('gone', '2026-07-03T08:00:00.000Z', '焦糖', { deletedAt: '2026-07-05T00:00:00.000Z' }),
+    flavorLog('editing', '2026-07-02T08:00:00.000Z', '烟熏味'),
+    flavorLog('keep', '2026-07-01T08:00:00.000Z', '柠檬')
+  ];
+  const tags = core.recentFlavorTags(logs, { excludeId: 'editing' });
+  assert.deepEqual(tags.map((t) => t.label), ['柠檬']);
+  assert.equal(tags[0].category, 'citrus');
+});
+
+test('recentFlavorTags 支持排除已展示的词并限制数量', () => {
+  const logs = [flavorLog('a', '2026-07-01T08:00:00.000Z', '柑橘、蜂蜜、红茶')];
+  assert.deepEqual(core.recentFlavorTags(logs, { exclude: ['柑橘'] }).map((t) => t.label), ['蜂蜜', '红茶']);
+  assert.equal(core.recentFlavorTags(logs, { limit: 2 }).length, 2);
+  assert.deepEqual(core.recentFlavorTags([]), []);
+  assert.deepEqual(core.recentFlavorTags(null), []);
+});
+
 test('flavorTags 上限 12 个、单词截断 12 字', () => {
   const many = Array.from({ length: 30 }, (_, i) => '风味' + i).join('、');
   assert.equal(core.flavorTags(many).length, 12);

@@ -15,8 +15,8 @@
   'use strict';
 
   function create(deps) {
-    const { $, $$, state, els, core, toast, setDialog, haptic, esc, formatWeight, durationText, syncRatioValue, syncDurationField, currentDrinkMethod, selectedDrinkPlan, drinkParamSnapshot, openPlanDetail, saveAssistDrink, openTastingById } = deps;
-    ['$', '$$', 'state', 'els', 'core', 'toast', 'setDialog', 'esc', 'formatWeight', 'durationText'].forEach((key) => {
+    const { $, $$, state, els, core, toast, setDialog, haptic, esc, formatWeight, durationText, secondsFromText, syncRatioValue, syncDurationField, currentDrinkMethod, selectedDrinkPlan, drinkParamSnapshot, openPlanDetail, saveAssistDrink, openTastingById } = deps;
+    ['$', '$$', 'state', 'els', 'core', 'toast', 'setDialog', 'esc', 'formatWeight', 'durationText', 'secondsFromText'].forEach((key) => {
       if (!deps[key]) throw new Error(`AppBrewAssist.create 缺少依赖:${key}`);
     });
 
@@ -133,6 +133,33 @@
       setAnimatedText($('#brewAssistWater'), hasWater ? formatWeight(step.water) : (step ? '—' : '准备器具'));
       $('#brewAssistWaterCaption').textContent = hasWater ? '本段目标注水' : (step ? '本段未记录水量' : '确认粉量、水量和器具后开始');
     }
+    // 开始前的参数跑马灯：粉量/水温这类「手上要先备好」的信息，滚动一遍比塞进圆环里更好读。
+    // 轨道里放两份相同内容，CSS 平移 -50% 即无缝循环，所以这里必须成对写。
+    function assistTickerItems(plan) {
+      const ratio = plan.ratio ? String(plan.ratio) : '';
+      const items = [
+        ['粉量', plan.dose ? formatWeight(plan.dose) : ''],
+        ['水温', plan.waterTemp ? String(plan.waterTemp).replace(/°?C$/i, '') + '°C' : ''],
+        ['粉水比', ratio],
+        ['总水量', plan.totalWater ? formatWeight(plan.totalWater) : ''],
+        ['研磨', [plan.grinder, plan.grindSetting].filter(Boolean).join(' ')],
+        ['分段', `${core.prepareBrewAssistSteps(plan.steps).length} 段`]
+      ].filter((item) => item[1]);
+      return items.map(([label, value]) => `<b><i>${esc(label)}</i><em>${esc(value)}</em></b>`).join('');
+    }
+    // 目标总时长可能写成区间（预置方案就有 "2:00-2:30"）；「最大建议时长」取区间上界。
+    function planLimitSeconds(plan) {
+      const parts = String(plan.targetDuration || '').split(/[-~～—]/).map((part) => secondsFromText(part)).filter((value) => value != null && value > 0);
+      return parts.length ? Math.max(...parts) : null;
+    }
+    function setAssistTicker(plan) {
+      const host = $('#brewAssistTicker');
+      const track = $('#brewAssistTickerTrack');
+      if (!host || !track) return;
+      const items = assistTickerItems(plan);
+      track.innerHTML = items ? items + items : '';
+      host.hidden = !items;
+    }
     function assistNextBrief(step) {
       return `${step.label} · ${durationText(step.duration, 'minute')}${step.water ? ` · ${formatWeight(step.water)}` : ''}`;
     }
@@ -140,7 +167,7 @@
     function setAssistNext(step, overtime) {
       const label = $('#brewAssistNextLabel');
       const text = $('#brewAssistNextText');
-      if (overtime) { label.textContent = '手动结束'; text.textContent = '已到方案时间，点「结束」记录实际用时'; return; }
+      if (overtime) { label.textContent = '手动结束'; text.textContent = '注水已全部完成，点「结束记录」定格实际用时'; return; }
       if (step) { label.textContent = '下一段'; text.textContent = assistNextBrief(step); }
       else { label.textContent = '最后一段'; text.textContent = '完成后点「结束」记录用时'; }
     }
@@ -148,7 +175,8 @@
       const assist = state.brewAssist;
       if (!assist) return;
       const ring = $('#brewAssistRing');
-      ring.classList.remove('assist-ring--gap', 'assist-ring--pouring'); ring.classList.toggle('assist-ring--paused', Boolean(assist.paused));
+      ring.classList.remove('assist-ring--gap', 'assist-ring--pouring', 'assist-ring--finishing', 'assist-ring--over'); ring.classList.toggle('assist-ring--paused', Boolean(assist.paused));
+      $('#brewAssistTicker').hidden = !(assist.phase === 'ready' || assist.phase === 'countdown') || !$('#brewAssistTickerTrack').innerHTML;
       ring.setAttribute('aria-label', assist.phase === 'ready' ? '开始冲煮辅助' : '进入下一段');
       $('#brewAssistMeta').textContent = [assist.beanName, assist.plan.name, '手冲'].filter(Boolean).join(' · ');
       if (assist.phase === 'ready') {
@@ -209,23 +237,55 @@
         return;
       }
       const current = status.current;
+      // 注水段全部走完后不自动结束：先滴滤到「最大建议时长」，超过则转红提醒，实际用时仍由用户点「结束」定格。
+      if (status.phase === 'done') {
+        const overLimit = elapsed >= assist.limit;
+        const limitLabel = assist.targetLimit ? '最大建议时长' : '方案总时长';
+        ring.classList.add(overLimit ? 'assist-ring--over' : 'assist-ring--finishing');
+        // 大数字和下方计时必须由同一个整数推出来：各自对 elapsed 取整（一个 ceil 一个 round）
+        // 会让「还剩 5 秒」和「02:26」对不上，而且两处在不同的半秒跳字。
+        let clockSeconds;
+        if (overLimit) {
+          clockSeconds = Math.round(elapsed);
+          $('#brewAssistPhase').textContent = `已超过${limitLabel}`;
+          setAnimatedText($('#brewAssistWater'), `+${durationText(clockSeconds - assist.limit, 'minute')}`);
+          $('#brewAssistWaterCaption').textContent = `已超出${limitLabel}，建议收杯`;
+        } else {
+          const left = Math.ceil(Math.max(0, assist.limit - elapsed));
+          clockSeconds = assist.limit - left;
+          $('#brewAssistPhase').textContent = '注水完成 · 等待滴滤';
+          setAnimatedText($('#brewAssistWater'), String(left));
+          $('#brewAssistWaterCaption').textContent = `秒后到达${limitLabel}`;
+        }
+        setAnimatedClock($('#brewAssistTime'), assistClock(clockSeconds));
+        $('#brewAssistStageMeta').textContent = `${limitLabel} ${durationText(assist.limit, 'minute')}`;
+        // 收尾段圆环从注水结束走到建议时长；两者相等（未额外设时长）时直接满环。
+        const span = Math.max(1, assist.limit - assist.total);
+        $('#brewAssistRing').style.setProperty('--assist-progress', `${overLimit ? 360 : Math.min(360, (elapsed - assist.total) / span * 360)}deg`);
+        setAssistNext(null, true);
+        if (renderAssistSteps(assist.steps.length - 1)) scrollAssistToStage(assist.steps.length - 1);
+        $('#brewAssistPause').hidden = false;
+        $('#brewAssistSkip').hidden = true;
+        $('#brewAssistPause').textContent = assist.paused ? '继续' : '暂停';
+        $('#brewAssistFinish').textContent = '结束记录';
+        $('#brewAssistFinish').classList.add('assist-finish-emphasis');
+        return;
+      }
       ring.classList.toggle('assist-ring--pouring', Boolean(current && current.water));
-      // 到达方案总时长后不再自动结束：继续为最后一段计时（超时），由用户手动点「结束」记录实际用时。
-      const overtime = status.phase === 'done';
       const next = assist.steps[status.index + 1];
       const stageElapsed = Math.max(0, elapsed - current.start);
-      $('#brewAssistPhase').textContent = overtime ? `最后一段 · ${current.label}` : `第 ${status.index + 1}/${assist.steps.length} 段 · ${current.label}`;
+      $('#brewAssistPhase').textContent = `第 ${status.index + 1}/${assist.steps.length} 段 · ${current.label}`;
       setAssistWater(current);
       setAnimatedClock($('#brewAssistTime'), assistClock(stageElapsed));
-      $('#brewAssistStageMeta').textContent = overtime ? `已超出方案 ${durationText(Math.max(0, elapsed - assist.total), 'minute')}` : current.time;
-      $('#brewAssistRing').style.setProperty('--assist-progress', `${overtime ? 360 : Math.min(360, stageElapsed / current.duration * 360)}deg`);
-      setAssistNext(next, overtime);
+      $('#brewAssistStageMeta').textContent = current.time;
+      $('#brewAssistRing').style.setProperty('--assist-progress', `${Math.min(360, stageElapsed / current.duration * 360)}deg`);
+      setAssistNext(next, false);
       if (renderAssistSteps(status.index)) scrollAssistToStage(status.index);
       $('#brewAssistPause').hidden = false;
       $('#brewAssistSkip').hidden = !next;
       $('#brewAssistPause').textContent = assist.paused ? '继续' : '暂停';
-      $('#brewAssistFinish').textContent = overtime ? '结束记录' : '结束';
-      $('#brewAssistFinish').classList.toggle('assist-finish-emphasis', overtime);
+      $('#brewAssistFinish').textContent = '结束';
+      $('#brewAssistFinish').classList.remove('assist-finish-emphasis');
     }
     function renderAssistSteps(activeIndex) {
       const assist = state.brewAssist;
@@ -269,8 +329,13 @@
       const steps = core.prepareBrewAssistSteps(normalized.steps);
       if (normalized.brewMethod !== '手冲') return toast('第一版冲煮辅助仅支持手冲');
       if (!steps.length) return toast('这个方案还没有可计时的分段步骤');
-      state.brewAssist = { source, plan: normalized, beanName: beanName || '', steps, total: steps[steps.length - 1].end, phase: 'ready', countdownStartedAt: null, startedAt: null, elapsed: 0, paused: false, completed: false, completedElapsed: 0, savedLogId: null, saving: false, renderedStepIndex: null };
+      // total = 最后一段注水结束；limit = 方案的「最大建议时长」，只在比 total 更晚时才额外留出滴滤时间。
+      const total = steps[steps.length - 1].end;
+      const target = planLimitSeconds(normalized);
+      const targetLimit = target > total ? target : null;
+      state.brewAssist = { source, plan: normalized, beanName: beanName || '', steps, total, targetLimit, limit: targetLimit || total, phase: 'ready', countdownStartedAt: null, startedAt: null, elapsed: 0, paused: false, completed: false, completedElapsed: 0, savedLogId: null, saving: false, renderedStepIndex: null };
       lastClockText = '';
+      setAssistTicker(normalized);
       $('#brewAssistRunning').hidden = false;
       $('#brewAssistComplete').hidden = true;
       $('#brewAssistPause').hidden = false;

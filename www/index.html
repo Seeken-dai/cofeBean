@@ -301,7 +301,7 @@
         <div class="field"><span>研磨设备</span><select id="plan-grinder-select" class="smart-select"><option value="">请选择或新建</option></select><input id="plan-grinder" name="grinder" type="hidden"><input id="plan-grinder-custom" class="smart-input" type="text" maxlength="120" placeholder="例如：C40" hidden></div>
         <label class="field"><span>研磨刻度</span><input id="plan-grindSetting" name="grindSetting" type="text" maxlength="120" placeholder="例如：22 clicks"></label>
         <input id="plan-targetDuration" name="targetDuration" type="hidden">
-        <div class="field method-field duration-field" data-methods="手冲 冰滴 爱乐压 聪明杯 虹吸 自定义" data-duration-target="plan-targetDuration"><span>目标总时长</span><div class="duration-control"><input data-duration-min type="number" min="0" max="999" inputmode="numeric" placeholder="3"><b>分</b><input data-duration-sec type="number" min="0" max="59" inputmode="numeric" placeholder="30"><b>秒</b></div></div>
+        <div class="field method-field duration-field" data-methods="手冲 冰滴 爱乐压 聪明杯 虹吸 自定义" data-duration-target="plan-targetDuration"><span>目标总时长</span><div class="duration-control"><input data-duration-min type="number" min="0" max="999" inputmode="numeric" placeholder="3"><b>分</b><input data-duration-sec type="number" min="0" max="59" inputmode="numeric" placeholder="30"><b>秒</b></div><small class="field-hint">最大建议时长：默认取最后一段注水的结束时间，可自行修改。冲煮辅助超过它会提示收杯。</small></div>
         <input id="plan-steepTime" name="steepTime" type="hidden">
         <div class="field method-field duration-field" data-methods="冷萃 法压" data-duration-target="plan-steepTime"><span>浸泡时长</span><div class="duration-control"><input data-duration-hour type="number" min="0" max="72" inputmode="numeric" placeholder="12"><b>时</b><input data-duration-min type="number" min="0" max="59" inputmode="numeric" placeholder="0"><b>分</b></div></div>
         <label class="field method-field" data-methods="冷萃"><span>浸泡环境</span><select id="plan-steepEnvironment" name="steepEnvironment"><option value="">未记录</option><option>冷藏</option><option>常温</option></select></label>
@@ -448,6 +448,7 @@
         <section class="advanced-ratings tasting-visible full" id="advancedRatingSection" hidden><div class="section-heading"><div><span>高级评价</span><small>笑脸越多越满意；苦涩感的哭脸越多越明显</small></div></div><div id="dimensionRatings"></div></section>
         <section class="image-vault tasting-visible full" id="drinkPhotoVault"></section>
         <label class="field tasting-visible full"><span>风味 / 评价备注</span><textarea id="drink-notes" name="notes" maxlength="2000" rows="4" placeholder="例如：酸奶、牛奶巧克力、柑橘；也可以写下风味变化和下次想调整的地方…"></textarea></label>
+        <section class="flavor-suggest tasting-visible full" id="drinkFlavorSuggest" hidden></section>
       </div>
       <footer class="sheet-footer"><button class="danger-button" id="deleteDrink" type="button">删除记录</button><div><button class="secondary-button" id="drinkCancel" type="button">取消</button><button class="secondary-button" id="drinkEditFull" type="button" hidden>编辑完整记录</button><button class="secondary-button assist-footer-button" id="drinkStartAssist" type="button" hidden>冲煮辅助</button><button class="primary-button" id="saveDrink" type="submit">保存并扣量</button></div></footer>
     </form>
@@ -606,6 +607,7 @@
       <button class="icon-button" id="brewAssistStop" type="button" aria-label="结束冲煮辅助">×</button>
     </header>
     <section class="assist-body" id="brewAssistRunning">
+      <div class="assist-ticker" id="brewAssistTicker" aria-live="polite" hidden><div id="brewAssistTickerTrack"></div></div>
       <div class="assist-ring" id="brewAssistRing" role="button" tabindex="0" aria-label="开始冲煮辅助" style="--assist-progress:0deg">
         <i class="assist-water-wave" aria-hidden="true"></i>
         <div>
