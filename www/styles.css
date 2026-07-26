@@ -39,6 +39,10 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .icon-button { display:grid; place-items:center; width:44px; height:44px; border:0; border-radius:13px; background:transparent; color:var(--muted); font-size:25px; cursor:pointer; transition:background var(--ease),color var(--ease),transform var(--ease); }
 .icon-button svg { width:21px; height:21px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
 .icon-button:active { transform:scale(.94); background:var(--surface-2); color:var(--text); }
+/* 编辑页把「删除」收到标题栏的 ✕ 旁边（2.4.2）：底栏只留取消/保存这类正向操作，
+   删除用红色垃圾桶图标表达，实际删除仍然要走 askConfirm 二次确认。 */
+.icon-button.is-danger { color:var(--danger); }
+.icon-button.is-danger:active { background:color-mix(in srgb,var(--danger) 12%,transparent); color:var(--danger); }
 .search-button svg { transform:translateY(-1px); }
 .profile-button { border:1px solid color-mix(in srgb,var(--accent) 35%,var(--border)); background:color-mix(in srgb,var(--accent) 8%,var(--surface)); }
 .profile-button svg { width:21px; height:21px; color:var(--accent); opacity:.88; fill:currentColor; stroke:none; }
@@ -443,7 +447,9 @@ html.number-picker-open { overflow:hidden; }
 #dimensionRatings { display:grid; gap:15px; }
 .bean-history { padding-top:8px; border-top:1px solid var(--border); }
 .sheet-footer { position:sticky; bottom:0; z-index:3; display:flex; justify-content:space-between; align-items:center; gap:12px; padding:14px 20px calc(14px + env(safe-area-inset-bottom,0px)); border-top:1px solid var(--border); background:color-mix(in srgb,var(--surface) 95%,transparent); backdrop-filter:blur(14px); }
-.sheet-footer > div { display:flex; justify-content:flex-end; gap:8px; margin-left:auto; }
+/* flex-wrap 是兜底：底栏按钮一行放不下时宁可折行，也不要被挤到把中文压成竖排
+   （2.4.2 前「喝一杯」四个按钮就是这么坏掉的）。放得下时这条规则不产生任何影响。 */
+.sheet-footer > div { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; row-gap:8px; margin-left:auto; }
 .sheet-footer > span:first-child { flex:1 1 auto; }
 .primary-button,.secondary-button,.danger-button,.danger-fill-button { min-height:46px; padding:0 18px; border-radius:12px; cursor:pointer; }
 .primary-button { border:1px solid var(--accent); background:var(--accent); color:var(--accent-ink); font-weight:700; }
@@ -1325,14 +1331,3 @@ html.number-picker-open { overflow:hidden; }
 .tasting-summary-detail{grid-column:1/-1;padding-top:8px;border-top:1px solid var(--border)}
 .tasting-summary-detail p{display:flex;justify-content:space-between;gap:12px;margin:6px 0;font-size:13px}
 .tasting-summary-detail p span{color:var(--muted)}
-/* 喝一杯的底栏最多同时摆四个按钮（删除记录 / 取消 / 冲煮辅助 / 保存并扣量），375px 宽只有 296px
-   可用、按钮自然宽度要 438px，于是每个按钮的中文都被挤成两行。窄屏改成自然换行：
-   display:contents 把内层 div 摊平成 footer 的 flex 项，删除记录靠左、次要按钮靠右，
-   主按钮独占一整行。原来只针对 tasting-mode 的两列网格由这套规则一并覆盖。 */
-@media(max-width:560px){
-  .drink-dialog .sheet-footer{flex-wrap:wrap;justify-content:flex-end;gap:8px}
-  .drink-dialog .sheet-footer>div{display:contents}
-  .drink-dialog .sheet-footer button{white-space:nowrap}
-  .drink-dialog #deleteDrink{margin-right:auto;padding-inline:0}
-  .drink-dialog #saveDrink{flex:1 0 100%}
-}

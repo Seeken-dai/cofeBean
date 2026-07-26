@@ -283,7 +283,7 @@
     <form id="planForm" method="dialog">
       <header class="sheet-header">
         <div><p class="eyebrow">BREW RECIPE</p><h2 id="planEditorTitle">新增冲煮方案</h2><p class="sheet-subtitle" id="planEditorStep">选择冲煮方式 → 填写方案信息 → 绑定咖啡豆 → 保存</p></div>
-        <button class="icon-button" id="planEditorClose" type="button" aria-label="关闭">×</button>
+        <div class="header-actions"><button class="icon-button is-danger" id="planEditorDelete" type="button" aria-label="删除方案" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M9.5 7V5.5A1.5 1.5 0 0 1 11 4h2a1.5 1.5 0 0 1 1.5 1.5V7"/><path d="M6.5 7l.7 12.1a1.5 1.5 0 0 0 1.5 1.4h6.6a1.5 1.5 0 0 0 1.5-1.4L18 7"/><path d="M10 11.5v5M14 11.5v5"/></svg></button><button class="icon-button" id="planEditorClose" type="button" aria-label="关闭">×</button></div>
       </header>
       <div class="form-grid">
         <input id="plan-id" name="id" type="hidden">
@@ -326,7 +326,7 @@
         <section class="bean-bind full" id="planBeanBind"></section>
         <label class="field full"><span>备注</span><textarea id="plan-notes" name="notes" maxlength="3000" rows="4" placeholder="这段风味适合什么豆子？也可以记下风味目标和下次想调整的地方…"></textarea></label>
       </div>
-      <footer class="sheet-footer"><button class="danger-button" id="planEditorDelete" type="button">删除方案</button><div><button class="secondary-button" id="planEditorCancel" type="button">取消</button><button class="primary-button" type="submit">保存方案</button></div></footer>
+      <footer class="sheet-footer"><span></span><div><button class="secondary-button" id="planEditorCancel" type="button">取消</button><button class="primary-button" type="submit">保存方案</button></div></footer>
     </form>
   </dialog>
 
@@ -334,7 +334,7 @@
     <form id="beanForm" method="dialog">
       <header class="sheet-header">
         <div><p class="eyebrow">COFFEE ENTRY</p><h2 id="editorTitle">新增咖啡豆</h2></div>
-        <button class="icon-button" id="editorClose" type="button" aria-label="关闭">×</button>
+        <div class="header-actions"><button class="icon-button is-danger" id="deleteBean" type="button" aria-label="删除咖啡豆" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M9.5 7V5.5A1.5 1.5 0 0 1 11 4h2a1.5 1.5 0 0 1 1.5 1.5V7"/><path d="M6.5 7l.7 12.1a1.5 1.5 0 0 0 1.5 1.4h6.6a1.5 1.5 0 0 0 1.5-1.4L18 7"/><path d="M10 11.5v5M14 11.5v5"/></svg></button><button class="icon-button" id="editorClose" type="button" aria-label="关闭">×</button></div>
       </header>
       <div class="form-grid">
         <aside class="scan-result full" id="scanResult" hidden></aside>
@@ -378,7 +378,7 @@
         <label class="field full"><span>风味笔记</span><textarea id="field-tastingNotes" name="tastingNotes" maxlength="4000" rows="4" placeholder="花香、柑橘、蜂蜜般的甜感…"></textarea></label>
       </div>
       <footer class="sheet-footer">
-        <button class="danger-button" id="deleteBean" type="button">删除</button>
+        <span></span>
         <div><button class="secondary-button" id="editorCancel" type="button">取消</button><button class="primary-button" type="submit">保存</button></div>
       </footer>
     </form>
@@ -386,7 +386,7 @@
 
   <dialog class="sheet drink-dialog" id="drinkDialog">
     <form id="drinkForm" method="dialog">
-      <header class="sheet-header"><div><p class="eyebrow">BREW LOG</p><h2 id="drinkTitle">喝一杯</h2><p class="sheet-subtitle" id="drinkBeanMeta"></p></div><button class="icon-button" id="drinkClose" type="button" aria-label="关闭">×</button></header>
+      <header class="sheet-header"><div><p class="eyebrow">BREW LOG</p><h2 id="drinkTitle">喝一杯</h2><p class="sheet-subtitle" id="drinkBeanMeta"></p></div><div class="header-actions"><button class="icon-button is-danger" id="deleteDrink" type="button" aria-label="删除这条饮用记录" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M9.5 7V5.5A1.5 1.5 0 0 1 11 4h2a1.5 1.5 0 0 1 1.5 1.5V7"/><path d="M6.5 7l.7 12.1a1.5 1.5 0 0 0 1.5 1.4h6.6a1.5 1.5 0 0 0 1.5-1.4L18 7"/><path d="M10 11.5v5M14 11.5v5"/></svg></button><button class="icon-button" id="drinkClose" type="button" aria-label="关闭">×</button></div></header>
       <div class="form-grid">
         <input id="drink-id" name="id" type="hidden"><input id="drink-beanId" name="beanId" type="hidden"><input id="drink-source" name="source" type="hidden" value="bean">
         <input id="drink-plan-id" name="brewPlanId" type="hidden">
@@ -450,7 +450,7 @@
         <label class="field tasting-visible full"><span>风味 / 评价备注</span><textarea id="drink-notes" name="notes" maxlength="2000" rows="4" placeholder="例如：酸奶、牛奶巧克力、柑橘；也可以写下风味变化和下次想调整的地方…"></textarea></label>
         <section class="flavor-suggest tasting-visible full" id="drinkFlavorSuggest" hidden></section>
       </div>
-      <footer class="sheet-footer"><button class="danger-button" id="deleteDrink" type="button">删除记录</button><div><button class="secondary-button" id="drinkCancel" type="button">取消</button><button class="secondary-button" id="drinkEditFull" type="button" hidden>编辑完整记录</button><button class="secondary-button assist-footer-button" id="drinkStartAssist" type="button" hidden>冲煮辅助</button><button class="primary-button" id="saveDrink" type="submit">保存并扣量</button></div></footer>
+      <footer class="sheet-footer"><span></span><div><button class="secondary-button" id="drinkEditFull" type="button" hidden>编辑完整记录</button><button class="secondary-button assist-footer-button" id="drinkStartAssist" type="button" hidden>冲煮辅助</button><button class="primary-button" id="saveDrink" type="submit">保存并扣量</button></div></footer>
     </form>
   </dialog>
 
@@ -652,7 +652,7 @@
       <h3>收藏咖啡，也收藏与咖啡相处的时间。</h3>
       <p>豆仓是一款为咖啡爱好者设计的本地优先记录工具。你可以保存每一包咖啡豆的产地、风味与价格，记录每次饮用和冲煮方案，让日常里喝过的咖啡慢慢有迹可循。</p>
       <h4>2.4.2 最新功能</h4>
-      <ul><li>详情页和编辑页不会再因为碰到左右两侧空白而退出</li><li>回顾的花费新增跟随时间范围统计的开销卡片</li><li>记外饮时店名一次列出最近四家店</li><li>修复分享卡片里「分段步骤」等小标题压住上方内容的问题</li><li>修复「喝一杯」底部按钮在手机上挤成竖排文字的问题</li></ul>
+      <ul><li>详情页和编辑页不会再因为碰到左右两侧空白而退出</li><li>回顾的花费新增跟随时间范围统计的开销卡片</li><li>记外饮时店名一次列出最近四家店</li><li>修复分享卡片里「分段步骤」等小标题压住上方内容的问题</li><li>编辑页的删除移到标题栏 ✕ 旁边，底部按钮不再挤成竖排文字</li></ul>
       <div class="privacy-note"><b>离线与隐私</b><p>豆仓默认完全离线使用，数据保存在你的设备中。云同步为可选功能，仅在登录并开启后使用。</p><p>检查更新仅在你主动点击时联网，不会影响本地记录使用。</p></div>
     </section>
   </dialog>

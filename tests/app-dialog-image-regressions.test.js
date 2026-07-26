@@ -30,23 +30,32 @@ test('任意层级弹窗打开时锁定底层页面滚动', () => {
   assert.match(stylesSource, /\.sheet\s*\{[^}]*overflow:auto;\s*overscroll-behavior:contain;/);
 });
 
-test('喝一杯的底栏在窄屏换行，而不是把按钮文案挤成两行', () => {
-  // 2.4.2：这个底栏最多同时出现四个按钮（删除记录 / 取消 / 冲煮辅助 / 保存并扣量），
-  // 375px 宽只有 296px 可用、按钮自然宽度要 438px，于是每个按钮的中文都被挤成两行。
-  const start = stylesSource.indexOf('.drink-dialog .sheet-footer');
-  assert.ok(start > -1, '应存在窄屏底栏规则');
-  // 规则必须落在窄屏媒体查询里，宽屏仍然是一行摆得下的四个按钮。
-  assert.match(stylesSource.slice(0, start), /@media\(max-width:560px\)\{\s*$/);
-  const rule = stylesSource.slice(start);
-  // 内层 div 必须摊平成 footer 的 flex 项，否则主按钮没法独占一行。
-  assert.match(rule, /\.drink-dialog \.sheet-footer>div\{display:contents\}/);
-  assert.match(rule, /\.drink-dialog \.sheet-footer\{flex-wrap:wrap;/);
-  // 文案不许再折行；删除记录靠左，主按钮独占整行。
-  assert.match(rule, /\.drink-dialog \.sheet-footer button\{white-space:nowrap\}/);
-  assert.match(rule, /\.drink-dialog #deleteDrink\{margin-right:auto/);
-  assert.match(rule, /\.drink-dialog #saveDrink\{flex:1 0 100%\}/);
-  // 旧的 tasting-mode 两列网格已被这套规则取代，不能两套同时作用于同一个 div。
+test('编辑页的删除收在标题栏图标里，底栏只留正向操作且一行放得下', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'www', 'index.html'), 'utf8');
+  // 2.4.2：底栏原来要摆四个按钮（删除记录 / 取消 / 冲煮辅助 / 保存并扣量），375px 宽只有
+  // 296px 可用、自然宽度要 438px，每个按钮的中文都被挤成竖排。删除挪到 ✕ 旁边、取消交还给 ✕。
+  ['deleteBean', 'planEditorDelete', 'deleteDrink'].forEach((id) => {
+    const button = html.match(new RegExp(`<button[^>]*id="${id}"[^>]*>`));
+    assert.ok(button, `${id} 应存在`);
+    // 必须是标题栏的红色图标按钮，且默认隐藏（新建时没有可删对象，由 JS 按场景放出来）。
+    assert.match(button[0], /class="icon-button is-danger"/, `${id} 应使用标题栏红色图标样式`);
+    assert.match(button[0], /aria-label="[^"]+"/, `${id} 图标按钮必须有 aria-label`);
+    assert.match(button[0], /\shidden\b/, `${id} 默认应隐藏`);
+    // 位置：在 header-actions 里，而不是 sheet-footer 里。
+    const scope = html.slice(Math.max(0, html.indexOf(button[0]) - 400), html.indexOf(button[0]));
+    assert.match(scope, /class="header-actions"/, `${id} 应放在 header-actions 里`);
+  });
+  // 底栏不能再出现 danger-button（删除已经不在底栏），取消按钮也从喝一杯里移除。
+  ['deleteBean', 'planEditorDelete', 'deleteDrink'].forEach((id) => {
+    assert.doesNotMatch(html, new RegExp(`class="danger-button" id="${id}"`), `${id} 不应留在底栏`);
+  });
+  assert.doesNotMatch(html, /id="drinkCancel"/, '喝一杯的取消按钮由标题栏 ✕ 接管');
+  assert.doesNotMatch(appSource, /#drinkCancel/, '取消按钮移除后不应残留监听或文案切换');
+  // 旧的 tasting-mode 两列网格补丁不该复活。
   assert.doesNotMatch(stylesSource, /\.tasting-mode \.sheet-footer>div\{display:grid/);
+  // 兜底：底栏按钮组允许折行，避免以后文案变长又被挤成竖排。
+  assert.match(stylesSource, /\.sheet-footer > div \{ display:flex; flex-wrap:wrap;/);
+  assert.match(stylesSource, /\.icon-button\.is-danger \{ color:var\(--danger\); \}/);
 });
 
 test('自动同步的 reload 带 keepForm，不覆盖正在编辑的表单', () => {
