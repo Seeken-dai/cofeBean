@@ -224,6 +224,24 @@
       pendingDialogCloses.set(dialog, { timer: setTimeout(finish, 260), onEnd });
     }
   }
+  // 只有落在 sheet 上方/下方留白里的点击才算「点背景关闭」；左右两侧的窄边不算。
+  // 还要求 pointerdown 与 click 都落在同一片留白，避免从弹窗内部滑出去松手被当成关闭。
+  const BACKDROP_EDGE_GUARD = 6;
+  function backdropDismissPoint(dialog, event) {
+    if (event.target !== dialog) return false;
+    const rect = dialog.getBoundingClientRect();
+    if (!(rect.width > 0) || !(rect.height > 0) || !Number.isFinite(event.clientY)) return false;
+    return event.clientY < rect.top - BACKDROP_EDGE_GUARD || event.clientY > rect.bottom + BACKDROP_EDGE_GUARD;
+  }
+  function bindBackdropDismiss(dialog, dismiss) {
+    let armed = false;
+    dialog.addEventListener('pointerdown', (event) => { armed = backdropDismissPoint(dialog, event); });
+    dialog.addEventListener('click', (event) => {
+      const outside = armed && backdropDismissPoint(dialog, event);
+      armed = false;
+      if (outside) dismiss();
+    });
+  }
   function animateNumber(el, value, format) {
     const to = Number(value) || 0; const from = previousStats.get(el.id);
     previousStats.set(el.id, to);
@@ -1691,11 +1709,14 @@
     $('#saveDrink').hidden = false;
     $('#saveDrink').textContent = '完成记录';
   }
-  function renderCafeSuggestions() {
+  // showRecent 与地点同义：值不是用户正在敲的（打开弹窗自动带出、点胶囊回填）时列最近几家店，
+  // 否则输入框一有值就只剩一个和它重复的「匹配」胶囊，等于没有候选可选。
+  // 空输入时也给满 4 家：常去的店不止一家，只列一个基本等于没有联想。
+  function renderCafeSuggestions(showRecent) {
     const input = $('#drink-cafeName'); const host = $('#drinkCafeSuggestions');
     if (!input || !host) return;
-    const query = input.value.trim();
-    const names = BeanCore.recentCafeNames(state.drinkLogs, query, query ? 4 : 1);
+    const query = showRecent ? '' : input.value.trim();
+    const names = BeanCore.recentCafeNames(state.drinkLogs, query, 4);
     const recent = BeanCore.recentCafeNames(state.drinkLogs, '', 1)[0];
     input.placeholder = recent ? `最近：${recent}` : '例如：街角咖啡';
     host.innerHTML = names.length ? `<span>${query ? '匹配店名' : '最近使用'}</span>${names.map((name) => `<button data-cafe-name="${esc(name)}" type="button">${esc(name)}</button>`).join('')}` : (query ? '<span>没有匹配，可直接保存新店名</span>' : '');
@@ -1759,7 +1780,7 @@
     input.placeholder = recent ? `最近：${recent}` : '例如：Dirty';
     host.innerHTML = names.length ? `<span>${query ? '匹配饮品' : '同店最近'}</span>${names.map((name) => `<button data-drink-name="${esc(name)}" type="button">${esc(name)}</button>`).join('')}` : (query && cafeInput.value.trim() ? '<span>没有匹配，可直接保存新饮品</span>' : '');
   }
-  function openDrinkDialog(bean, log, mode) { if (!bean && log && log.beanId) bean = state.beans.find((item) => item.id === log.beanId); const sourceKind = log && log.source === 'external' ? 'external' : 'bean'; const orphaned = sourceKind === 'bean' && !bean && Boolean(log); if (sourceKind === 'bean' && !bean && !log) return; state.editingDrinkId = log ? log.id : null; els.drinkForm.reset(); state.pendingDrinkPhotos = []; state.drinkPhotosToDelete = []; state.drinkPhotoDraft = (log && log.photos || []).slice(0, 3); const remaining = bean ? Number(bean.remainingWeight) || 0 : 0; const grams = log ? log.grams : Math.min(state.settings.quickGrams, remaining); const last = bean && !log ? lastBeanLog(bean.id) : null; const lastPlanEnabled = brewPlansEnabled() && last; const lastMethod = !log && last ? last.brewMethod : '手冲'; $('#drink-id').value = log ? log.id : ''; $('#drink-beanId').value = bean ? bean.id : ''; $('#drink-plan-id').value = log && log.brewPlanId || lastPlanEnabled && last.brewPlanId || ''; $('#drink-grams').value = grams; $('#drink-grams').max = remaining + (log ? Number(log.grams) : 0); $('#drink-time').value = localDateTime(log && log.consumedAt); $('#drink-notes').value = log ? log.notes : ''; $('#drink-cafeName').value = log ? log.cafeName || '' : ''; $('#drink-drinkName').value = log ? log.drinkName || '' : ''; renderCafeSuggestions(); renderDrinkNameSuggestions(); $('#drink-price').value = log && log.price != null ? log.price : ''; $('#drink-location').value = log ? log.location || '' : ''; renderLocationSuggestions(true); $('#drinkTitle').textContent = sourceKind === 'external' ? (log ? '编辑外饮记录' : '外饮记录') : orphaned ? '历史饮用记录' : log ? '编辑饮用记录' : '喝一杯'; $('#drinkBeanMeta').textContent = sourceKind === 'external' ? '咖啡馆 / 外卖，不扣库存' : orphaned ? `${log.beanName} · 原豆子已删除` : `${bean.name} · 当前剩余 ${formatWeight(remaining)}`; $('#deleteDrink').hidden = !log; $('#saveDrink').hidden = orphaned; methodOptions(log && log.brewMethod || lastMethod); if (sourceKind === 'bean') renderDrinkPlanPicker(bean, log); const source = log && log.brewPlanSnapshot || lastPlanEnabled && last.brewPlanSnapshot || selectedDrinkPlan() || { brewMethod: currentDrinkMethod(), dose: grams }; fillDrinkParams(source); $('#drinkParamPanel').hidden = sourceKind === 'external' || !brewPlansEnabled(); setCoffeeType(log ? log.coffeeType : state.settings.lastCoffeeType); renderRating($('#overallRating'), 'overallRating', log && log.overallRating, false); renderDimensionRatings(log); renderDrinkFeatureHint(log); renderDrinkFlavorSuggestions(); renderDrinkPhotoVault(); configureDrinkSource(sourceKind, orphaned); configureDrinkMode(log || {}, mode); setDialog(els.drink, true); }
+  function openDrinkDialog(bean, log, mode) { if (!bean && log && log.beanId) bean = state.beans.find((item) => item.id === log.beanId); const sourceKind = log && log.source === 'external' ? 'external' : 'bean'; const orphaned = sourceKind === 'bean' && !bean && Boolean(log); if (sourceKind === 'bean' && !bean && !log) return; state.editingDrinkId = log ? log.id : null; els.drinkForm.reset(); state.pendingDrinkPhotos = []; state.drinkPhotosToDelete = []; state.drinkPhotoDraft = (log && log.photos || []).slice(0, 3); const remaining = bean ? Number(bean.remainingWeight) || 0 : 0; const grams = log ? log.grams : Math.min(state.settings.quickGrams, remaining); const last = bean && !log ? lastBeanLog(bean.id) : null; const lastPlanEnabled = brewPlansEnabled() && last; const lastMethod = !log && last ? last.brewMethod : '手冲'; $('#drink-id').value = log ? log.id : ''; $('#drink-beanId').value = bean ? bean.id : ''; $('#drink-plan-id').value = log && log.brewPlanId || lastPlanEnabled && last.brewPlanId || ''; $('#drink-grams').value = grams; $('#drink-grams').max = remaining + (log ? Number(log.grams) : 0); $('#drink-time').value = localDateTime(log && log.consumedAt); $('#drink-notes').value = log ? log.notes : ''; $('#drink-cafeName').value = log ? log.cafeName || '' : ''; $('#drink-drinkName').value = log ? log.drinkName || '' : ''; renderCafeSuggestions(true); renderDrinkNameSuggestions(); $('#drink-price').value = log && log.price != null ? log.price : ''; $('#drink-location').value = log ? log.location || '' : ''; renderLocationSuggestions(true); $('#drinkTitle').textContent = sourceKind === 'external' ? (log ? '编辑外饮记录' : '外饮记录') : orphaned ? '历史饮用记录' : log ? '编辑饮用记录' : '喝一杯'; $('#drinkBeanMeta').textContent = sourceKind === 'external' ? '咖啡馆 / 外卖，不扣库存' : orphaned ? `${log.beanName} · 原豆子已删除` : `${bean.name} · 当前剩余 ${formatWeight(remaining)}`; $('#deleteDrink').hidden = !log; $('#saveDrink').hidden = orphaned; methodOptions(log && log.brewMethod || lastMethod); if (sourceKind === 'bean') renderDrinkPlanPicker(bean, log); const source = log && log.brewPlanSnapshot || lastPlanEnabled && last.brewPlanSnapshot || selectedDrinkPlan() || { brewMethod: currentDrinkMethod(), dose: grams }; fillDrinkParams(source); $('#drinkParamPanel').hidden = sourceKind === 'external' || !brewPlansEnabled(); setCoffeeType(log ? log.coffeeType : state.settings.lastCoffeeType); renderRating($('#overallRating'), 'overallRating', log && log.overallRating, false); renderDimensionRatings(log); renderDrinkFeatureHint(log); renderDrinkFlavorSuggestions(); renderDrinkPhotoVault(); configureDrinkSource(sourceKind, orphaned); configureDrinkMode(log || {}, mode); setDialog(els.drink, true); }
   // 只有新建外饮才自动带上最近一次的地点（地点通常不变）；编辑已有记录必须原样显示它自己的地点。
   function openExternalDrinkDialog(log) { openDrinkDialog(null, log ? { ...log, source: 'external' } : BeanCore.normalizeDrinkLog({ source: 'external' })); state.editingDrinkId = log ? log.id : null; if (!log) { $('#drink-id').value = ''; $('#deleteDrink').hidden = true; $('#drinkTitle').textContent = '外饮记录'; setCoffeeType(state.settings.lastCoffeeType); const lastLocation = BeanCore.recentDrinkLocations(state.drinkLogs, '', 1)[0]; if (lastLocation) $('#drink-location').value = lastLocation; renderLocationSuggestions(true); } }
   function setCoffeeType(value) { const type = BeanCore.COFFEE_TYPES.includes(value) ? value : BeanCore.COFFEE_TYPES[0]; $('#drink-coffeeType').value = type; $$('[data-coffee-type]', els.drinkForm).forEach((chip) => { const active = chip.dataset.coffeeType === type; chip.classList.toggle('active', active); chip.setAttribute('aria-checked', String(active)); }); }
@@ -2171,7 +2192,7 @@
     // 包一层：input 事件会把 Event 当首参传入，直接传函数会让 showRecent 恒为真。
     $('#drink-location').addEventListener('input', () => renderLocationSuggestions());
     $('#drinkLocationSuggestions').addEventListener('click', (event) => { const choice = event.target.closest('[data-drink-location]'); if (!choice) return; $('#drink-location').value = choice.dataset.drinkLocation; renderLocationSuggestions(true); $('#drink-location').focus(); });
-    $('#drinkCafeSuggestions').addEventListener('click', (event) => { const choice = event.target.closest('[data-cafe-name]'); if (!choice) return; $('#drink-cafeName').value = choice.dataset.cafeName; renderCafeSuggestions(); renderDrinkNameSuggestions(); $('#drink-cafeName').focus(); });
+    $('#drinkCafeSuggestions').addEventListener('click', (event) => { const choice = event.target.closest('[data-cafe-name]'); if (!choice) return; $('#drink-cafeName').value = choice.dataset.cafeName; renderCafeSuggestions(true); renderDrinkNameSuggestions(); $('#drink-cafeName').focus(); });
     $('#drinkNameSuggestions').addEventListener('click', (event) => { const choice = event.target.closest('[data-drink-name]'); if (!choice) return; $('#drink-drinkName').value = choice.dataset.drinkName; renderDrinkNameSuggestions(); $('#drink-drinkName').focus(); });
     $('#drinkCoffeeTypes').addEventListener('click', (event) => { const chip = event.target.closest('[data-coffee-type]'); if (!chip) return; setCoffeeType(chip.dataset.coffeeType); });
     $('#drinkSourceFilters').addEventListener('click', (event) => { const chip = event.target.closest('.chip'); if (!chip) return; state.drinkSource = chip.dataset.value; state.drinkVisibleLimit = DRINK_PAGE_SIZE; renderDrinks(); });
@@ -2190,7 +2211,13 @@
     window.addEventListener('orientationchange', updateFabInset);
     if (window.visualViewport) window.visualViewport.addEventListener('resize', updateFabInset);
     setInterval(updateFabInset, 300);
-    [els.personal, els.backup, els.calendar, els.insights, els.detail, els.drinkDetail, els.planDetail, els.planEditor, els.editor, els.drink, els.brewAssist, els.choice, els.datePicker, els.photoSource, els.scanImage, els.imagePreview, els.shareChoice, els.drinkShareChoice, els.sharePreview, els.confirm, els.manager, els.settings, els.sync, els.syncAuth, els.about].forEach((dialog) => dialog.addEventListener('click', (event) => { if (event.target === dialog) dialog === els.brewAssist ? cancelBrewAssist() : dialog === els.sharePreview ? closeSharePreview() : dialog === els.drink ? (discardDrinkPhotoDraft(), dialog.close()) : dialog.close(); }));
+    // 点背景关闭。sheet 左右各只剩 10px 空白，握着手机时很容易蹭到，以前一蹭就退出；
+    // 所以只认弹窗「上下方」的空白，左右两侧一律不关（2.4.2）。编辑类弹窗和冲煮辅助
+    // 直接不参与：填了一半的表单或正在跑的计时器不该被一次误触清掉，只能走 ✕ / 取消。
+    [els.personal, els.backup, els.calendar, els.insights, els.detail, els.drinkDetail, els.planDetail,
+      els.choice, els.datePicker, els.photoSource, els.scanImage, els.imagePreview, els.shareChoice,
+      els.drinkShareChoice, els.sharePreview, els.confirm, els.manager, els.settings, els.sync, els.about]
+      .forEach((dialog) => bindBackdropDismiss(dialog, () => (dialog === els.sharePreview ? closeSharePreview() : dialog.close())));
     $('#photoSourceClose').addEventListener('click', () => setDialog(els.photoSource, false));
     els.editor.addEventListener('close', () => clearPendingImages(true));
   }

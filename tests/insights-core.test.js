@@ -130,6 +130,40 @@ test('monthlySpendSeries 不把未知价格当作零成本并返回缺失提示�
   assert.equal(result.data.series.length, 12);
 });
 
+test('spendSummary 跟随传入的范围汇总，且与 monthlySpendSeries 口径一致', () => {
+  const beans = [bean('bean-a'), bean('bean-b', { price: null })];
+  const now = new Date(2026, 6, 13, 18);
+  const rows = [
+    log('a1', atLocal(2026, 7, 1)),
+    log('a2', atLocal(2026, 7, 2)),
+    log('a3', atLocal(2026, 6, 2)),
+    log('external', atLocal(2026, 7, 4), { source: 'external', beanId: null, grams: 0, price: 30 }),
+    log('unknown', atLocal(2026, 7, 3), { beanId: 'bean-b' })
+  ];
+  const all = insights.spendSummary(insights.filterLogsByRange(rows, 'all', now), beans);
+  assert.equal(all.ok, true);
+  assert.deepEqual([all.data.total, all.data.homeTotal, all.data.externalTotal], [52.5, 22.5, 30]);
+  // 未填金额的那杯既不按零元计入，也不参与平均
+  assert.equal(all.meta.excludedCount, 1);
+  assert.equal(all.data.knownCount, 4);
+  assert.equal(all.data.perCup, 13.13);
+  const monthly = insights.monthlySpendSeries(rows, beans, now);
+  assert.deepEqual([all.data.total, all.data.homeTotal], [monthly.data.total, monthly.data.homeTotal]);
+  // 近 30 天要把 6 月那杯排除在外
+  const recent = insights.spendSummary(insights.filterLogsByRange(rows, '30d', now), beans);
+  assert.equal(recent.ok, true);
+  assert.deepEqual([recent.data.total, recent.data.homeTotal, recent.data.externalTotal], [45, 15, 30]);
+});
+
+test('spendSummary 少于三杯可估算金额时不出数', () => {
+  const beans = [bean('bean-a')];
+  const rows = [log('a1', atLocal(2026, 7, 1)), log('a2', atLocal(2026, 7, 2))];
+  const result = insights.spendSummary(rows, beans);
+  assert.equal(result.ok, false);
+  assert.equal(result.data, null);
+  assert.equal(result.meta.sampleSize, 2);
+});
+
 test('homeVsExternal 双方各三杯后才展示，成本缺失不影响杯数', () => {
   const beans = [bean('bean-a')];
   const home = [1, 2, 3].map((day) => log(`h${day}`, atLocal(2026, 7, day), { overallRating: 4 }));
@@ -223,12 +257,14 @@ test('乳脂奶香风味可进入回顾统计', () => {
 });
 
 test('回顾的每类统计都提供口径说明按钮', () => {
-  const keys = ['dimensions', 'flavor', 'preference', 'catalogHome', 'catalogExternal', 'time', 'weekday', 'spend', 'source', 'coffeeType', 'value', 'handBrew', 'report'];
+  const keys = ['dimensions', 'flavor', 'preference', 'catalogHome', 'catalogExternal', 'time', 'weekday', 'rangeSpend', 'spend', 'source', 'coffeeType', 'value', 'handBrew', 'report'];
   assert.deepEqual(Object.keys(appInsights.HELP_CONTENT), keys);
   keys.forEach((key) => {
     assert.match(appInsights.helpButton(key), new RegExp(`data-insights-help="${key}"`));
     assert.ok(appInsights.HELP_CONTENT[key].body.length > 20);
   });
+  // 两张开销卡的口径必须说清楚谁跟范围走、谁固定 12 个月，否则数字对不上会被当成 bug。
+  assert.match(appInsights.HELP_CONTENT.rangeSpend.body, /跟随上方回顾范围/);
   assert.match(appInsights.HELP_CONTENT.spend.body, /不随上方回顾范围变化/);
 });
 

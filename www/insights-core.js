@@ -1017,6 +1017,34 @@
     }, { sampleSize: knownCount, required: MIN_SAMPLE, excludedCount });
   }
 
+  // 与 monthlySpendSeries 共用 estimateKnownCost 的口径，但只汇总传进来的这批记录，
+  // 所以能跟着回顾顶部的时间范围走；12 个月折线图那张卡仍然固定不随范围变化。
+  function spendSummary(logs, beans) {
+    const rows = (Array.isArray(logs) ? logs : []).filter((log) => log && !log.deletedAt);
+    const beansById = beanMapOf(beans);
+    let knownCount = 0;
+    let excludedCount = 0;
+    let homeTotal = 0;
+    let externalTotal = 0;
+    rows.forEach((log) => {
+      const cost = estimateKnownCost(log, beansById);
+      if (!cost.known) { excludedCount += 1; return; }
+      knownCount += 1;
+      if (log.source === 'external') externalTotal += cost.amount;
+      else homeTotal += cost.amount;
+    });
+    if (knownCount < MIN_SAMPLE) return insufficient(knownCount, MIN_SAMPLE, excludedCount);
+    const total = homeTotal + externalTotal;
+    return response(true, null, {
+      total: round(total, 2),
+      homeTotal: round(homeTotal, 2),
+      externalTotal: round(externalTotal, 2),
+      cups: rows.length,
+      knownCount,
+      perCup: round(total / knownCount, 2)
+    }, { sampleSize: knownCount, required: MIN_SAMPLE, excludedCount });
+  }
+
   function sourceSummary(logs, beansById) {
     let cost = 0;
     let costSampleSize = 0;
@@ -1094,7 +1122,7 @@
     averageDimensions, flavorProfile, preferenceGap, timeBuckets, weekdayStats,
     handBrewSummary, handBrewHabits: handBrewSummary, handBrewBeanReview, beanHandBrewReview: handBrewBeanReview,
     formatHandBrewRatio, formatHandBrewDuration,
-    estimateKnownCost, monthlySpendSeries, homeVsExternal, beanValueRanking, coffeeTypeMix,
+    estimateKnownCost, monthlySpendSeries, spendSummary, homeVsExternal, beanValueRanking, coffeeTypeMix,
     availableCoffeeReports, coffeePeriodReport, coffeeReportReminders, buildCoffeeReportSharePayload,
     catalogMilestone, classifyCatalogProcess, firstBeanConsumedAt, coffeeCatalog, buildCoffeeCatalogSharePayload,
     externalCatalog, buildExternalCatalogSharePayload

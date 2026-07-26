@@ -96,6 +96,20 @@ test('share-card: 总评分只生成一个数值和一组星级', () => {
   assert.equal(api.receiptRatingPresentation({ value: 0, max: 5 }), null);
 });
 
+test('share-card: 小节标题把 y 当作块顶，基线永远落在上一块下方', () => {
+  const api = createShareCard();
+  // 2.4.1 之前小节标题直接 fillText(text, x, y)，y 被当成基线，字身整个跑到上一块卡片上面去
+  //（分享卡片里「分段步骤」压住参数格）。现在基线至少要比传入的 y 低一个字高。
+  const heading = api.sectionHeadingLayout(300);
+  assert.equal(heading.size, 28);
+  assert.equal(heading.baseline, 328);
+  assert.equal(heading.next, 354);
+  assert.ok(heading.baseline > 300, '基线必须落在这一块的顶之下');
+  assert.ok(heading.next > heading.baseline, '正文必须落在基线之下');
+  const small = api.sectionHeadingLayout(100, { size: 22, gap: 22 });
+  assert.deepEqual([small.baseline, small.next], [122, 144]);
+});
+
 test('share-card: 空字段和加载失败图片仍返回稳定的默认布局', () => {
   const api = createShareCard();
   assert.deepEqual(api.fitImageRect(0, 0, 0, 0, 400, 300, 'smart'), { x: 0, y: 0, w: 0, h: 0, mode: 'contain', cropRatio: 0 });

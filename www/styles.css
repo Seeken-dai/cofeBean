@@ -855,7 +855,16 @@ html.number-picker-open { overflow:hidden; }
 .spend-breakdown strong { margin-top:5px; overflow:hidden; color:var(--muted); font:700 15px "Vault Serif",serif; text-overflow:ellipsis; white-space:nowrap; }
 .spend-breakdown .is-total { background:color-mix(in srgb,var(--accent) 10%,var(--surface)); }
 .spend-breakdown .is-total strong { color:var(--accent); }
+/* 图例模式：金额只是 12 个月合计的注释，跟着范围走的大数字在 .range-spend-grid 那张卡里。 */
+.spend-breakdown.is-legend > button { padding:8px 10px; }
+.spend-breakdown.is-legend strong { margin-top:3px; font-size:12px; }
 .spend-chart-hint { margin:1px 0 0; color:var(--faint); font-size:8px; line-height:1.5; text-align:center; }
+.range-spend-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; margin:0 0 10px; }
+.range-spend-grid > div { min-width:0; padding:11px 10px; border:1px solid transparent; border-radius:12px; background:color-mix(in srgb,var(--bg) 22%,var(--surface)); }
+.range-spend-grid span { display:block; color:var(--faint); font-size:8px; }
+.range-spend-grid strong { display:block; margin-top:5px; overflow:hidden; color:var(--muted); font:700 17px "Vault Serif",serif; text-overflow:ellipsis; white-space:nowrap; }
+.range-spend-grid .is-total { border-color:color-mix(in srgb,var(--accent) 30%,transparent); background:color-mix(in srgb,var(--accent) 10%,var(--surface)); }
+.range-spend-grid .is-total strong { color:var(--accent); }
 .insight-cost-note { margin:10px 0 0; color:var(--faint); font-size:8px; line-height:1.5; }
 .source-compare { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
 .source-compare > div { padding:12px; border-radius:13px; background:color-mix(in srgb,var(--bg) 22%,var(--surface)); }

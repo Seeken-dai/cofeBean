@@ -69,6 +69,22 @@
     function clipCanvasText(ctx, text, maxWidth) { const source = String(text || ''); if (ctx.measureText(source).width <= maxWidth) return source; let result = source; while (result && ctx.measureText(`${result}…`).width > maxWidth) result = result.slice(0, -1); return `${result || source.slice(0, 1)}…`; }
     function wrapCanvasLines(ctx, text, maxWidth, maxLines) { const lines = []; let line = ''; [...String(text || '').replace(/\s+/g, ' ').trim()].forEach((char) => { const next = line + char; if (line && ctx.measureText(next).width > maxWidth) { lines.push(line); line = char; } else line = next; }); if (line) lines.push(line); if (maxLines && lines.length > maxLines) { const kept = lines.slice(0, maxLines); kept[kept.length - 1] = clipCanvasText(ctx, kept[kept.length - 1], maxWidth); return kept; } return lines; }
     function drawCanvasTextBlock(ctx, text, x, y, maxWidth, lineHeight, maxLines) { const lines = wrapCanvasLines(ctx, text, maxWidth, maxLines); lines.forEach((line, index) => ctx.fillText(line, x, y + index * lineHeight)); return y + lines.length * lineHeight; }
+    // 小节标题统一入口：传进来的 y 是「这一块的顶」，不是文字基线。
+    // 直接 fillText(text, x, y) 会把 y 当基线，标题的字身整个跑到 y 上方去压住上一块卡片
+    // （2.4.2 修复「分段步骤」贴住参数格的问题）。基线取 y + size，正好给字身留出一行的高度。
+    function sectionHeadingLayout(y, options) {
+      const opts = options || {};
+      const size = opts.size || 28;
+      return { size, baseline: y + size, next: y + size + (opts.gap == null ? 26 : opts.gap) };
+    }
+    function drawSectionHeading(ctx, text, palette, x, y, options) {
+      const opts = options || {};
+      const box = sectionHeadingLayout(y, opts);
+      setCanvasFont(ctx, box.size, opts.weight || 800, false);
+      ctx.fillStyle = opts.color || palette.ink;
+      ctx.fillText(text, x, box.baseline);
+      return box.next;
+    }
     function drawReceiptHeader(ctx, payload, palette, x, y, w) {
       setCanvasFont(ctx, 28, 800, false); ctx.fillStyle = palette.accent; ctx.fillText('豆仓 COFFEE VAULT', x, y);
       setCanvasFont(ctx, 70, 800, true); ctx.fillStyle = palette.ink; ctx.fillText(clipCanvasText(ctx, payload.title, w), x, y + 88);
@@ -127,7 +143,8 @@
         setCanvasFont(ctx, 19, 650, false); ctx.fillStyle = palette.muted; ctx.fillText(clipCanvasText(ctx, row.label, cw - 36), px + 18, py + 29);
         setCanvasFont(ctx, 29, 850, false); ctx.fillStyle = index === 0 ? palette.accent : palette.ink; ctx.fillText(clipCanvasText(ctx, row.value, cw - 36), px + 18, py + 66);
       });
-      return y + Math.ceil(items.length / 2) * (cardH + rowGap) + 4;
+      // 收尾留白与备注/雷达/图片面板对齐（+26），否则下一块只隔 18px，看起来像参数格的第三行。
+      return y + Math.ceil(items.length / 2) * (cardH + rowGap) + 12;
     }
     function drawReceiptNotes(ctx, notes, palette, x, y, w) {
       if (!notes) return y;
@@ -229,7 +246,7 @@
     }
     function drawReceiptSteps(ctx, steps, palette, x, y, w) {
       if (!steps || !steps.length) return y;
-      setCanvasFont(ctx, 28, 800, false); ctx.fillStyle = palette.ink; ctx.fillText('分段步骤', x, y); y += 44;
+      y = drawSectionHeading(ctx, '分段步骤', palette, x, y);
       const items = steps.slice(0, 8); const cols = Math.min(3, items.length); const gap = 14; const cardW = (w - gap * (cols - 1)) / cols; const cardH = 112;
       items.forEach((step, index) => {
         const col = index % cols; const row = Math.floor(index / cols); const px = x + col * (cardW + gap); const py = y + row * (cardH + gap);
@@ -281,10 +298,11 @@
       return y + height;
     }
     function drawReceiptMonthSide(ctx, payload, palette, x, y, w) {
-      setCanvasFont(ctx, 22, 750, false); ctx.fillStyle = palette.muted; ctx.fillText('所选日期', x, y + 24);
-      let cy = y + 42; const stats = (payload.stats || []).slice(0, 3); const statH = stats.length * 62 + Math.max(0, stats.length - 1) * 10;
-      cy = drawReceiptStatStack(ctx, stats, palette, x, cy, w, statH) + 22;
-      setCanvasFont(ctx, 22, 750, false); ctx.fillStyle = palette.muted; ctx.fillText('当日记录', x, cy + 22); cy += 40;
+      const sideHeading = { size: 22, weight: 750, color: palette.muted, gap: 22 };
+      let cy = drawSectionHeading(ctx, '所选日期', palette, x, y, sideHeading);
+      const stats = (payload.stats || []).slice(0, 3); const statH = stats.length * 62 + Math.max(0, stats.length - 1) * 10;
+      cy = drawReceiptStatStack(ctx, stats, palette, x, cy, w, statH) + 18;
+      cy = drawSectionHeading(ctx, '当日记录', palette, x, cy, sideHeading);
       const logs = (payload.logs || []).slice(0, 4);
       if (!logs.length) {
         fillRound(ctx, x, cy, w, 92, 18, palette.surface, palette.border);
@@ -322,7 +340,7 @@
     }
     function drawReceiptLogs(ctx, logs, palette, x, y, w) {
       if (!logs || !logs.length) return y;
-      setCanvasFont(ctx, 28, 800, false); ctx.fillStyle = palette.ink; ctx.fillText('当日记录', x, y); y += 42;
+      y = drawSectionHeading(ctx, '当日记录', palette, x, y, { gap: 22 });
       logs.slice(0, 4).forEach((log) => { fillRound(ctx, x, y, w, 70, 18, palette.surface, palette.border); setCanvasFont(ctx, 25, 800, true); ctx.fillStyle = palette.ink; ctx.fillText(clipCanvasText(ctx, log.title, w - 40), x + 20, y + 30); setCanvasFont(ctx, 21, 600, false); ctx.fillStyle = palette.muted; ctx.fillText(clipCanvasText(ctx, log.meta, w - 40), x + 20, y + 56); y += 84; });
       return y + 8;
     }
@@ -355,7 +373,7 @@
     function drawBeanSidebar(ctx, payload, loaded, palette, x, y, w) {
       const gap = 18; const photoW = Math.round((w - gap) * .44); const detailW = w - gap - photoW;
       const parameterRows = Math.ceil(Math.min((payload.rows || []).length, 12) / 2);
-      const parameterH = parameterRows ? parameterRows * 98 + 4 : 0;
+      const parameterH = parameterRows ? parameterRows * 98 + 12 : 0;
       setCanvasFont(ctx, 27, 600, false); const noteLines = payload.notes ? wrapCanvasLines(ctx, payload.notes, detailW - 44, 3).length : 0;
       const notesH = noteLines ? 80 + noteLines * 34 + 22 + 26 : 0;
       const height = Math.max(430, parameterH + notesH);
@@ -404,7 +422,7 @@
             y = radarDetails.y; notesConsumed = radarDetails.notesConsumed;
           }
           if (payload.brewRows && payload.brewRows.length) {
-            setCanvasFont(ctx, 28, 800, false); ctx.fillStyle = palette.ink; ctx.fillText('本次冲煮记录', x, y); y += 48;
+            y = drawSectionHeading(ctx, '本次冲煮记录', palette, x, y);
             y = drawReceiptParameterGrid(ctx, payload.brewRows, palette, x, y, w);
             y = drawReceiptSteps(ctx, payload.brewSteps, palette, x, y, w);
           }
@@ -459,7 +477,7 @@
     function drawReportSourceBar(ctx, source, palette, x, y, w) {
       if (!source) return y;
       const total = (Number(source.home) || 0) + (Number(source.external) || 0); if (!total) return y;
-      setCanvasFont(ctx, 22, 700, false); ctx.fillStyle = palette.muted; ctx.fillText('本阶段足迹', x, y); y += 36;
+      y = drawSectionHeading(ctx, '本阶段足迹', palette, x, y, { size: 22, weight: 700, color: palette.muted, gap: 22 });
       const barH = 40; const homeW = Math.round(w * ((Number(source.home) || 0) / total));
       fillRound(ctx, x, y, w, barH, barH / 2, palette.surface, palette.border);
       if (homeW > 0) fillRound(ctx, x, y, Math.min(w, Math.max(homeW, barH)), barH, barH / 2, palette.accent);
@@ -471,7 +489,7 @@
     }
     function drawReportRhythm(ctx, rhythm, palette, x, y, w, activeLabel) {
       if (!rhythm || !rhythm.length) return y;
-      setCanvasFont(ctx, 22, 700, false); ctx.fillStyle = palette.muted; ctx.fillText('12 个月杯数节奏', x, y); y += 40;
+      y = drawSectionHeading(ctx, '12 个月杯数节奏', palette, x, y, { size: 22, weight: 700, color: palette.muted, gap: 22 });
       const n = rhythm.length; const gap = 10; const barW = (w - gap * (n - 1)) / n; const maxCups = Math.max(1, ...rhythm.map((item) => item.cups)); const areaH = 200; const baseY = y + areaH;
       rhythm.forEach((item, index) => {
         const px = x + index * (barW + gap); const bh = item.cups ? Math.max(8, Math.round(areaH * (item.cups / maxCups))) : 3;
@@ -496,7 +514,7 @@
     }
     function drawReportChips(ctx, label, items, palette, x, y, w) {
       if (!items || !items.length) return y;
-      setCanvasFont(ctx, 22, 700, false); ctx.fillStyle = palette.muted; ctx.fillText(label, x, y); y += 42;
+      y = drawSectionHeading(ctx, label, palette, x, y, { size: 22, weight: 700, color: palette.muted, gap: 22 });
       let cx = x; let cy = y; const padX = 22; const h = 52; const gap = 14; const lineH = h + 18;
       items.forEach((raw) => {
         const text = String(raw); setCanvasFont(ctx, 24, 650, false); const cw = ctx.measureText(text).width + padX * 2;
@@ -509,7 +527,7 @@
     }
     async function renderReportShareCard(payload) {
       const palette = { bg: '#1a1412', paper: '#f4eadc', surface: '#eadcc8', ink: '#251811', muted: '#806b59', accent: '#b7783d', border: '#d9c6ac', line: '#d5b58e', heat: ['#e2d6c5', '#d5bd96', '#cda66b', '#bd8345', '#8f542d'] };
-      const width = 1080; const maxHeight = 4200;
+      const width = 1080; const maxHeight = 4400;
       const content = document.createElement('canvas'); content.width = width; content.height = maxHeight; const ctx = content.getContext('2d');
       const x = 96; const w = width - x * 2; let y = 140;
       setCanvasFont(ctx, 28, 800, false); ctx.fillStyle = palette.accent; ctx.fillText('豆仓 COFFEE VAULT', x, y); y += 54;
@@ -557,7 +575,7 @@
       const items = payload.covers || [];
       if (!items.length) return y;
       const wallLabel = payload.wallLabel || (payload.mode === 'journal' ? '贴纸收集册' : '豆款收集墙');
-      setCanvasFont(ctx, 24, 750, false); ctx.fillStyle = palette.muted; ctx.fillText(wallLabel, x, y); y += 42;
+      y = drawSectionHeading(ctx, wallLabel, palette, x, y, { size: 24, weight: 750, color: palette.muted, gap: 22 });
       const cols = 4; const gap = 16; const cardW = (w - gap * (cols - 1)) / cols; const imageH = 190; const cardH = 258;
       const loaded = await Promise.all(items.map(loadCatalogCover));
       items.forEach((item, index) => {
@@ -580,13 +598,13 @@
         ctx.restore();
       });
       const rows = Math.ceil(items.length / cols); y += rows * (cardH + gap) + 18;
-      if (payload.remainingCovers) { setCanvasFont(ctx, 25, 800, false); ctx.fillStyle = palette.accent; ctx.fillText(`还有 +${payload.remainingCovers} 款收藏`, x, y); y += 42; }
+      if (payload.remainingCovers) y = drawSectionHeading(ctx, `还有 +${payload.remainingCovers} 款收藏`, palette, x, y, { size: 25, color: palette.accent, gap: 18 });
       return y;
     }
 
     async function renderCatalogShareCard(payload) {
       const palette = { bg: '#1a1412', paper: '#f4eadc', surface: '#eadcc8', ink: '#251811', muted: '#806b59', accent: '#b7783d', border: '#d9c6ac', line: '#d5b58e', cutout: '#dfcfb9' };
-      const width = 1080; const maxHeight = 3600; const content = document.createElement('canvas'); content.width = width; content.height = maxHeight; const ctx = content.getContext('2d');
+      const width = 1080; const maxHeight = 3800; const content = document.createElement('canvas'); content.width = width; content.height = maxHeight; const ctx = content.getContext('2d');
       const x = 96; const w = width - x * 2; let y = 140;
       setCanvasFont(ctx, 28, 800, false); ctx.fillStyle = palette.accent; ctx.fillText('豆仓 COFFEE VAULT', x, y); y += 66;
       setCanvasFont(ctx, 25, 800, false); ctx.fillStyle = palette.muted; ctx.fillText(`${payload.eyebrow || '咖啡图鉴'} · ${payload.atlasCode || 'COFFEE ATLAS'}`, x, y); y += 72;
@@ -611,7 +629,7 @@
     async function renderShareCard(payload, style) { const renderer = SHARE_CARD_RENDERERS[style || payload.style] || SHARE_CARD_RENDERERS.receipt; return renderer({ ...payload, style: style || payload.style || 'receipt' }); }
 
     // clipCanvasText / wrapCanvasLines 一并导出,供 Node 测试用假 ctx 验证换行/截断逻辑。
-    return { renderShareCard, canvasToBlob, loadCanvasImage, clipCanvasText, wrapCanvasLines, fitImageRect, resolveReceiptComposition, receiptRatingPresentation };
+    return { renderShareCard, canvasToBlob, loadCanvasImage, clipCanvasText, wrapCanvasLines, fitImageRect, resolveReceiptComposition, receiptRatingPresentation, sectionHeadingLayout };
   }
 
   return { create };

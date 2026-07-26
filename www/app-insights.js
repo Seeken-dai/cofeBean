@@ -34,6 +34,7 @@
     catalogExternal: { title: '外饮图鉴怎么统计', body: '只统计外饮，自家冲煮在隔壁那页。固定基于全部历史。点开格子能看到这家店的饮用照片。' },
     time: { title: '一天里的时间怎么统计', body: '按每杯记录的本地饮用时间分为凌晨、上午、下午和晚间；至少记录 3 杯后展示。' },
     weekday: { title: '一周里的日期怎么统计', body: '按每杯记录的本地日期归入星期一到星期日；至少记录 3 杯后展示。' },
+    rangeSpend: { title: '这段时间的开销怎么统计', body: '跟随上方回顾范围，只汇总范围内能够估算金额的记录。自家冲煮按豆价、初始重量和本次用豆量估算，外饮使用实付金额；没填金额的记录不计入，也不按零元计算。' },
     spend: { title: '咖啡开销怎么统计', body: '不随上方回顾范围变化，固定查看最近 12 个月。自家冲煮按豆价、初始重量和本次用豆量估算，外饮使用实付金额；没填金额的记录不计入。' },
     source: { title: '在家与在外怎么比较', body: '自家冲煮和外饮各至少 3 杯才比较。杯数使用全部有效记录，评分只使用已评分记录，开销只汇总能够估算的金额。' },
     coffeeType: { title: '咖啡类型怎么统计', body: '按每杯记录里选择的咖啡类型分组，自家冲煮和外饮都参与。2.3.14 之前的历史记录没有这一项，会按黑咖计入。' },
@@ -365,12 +366,24 @@
       return `<section class="insight-section" id="insightsSectionHabits"><div class="insight-section-title"><span>02</span><div><h3>喝咖啡的习惯</h3><p>看看咖啡如何落进你的日常节奏</p></div></div><div class="insight-card-stack two-up">${timeCard}${weekdayCard}</div></section>`;
     }
 
+    // 开销数值独立成卡：它跟着顶部的时间范围走，下面那张 12 个月折线图仍固定看一年。
+    function rangeSpendCard(result) {
+      // 「全部」单用会读成「全部的咖啡开销」，补成「全部记录」才通顺。
+      const label = state.insightsRange === 'all' ? '全部记录' : RANGE_LABELS[state.insightsRange] || '所选范围';
+      return `<article class="insight-card range-spend-card"><div class="insight-card-head"><div><span>跟随上方范围</span><h4>${esc(label)}的咖啡开销${helpButton('rangeSpend')}</h4></div></div>${unlockOr(result, (data, meta) => {
+        const tile = (title, value, className) => `<div class="${className}"><span>${title}</span><strong>${money(value)}</strong></div>`;
+        const note = `${data.knownCount} 杯计入估算 · 平均 ${money(data.perCup)} / 杯${meta.excludedCount ? `，另有 ${meta.excludedCount} 杯没记金额` : ''}`;
+        return `<div class="range-spend-grid">${tile('总开销', data.total, 'is-total')}${tile('自家冲煮', data.homeTotal, 'is-home')}${tile('外饮', data.externalTotal, 'is-external')}</div><p class="insight-cost-note">${esc(note)}</p>`;
+      }, '这段时间还没有能估算金额的记录，补几杯价格就能看到花费。')}</article>`;
+    }
+
     function spendCard(result) {
       return `<article class="insight-card spend-card"><div class="insight-card-head"><div><span>不随上方范围变化</span><h4>近 12 个月的咖啡开销${helpButton('spend')}</h4></div></div>${unlockOr(result, (data, meta) => {
         const view = state.insightsSpendView || 'all';
         // 色块与折线共用 --chart-*，图例和线条必须对得上，改色时两边一起改。
+        // 这里的金额是 12 个月合计，只作图例注释；跟着范围走的数值在上面那张卡。
         const metric = (id, label, value, className) => `<button class="${className || ''}${view === 'all' || view === id ? ' is-active' : ''}" data-insights-spend-view="${id}" type="button" aria-pressed="${view === 'all' || view === id}"><span><i aria-hidden="true"></i>${label}</span><strong>${money(value)}</strong></button>`;
-        return `<div class="spend-breakdown" aria-label="切换花费图表">${metric('total', '总开销', data.total, 'is-total')}${metric('home', '自家冲煮', data.homeTotal, 'is-home')}${metric('external', '外饮', data.externalTotal, 'is-external')}</div>${buildSpendLineChart(data.series, view)}<p class="spend-chart-hint">点击上方金额可单独查看，再点一次恢复全部。</p>${meta.excludedCount ? '<p class="insight-cost-note">部分记录未填写价格，未计入估算。</p>' : ''}`;
+        return `<div class="spend-breakdown is-legend" aria-label="切换花费图表">${metric('total', '总开销', data.total, 'is-total')}${metric('home', '自家冲煮', data.homeTotal, 'is-home')}${metric('external', '外饮', data.externalTotal, 'is-external')}</div>${buildSpendLineChart(data.series, view)}<p class="spend-chart-hint">点击上方图例可单独查看某条线，再点一次恢复全部。</p>${meta.excludedCount ? '<p class="insight-cost-note">部分记录未填写价格，未计入估算。</p>' : ''}`;
       }, '再补充几杯的价格，豆仓就能画出你的花费节奏。')}</article>`;
     }
 
@@ -420,10 +433,11 @@
     }
 
     function spendSection(logs) {
+      const ranged = core.spendSummary(logs, state.beans);
       const monthly = core.monthlySpendSeries(state.drinkLogs, state.beans, new Date());
       const source = core.homeVsExternal(logs, state.beans);
       const value = core.beanValueRanking(logs, state.beans);
-      return `<section class="insight-section" id="insightsSectionSpend"><div class="insight-section-title"><span>03</span><div><h3>花费与回购</h3><p>金额只统计能够估算的记录</p></div></div><div class="insight-card-stack">${spendCard(monthly)}${sourceCompareCard(source)}${valueCard(value)}</div></section>`;
+      return `<section class="insight-section" id="insightsSectionSpend"><div class="insight-section-title"><span>03</span><div><h3>花费与回购</h3><p>金额只统计能够估算的记录</p></div></div><div class="insight-card-stack">${rangeSpendCard(ranged)}${spendCard(monthly)}${sourceCompareCard(source)}${valueCard(value)}</div></section>`;
     }
 
     function catalogCover(item, options) {
