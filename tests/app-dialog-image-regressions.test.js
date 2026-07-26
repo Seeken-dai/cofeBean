@@ -49,8 +49,11 @@ test('编辑页的删除收在标题栏图标里，底栏只留正向操作且�
   ['deleteBean', 'planEditorDelete', 'deleteDrink'].forEach((id) => {
     assert.doesNotMatch(html, new RegExp(`class="danger-button" id="${id}"`), `${id} 不应留在底栏`);
   });
-  assert.doesNotMatch(html, /id="drinkCancel"/, '喝一杯的取消按钮由标题栏 ✕ 接管');
-  assert.doesNotMatch(appSource, /#drinkCancel/, '取消按钮移除后不应残留监听或文案切换');
+  // 三个编辑页的「取消」都由标题栏 ✕ 接管（原本绑的就是同一套关闭逻辑）。
+  ['drinkCancel', 'editorCancel', 'planEditorCancel'].forEach((id) => {
+    assert.doesNotMatch(html, new RegExp(`id="${id}"`), `${id} 应由标题栏 ✕ 接管`);
+    assert.doesNotMatch(appSource, new RegExp(`#${id}`), `${id} 移除后不应残留监听或文案切换`);
+  });
   // 旧的 tasting-mode 两列网格补丁不该复活。
   assert.doesNotMatch(stylesSource, /\.tasting-mode \.sheet-footer>div\{display:grid/);
   // 兜底：底栏按钮组允许折行，避免以后文案变长又被挤成竖排。
