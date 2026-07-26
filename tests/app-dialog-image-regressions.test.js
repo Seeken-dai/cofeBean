@@ -30,6 +30,25 @@ test('任意层级弹窗打开时锁定底层页面滚动', () => {
   assert.match(stylesSource, /\.sheet\s*\{[^}]*overflow:auto;\s*overscroll-behavior:contain;/);
 });
 
+test('喝一杯的底栏在窄屏换行，而不是把按钮文案挤成两行', () => {
+  // 2.4.2：这个底栏最多同时出现四个按钮（删除记录 / 取消 / 冲煮辅助 / 保存并扣量），
+  // 375px 宽只有 296px 可用、按钮自然宽度要 438px，于是每个按钮的中文都被挤成两行。
+  const start = stylesSource.indexOf('.drink-dialog .sheet-footer');
+  assert.ok(start > -1, '应存在窄屏底栏规则');
+  // 规则必须落在窄屏媒体查询里，宽屏仍然是一行摆得下的四个按钮。
+  assert.match(stylesSource.slice(0, start), /@media\(max-width:560px\)\{\s*$/);
+  const rule = stylesSource.slice(start);
+  // 内层 div 必须摊平成 footer 的 flex 项，否则主按钮没法独占一行。
+  assert.match(rule, /\.drink-dialog \.sheet-footer>div\{display:contents\}/);
+  assert.match(rule, /\.drink-dialog \.sheet-footer\{flex-wrap:wrap;/);
+  // 文案不许再折行；删除记录靠左，主按钮独占整行。
+  assert.match(rule, /\.drink-dialog \.sheet-footer button\{white-space:nowrap\}/);
+  assert.match(rule, /\.drink-dialog #deleteDrink\{margin-right:auto/);
+  assert.match(rule, /\.drink-dialog #saveDrink\{flex:1 0 100%\}/);
+  // 旧的 tasting-mode 两列网格已被这套规则取代，不能两套同时作用于同一个 div。
+  assert.doesNotMatch(stylesSource, /\.tasting-mode \.sheet-footer>div\{display:grid/);
+});
+
 test('自动同步的 reload 带 keepForm，不覆盖正在编辑的表单', () => {
   // reload() 默认会在编辑页开着且 editingId 非空时 fillForm(bean)，
   // 用库里的旧值覆盖用户尚未保存的输入（含刚添加的咖啡袋图片）。

@@ -1325,4 +1325,14 @@ html.number-picker-open { overflow:hidden; }
 .tasting-summary-detail{grid-column:1/-1;padding-top:8px;border-top:1px solid var(--border)}
 .tasting-summary-detail p{display:flex;justify-content:space-between;gap:12px;margin:6px 0;font-size:13px}
 .tasting-summary-detail p span{color:var(--muted)}
-@media(max-width:560px){.tasting-mode .sheet-footer>div{display:grid;grid-template-columns:1fr 1fr;width:100%}.tasting-mode #saveDrink{grid-column:1/-1}}
+/* 喝一杯的底栏最多同时摆四个按钮（删除记录 / 取消 / 冲煮辅助 / 保存并扣量），375px 宽只有 296px
+   可用、按钮自然宽度要 438px，于是每个按钮的中文都被挤成两行。窄屏改成自然换行：
+   display:contents 把内层 div 摊平成 footer 的 flex 项，删除记录靠左、次要按钮靠右，
+   主按钮独占一整行。原来只针对 tasting-mode 的两列网格由这套规则一并覆盖。 */
+@media(max-width:560px){
+  .drink-dialog .sheet-footer{flex-wrap:wrap;justify-content:flex-end;gap:8px}
+  .drink-dialog .sheet-footer>div{display:contents}
+  .drink-dialog .sheet-footer button{white-space:nowrap}
+  .drink-dialog #deleteDrink{margin-right:auto;padding-inline:0}
+  .drink-dialog #saveDrink{flex:1 0 100%}
+}
