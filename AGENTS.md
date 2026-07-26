@@ -51,7 +51,7 @@
 Android 构建需要先设置：
 
 ```powershell
-$env:JAVA_HOME='C:\Program Files\Microsoft\jdk-21.0.11.10-hotspot'
+$env:JAVA_HOME='C:\tmp\cofebean-jdk21-v2\jdk-21.0.12+8'
 $env:ANDROID_HOME='C:\tmp\android-sdk'
 $env:ANDROID_SDK_ROOT='C:\tmp\android-sdk'
 ```

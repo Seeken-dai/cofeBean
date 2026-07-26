@@ -4,7 +4,7 @@
 
 需要 Node.js、JDK 21，以及包含 Android API 36 的 SDK。当前工作机使用：
 
-- JDK：`C:\Program Files\Microsoft\jdk-21.0.11.10-hotspot`
+- JDK：`C:\tmp\cofebean-jdk21-v2\jdk-21.0.12+8`
 - Android SDK：`C:\tmp\android-sdk`
 
 首次安装依赖：
@@ -24,7 +24,7 @@ npm.cmd exec cap -- sync android
 在当前 PowerShell 会话设置环境：
 
 ```powershell
-$env:JAVA_HOME='C:\Program Files\Microsoft\jdk-21.0.11.10-hotspot'
+$env:JAVA_HOME='C:\tmp\cofebean-jdk21-v2\jdk-21.0.12+8'
 $env:ANDROID_HOME='C:\tmp\android-sdk'
 $env:ANDROID_SDK_ROOT='C:\tmp\android-sdk'
 ```
@@ -58,6 +58,8 @@ Set-Location android
 - 没有特殊说明时只执行正式版构建。
 
 数据库当前 `PRAGMA user_version = 12`。以后改变表结构时，在 `www/repository.js` 中增加顺序迁移，禁止删除数据库或清空旧表。（本地 SQLite 迁移与云端 D1 迁移是两回事，后者见 `RELEASING.md`。）
+
+2.4.2 正式包从 `main` 发布提交 `40e4675` 干净构建（`cap sync` + `clean assembleRelease`），已用 `aapt2 dump badging` 核对 `versionName=2.4.2`、`versionCode=75`、`minSdk 24` / `targetSdk 36`；`aapt2 dump permissions` 与 2.4.1 逐项一致，仍为 `CAMERA`、`INTERNET`、既有 Haptics 引入的 `VIBRATE` 及 Android 自动生成的应用内接收器权限，未新增权限。`apksigner verify --print-certs` 核对证书 SHA-256 为 `aab5e3d3bd224b98f885945ecd868d54a99e2c96bf099a0c9e6ee59ca02151ae`，与既有正式版一致，可覆盖升级并保留数据库。本版修复分享卡片小节标题压住上方卡片、详情/编辑弹窗左右误触退出、外饮店名联想只给一条，新增回顾按统计范围计算的开销卡，并把三个编辑页的删除收进标题栏图标、底栏回到一行；**不修改 SQLite、备份、同步协议或 Worker**（`repository.js`、`sync-*.js`、`worker/` 零改动，`data-core.js` 只随 bump 改了 `appVersion`），`user_version` 仍为 12。四项修复均在 Web 预览（375px / 720px、mock 数据）逐项实测：分享卡片间距用记录型 canvas 量到「分段步骤」字顶从压住卡片 −7px 变为 +29px；弹窗左右侧点击不再关闭、编辑类弹窗完全不吃背景点击；店名联想给满 4 条；开销卡随近 30 天/90 天/今年/全部切换。正式包经无线调试 `adb install -r` 装到三星 SM-S9480，从 2.4.1（`versionCode 74`）覆盖升级到 `versionCode 75`：`firstInstallTime` 保持 `2026-07-04 16:19:44` 不变、只有 `lastUpdateTime` 更新，确认为原位升级、应用数据目录未重建；`am start` 后 `MainActivity` 进入 `ResumedActivity`，logcat 无 `AndroidRuntime`/`SQLite`/`Capacitor` 错误（仅有旧版本窗口 surface 回收的正常日志）。功能与数据完好由用户在该设备上点击验收通过。正式产物为 `dist/coffee-vault-2.4.2-release.apk`，APK SHA-256 为 `72ec6527485cdc19c830dac2c0d81f0829d67847153d774a4013089cfb3384b7`。
 
 2.4.1 正式包从 `main` 发布提交构建（`cap sync` + `assembleRelease`），已用 `aapt dump badging` 核对 `versionName=2.4.1`、`versionCode=74`；`aapt dump permissions` 与 2.4.0 逐项一致，仍为 `CAMERA`、`INTERNET`、既有 Haptics 引入的 `VIBRATE` 及 Android 自动生成的应用内接收器权限，未新增权限。`apksigner verify --print-certs` 核对证书 SHA-256 为 `aab5e3d3bd224b98f885945ecd868d54a99e2c96bf099a0c9e6ee59ca02151ae`，与既有正式版一致，可覆盖升级并保留数据库。本版为冲煮辅助增加滴滤计时与超时提示、开始前参数跑马灯、喝一杯风味胶囊，并修复时长滚轮闪动与圆环计时未居中；**不修改 SQLite、备份、同步协议或 Worker**，`user_version` 仍为 12。功能验收在 2.4.1-debug 测试包上由用户在三星设备完成（该包从 2.3.8-debug 覆盖升级，4 支豆、4 条饮用、5 个方案数据完好，`user_version` 仍为 12）；正式包因 `minifyEnabled false` 与该测试包代码一致。正式包在保留数据的同一设备上覆盖安装成功，系统确认 `MainActivity` 与 App 进程正常启动，但设备处于锁屏，未在正式包上重复可视点击冒烟。正式产物为 `dist/coffee-vault-2.4.1-release.apk`，APK SHA-256 为 `a96eb9b21cf1a0161ecb463948bfc3702963c7898bdbce07d9a12b3fb24cccaa`。
 
