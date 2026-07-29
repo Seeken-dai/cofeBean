@@ -83,3 +83,11 @@ test('resolveWebImages 保留编辑中未保存图片的 objectURL', () => {
   assert.ok(draftIndex > -1 && revokeIndex > -1, '草稿补齐与回收都应存在');
   assert.ok(draftIndex < revokeIndex, '草稿引用必须在 revokeObjectURL 之前补进 refs');
 });
+
+test('Android 相机回收进程后会恢复外饮表单和照片结果', () => {
+  assert.match(appSource, /const DRINK_CAMERA_DRAFT_KEY = 'coffee-vault:drink-camera-draft:v1'/);
+  assert.match(appSource, /source === 'camera' && saveDrinkCameraDraft\(\)/);
+  assert.match(appSource, /appRestoredResult[\s\S]{0,260}?result\.pluginId !== 'Camera'[\s\S]{0,100}?result\.methodName !== 'getPhoto'/);
+  assert.match(appSource, /pendingRestoredCameraResult[\s\S]{0,300}?restoreDrinkCameraDraft\(result\)/);
+  assert.match(appSource, /restoreDrinkCameraDraft[\s\S]{0,1400}?state\.pendingDrinkPhotos\.push\(\{ path \}\)[\s\S]{0,120}?state\.drinkPhotoDraft\.push\(path\)/);
+});

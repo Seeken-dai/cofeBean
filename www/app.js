@@ -904,6 +904,65 @@
     const photos = await pickCoffeePhotos(options, 1);
     return photos[0] || null;
   }
+  const DRINK_CAMERA_DRAFT_KEY = 'coffee-vault:drink-camera-draft:v1';
+  function saveDrinkCameraDraft() {
+    if (!els.drink.open || $('#drink-source').value !== 'external') return false;
+    const fields = {};
+    $$('[name]', els.drinkForm).forEach((control) => { fields[control.name] = control.type === 'checkbox' ? Boolean(control.checked) : control.value; });
+    const ratings = {};
+    $$('[data-rating-name]', els.drinkForm).forEach((row) => { ratings[row.dataset.ratingName] = row.dataset.value || null; });
+    const draft = {
+      version: 1,
+      savedAt: Date.now(),
+      editingDrinkId: state.editingDrinkId,
+      fields,
+      ratings,
+      photos: (state.drinkPhotoDraft || []).slice(0, 3),
+      pendingPhotos: (state.pendingDrinkPhotos || []).map((item) => ({ ...item }))
+    };
+    try { localStorage.setItem(DRINK_CAMERA_DRAFT_KEY, JSON.stringify(draft)); return true; }
+    catch (error) { console.warn('外饮拍照草稿暂存失败', error); return false; }
+  }
+  function clearDrinkCameraDraft() {
+    try { localStorage.removeItem(DRINK_CAMERA_DRAFT_KEY); } catch (_) {}
+  }
+  function readDrinkCameraDraft() {
+    try {
+      const draft = JSON.parse(localStorage.getItem(DRINK_CAMERA_DRAFT_KEY) || 'null');
+      if (!draft || draft.version !== 1 || Date.now() - Number(draft.savedAt || 0) > 24 * 60 * 60 * 1000) { clearDrinkCameraDraft(); return null; }
+      return draft;
+    } catch (_) { clearDrinkCameraDraft(); return null; }
+  }
+  async function restoreDrinkCameraDraft(restoredResult) {
+    const draft = readDrinkCameraDraft();
+    if (!draft || !state.initialized) return false;
+    const old = draft.editingDrinkId ? state.drinkLogs.find((log) => log.id === draft.editingDrinkId) : null;
+    openExternalDrinkDialog(old || null);
+    Object.entries(draft.fields || {}).forEach(([name, value]) => {
+      const control = els.drinkForm.elements.namedItem(name);
+      if (!control || typeof control.value === 'undefined') return;
+      if (control.type === 'checkbox') control.checked = Boolean(value);
+      else control.value = value == null ? '' : String(value);
+    });
+    setCoffeeType(draft.fields && draft.fields.coffeeType);
+    Object.entries(draft.ratings || {}).forEach(([name, value]) => {
+      const row = $(`[data-rating-name="${name}"]`, els.drinkForm);
+      if (row) renderRating(row, name, value, name === 'bitterness');
+    });
+    state.pendingDrinkPhotos = Array.isArray(draft.pendingPhotos) ? draft.pendingPhotos.slice(0, 3) : [];
+    state.drinkPhotoDraft = Array.isArray(draft.photos) ? draft.photos.slice(0, 3) : [];
+    const photo = restoredResult && restoredResult.success !== false ? restoredResult.data : null;
+    const path = photo && (photo.path || photo.webPath || photo.uri);
+    if (path && state.drinkPhotoDraft.length < 3) {
+      state.pendingDrinkPhotos.push({ path });
+      state.drinkPhotoDraft.push(path);
+    }
+    renderCafeSuggestions(); renderDrinkNameSuggestions(); renderLocationSuggestions(true);
+    renderDrinkFlavorSuggestions(); syncDrinkFlavorChips(); renderDrinkPhotoVault();
+    clearDrinkCameraDraft();
+    toast(path ? '已恢复外饮草稿和刚拍的照片' : '已恢复拍照前的外饮草稿');
+    return true;
+  }
   async function pickCoffeePhotos(options, limit) {
     const camera = capPlugin('Camera');
     if (!BeanRepository.isNative() || !camera) throw new Error('图片功能仅在 Android App 中可用');
@@ -911,16 +970,22 @@
     const source = await askPhotoSource({ ...(options || {}), limit: max });
     if (!source) return [];
     if (source === 'camera' || max <= 1 || !camera.pickImages) {
-      const photo = await camera.getPhoto({
-        quality: 92,
-        width: 2200,
-        correctOrientation: true,
-        allowEditing: false,
-        resultType: options && options.resultType || 'uri',
-        source: source === 'camera' ? 'CAMERA' : 'PHOTOS',
-        saveToGallery: false
-      });
-      return photo ? [photo] : [];
+      const protectsDrinkDraft = source === 'camera' && saveDrinkCameraDraft();
+      try {
+        const photo = await camera.getPhoto({
+          quality: 92,
+          width: 2200,
+          correctOrientation: true,
+          allowEditing: false,
+          resultType: options && options.resultType || 'uri',
+          source: source === 'camera' ? 'CAMERA' : 'PHOTOS',
+          saveToGallery: false
+        });
+        return photo ? [photo] : [];
+      } finally {
+        // 进程真被 Android 回收时不会执行到这里；新进程改由 appRestoredResult 消费草稿。
+        if (protectsDrinkDraft) clearDrinkCameraDraft();
+      }
     }
     const result = await camera.pickImages({ quality: 92, width: 2200, correctOrientation: true, limit: max });
     return (result && result.photos || []).slice(0, max);
@@ -2236,7 +2301,19 @@
   }
   function scheduleAutoSync(delay) { clearTimeout(syncTimer); syncTimer = setTimeout(autoSync, delay == null ? 800 : delay); }
   function closeNumberInputOrTopLayer() { if (AppNumberInput.isOpen()) return AppNumberInput.close(false); return closeTopLayerOrExit(); }
-  function bindNativeLifecycle() { const app = capPlugin('App'); if (!app) return; app.addListener('backButton', closeNumberInputOrTopLayer); app.addListener('appUrlOpen', ({ url }) => handleWidgetUrl(url)); app.addListener('appStateChange', async ({ isActive }) => { if (!isActive || state.resuming) return; state.resuming = true; await reload({ keepForm: true }); state.resuming = false; scheduleAutoSync(); }); }
-  async function boot() { applyTheme(localStorage.getItem('coffee-vault-theme') || 'dark-roast', false); bindEvents(); try { await BeanRepository.init(); await reload({ applyDefaultView: true }); bindNativeLifecycle(); await offerMigration(); state.initialized = true; const app = capPlugin('App'); if (app && app.getLaunchUrl) { const launch = await app.getLaunchUrl(); if (launch && launch.url) handleWidgetUrl(launch.url); } syncFloatingActions({ showHint: true }); scheduleAutoSync(1500); } catch (error) { console.error(error); els.count.textContent = '豆仓启动失败'; toast(error.message || '数据库初始化失败'); } finally { const splash = capPlugin('SplashScreen'); if (splash) splash.hide().catch(() => {}); } }
+  let pendingRestoredCameraResult = null;
+  function bindNativeLifecycle() {
+    const app = capPlugin('App');
+    if (!app) return;
+    app.addListener('backButton', closeNumberInputOrTopLayer);
+    app.addListener('appUrlOpen', ({ url }) => handleWidgetUrl(url));
+    app.addListener('appRestoredResult', async (result) => {
+      if (!result || result.pluginId !== 'Camera' || result.methodName !== 'getPhoto') return;
+      if (!state.initialized) { pendingRestoredCameraResult = result; return; }
+      await restoreDrinkCameraDraft(result);
+    });
+    app.addListener('appStateChange', async ({ isActive }) => { if (!isActive || state.resuming) return; state.resuming = true; await reload({ keepForm: true }); state.resuming = false; scheduleAutoSync(); });
+  }
+  async function boot() { applyTheme(localStorage.getItem('coffee-vault-theme') || 'dark-roast', false); bindEvents(); bindNativeLifecycle(); try { await BeanRepository.init(); await reload({ applyDefaultView: true }); await offerMigration(); state.initialized = true; if (pendingRestoredCameraResult) { const result = pendingRestoredCameraResult; pendingRestoredCameraResult = null; await restoreDrinkCameraDraft(result); } const app = capPlugin('App'); if (app && app.getLaunchUrl) { const launch = await app.getLaunchUrl(); if (launch && launch.url) handleWidgetUrl(launch.url); } syncFloatingActions({ showHint: true }); scheduleAutoSync(1500); } catch (error) { console.error(error); els.count.textContent = '豆仓启动失败'; toast(error.message || '数据库初始化失败'); } finally { const splash = capPlugin('SplashScreen'); if (splash) splash.hide().catch(() => {}); } }
   boot();
 })();
