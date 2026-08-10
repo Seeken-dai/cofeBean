@@ -24,7 +24,7 @@ test('点背景关闭只认弹窗上下方的空白', () => {
 
 test('编辑类弹窗与冲煮辅助完全不参与点背景关闭', () => {
   const bindings = appSource.slice(appSource.indexOf('.forEach((dialog) => bindBackdropDismiss'));
-  const list = appSource.slice(appSource.indexOf('[els.personal, els.backup'), appSource.indexOf('.forEach((dialog) => bindBackdropDismiss'));
+  const list = appSource.slice(appSource.indexOf('[els.backup, els.calendar'), appSource.indexOf('.forEach((dialog) => bindBackdropDismiss'));
   assert.ok(list.length > 0 && bindings.length > 0, '应存在 bindBackdropDismiss 注册列表');
   // 填了一半的表单和正在跑的计时器不该被一次误触清掉。
   ['els.editor', 'els.planEditor', 'els.drink,', 'els.brewAssist', 'els.syncAuth'].forEach((name) => {

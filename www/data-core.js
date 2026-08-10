@@ -859,7 +859,7 @@
       exportScope,
       exportedAt: exportedAt || new Date().toISOString(),
       app: '豆仓',
-      appVersion: '2.4.3'
+      appVersion: '3.0.0'
     };
     if (exportScope === 'all' || exportScope === 'library') {
       payload.beans = (beans || []).map((bean) => normalizeBean(bean, bean.updatedAt));
@@ -910,8 +910,15 @@
   function filterAndSort(beans, options) {
     const opts = options || {};
     const q = cleanText(opts.query).toLocaleLowerCase('zh-CN');
+    const facetValues = (value) => new Set((Array.isArray(value) ? value : value ? [value] : []).map((item) => cleanText(item)).filter(Boolean));
+    const roastLevels = facetValues(opts.roastLevels);
+    const processes = facetValues(opts.processes);
+    const origins = facetValues(opts.origins);
     const filtered = beans.filter((bean) => {
       if (opts.status && opts.status !== '全部' && bean.status !== opts.status) return false;
+      if (roastLevels.size && !roastLevels.has(cleanText(bean.roastLevel))) return false;
+      if (processes.size && !processes.has(cleanText(bean.process))) return false;
+      if (origins.size && !origins.has(cleanText(bean.origin))) return false;
       if (!q) return true;
       return SEARCH_FIELDS.some((field) => cleanText(bean[field]).toLocaleLowerCase('zh-CN').includes(q));
     });

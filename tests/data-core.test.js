@@ -87,11 +87,13 @@ test('selectReleaseApkAsset prefers release apk and ignores debug artifacts', ()
 
 test('filterAndSort searches multiple fields and sorts remaining weight or unit price', () => {
   const beans = [
-    core.normalizeBean({ name: 'A', origin: '埃塞俄比亚', remainingWeight: 80, status: '饮用中', price: 100, initialWeight: 200 }),
-    core.normalizeBean({ name: 'B', origin: '哥伦比亚', remainingWeight: 120, status: '未开封', price: 120, initialWeight: 100 }),
-    core.normalizeBean({ name: 'C', origin: '肯尼亚', remainingWeight: 60, status: '未开封' })
+    core.normalizeBean({ name: 'A', origin: '埃塞俄比亚', process: '水洗', roastLevel: '浅烘', remainingWeight: 80, status: '饮用中', price: 100, initialWeight: 200 }),
+    core.normalizeBean({ name: 'B', origin: '哥伦比亚', process: '日晒', roastLevel: '中烘', remainingWeight: 120, status: '未开封', price: 120, initialWeight: 100 }),
+    core.normalizeBean({ name: 'C', origin: '肯尼亚', process: '水洗', roastLevel: '浅烘', remainingWeight: 60, status: '未开封' })
   ];
   assert.equal(core.filterAndSort(beans, { query: '埃塞' }).length, 1);
+  assert.deepEqual(core.filterAndSort(beans, { roastLevels: ['浅烘'], processes: ['水洗'] }).map((bean) => bean.name).sort(), ['A', 'C']);
+  assert.deepEqual(core.filterAndSort(beans, { origins: ['哥伦比亚'] }).map((bean) => bean.name), ['B']);
   assert.equal(core.filterAndSort(beans, { sort: 'remainingWeight', direction: 'desc' })[0].name, 'B');
   assert.deepEqual(core.filterAndSort(beans, { sort: 'unitPrice', direction: 'asc' }).map((bean) => bean.name), ['A', 'B', 'C']);
   assert.deepEqual(core.filterAndSort(beans, { sort: 'unitPrice', direction: 'desc' }).map((bean) => bean.name), ['B', 'A', 'C']);

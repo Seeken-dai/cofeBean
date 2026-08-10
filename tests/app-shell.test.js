@@ -1,0 +1,81 @@
+'use strict';
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const AppShell = require('../www/app-shell.js');
+
+test('1100px 是移动外壳与宽屏工作台的唯一断点', () => {
+  assert.equal(AppShell.layoutForWidth(360), 'mobile');
+  assert.equal(AppShell.layoutForWidth(1099), 'mobile');
+  assert.equal(AppShell.layoutForWidth(1100), 'wide');
+  assert.equal(AppShell.layoutForWidth(1440), 'wide');
+});
+
+test('计划入口随功能开关显隐且我的始终保留', () => {
+  assert.deepEqual(AppShell.navigationItems(false), ['beans', 'drinks', 'personal']);
+  assert.deepEqual(AppShell.navigationItems(true), ['beans', 'drinks', 'plans', 'personal']);
+});
+
+test('我的使用主视图而不是返回栈中的页面层', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../www/index.html'), 'utf8');
+  assert.match(html, /<section\b[^>]*\bid="personalView"/);
+  assert.match(html, /data-shell-view="personal"/);
+  assert.doesNotMatch(html, /\bid="personalDialog"/);
+});
+
+test('豆仓首页保留状态与排序，高级筛选不再重复', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../www/index.html'), 'utf8');
+  const dialog = html.match(/<dialog\b[^>]*\bid="beanFilterDialog"[\s\S]*?<\/dialog>/)[0];
+  assert.match(html, /\bid="statusFilters"/);
+  assert.match(html, /class="sort-row"/);
+  assert.match(dialog, /\bid="beanFilterRoast"/);
+  assert.match(dialog, /\bid="beanFilterProcess"/);
+  assert.match(dialog, /\bid="beanFilterOrigin"/);
+  assert.doesNotMatch(dialog, /\bid="beanFilterStatus"/);
+  assert.doesNotMatch(dialog, /\bid="beanFilterSort"/);
+});
+
+test('复杂页面、工具流程与快捷面板使用不同层级', () => {
+  assert.equal(AppShell.layerKind('detailDialog'), 'page');
+  assert.equal(AppShell.layerKind('settingsDialog'), 'page');
+  assert.equal(AppShell.layerKind('brewAssistDialog'), 'tool');
+  assert.equal(AppShell.layerKind('imagePreviewDialog'), 'tool');
+  assert.equal(AppShell.layerKind('choiceDialog'), 'quick');
+  assert.equal(AppShell.layerKind('beanFilterDialog'), 'quick');
+  assert.equal(AppShell.layerKind('confirmDialog'), 'quick');
+});
+
+test('现有页面与筛选面板全部进入 3.0 页面覆盖矩阵', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../www/index.html'), 'utf8');
+  const ids = Array.from(html.matchAll(/<dialog\b[^>]*\bid="([^"]+)"/g), (match) => match[1]);
+  const expected = {
+    page: ['dataBackupDialog', 'coffeeCalendarDialog', 'insightsDialog', 'detailDialog', 'drinkDetailDialog', 'planDetailDialog', 'planEditorDialog', 'editorDialog', 'drinkDialog', 'settingsDialog', 'syncDialog', 'aboutDialog', 'migrationDialog'],
+    tool: ['scanImageDialog', 'imagePreviewDialog', 'brewAssistDialog', 'sharePreviewDialog'],
+    quick: ['choiceDialog', 'datePickerDialog', 'photoSourceDialog', 'shareImageChoiceDialog', 'planShareChoiceDialog', 'drinkShareChoiceDialog', 'planImportDialog', 'smartManagerDialog', 'syncAuthDialog', 'confirmDialog', 'numberPickerDialog', 'beanFilterDialog']
+  };
+  assert.equal(ids.length, 29);
+  assert.deepEqual(ids.slice().sort(), Object.values(expected).flat().sort());
+  Object.entries(expected).forEach(([kind, dialogIds]) => {
+    dialogIds.forEach((id) => assert.equal(AppShell.layerKind(id), kind, id));
+  });
+});
+
+test('页面栈重复打开时移到栈顶，关闭时完整移除', () => {
+  let stack = AppShell.updateLayerStack([], 'insightsDialog', true);
+  stack = AppShell.updateLayerStack(stack, 'settingsDialog', true);
+  stack = AppShell.updateLayerStack(stack, 'insightsDialog', true);
+  assert.deepEqual(stack, ['settingsDialog', 'insightsDialog']);
+  stack = AppShell.updateLayerStack(stack, 'insightsDialog', false);
+  assert.deepEqual(stack, ['settingsDialog']);
+});
+
+test('返回键优先关闭快捷层和工具层，再关闭复杂页面', () => {
+  assert.equal(AppShell.resolveBackLayer(['detailDialog', 'choiceDialog']), 'choiceDialog');
+  assert.equal(AppShell.resolveBackLayer(['detailDialog', 'beanFilterDialog']), 'beanFilterDialog');
+  assert.equal(AppShell.resolveBackLayer(['settingsDialog', 'syncAuthDialog']), 'syncAuthDialog');
+  assert.equal(AppShell.resolveBackLayer(['drinkDialog', 'brewAssistDialog']), 'brewAssistDialog');
+  assert.equal(AppShell.resolveBackLayer(['detailDialog']), 'detailDialog');
+  assert.equal(AppShell.resolveBackLayer([]), null);
+});

@@ -160,6 +160,37 @@
       track.innerHTML = items ? items + items : '';
       host.hidden = !items;
     }
+    function renderAssistContext(plan, beanName) {
+      const host = $('#brewAssistContext');
+      if (!host) return;
+      const boundBean = (plan.beanIds || []).map((id) => state.beans.find((item) => item.id === id)).find(Boolean);
+      const displayBean = beanName || (boundBean && boundBean.name) || '本次手冲';
+      const facts = [
+        ['粉量', plan.dose ? formatWeight(plan.dose) : '未记录'],
+        ['粉水比', plan.ratio || '未记录'],
+        ['水温', plan.waterTemp ? `${String(plan.waterTemp).replace(/°?C$/i, '')}°C` : '未记录'],
+        ['研磨', [plan.grinder, plan.grindSetting].filter(Boolean).join(' · ') || '未记录']
+      ];
+      host.innerHTML = `<div class="assist-context-title"><span>${esc(displayBean.slice(0, 1))}</span><div><b>${esc(displayBean)}</b><small>${esc(plan.name || '未命名方案')}</small></div></div><div class="assist-context-grid">${facts.map(([label, value]) => `<article><strong>${esc(value)}</strong><small>${esc(label)}</small></article>`).join('')}</div><p>本次只按方案节奏引导，不修改方案参数，也不会自动新增字段。</p>`;
+    }
+    function updateAssistStageProgress(activeIndex, progress) {
+      const assist = state.brewAssist;
+      const host = $('#brewAssistStageProgress');
+      if (!assist || !host) return;
+      if (host.children.length !== assist.steps.length) host.innerHTML = assist.steps.map(() => '<i><span></span></i>').join('');
+      Array.from(host.children).forEach((item, index) => {
+        const value = index < activeIndex ? 100 : index === activeIndex ? Math.max(0, Math.min(100, Number(progress) || 0)) : 0;
+        item.classList.toggle('done', index < activeIndex);
+        item.classList.toggle('active', index === activeIndex);
+        item.style.setProperty('--stage-progress', `${value}%`);
+      });
+    }
+    function setAssistProgress(progress) {
+      const value = Math.max(0, Math.min(100, Number(progress) || 0));
+      const ring = $('#brewAssistRing');
+      ring.style.setProperty('--assist-progress', `${value * 3.6}deg`);
+      ring.style.setProperty('--assist-linear-progress', `${value}%`);
+    }
     function assistNextBrief(step) {
       return `${step.label} · ${durationText(step.duration, 'minute')}${step.water ? ` · ${formatWeight(step.water)}` : ''}`;
     }
@@ -181,11 +212,12 @@
       $('#brewAssistMeta').textContent = [assist.beanName, assist.plan.name, '手冲'].filter(Boolean).join(' · ');
       if (assist.phase === 'ready') {
         const first = assist.steps[0];
+        updateAssistStageProgress(0, 0);
         $('#brewAssistPhase').textContent = `准备就绪 · 共 ${assist.steps.length} 段`;
         setAssistWater(first);
         setAnimatedClock($('#brewAssistTime'), assistClock(0));
-        $('#brewAssistStageMeta').textContent = first ? `${first.time} · 点圆环开始` : `全程 ${durationText(assist.total, 'minute')}`;
-        $('#brewAssistRing').style.setProperty('--assist-progress', '0deg');
+        $('#brewAssistStageMeta').textContent = first ? `${first.time} · 点此开始` : `全程 ${durationText(assist.total, 'minute')}`;
+        setAssistProgress(0);
         setAssistNext(assist.steps[1], false);
         renderAssistSteps(-1);
         $('#brewAssistPause').textContent = '开始';
@@ -195,11 +227,12 @@
       }
       if (assist.phase === 'countdown') {
         const left = Math.max(0, 3 - (Date.now() - assist.countdownStartedAt) / 1000);
+        updateAssistStageProgress(0, (3 - left) / 3 * 100);
         $('#brewAssistPhase').textContent = '准备开始';
         setAssistWater(assist.steps[0]);
         setAnimatedClock($('#brewAssistTime'), `00:0${Math.ceil(left) || 0}`);
         $('#brewAssistStageMeta').textContent = '倒计时结束进入第一段';
-        $('#brewAssistRing').style.setProperty('--assist-progress', `${Math.min(360, (3 - left) / 3 * 360)}deg`);
+        setAssistProgress((3 - left) / 3 * 100);
         setAssistNext(assist.steps[1], false);
         renderAssistSteps(-1);
         $('#brewAssistPause').hidden = true;
@@ -218,6 +251,7 @@
       if (status.phase === 'gap') {
         const remaining = Math.max(0, status.gapEnd - elapsed);
         const span = Math.max(1, status.gapEnd - status.gapStart);
+        updateAssistStageProgress(status.index + 1, 0);
         ring.classList.add('assist-ring--gap');
         // 大数字与下方计时用同一个 ceil 值，避免 ceil 与 assistClock 内部 round 不一致导致两处差 1 秒。
         const gapShown = Math.ceil(remaining);
@@ -226,7 +260,7 @@
         $('#brewAssistWaterCaption').textContent = '秒后进入下一段';
         setAnimatedClock($('#brewAssistTime'), assistClock(gapShown));
         $('#brewAssistStageMeta').textContent = status.next ? `下一段：${status.next.label}` : '';
-        $('#brewAssistRing').style.setProperty('--assist-progress', `${Math.max(0, Math.min(360, remaining / span * 360))}deg`);
+        setAssistProgress(remaining / span * 100);
         setAssistNext(status.next, false);
         if (renderAssistSteps(status.index + 1)) scrollAssistToStage(status.index + 1);
         $('#brewAssistPause').hidden = false;
@@ -241,6 +275,7 @@
       if (status.phase === 'done') {
         const overLimit = elapsed >= assist.limit;
         const limitLabel = assist.targetLimit ? '最大建议时长' : '方案总时长';
+        updateAssistStageProgress(assist.steps.length, 100);
         ring.classList.add(overLimit ? 'assist-ring--over' : 'assist-ring--finishing');
         // 大数字和下方计时必须由同一个整数推出来：各自对 elapsed 取整（一个 ceil 一个 round）
         // 会让「还剩 5 秒」和「02:26」对不上，而且两处在不同的半秒跳字。
@@ -261,7 +296,7 @@
         $('#brewAssistStageMeta').textContent = `${limitLabel} ${durationText(assist.limit, 'minute')}`;
         // 收尾段圆环从注水结束走到建议时长；两者相等（未额外设时长）时直接满环。
         const span = Math.max(1, assist.limit - assist.total);
-        $('#brewAssistRing').style.setProperty('--assist-progress', `${overLimit ? 360 : Math.min(360, (elapsed - assist.total) / span * 360)}deg`);
+        setAssistProgress(overLimit ? 100 : (elapsed - assist.total) / span * 100);
         setAssistNext(null, true);
         if (renderAssistSteps(assist.steps.length - 1)) scrollAssistToStage(assist.steps.length - 1);
         $('#brewAssistPause').hidden = false;
@@ -274,11 +309,12 @@
       ring.classList.toggle('assist-ring--pouring', Boolean(current && current.water));
       const next = assist.steps[status.index + 1];
       const stageElapsed = Math.max(0, elapsed - current.start);
+      updateAssistStageProgress(status.index, stageElapsed / current.duration * 100);
       $('#brewAssistPhase').textContent = `第 ${status.index + 1}/${assist.steps.length} 段 · ${current.label}`;
       setAssistWater(current);
       setAnimatedClock($('#brewAssistTime'), assistClock(stageElapsed));
       $('#brewAssistStageMeta').textContent = current.time;
-      $('#brewAssistRing').style.setProperty('--assist-progress', `${Math.min(360, stageElapsed / current.duration * 360)}deg`);
+      setAssistProgress(stageElapsed / current.duration * 100);
       setAssistNext(next, false);
       if (renderAssistSteps(status.index)) scrollAssistToStage(status.index);
       $('#brewAssistPause').hidden = false;
@@ -336,6 +372,7 @@
       state.brewAssist = { source, plan: normalized, beanName: beanName || '', steps, total, targetLimit, limit: targetLimit || total, phase: 'ready', countdownStartedAt: null, startedAt: null, elapsed: 0, paused: false, completed: false, completedElapsed: 0, savedLogId: null, saving: false, renderedStepIndex: null };
       lastClockText = '';
       setAssistTicker(normalized);
+      renderAssistContext(normalized, beanName || '');
       $('#brewAssistRunning').hidden = false;
       $('#brewAssistComplete').hidden = true;
       $('#brewAssistPause').hidden = false;
