@@ -97,6 +97,9 @@ test('filterAndSort searches multiple fields and sorts remaining weight or unit 
   assert.equal(core.filterAndSort(beans, { sort: 'remainingWeight', direction: 'desc' })[0].name, 'B');
   assert.deepEqual(core.filterAndSort(beans, { sort: 'unitPrice', direction: 'asc' }).map((bean) => bean.name), ['A', 'B', 'C']);
   assert.deepEqual(core.filterAndSort(beans, { sort: 'unitPrice', direction: 'desc' }).map((bean) => bean.name), ['B', 'A', 'C']);
+  const archived = core.normalizeBean({ name: 'D', remainingWeight: 0, status: '已喝完' });
+  assert.deepEqual(core.filterAndSort([...beans, archived], { status: '在饮', sort: 'name', direction: 'asc' }).map((bean) => bean.name), ['A', 'B', 'C']);
+  assert.deepEqual(core.filterAndSort([...beans, archived], { status: '已归档' }).map((bean) => bean.name), ['D']);
 });
 
 test('backup round trip validates schema and duplicate ids', () => {
@@ -214,7 +217,8 @@ test('scoped backups include only selected data and keep old imports compatible'
 
 test('brew plans normalize presets, snapshots and recommendations', () => {
   const presets = core.presetBrewPlans();
-  assert.deepEqual(presets.map((plan) => plan.name), ['四六法', '一刀流', '三段式']);
+  assert.deepEqual(presets.map((plan) => plan.name), ['四六法', '一刀流', '三段式', '经典法压', '日常冷萃', '轻盈爱乐压']);
+  assert.deepEqual(presets.map((plan) => plan.brewMethod), ['手冲', '手冲', '手冲', '法压', '冷萃', '爱乐压']);
   assert.deepEqual(presets[0].steps.map((step) => step.label), ['闷蒸', '第 1 段', '第 2 段', '第 3 段', '第 4 段']);
   assert.deepEqual(presets[1].steps.map((step) => step.label), ['闷蒸', '第 1 段']);
   assert.deepEqual(presets[2].steps.map((step) => step.label), ['闷蒸', '第 1 段', '第 2 段']);

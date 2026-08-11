@@ -37,6 +37,17 @@ test('豆仓首页保留状态与排序，高级筛选不再重复', () => {
   assert.doesNotMatch(dialog, /\bid="beanFilterSort"/);
 });
 
+test('3.0.1 宽屏把我的、搜索、常驻筛选和新增操作放到主工作台', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../www/index.html'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, '../www/styles.css'), 'utf8');
+  const sidebar = html.slice(html.indexOf('class="sidebar-nav"'), html.indexOf('class="sidebar-footer"'));
+  assert.match(sidebar, /data-shell-view="personal"/);
+  assert.doesNotMatch(sidebar, /data-shell-action="calendar"|data-shell-action="insights"/);
+  assert.match(html, /id="widePrimaryAction"/);
+  assert.match(css, /\.topbar-search\s*\{\s*z-index:30;\s*right:170px;/);
+  assert.match(css, /\.wide-bean-filters\s*\{\s*display:grid!important;/);
+});
+
 test('复杂页面、工具流程与快捷面板使用不同层级', () => {
   assert.equal(AppShell.layerKind('detailDialog'), 'page');
   assert.equal(AppShell.layerKind('settingsDialog'), 'page');
@@ -76,6 +87,7 @@ test('真机验收修正保持底部面板、精简我的并吸顶豆子详情',
   assert.match(css, /#detailDialog \.detail-header\s*\{[^}]*position:sticky;/);
   assert.match(css, /#detailDialog \.detail-header\.is-condensed/);
   assert.match(css, /\.profile-hero\.has-photo \.profile-hero-thumb\s*\{[^}]*top:calc\(82px \+ var\(--native-safe-top/);
+  assert.match(css, /\.profile-hero\.has-cutout \.profile-hero-thumb\s*\{[^}]*top:auto;[^}]*bottom:92px;/);
   assert.match(css, /\.drink-entry \.drink-meta > span,\.drink-entry \.dimension-summary span \{ background:transparent; \}/);
   assert.match(css, /\.assist-ring strong \{ line-height:1\.14; padding-bottom:\.08em; \}/);
   assert.match(app, /els\.detail\.addEventListener\('scroll', syncBeanDetailHeader/);

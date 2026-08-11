@@ -113,6 +113,51 @@
         { label: '第 2 段', water: 105, time: '1:15-2:00' }
       ],
       notes: '三段推进萃取，兼顾香气、甜感和尾段干净度。'
+    },
+    {
+      id: 'preset-french-press',
+      name: '经典法压',
+      brewMethod: '法压',
+      source: 'preset',
+      dose: 18,
+      liquid: 288,
+      totalWater: 288,
+      ratio: '1:16',
+      waterTemp: '93°C',
+      grindSetting: '中粗研磨',
+      steepTime: '4:00',
+      pressTime: '0:30',
+      notes: '注水后静置四分钟，缓慢下压，保留圆润醇厚的口感。'
+    },
+    {
+      id: 'preset-cold-brew',
+      name: '日常冷萃',
+      brewMethod: '冷萃',
+      source: 'preset',
+      dose: 60,
+      liquid: 600,
+      totalWater: 600,
+      ratio: '1:10',
+      waterTemp: '常温',
+      grindSetting: '粗研磨',
+      steepTime: '12:00:00',
+      steepEnvironment: '冷藏',
+      notes: '冷藏浸泡十二小时后过滤，可按口味加冰或水。'
+    },
+    {
+      id: 'preset-aeropress',
+      name: '轻盈爱乐压',
+      brewMethod: '爱乐压',
+      source: 'preset',
+      dose: 16,
+      liquid: 224,
+      totalWater: 224,
+      ratio: '1:14',
+      waterTemp: '85°C',
+      grindSetting: '中细研磨',
+      targetDuration: '1:30',
+      pressTime: '0:30',
+      notes: '温和水温配合短时浸泡，缓慢下压得到干净明亮的风味。'
     }
   ]);
   const PRICE_UNITS = Object.freeze({
@@ -859,7 +904,7 @@
       exportScope,
       exportedAt: exportedAt || new Date().toISOString(),
       app: '豆仓',
-      appVersion: '3.0.0'
+      appVersion: '3.0.1'
     };
     if (exportScope === 'all' || exportScope === 'library') {
       payload.beans = (beans || []).map((bean) => normalizeBean(bean, bean.updatedAt));
@@ -915,7 +960,9 @@
     const processes = facetValues(opts.processes);
     const origins = facetValues(opts.origins);
     const filtered = beans.filter((bean) => {
-      if (opts.status && opts.status !== '全部' && bean.status !== opts.status) return false;
+      if (opts.status === '在饮' && bean.status === '已喝完') return false;
+      if (opts.status === '已归档' && bean.status !== '已喝完') return false;
+      if (opts.status && !['全部', '在饮', '已归档'].includes(opts.status) && bean.status !== opts.status) return false;
       if (roastLevels.size && !roastLevels.has(cleanText(bean.roastLevel))) return false;
       if (processes.size && !processes.has(cleanText(bean.process))) return false;
       if (origins.size && !origins.has(cleanText(bean.origin))) return false;

@@ -25,7 +25,7 @@
   const MONTH_NAMES = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
   const DRINK_PAGE_SIZE = 60;
   const themeColors = { 'dark-roast': '#1a1412', frost: '#f7f1e8', obsidian: '#1e2320', blaze: '#f5f3ea' };
-  const state = { beans: [], drinkLogs: [], brewPlans: [], settings: BeanCore.normalizeSettings({}), view: 'beans', status: '全部', beanFilters: { roastLevels: [], processes: [], origins: [] }, beanFilterDraft: null, drinkSource: '全部', planMethod: '全部', query: '', sort: 'roastDate', direction: 'desc', drinkVisibleLimit: DRINK_PAGE_SIZE, editingId: null, editingDrinkId: null, drinkMode: 'full', viewingDrinkId: null, editingPlanId: null, viewingPlanId: null, managerField: null, choiceTarget: null, dateTarget: null, calendarDate: null, coffeeCalendarDate: new Date(), coffeeCalendarView: 'month', selectedCoffeeDay: BeanCore.dateKey(new Date()), insightsPage: 'home', insightsCatalogTab: 'home', insightsRange: '30d', insightsPreference: 'origin', insightsReportType: null, insightsReportKey: null, activeDrinkStepIndex: -1, activePourStepIndex: -1, drinkDoseRef: null, brewAssist: null, pendingImages: [], pendingDrinkPhotos: [], drinkPhotoDraft: [], drinkPhotosToDelete: [], previewImage: null, shareBeanId: null, shareCardPreview: null, importScope: 'all', syncAuthMode: 'login', syncBusy: false, updateBusy: false, updateResult: null, appInfo: null, initialized: false, resuming: false };
+  const state = { beans: [], drinkLogs: [], brewPlans: [], settings: BeanCore.normalizeSettings({}), view: 'beans', status: '在饮', beanFilters: { roastLevels: [], processes: [], origins: [] }, beanFilterDraft: null, drinkSource: '全部', planMethod: '全部', query: '', sort: 'roastDate', direction: 'desc', drinkVisibleLimit: DRINK_PAGE_SIZE, editingId: null, editingDrinkId: null, drinkMode: 'full', viewingDrinkId: null, editingPlanId: null, viewingPlanId: null, managerField: null, choiceTarget: null, dateTarget: null, calendarDate: null, coffeeCalendarDate: new Date(), coffeeCalendarView: 'month', selectedCoffeeDay: BeanCore.dateKey(new Date()), insightsPage: 'home', insightsCatalogTab: 'home', insightsRange: '30d', insightsPreference: 'origin', insightsReportType: null, insightsReportKey: null, activeDrinkStepIndex: -1, activePourStepIndex: -1, drinkDoseRef: null, brewAssist: null, pendingImages: [], pendingDrinkPhotos: [], drinkPhotoDraft: [], drinkPhotosToDelete: [], previewImage: null, shareBeanId: null, shareCardPreview: null, importScope: 'all', syncAuthMode: 'login', syncBusy: false, updateBusy: false, updateResult: null, appInfo: null, initialized: false, resuming: false };
   const cloudSync = window.BeanCloudSync ? window.BeanCloudSync.createSyncService() : null;
   let toastTimer = null;
   let confirmResolver = null;
@@ -68,6 +68,7 @@
   if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) document.body.classList.add('cap-native');
   function toast(message) {
     clearTimeout(toastTimer);
+    els.toast.classList.remove('show');
     els.toast.textContent = message;
     if (els.toast.showPopover) {
       if (els.toast.parentElement !== document.body) document.body.appendChild(els.toast);
@@ -77,11 +78,12 @@
       const host = openDialogs.length ? openDialogs[openDialogs.length - 1] : document.body;
       if (els.toast.parentElement !== host) host.appendChild(els.toast);
     }
+    void els.toast.offsetWidth;
     els.toast.classList.add('show');
     toastTimer = setTimeout(() => {
       els.toast.classList.remove('show');
       if (els.toast.hidePopover && els.toast.matches(':popover-open')) els.toast.hidePopover();
-    }, 2600);
+    }, 5000);
   }
   // 无状态格式化/解析工具在 app-format.js(app.js 拆分第一批,便于 Node 单测)。
   const { esc, formatWeight, formatPrice, formatDate, formatDateTime, localDateTime, dateTimeValue, waterFromRatio, ratioFromWater, parseRatio, secondsFromText, durationText, stars } = window.AppFormat;
@@ -239,7 +241,7 @@
       dialog.classList.add('sheet-closing');
       let onEnd;
       const finish = () => { cancelDialogClose(dialog); if (dialog.open) dialog.close(); };
-      onEnd = (event) => { if (event.target !== dialog || event.animationName !== 'sheet-out') return; finish(); };
+      onEnd = (event) => { if (event.target !== dialog || !['sheet-out', 'page-out', 'tool-out'].includes(event.animationName)) return; finish(); };
       dialog.addEventListener('animationend', onEnd);
       pendingDialogCloses.set(dialog, { timer: setTimeout(finish, 260), onEnd });
     }
@@ -261,6 +263,37 @@
       armed = false;
       if (outside) dismiss();
     });
+  }
+  function bindSheetDrag(dialog, dismiss) {
+    let startY = 0; let startedAt = 0; let dragging = false;
+    const reset = () => {
+      dragging = false;
+      dialog.classList.remove('sheet-dragging');
+      dialog.classList.add('sheet-settling');
+      dialog.style.removeProperty('--sheet-drag-y');
+      setTimeout(() => dialog.classList.remove('sheet-settling'), 220);
+    };
+    dialog.addEventListener('pointerdown', (event) => {
+      if (window.innerWidth >= 1100 || dialog.dataset.layerKind !== 'quick' || !event.target.closest('.sheet-header') || event.target.closest('button,input,a')) return;
+      startY = event.clientY; startedAt = performance.now(); dragging = true;
+      dialog.classList.remove('sheet-settling'); dialog.classList.add('sheet-dragging');
+      if (dialog.setPointerCapture) dialog.setPointerCapture(event.pointerId);
+    });
+    dialog.addEventListener('pointermove', (event) => {
+      if (!dragging) return;
+      const delta = Math.max(0, event.clientY - startY);
+      dialog.style.setProperty('--sheet-drag-y', `${delta}px`);
+      if (delta > 3) event.preventDefault();
+    });
+    const finish = (event) => {
+      if (!dragging) return;
+      const delta = Math.max(0, event.clientY - startY);
+      const velocity = delta / Math.max(1, performance.now() - startedAt);
+      reset();
+      if (delta > 88 || velocity > .65) dismiss();
+    };
+    dialog.addEventListener('pointerup', finish);
+    dialog.addEventListener('pointercancel', reset);
   }
   function animateNumber(el, value, format) {
     const to = Number(value) || 0; const from = previousStats.get(el.id);
@@ -356,11 +389,11 @@
     expandFloatingActions();
     return true;
   }
-  function resolveConfirm(ok) {
+  function resolveConfirm(result) {
     const resolve = confirmResolver;
     confirmResolver = null;
     if (els.confirm.open) setDialog(els.confirm, false);
-    if (resolve) resolve(Boolean(ok));
+    if (resolve) resolve(result || false);
   }
   function askConfirm(options) {
     if (confirmResolver) resolveConfirm(false);
@@ -369,6 +402,9 @@
     $('#confirmTitle').textContent = config.title || '确认删除？';
     $('#confirmMessage').textContent = config.message || '此操作不可撤销。';
     $('#confirmAccept').textContent = config.confirmText || '删除';
+    const alternate = $('#confirmAlternate');
+    alternate.hidden = !config.alternateText;
+    alternate.textContent = config.alternateText || '';
     setDialog(els.confirm, true);
     setTimeout(() => $('#confirmCancel').focus(), 40);
     return new Promise((resolve) => { confirmResolver = resolve; });
@@ -465,6 +501,12 @@
     $('#addBean').hidden = !floatingActionsActive(); $('#scanBean').hidden = state.view !== 'beans' || !floatingActionsActive(); $('#planImportFab').hidden = state.view !== 'plans';
     $('#addBean').setAttribute('aria-label', state.view === 'plans' ? '新增冲煮方案' : state.view === 'drinks' ? '记一杯' : '新增咖啡豆');
     $('#addBean').textContent = '+';
+    const wideAction = $('#widePrimaryAction');
+    if (wideAction) {
+      const labels = { beans: '＋ 加一包豆', drinks: '＋ 记一杯', plans: '＋ 新建方案' };
+      wideAction.hidden = !labels[state.view];
+      wideAction.textContent = labels[state.view] || '';
+    }
     syncFloatingActions();
     els.search.placeholder = state.view === 'beans' ? '搜索豆名、产地或风味' : state.view === 'plans' ? '搜索方案、方式或备注' : state.view === 'drinks' ? '搜索豆名、冲煮方式或备注' : '搜索豆仓内容';
     $$('[data-view]').forEach((button) => button.classList.toggle('active', button.dataset.view === state.view));
@@ -510,7 +552,7 @@
   function renderWideBeanFilters() {
     const host = $('#wideBeanFilters');
     if (!host) return;
-    $('#wideFilterStatus').innerHTML = facetButtons(['全部', '未开封', '饮用中', '已喝完'], [state.status], 'status');
+    $('#wideFilterStatus').innerHTML = facetButtons(['在饮', '已归档', '全部'], [state.status], 'status');
     $('#wideFilterRoast').innerHTML = facetButtons(facetValues('roastLevel'), state.beanFilters.roastLevels, 'roastLevels');
     $('#wideFilterProcess').innerHTML = facetButtons(facetValues('process'), state.beanFilters.processes, 'processes');
     $('#wideFilterOrigin').innerHTML = facetButtons(facetValues('origin'), state.beanFilters.origins, 'origins');
@@ -545,7 +587,7 @@
     els.empty.hidden = visible.length > 0; els.list.hidden = visible.length === 0;
     renderBeanEmptyState(visible);
     els.list.classList.toggle('suppress-enter', suppressListEnter); els.list.innerHTML = visible.map((bean, index) => cardTemplate(bean, index)).join('');
-    els.count.textContent = (state.query || state.status !== '全部' || activeFacetCount()) ? `显示 ${visible.length} / 共 ${state.beans.length} 款` : `共 ${state.beans.length} 款咖啡豆`;
+    els.count.textContent = (state.query || state.status !== '在饮' || activeFacetCount()) ? `显示 ${visible.length} / 共 ${state.beans.length} 款` : `在饮 ${visible.length} 款 · 共 ${state.beans.length} 款`;
   }
   function renderBeanEmptyState(visible) {
     if (visible.length) return;
@@ -555,7 +597,11 @@
     const guide = $('#beanEmptyGuide');
     if (!guide) return;
     guide.hidden = false;
-    if (!isNewUser) { guide.innerHTML = '<div class="empty-guide-actions filter-empty-actions"><button class="primary-button" type="button" data-empty-action="clear-filters">清空筛选</button><button type="button" data-empty-action="open-filters">重新筛选</button></div>'; return; }
+    if (!isNewUser) {
+      const switchStatus = state.status === '在饮' ? '<button class="primary-button" type="button" data-empty-action="show-archived">查看已归档</button>' : state.status === '已归档' ? '<button class="primary-button" type="button" data-empty-action="show-active">查看在饮豆子</button>' : '<button class="primary-button" type="button" data-empty-action="clear-filters">清空筛选</button>';
+      guide.innerHTML = `<div class="empty-guide-actions filter-empty-actions">${switchStatus}<button type="button" data-empty-action="open-filters">重新筛选</button></div>`;
+      return;
+    }
     guide.innerHTML = `
       <div class="empty-guide-actions">
         <button class="primary-button" type="button" data-empty-action="add">添加第一包</button>
@@ -627,15 +673,28 @@
     if (days === 0) return '赏味期至今天';
     return `赏味期剩 ${days} 天`;
   }
+  function beanHistorySummary(bean) {
+    const logs = state.drinkLogs.filter((log) => log.beanId === bean.id && !log.deletedAt);
+    const rated = logs.filter((log) => Number(log.overallRating) > 0);
+    const latest = logs.slice().sort((a, b) => String(b.consumedAt || '').localeCompare(String(a.consumedAt || '')))[0];
+    const average = rated.length ? Math.round(rated.reduce((sum, log) => sum + Number(log.overallRating), 0) / rated.length * 10) / 10 : null;
+    return { cups: logs.length, completedAt: latest && latest.consumedAt, average };
+  }
   function cardTemplate(bean, index) {
     const subtitle = [bean.roaster, bean.origin].filter(Boolean).join(' · ') || '等待补充烘焙商与产地';
     const flavorTags = BeanCore.flavorTags(bean.tastingNotes).filter((tag) => Array.from(tag.label).length <= 6).slice(0, 3);
     const fallbackTags = [bean.roastLevel, bean.process].filter(Boolean).slice(0, 2).map((tag) => `<span class="tag">${esc(tag)}</span>`).join('');
     const tags = flavorTags.length ? flavorTags.map((tag) => `<span class="tag flavor-${esc(tag.category)}">${esc(tag.label)}</span>`).join('') : fallbackTags;
     const remaining = Number(bean.remainingWeight) || 0; const grams = Math.min(state.settings.quickGrams, remaining);
+    const finished = bean.status === '已喝完';
+    const lowStock = !finished && remaining > 0 && remaining <= Math.max(1, Number(state.settings.quickGrams) || 15);
+    const history = finished ? beanHistorySummary(bean) : null;
     const showThumb = state.settings.showBeanPhotosInList;
     const thumb = `<div class="bean-thumb-wrap">${beanThumb(bean, showThumb ? null : { forcePlaceholder: true, markPhoto: Boolean(bean.bagImagePath) })}</div>`;
-    return `<article class="bean-card has-thumb" data-id="${esc(bean.id)}" data-status="${esc(bean.status)}" tabindex="0" role="button" aria-label="查看 ${esc(bean.name)}" style="animation-delay:${Math.min(index * 28, 180)}ms">${thumb}<div class="card-body"><div class="card-head"><div class="card-title-wrap"><h2 class="card-title">${esc(bean.name)}</h2><p class="card-subtitle">${esc(subtitle)}</p></div><div class="card-icons">${bean.favorite ? '<span class="favorite">◆</span>' : ''}<button class="quick-drink" data-drink-id="${esc(bean.id)}" type="button" aria-label="喝一杯 ${esc(formatWeight(grams))}" ${remaining <= 0 ? 'disabled' : ''}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h12v7a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5V8Z"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17M8 4c0 1 1 1 1 2M12 3c0 1 1 1 1 2"/></svg><span>${esc(formatWeight(grams))}</span></button></div></div><div class="card-bottom"><div class="tag-row">${tags}</div><div class="compact-meta"><span>${esc(beanFreshnessText(bean))}</span><strong>${esc(formatWeight(remaining))}</strong></div></div>${remainingBar(bean, remaining)}</div></article>`;
+    const drinkButton = finished ? '' : `<button class="quick-drink" data-drink-id="${esc(bean.id)}" type="button" aria-label="喝一杯 ${esc(formatWeight(grams))}" ${remaining <= 0 ? 'disabled' : ''}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h12v7a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5V8Z"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17M8 4c0 1 1 1 1 2M12 3c0 1 1 1 1 2"/></svg><span>${esc(formatWeight(grams))}</span></button>`;
+    const archiveMeta = finished ? `<div class="bean-archive-meta"><span>已归档${history.completedAt ? ` · ${esc(formatDate(history.completedAt))} 喝完` : ''}</span><span>${history.cups} 杯${history.average ? ` · 平均 ${history.average}★` : ''}</span></div>` : '';
+    const actionRow = finished || lowStock ? `<div class="bean-card-actions">${lowStock ? `<button data-mark-finished-id="${esc(bean.id)}" type="button">标记喝完</button>` : ''}<button data-repurchase-id="${esc(bean.id)}" type="button">${bean.purchaseUrl ? '打开购买链接' : '再买一包'}</button></div>` : '';
+    return `<article class="bean-card has-thumb${finished ? ' is-archived' : ''}${lowStock ? ' is-low-stock' : ''}" data-id="${esc(bean.id)}" data-status="${esc(bean.status)}" tabindex="0" role="button" aria-label="查看 ${esc(bean.name)}" style="animation-delay:${Math.min(index * 28, 180)}ms">${thumb}<div class="card-body"><div class="card-head"><div class="card-title-wrap"><h2 class="card-title">${esc(bean.name)}</h2><p class="card-subtitle">${esc(subtitle)}</p></div><div class="card-icons">${bean.favorite ? '<span class="favorite">◆</span>' : ''}${drinkButton}</div></div><div class="card-bottom"><div class="tag-row">${tags}</div>${finished ? archiveMeta : `<div class="compact-meta"><span>${esc(beanFreshnessText(bean))}</span><strong>${esc(formatWeight(remaining))}</strong></div>`}</div>${finished ? '' : remainingBar(bean, remaining)}${actionRow}</div></article>`;
   }
   // 冲煮方式线性图标（20px 级，与 quick-drink 同风格）。时间线、方案卡、方案分组头共用。
   const BREW_ICONS = {
@@ -770,7 +829,7 @@
     if (state.view === 'plans') els.count.textContent = (q || state.planMethod !== '全部') ? `显示 ${visible.length} / 共 ${state.brewPlans.length} 个方案` : `共 ${state.brewPlans.length} 个冲煮方案`;
     const groups = new Map();
     visible.forEach((plan) => { if (!groups.has(plan.brewMethod)) groups.set(plan.brewMethod, []); groups.get(plan.brewMethod).push(plan); });
-    $('#brewPlanList').innerHTML = [...groups.entries()].map(([method, plans]) => `<section class="timeline-group plan-group"><h2>${brewIcon(method)}${esc(method)}</h2>${plans.map((plan) => planCardTemplate(plan)).join('')}</section>`).join('');
+    $('#brewPlanList').innerHTML = [...groups.entries()].map(([method, plans]) => `<section class="timeline-group plan-group"><h2>${brewIcon(method)}${esc(method)}</h2>${plans.map((plan) => planCardTemplate(plan, counts.get(plan.name) || 0)).join('')}</section>`).join('');
   }
   function renderPlanMethodFilters(methods) {
     const values = ['全部', ...methods.filter(Boolean).sort((a, b) => BREW_METHODS.indexOf(a) - BREW_METHODS.indexOf(b) || a.localeCompare(b, 'zh-CN'))];
@@ -780,10 +839,14 @@
   function planMatchesMethod(plan) {
     return state.planMethod === '全部' || plan.brewMethod === state.planMethod;
   }
-  function planCardTemplate(plan) {
+  function planCardTemplate(plan, recentUses) {
     const bound = plan.beanIds.length ? `${plan.beanIds.length} 款豆` : '未绑定豆子';
-    const facts = planFactList(plan).slice(0, 3).map((item) => `<span>${esc(item.label)} ${esc(item.value)}</span>`).join('');
-    return `<article class="plan-card" data-plan-id="${esc(plan.id)}" tabindex="0" role="button" aria-label="查看 ${esc(plan.name)}"><div class="plan-card-head"><div><h3>${esc(plan.name)}</h3><p class="plan-card-meta"><span class="method-label">${brewIcon(plan.brewMethod)}${esc(plan.brewMethod)}</span><span>v${esc(plan.version)}</span><span>${esc(bound)}</span></p></div>${plan.source === 'preset' ? '<span class="tag status">预置</span>' : ''}</div><div class="dimension-summary">${facts || '<span>等待补充参数</span>'}</div></article>`;
+    const facts = planFactList(plan).slice(0, 4).map((item) => `<span><b>${esc(item.value)}</b><small>${esc(item.label)}</small></span>`).join('');
+    const steps = BeanCore.prepareBrewAssistSteps(plan.steps);
+    const total = steps.length ? Math.max(1, steps[steps.length - 1].end) : 0;
+    const stageBar = steps.length ? `<div class="plan-stage-bar" aria-label="${steps.length} 个冲煮阶段">${steps.map((step) => `<i style="--stage-width:${Math.max(8, Math.round(step.duration / total * 100))}" title="${esc(step.label)}"></i>`).join('')}</div>` : '';
+    const direct = plan.brewMethod === '手冲' && steps.length ? `<button class="plan-card-start" data-plan-start-id="${esc(plan.id)}" type="button">冲这个 <span aria-hidden="true">→</span></button>` : '<span class="plan-card-open">查看方案 <span aria-hidden="true">›</span></span>';
+    return `<article class="plan-card" data-plan-id="${esc(plan.id)}" tabindex="0" role="button" aria-label="查看 ${esc(plan.name)}"><div class="plan-card-head"><div><h3>${esc(plan.name)}</h3><p class="plan-card-meta"><span class="method-label">${brewIcon(plan.brewMethod)}${esc(plan.brewMethod)}</span><span>v${esc(plan.version)}</span><span>${esc(bound)}</span></p></div>${plan.source === 'preset' ? '<span class="tag status">预置</span>' : ''}</div><div class="plan-card-facts">${facts || '<span><b>—</b><small>等待补充参数</small></span>'}</div>${stageBar}<footer class="plan-card-footer"><small>${recentUses ? `近 30 天用过 ${recentUses} 次` : '还没有近期使用记录'}</small>${direct}</footer></article>`;
   }
   function planFactList(plan, methodOverride) {
     const method = methodOverride || plan.brewMethod;
@@ -1352,6 +1415,34 @@
     }
   }
   async function openPurchaseUrl(url) { return openExternalUrl(url, '无法打开购买链接'); }
+  async function markBeanFinished(bean, card) {
+    if (!bean || bean.status === '已喝完') return;
+    try {
+      await BeanRepository.save(BeanCore.normalizeBean({ ...bean, status: '已喝完', remainingWeight: 0, updatedAt: new Date().toISOString() }));
+      if (card) await animateCardExit(card);
+      await reload({ skipEnterAnimation: Boolean(card) });
+      toast('已归档，饮用记录仍完整保留');
+    } catch (error) { console.error(error); toast('归档失败'); }
+  }
+  async function repurchaseBean(bean) {
+    if (!bean) return;
+    if (bean.purchaseUrl) return openPurchaseUrl(bean.purchaseUrl);
+    await openEditor(null);
+    fillForm({
+      name: bean.name, roaster: bean.roaster, origin: bean.origin, process: bean.process,
+      roastLevel: bean.roastLevel, purchaseUrl: bean.purchaseUrl, tastingNotes: bean.tastingNotes,
+      initialWeight: bean.initialWeight, remainingWeight: bean.initialWeight, bestFlavorDays: bean.bestFlavorDays,
+      favorite: bean.favorite, status: '未开封'
+    });
+    syncAllChoiceTriggers();
+    toast('已带入这款豆子的资料，请补充新日期');
+  }
+  function beanRemovalOptions(bean) {
+    const logCount = state.drinkLogs.filter((log) => log.beanId === bean.id && !log.deletedAt).length;
+    const planCount = state.brewPlans.filter((plan) => !plan.deletedAt && plan.beanIds.includes(bean.id)).length;
+    const impact = [`${logCount} 条饮用记录会保留`, planCount ? `${planCount} 个方案会解除绑定` : '没有绑定方案'].join('；');
+    return { title: `删除「${bean.name}」？`, message: `${impact}。如果只是喝完了，建议归档。`, alternateText: bean.status === '已喝完' ? '' : '改为归档' };
+  }
   async function saveForm(event) {
     event.preventDefault();
     if (subjectCropBusy) return toast('手账封面仍在生成，请稍候');
@@ -1377,8 +1468,9 @@
   async function removeCurrent() {
     if (!state.editingId) return;
     const bean = state.beans.find((item) => item.id === state.editingId);
-    const ok = await askConfirm({ title: bean ? `删除「${bean.name}」？` : '删除咖啡豆？', message: '饮用历史会保留，只从豆仓列表隐藏这包豆子。' });
-    if (!ok) return;
+    const result = bean ? await askConfirm(beanRemovalOptions(bean)) : await askConfirm({ title: '删除咖啡豆？', message: '饮用历史会保留。' });
+    if (!result) return;
+    if (result === 'alternate') { setDialog(els.editor, false); state.editingId = null; return markBeanFinished(bean); }
     try { await BeanRepository.remove(state.editingId); setDialog(els.editor, false); state.editingId = null; await reload(); toast('豆子已删除，饮用历史已保留'); } catch (error) { console.error(error); toast('删除失败'); }
   }
 
@@ -2340,7 +2432,10 @@
   }
   async function longPressDeleteBean(card) {
     const bean = state.beans.find((item) => item.id === card.dataset.id);
-    if (!bean || !await askConfirm({ title: `删除「${bean.name}」？`, message: '饮用历史会保留，只从豆仓列表隐藏这包豆子。' })) return;
+    if (!bean) return;
+    const result = await askConfirm(beanRemovalOptions(bean));
+    if (!result) return;
+    if (result === 'alternate') return markBeanFinished(bean, card);
     try { await BeanRepository.remove(bean.id); if (els.detail.open) setDialog(els.detail, false); await animateCardExit(card); await reload({ skipEnterAnimation: true }); toast('已删除，饮用历史保留'); } catch (error) { console.error(error); toast('删除失败'); }
   }
   async function longPressDeletePlan(card) {
@@ -2387,6 +2482,7 @@
     $('#drink-param-mokaPotSize-custom').addEventListener('input', () => syncMokaSize('drink-param'));
     ['addBean', 'scanBean', 'planImportFab'].forEach((id) => $(`#${id}`).addEventListener('click', floatingActionClickGuard, true));
     $('#addBean').addEventListener('click', () => { expandFloatingActions(); return state.view === 'plans' ? openPlanEditor(null) : state.view === 'drinks' ? openDrinkTypePicker() : openEditor(null); }); $('#scanBean').addEventListener('click', () => { expandFloatingActions(); scanCoffeeLabel(); }); $('#editorClose').addEventListener('click', () => { clearPendingImages(true); beanImagesToDelete = []; setDialog(els.editor, false); }); $('#deleteBean').addEventListener('click', removeCurrent); els.form.addEventListener('submit', saveForm); $('#field-initialWeight').addEventListener('input', syncInitialWeightToRemaining); $('#field-remainingWeight').addEventListener('input', markRemainingWeightEdited); $('#editorImageVault').addEventListener('click', (event) => { if (event.target.closest('[data-preview-cutout]')) return openImagePreview($('#field-bagCutoutImagePath').value, '手账封面'); if (event.target.closest('[data-remove-cutout]')) return removeDraftCutout(); if (event.target.closest('[data-regenerate-cutout]')) return generateDraftCutout($('#field-bagImagePath').value); const remove = event.target.closest('[data-remove-image-role]'); if (remove) return removeBeanImage(remove.dataset.removeImageRole); const button = event.target.closest('[data-add-image-role]'); if (button) return addBeanImage(button.dataset.addImageRole); const card = event.target.closest('[data-preview-image]'); if (card) openImagePreview(card.dataset.previewImage, card.dataset.previewLabel); });
+    $('#widePrimaryAction').addEventListener('click', () => state.view === 'plans' ? openPlanEditor(null) : state.view === 'drinks' ? openDrinkTypePicker() : openEditor(null));
     els.empty.addEventListener('click', (event) => {
       const button = event.target.closest('[data-empty-action]');
       if (!button) return;
@@ -2394,11 +2490,13 @@
       if (button.dataset.emptyAction === 'scan') return scanCoffeeLabel();
       if (button.dataset.emptyAction === 'backup') { syncBackupDialog(); setDialog(els.backup, true); }
       if (button.dataset.emptyAction === 'open-filters') return openBeanFilters();
-      if (button.dataset.emptyAction === 'clear-filters') { state.query = ''; els.search.value = ''; state.status = '全部'; state.beanFilters = { roastLevels: [], processes: [], origins: [] }; return render(); }
+      if (button.dataset.emptyAction === 'show-archived') { state.status = '已归档'; return renderBeans(); }
+      if (button.dataset.emptyAction === 'show-active') { state.status = '在饮'; return renderBeans(); }
+      if (button.dataset.emptyAction === 'clear-filters') { state.query = ''; els.search.value = ''; state.status = '在饮'; state.beanFilters = { roastLevels: [], processes: [], origins: [] }; return render(); }
     });
     $('#drinkEmpty').addEventListener('click', (event) => { const button = event.target.closest('[data-drink-empty-action]'); if (!button) return; if (button.dataset.drinkEmptyAction === 'external') return openExternalDrinkDialog(); openBeanPickerForDrink(); });
     $('#drinkStarterHint').addEventListener('click', (event) => { if (!event.target.closest('[data-drink-hint-dismiss]')) return; writeLocalFlag('coffee-vault-hint-first-drink'); renderDrinkStarterHint(); });
-    els.list.addEventListener('click', (event) => { if (cardPressFired) { cardPressFired = false; return; } const quick = event.target.closest('[data-drink-id]'); if (quick) { event.stopPropagation(); return animateQuickDrink(quick); } const card = event.target.closest('.bean-card'); if (card) openDetail(state.beans.find((bean) => bean.id === card.dataset.id)); });
+    els.list.addEventListener('click', (event) => { if (cardPressFired) { cardPressFired = false; return; } const finish = event.target.closest('[data-mark-finished-id]'); if (finish) { event.stopPropagation(); const bean = state.beans.find((item) => item.id === finish.dataset.markFinishedId); return markBeanFinished(bean, finish.closest('.bean-card')); } const repurchase = event.target.closest('[data-repurchase-id]'); if (repurchase) { event.stopPropagation(); return repurchaseBean(state.beans.find((item) => item.id === repurchase.dataset.repurchaseId)); } const quick = event.target.closest('[data-drink-id]'); if (quick) { event.stopPropagation(); return animateQuickDrink(quick); } const card = event.target.closest('.bean-card'); if (card) openDetail(state.beans.find((bean) => bean.id === card.dataset.id)); });
     attachLongPress(els.list, '.bean-card', longPressDeleteBean);
     els.list.addEventListener('keydown', (event) => { if (!['Enter', ' '].includes(event.key) || event.target.closest('button')) return; const card = event.target.closest('.bean-card'); if (card) { event.preventDefault(); openDetail(state.beans.find((bean) => bean.id === card.dataset.id)); } });
     els.detail.addEventListener('scroll', syncBeanDetailHeader, { passive: true });
@@ -2409,7 +2507,7 @@
     attachLongPress($('#detailDrinkHistory'), '[data-log-id]', longPressDeleteDrink);
     attachLongPress(els.calendar, '[data-log-id]', longPressDeleteDrink);
     els.drinkDetail.addEventListener('close', () => markListSelection($('#globalDrinkList'), '.drink-entry', 'data-log-id', null));
-    $('#brewPlanList').addEventListener('click', (event) => { if (cardPressFired) { cardPressFired = false; return; } const card = event.target.closest('[data-plan-id]'); if (card) openPlanDetail(state.brewPlans.find((plan) => plan.id === card.dataset.planId)); });
+    $('#brewPlanList').addEventListener('click', (event) => { if (cardPressFired) { cardPressFired = false; return; } const start = event.target.closest('[data-plan-start-id]'); if (start) { event.stopPropagation(); state.viewingPlanId = start.dataset.planStartId; return openPlanBrewAssist(); } const card = event.target.closest('[data-plan-id]'); if (card) openPlanDetail(state.brewPlans.find((plan) => plan.id === card.dataset.planId)); });
     attachLongPress($('#brewPlanList'), '.plan-card', longPressDeletePlan);
     $('#brewPlanList').addEventListener('keydown', (event) => { if (!['Enter', ' '].includes(event.key)) return; const card = event.target.closest('[data-plan-id]'); if (card) { event.preventDefault(); openPlanDetail(state.brewPlans.find((plan) => plan.id === card.dataset.planId)); } });
     els.planDetail.addEventListener('close', () => markListSelection($('#brewPlanList'), '.plan-card', 'data-plan-id', null));
@@ -2448,7 +2546,7 @@
     $('#beanFilterOpen').addEventListener('click', openBeanFilters);
     $('#wideBeanFilters').addEventListener('click', (event) => {
       const reset = event.target.closest('[data-wide-filter-reset]');
-      if (reset) { state.status = '全部'; state.beanFilters = { roastLevels: [], processes: [], origins: [] }; state.sort = 'roastDate'; state.direction = 'desc'; return renderBeans(); }
+      if (reset) { state.status = '在饮'; state.beanFilters = { roastLevels: [], processes: [], origins: [] }; state.sort = 'roastDate'; state.direction = 'desc'; return renderBeans(); }
       const sort = event.target.closest('[data-wide-filter-sort]');
       if (sort) { state.sort = sort.dataset.wideFilterSort; return renderBeans(); }
       const facet = event.target.closest('[data-facet-group]');
@@ -2468,7 +2566,7 @@
       renderBeanFilterDialog();
     });
     $('#beanFilterApply').addEventListener('click', () => { const draft = draftFilterOptions(); state.beanFilters = { roastLevels: draft.roastLevels.slice(), processes: draft.processes.slice(), origins: draft.origins.slice() }; setDialog(els.beanFilter, false); renderBeans(); });
-    $('#activeBeanFilters').addEventListener('click', (event) => { const button = event.target.closest('[data-remove-facet]'); if (!button) return; const group = button.dataset.removeFacet; if (group === 'status') { state.status = '全部'; $$('.chip', $('#statusFilters')).forEach((node) => node.classList.toggle('active', node.dataset.value === '全部')); } else state.beanFilters[group] = state.beanFilters[group].filter((value) => value !== button.dataset.facetValue); renderBeans(); });
+    $('#activeBeanFilters').addEventListener('click', (event) => { const button = event.target.closest('[data-remove-facet]'); if (!button) return; const group = button.dataset.removeFacet; if (group === 'status') { state.status = '在饮'; $$('.chip', $('#statusFilters')).forEach((node) => node.classList.toggle('active', node.dataset.value === '在饮')); } else state.beanFilters[group] = state.beanFilters[group].filter((value) => value !== button.dataset.facetValue); renderBeans(); });
     $('#searchToggle').addEventListener('click', () => { els.searchPanel.hidden = false; $('#searchToggle').setAttribute('aria-expanded', 'true'); document.body.classList.add('search-open'); renderSearchResults(); els.search.focus(); });
     els.search.addEventListener('input', () => { state.query = els.search.value; state.drinkVisibleLimit = DRINK_PAGE_SIZE; render(); });
     $('#searchClear').addEventListener('click', () => { if (state.query) { els.search.value = ''; state.query = ''; state.drinkVisibleLimit = DRINK_PAGE_SIZE; render(); els.search.focus(); return; } closeSearch(); });
@@ -2486,7 +2584,7 @@
     $('#settingsClose').addEventListener('click', () => setDialog(els.settings, false)); $('.settings-subnav').addEventListener('click', (event) => { const button = event.target.closest('[data-settings-target]'); if (!button) return; $$('.settings-subnav button').forEach((item) => item.classList.toggle('active', item === button)); const target = $(`#${button.dataset.settingsTarget}`); if (target) target.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); }); $$('[data-theme-value]').forEach((button) => button.addEventListener('click', () => applyTheme(button.datasetThemeValue || button.dataset.themeValue, true))); $('#settingQuickGrams').addEventListener('change', saveSettingsFromUi); $('#settingFlavorReminderDays').addEventListener('change', saveSettingsFromUi); $('#settingLowStockCups').addEventListener('change', saveSettingsFromUi); $('#settingBrewPlans').addEventListener('change', saveSettingsFromUi); $('#settingBeanPhotos').addEventListener('change', saveSettingsFromUi); $('#settingPhotoJournal').addEventListener('change', saveSettingsFromUi); $('#settingPriceUnit').addEventListener('change', () => { syncChoiceTrigger($('#settingPriceUnit')); saveSettingsFromUi(); }); $('#settingDefaultView').addEventListener('change', () => { syncChoiceTrigger($('#settingDefaultView')); saveSettingsFromUi(); }); $('#settingAdvanced').addEventListener('change', () => { $('#dimensionSection').hidden = !$('#settingAdvanced').checked; saveSettingsFromUi(); }); $('#dimensionSettings').addEventListener('click', (event) => { const dimInfo = event.target.closest('[data-dim-info]'); if (dimInfo) { event.preventDefault(); showDimInfo(dimInfo.dataset.dimInfo, dimInfo); } }); $('#dimensionSettings').addEventListener('change', saveSettingsFromUi); $('#syncClose').addEventListener('click', () => setDialog(els.sync, false)); $('#syncLoginOpen').addEventListener('click', () => openSyncAuth('login')); $('#syncAuthClose').addEventListener('click', syncAuthBack); $$('[data-sync-auth-mode]').forEach((button) => button.addEventListener('click', () => setSyncAuthMode(button.dataset.syncAuthMode))); $('#syncAuthSubmit').addEventListener('click', syncAuthSubmit); $('#syncLogout').addEventListener('click', syncLogout); $('#syncDeleteAccount').addEventListener('click', syncDeleteAccount); $('#syncEnabled').addEventListener('change', syncToggle); $('#syncNow').addEventListener('click', syncNow); $('#syncCopyRecovery').addEventListener('click', copyRecoveryCode); $('#aboutOpen').addEventListener('click', showAbout); $('#aboutClose').addEventListener('click', () => setDialog(els.about, false)); $('#aboutCheckUpdate').addEventListener('click', checkForUpdates); $('#aboutOpenReleases').addEventListener('click', openReleasePage); $('#aboutDownloadUpdate').addEventListener('click', openUpdateDownload); $$('[data-export-scope]').forEach((button) => button.addEventListener('click', () => exportBackup(button.dataset.exportScope))); $$('[data-import-scope]').forEach((button) => button.addEventListener('click', () => startImport(button.dataset.importScope))); $('#webImportInput').addEventListener('change', webImport); $('#migrationLater').addEventListener('click', () => setDialog(els.migration, false)); $('#migrationNow').addEventListener('click', migrateLegacy); $('#startupRetry').addEventListener('click', () => location.reload());
     $('#brewAssistStop').addEventListener('click', cancelBrewAssist); $('#brewAssistPause').addEventListener('click', pauseBrewAssist); $('#brewAssistRing').addEventListener('click', tapBrewAssistRing); $('#brewAssistRing').addEventListener('keydown', (event) => { if (['Enter', ' '].includes(event.key)) { event.preventDefault(); tapBrewAssistRing(); } }); $('#brewAssistSkip').addEventListener('click', skipBrewAssistStage); $('#brewAssistFinish').addEventListener('click', finishBrewAssist);
     $('#sharePreviewClose').addEventListener('click', closeSharePreview); $('#sharePreviewCancel').addEventListener('click', closeSharePreview); $('#sharePreviewSave').addEventListener('click', saveShareCard); $('#sharePreviewShare').addEventListener('click', confirmShareCard);
-    $('#confirmCancel').addEventListener('click', () => resolveConfirm(false)); $('#confirmAccept').addEventListener('click', () => resolveConfirm(true)); els.confirm.addEventListener('close', () => resolveConfirm(false));
+    $('#confirmAlternate').addEventListener('click', () => resolveConfirm('alternate')); $('#confirmCancel').addEventListener('click', () => resolveConfirm(false)); $('#confirmAccept').addEventListener('click', () => resolveConfirm(true)); els.confirm.addEventListener('close', () => resolveConfirm(false));
     document.addEventListener('visibilitychange', () => { if (document.visibilityState !== 'visible') return; if (els.brewAssist.open && state.brewAssist && !state.brewAssist.completed) requestWakeLock(); scheduleAutoSync(); updateFabInset(); syncFloatingActions({ delay: 1800 }); });
     window.addEventListener('scroll', () => { if (!floatingActionsActive()) return; expandFloatingActions({ delay: 1600 }); clearTimeout(fabScrollTimer); fabScrollTimer = setTimeout(() => scheduleFloatingActionCollapse(900), 160); }, { passive: true });
     updateFabInset();
@@ -2500,7 +2598,11 @@
     [els.backup, els.calendar, els.insights, els.detail, els.drinkDetail, els.planDetail,
       els.choice, els.datePicker, els.photoSource, els.scanImage, els.imagePreview, els.shareChoice, els.beanFilter,
       els.drinkShareChoice, els.sharePreview, els.confirm, els.manager, els.settings, els.sync, els.about]
-      .forEach((dialog) => bindBackdropDismiss(dialog, () => (dialog === els.sharePreview ? closeSharePreview() : dialog.close())));
+      .forEach((dialog) => {
+        const dismiss = () => (dialog === els.sharePreview ? closeSharePreview() : setDialog(dialog, false));
+        bindBackdropDismiss(dialog, dismiss);
+        bindSheetDrag(dialog, dismiss);
+      });
     $('#photoSourceClose').addEventListener('click', () => setDialog(els.photoSource, false));
     els.editor.addEventListener('close', () => clearPendingImages(true));
   }

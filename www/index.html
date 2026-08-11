@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#1a1412">
   <meta name="color-scheme" content="dark light">
   <title>豆仓</title>
-  <link rel="stylesheet" href="styles.css?v=3.0.0">
+  <link rel="stylesheet" href="styles.css?v=3.0.1">
   <style>
     #aboutDialog .about-actions { display:flex; align-items:center; justify-content:center; gap:8px; color:var(--faint); font-size:12px; }
     #aboutDialog .about-actions .text-link-button { width:auto; min-width:0; min-height:0; padding:2px; border:0; border-radius:0; background:transparent; box-shadow:none; color:var(--accent); font:700 12px/1 inherit; text-decoration:underline; text-underline-offset:4px; }
@@ -25,8 +25,7 @@
       <button data-shell-view="beans" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.7 5.3C14.9 1.5 8.5 3.2 5.3 6.4S1.5 15 5.3 18.7 15.5 20.5 18.7 17.3s3.8-8.2 0-12Z"/><path d="M7 17c2-4.8 6.1-5.1 10-10"/></svg><span>豆仓</span></button>
       <button data-shell-view="drinks" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h12v7a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5V8Z"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17M8 4c0 1 1 1 1 2M12 3c0 1 1 1 1 2"/></svg><span>饮用记录</span></button>
       <button data-shell-view="plans" data-shell-plan-item type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h12l-2.4 6H8.4L6 6Z"/><path d="M12 15v2.5M12 20.5v.5"/></svg><span>冲煮方案</span></button>
-      <button data-shell-action="calendar" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2.5"/><path d="M8 3v4M16 3v4M4 10h16"/></svg><span>咖啡日历</span></button>
-      <button data-shell-action="insights" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V6M4 19h16M8 15v-4M12 15V8M16 15V5"/></svg><span>回顾</span></button>
+      <button data-shell-view="personal" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.6"/><path d="M5.5 20c1-3.6 3.5-5.4 6.5-5.4s5.5 1.8 6.5 5.4"/></svg><span>我的</span></button>
     </nav>
     <div class="sidebar-footer">
       <button data-shell-action="settings" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.5-2.3 1a7 7 0 0 0-2-1.2L14.2 3H9.8l-.4 2.6a7 7 0 0 0-2 1.2l-2.3-1-2 3.5 2 1.5a7 7 0 0 0 0 2.4l-2 1.5 2 3.5 2.3-1a7 7 0 0 0 2 1.2l.4 2.6h4.4l.4-2.6a7 7 0 0 0 2-1.2l2.3 1 2-3.5-2-1.5c.1-.4.1-.8.1-1.2Z"/></svg><span>设置</span></button>
@@ -42,6 +41,7 @@
     </div>
     <button class="icon-button search-button" id="searchToggle" type="button" aria-label="搜索" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg></button>
     <button class="icon-button topbar-filter-button" id="beanFilterOpen" type="button" aria-label="打开更多筛选"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg><em id="beanFilterCount" hidden>0</em></button>
+    <button class="wide-primary-action" id="widePrimaryAction" type="button" hidden>＋ 加一包豆</button>
     <button class="icon-button profile-button" id="profileOpen" type="button" aria-label="个人中心"><svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M861.866667 179.2l4.266666 4.266667c59.733333 68.266667 85.333333 157.866667 68.266667 245.333333-25.6 125.866667-85.333333 238.933333-174.933333 328.533333-89.6 89.6-204.8 151.466667-328.533334 174.933334-17.066667 4.266667-36.266667 4.266667-53.333333 4.266666-74.666667 0-149.333333-29.866667-202.666667-85.333333-2.133333-2.133333-4.266667-6.4-8.533333-8.533333l-4.266667-4.266667c-59.733333-68.266667-85.333333-157.866667-68.266666-245.333333 25.6-125.866667 85.333333-238.933333 174.933333-328.533334 89.6-89.6 204.8-151.466667 328.533333-174.933333 91.733333-17.066667 187.733333 12.8 256 81.066667l8.533334 8.533333z m-12.8 232.533333c8.533333-38.4 2.133333-78.933333-12.8-115.2-78.933333 134.4-194.133333 194.133333-305.066667 253.866667-115.2 59.733333-224 117.333333-288 253.866667 46.933333 40.533333 108.8 57.6 168.533333 44.8 108.8-21.333333 206.933333-74.666667 285.866667-151.466667s130.133333-177.066667 151.466667-285.866667zM174.933333 612.266667c-8.533333 38.4-2.133333 78.933333 12.8 115.2 78.933333-134.4 194.133333-194.133333 305.066667-253.866667 115.2-59.733333 224-117.333333 288-253.866667C744.533333 187.733333 697.6 170.666667 650.666667 170.666667c-12.8 0-25.6 2.133333-38.4 4.266666-108.8 21.333333-206.933333 74.666667-285.866667 151.466667-76.8 78.933333-130.133333 177.066667-151.466667 285.866667z" fill="currentColor"/></svg></button>
   </header>
 
@@ -84,10 +84,9 @@
 
     <div class="bean-filter-toolbar">
       <nav class="filter-row" id="statusFilters" aria-label="按状态筛选">
-        <button class="chip active" data-value="全部" type="button">全部</button>
-        <button class="chip" data-value="未开封" type="button">未开封</button>
-        <button class="chip" data-value="饮用中" type="button">饮用中</button>
-        <button class="chip" data-value="已喝完" type="button">已喝完</button>
+        <button class="chip active" data-value="在饮" type="button">在饮</button>
+        <button class="chip" data-value="已归档" type="button">已归档</button>
+        <button class="chip" data-value="全部" type="button">全部</button>
       </nav>
     </div>
     <nav class="active-filter-row" id="activeBeanFilters" aria-label="已启用筛选" hidden></nav>
@@ -722,7 +721,7 @@
 
   <dialog class="sheet compact" id="aboutDialog">
     <header class="sheet-header"><div><p class="eyebrow">ABOUT</p><h2>关于豆仓</h2></div><button class="icon-button" id="aboutClose" type="button" aria-label="关闭">×</button></header>
-    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 3.0.0</p></section>
+    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 3.0.1</p></section>
     <section class="about-update" aria-live="polite">
       <div class="about-actions"><button class="text-link-button" id="aboutCheckUpdate" type="button">检查更新</button><span aria-hidden="true">·</span><button class="text-link-button" id="aboutOpenReleases" type="button">查看发布页</button></div>
       <div class="update-status" id="updateStatus" hidden></div>
@@ -731,8 +730,8 @@
     <section class="about-copy">
       <h3>收藏咖啡，也收藏与咖啡相处的时间。</h3>
       <p>豆仓是一款为咖啡爱好者设计的本地优先记录工具。你可以保存每一包咖啡豆的产地、风味与价格，记录每次饮用和冲煮方案，让日常里喝过的咖啡慢慢有迹可循。</p>
-      <h4>3.0.0 最新功能</h4>
-      <ul><li>手机端采用大标题、分段筛选和底部导航，所有 App 内页面完成视觉焕新</li><li>宽屏 Web 新增侧栏工作区，列表详情、日历、回顾与设置更适合大屏操作</li><li>深烘、澳白、火山灰绿、生豆四套主题完整适配，原有功能与数据保持不变</li></ul>
+      <h4>3.0.1 最新功能</h4>
+      <ul><li>贴纸模式的咖啡袋头图与“喝一杯”分区摆放，不再互相遮挡</li><li>豆仓新增在饮与归档视图、见底归档、回购和更安全的删除提示</li><li>冲煮方案补齐核心参数、阶段节奏与跨方式预置，页面动效也统一收口</li></ul>
       <div class="privacy-note"><b>离线与隐私</b><p>豆仓默认完全离线使用，数据保存在你的设备中。云同步为可选功能，仅在登录并开启后使用。</p><p>检查更新仅在你主动点击时联网，不会影响本地记录使用。</p></div>
     </section>
   </dialog>
@@ -746,7 +745,7 @@
   <dialog class="sheet compact confirm-sheet" id="confirmDialog">
     <header class="sheet-header"><div><p class="eyebrow" id="confirmEyebrow">CONFIRM</p><h2 id="confirmTitle">确认操作？</h2></div></header>
     <p class="sheet-intro" id="confirmMessage">此操作需要确认。</p>
-    <footer class="sheet-footer"><span></span><div><button class="secondary-button" id="confirmCancel" type="button">取消</button><button class="danger-fill-button" id="confirmAccept" type="button">确认</button></div></footer>
+    <footer class="sheet-footer"><span></span><div><button class="secondary-button confirm-alternate" id="confirmAlternate" type="button" hidden>改为归档</button><button class="secondary-button" id="confirmCancel" type="button">取消</button><button class="danger-fill-button" id="confirmAccept" type="button">确认</button></div></footer>
   </dialog>
 
   <dialog class="sheet compact number-picker-sheet" id="numberPickerDialog">

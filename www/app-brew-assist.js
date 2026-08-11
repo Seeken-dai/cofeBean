@@ -35,7 +35,7 @@
     }
     function setAnimatedText(el, value) {
       const text = String(value); if (!el || el.textContent === text) return;
-      el.textContent = text; el.classList.remove('digit-changing'); void el.offsetWidth; el.classList.add('digit-changing');
+      el.textContent = text;
     }
     function setAnimatedClock(el, value) {
       const text = String(value); if (!el || lastClockText === text) return;
@@ -54,6 +54,7 @@
     function launchConfetti() {
       const host = $('#brewAssistConfetti');
       if (!host) return;
+      if (!(state.settings && state.settings.celebrationMotion)) { host.innerHTML = ''; host.classList.remove('is-active'); return; }
       const colors = ['#d4a574', '#78a67f', '#e4c45e', '#d9736a', '#8aa6c1', '#e8b04b'];
       const perSide = 15;
       const pieces = [];
@@ -306,6 +307,10 @@
         $('#brewAssistFinish').classList.add('assist-finish-emphasis');
         return;
       }
+      if (assist.hapticStage !== status.index) {
+        assist.hapticStage = status.index;
+        if (typeof haptic === 'function') haptic('light');
+      }
       ring.classList.toggle('assist-ring--pouring', Boolean(current && current.water));
       const next = assist.steps[status.index + 1];
       const stageElapsed = Math.max(0, elapsed - current.start);
@@ -369,7 +374,7 @@
       const total = steps[steps.length - 1].end;
       const target = planLimitSeconds(normalized);
       const targetLimit = target > total ? target : null;
-      state.brewAssist = { source, plan: normalized, beanName: beanName || '', steps, total, targetLimit, limit: targetLimit || total, phase: 'ready', countdownStartedAt: null, startedAt: null, elapsed: 0, paused: false, completed: false, completedElapsed: 0, savedLogId: null, saving: false, renderedStepIndex: null };
+      state.brewAssist = { source, plan: normalized, beanName: beanName || '', steps, total, targetLimit, limit: targetLimit || total, phase: 'ready', countdownStartedAt: null, startedAt: null, elapsed: 0, paused: false, completed: false, completedElapsed: 0, savedLogId: null, saving: false, renderedStepIndex: null, hapticStage: -1 };
       lastClockText = '';
       setAssistTicker(normalized);
       renderAssistContext(normalized, beanName || '');

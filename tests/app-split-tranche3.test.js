@@ -139,8 +139,7 @@ test('brew-assist: 点结束后自动保存，并在同一完成页选择评分�
     assert.equal(state.brewAssist.savedLogId, 'pending-log');
     assert.equal($('#brewAssistFinish').textContent, '现在评分');
     assert.equal($('#brewAssistPause').textContent, '先去喝');
-    assert.match($('#brewAssistConfetti').innerHTML, /class="left"/);
-    assert.match($('#brewAssistConfetti').innerHTML, /class="right"/);
+    assert.equal($('#brewAssistConfetti').innerHTML, '', '3.0.1 动效收口后完成页不再喷洒礼花');
     api.pauseBrewAssist();
     assert.equal(state.brewAssist, null);
   } finally { delete global.requestAnimationFrame; delete global.cancelAnimationFrame; }
