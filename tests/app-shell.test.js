@@ -86,8 +86,9 @@ test('真机验收修正保持底部面板、精简我的并吸顶豆子详情',
   assert.match(css, /#scanImageDialog,#imagePreviewDialog,#sharePreviewDialog\s*\{[^}]*inset:auto 0 0;/);
   assert.match(css, /#detailDialog \.detail-header\s*\{[^}]*position:sticky;/);
   assert.match(css, /#detailDialog \.detail-header\.is-condensed/);
-  assert.match(css, /\.profile-hero\.has-photo \.profile-hero-thumb\s*\{[^}]*top:calc\(82px \+ var\(--native-safe-top/);
-  assert.match(css, /\.profile-hero\.has-cutout \.profile-hero-thumb\s*\{[^}]*top:auto;[^}]*bottom:92px;/);
+  assert.match(css, /\.profile-hero\.journal-hero\s*\{\s*min-height:calc\(276px \+ var\(--native-safe-top/);
+  assert.match(css, /\.profile-hero\.has-photo \.profile-hero-thumb\s*\{[^}]*top:calc\(78px \+ var\(--native-safe-top/);
+  assert.match(css, /\.profile-hero\.has-cutout \.profile-hero-thumb\s*\{[^}]*top:calc\(78px \+ var\(--native-safe-top[^}]*bottom:auto;/);
   assert.match(css, /\.drink-entry \.drink-meta > span,\.drink-entry \.dimension-summary span \{ background:transparent; \}/);
   assert.match(css, /\.assist-ring strong \{ line-height:1\.14; padding-bottom:\.08em; \}/);
   assert.match(app, /els\.detail\.addEventListener\('scroll', syncBeanDetailHeader/);
