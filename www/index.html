@@ -28,7 +28,6 @@
       <button data-shell-view="personal" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.6"/><path d="M5.5 20c1-3.6 3.5-5.4 6.5-5.4s5.5 1.8 6.5 5.4"/></svg><span>我的</span></button>
     </nav>
     <div class="sidebar-footer">
-      <button data-shell-action="settings" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.5-2.3 1a7 7 0 0 0-2-1.2L14.2 3H9.8l-.4 2.6a7 7 0 0 0-2 1.2l-2.3-1-2 3.5 2 1.5a7 7 0 0 0 0 2.4l-2 1.5 2 3.5 2.3-1a7 7 0 0 0 2 1.2l.4 2.6h4.4l.4-2.6a7 7 0 0 0 2-1.2l2.3 1 2-3.5-2-1.5c.1-.4.1-.8.1-1.2Z"/></svg><span>设置</span></button>
       <button class="sidebar-local-state" data-shell-action="sync" type="button"><i aria-hidden="true"></i><span><b>本地优先</b><small>云同步按需开启</small></span><strong aria-hidden="true">›</strong></button>
     </div>
   </aside>
@@ -146,18 +145,19 @@
       <div class="personal-layout">
         <nav class="personal-subnav" aria-label="我的页面">
           <span>数据</span>
-          <button class="active" id="personalInsightsOpen" type="button"><span><b>回顾</b><small>自选区间与口味变化</small></span></button>
-          <button id="personalReportsOpen" type="button"><span><b>报告</b><small>月报与年报</small></span></button>
-          <button id="coffeeCalendarOpen" type="button"><span><b>咖啡日历</b><small>月历与年历</small></span></button>
-          <button id="personalCatalogOpen" type="button"><span><b>咖啡图鉴</b><small>豆子与外饮足迹</small></span></button>
+          <button class="active" id="personalInsightsOpen" data-personal-section="overview" type="button"><span><b>回顾</b><small>自选区间与口味变化</small></span></button>
+          <button id="personalReportsOpen" data-personal-section="reports" type="button"><span><b>报告</b><small>月报与年报</small></span></button>
+          <button id="coffeeCalendarOpen" data-personal-section="calendar" type="button"><span><b>咖啡日历</b><small>月历与年历</small></span></button>
+          <button id="personalCatalogOpen" data-personal-section="catalog" type="button"><span><b>咖啡图鉴</b><small>豆子与外饮足迹</small></span></button>
           <span>系统</span>
-          <button id="personalSettingsOpen" type="button"><span><b>设置</b><small>偏好、提醒与主题</small></span></button>
-          <button id="personalSyncOpen" type="button"><span><b>云同步</b><small>账号与同步状态</small></span></button>
-          <button id="dataBackupOpen" type="button"><span><b>备份与导出</b><small>本地数据进出</small></span></button>
-          <button id="aboutOpen" type="button"><span><b>关于豆仓</b><small>版本、更新与隐私</small></span></button>
+          <button id="personalSettingsOpen" data-personal-section="settings" type="button"><span><b>设置</b><small>偏好、提醒与主题</small></span></button>
+          <button id="personalSyncOpen" data-personal-section="sync" type="button"><span><b>云同步</b><small>账号与同步状态</small></span></button>
+          <button id="dataBackupOpen" data-personal-section="backup" type="button"><span><b>备份与导出</b><small>本地数据进出</small></span></button>
+          <button id="aboutOpen" data-personal-section="about" type="button"><span><b>关于豆仓</b><small>版本、更新与隐私</small></span></button>
         </nav>
         <section class="personal-body">
           <section class="personal-lifetime-stats" id="personalLifetimeStats" aria-label="咖啡日常概览"></section>
+          <section class="personal-content" id="personalContent" aria-live="polite"></section>
           <input id="webImportInput" type="file" accept="application/json,.json" hidden>
         </section>
       </div>

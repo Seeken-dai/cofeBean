@@ -37,7 +37,7 @@ test('豆仓首页保留状态与排序，高级筛选不再重复', () => {
   assert.doesNotMatch(dialog, /\bid="beanFilterSort"/);
 });
 
-test('3.0.1 宽屏把我的、搜索、常驻筛选和新增操作放到主工作台', () => {
+test('3.0.1 宽屏把我的、搜索、轻量筛选和新增操作放到主工作台', () => {
   const html = fs.readFileSync(path.join(__dirname, '../www/index.html'), 'utf8');
   const css = fs.readFileSync(path.join(__dirname, '../www/styles.css'), 'utf8');
   const sidebar = html.slice(html.indexOf('class="sidebar-nav"'), html.indexOf('class="sidebar-footer"'));
@@ -45,7 +45,30 @@ test('3.0.1 宽屏把我的、搜索、常驻筛选和新增操作放到主工�
   assert.doesNotMatch(sidebar, /data-shell-action="calendar"|data-shell-action="insights"/);
   assert.match(html, /id="widePrimaryAction"/);
   assert.match(css, /\.topbar-search\s*\{\s*z-index:30;\s*right:170px;/);
-  assert.match(css, /\.wide-bean-filters\s*\{\s*display:grid!important;/);
+  assert.match(css, /body\[data-shell-view="personal"\] \.topbar-search\s*\{\s*right:24px;/);
+  assert.match(css, /\.wide-bean-filters\s*\{\s*display:none!important;/);
+  assert.match(css, /body\[data-shell-view="beans"\] \.topbar-filter-button\s*\{[\s\S]*?display:grid!important;/);
+  assert.match(css, /body\.has-context-detail \.topbar-filter-button\s*\{\s*display:none!important;/);
+});
+
+test('Web 端我的页隐藏累计统计，系统入口收进右侧工作区', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../www/index.html'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, '../www/styles.css'), 'utf8');
+  const app = fs.readFileSync(path.join(__dirname, '../www/app.js'), 'utf8');
+  const footer = html.slice(html.indexOf('class="sidebar-footer"'), html.indexOf('</aside>'));
+  assert.doesNotMatch(footer, /data-shell-action="settings"/);
+  assert.match(css, /body:not\(\.cap-native\) #personalLifetimeStats\s*\{\s*display:none!important;/);
+  assert.match(app, /mountPersonalInlineNodes\(slot, section\)/);
+  assert.match(app, /function openPersonalSection\(section\)/);
+  assert.match(app, /data-personal-inline/);
+  assert.match(app, /calendar: \(node\) => node\.classList\.contains\('coffee-calendar'\)/);
+  assert.match(app, /section === 'calendar' \? \(isNativeApp\(\) \? renderPersonalCalendar\(liveLogs\) : renderPersonalSystem\(section\)/);
+  assert.match(app, /if \(kind === 'calendar'\) return selectPersonalSection\('calendar'\)/);
+  assert.match(app, /personal-rating-card/);
+  assert.match(app, /personal-latest-card/);
+  assert.match(css, /\.personal-inline-settings \.settings-layout\s*\{[\s\S]*?display:grid/);
+  assert.match(css, /#personalView \.personal-subnav\s*\{[\s\S]*?align-self:start;[\s\S]*?height:max-content/);
+  assert.match(css, /\.personal-inline-settings \.settings-subnav\s*\{[\s\S]*?position:sticky; top:18px;[\s\S]*?height:max-content/);
 });
 
 test('复杂页面、工具流程与快捷面板使用不同层级', () => {

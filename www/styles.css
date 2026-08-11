@@ -1831,6 +1831,12 @@ dialog[data-layer-kind="quick"] { background:var(--vault-paper); }
   .sidebar-local-state b { color:var(--text); font-size:11px; }
   .sidebar-local-state small { margin-top:2px; color:var(--faint); font-size:8px; }
   .sidebar-local-state > strong { color:var(--accent); font-size:18px; }
+  .sidebar-local-state[data-sync-state="offline"] { border-color:var(--vault-line); background:var(--vault-paper); }
+  .sidebar-local-state[data-sync-state="offline"] > i { background:var(--vault-ink-tertiary); }
+  .sidebar-local-state[data-sync-state="paused"] { border-color:color-mix(in srgb,var(--reserve) 36%,var(--vault-line)); background:color-mix(in srgb,var(--reserve) 8%,var(--vault-paper)); }
+  .sidebar-local-state[data-sync-state="paused"] > i { background:var(--reserve); }
+  .sidebar-local-state[data-sync-state="enabled"] { border-color:color-mix(in srgb,var(--active) 42%,var(--vault-line)); background:var(--vault-active-soft); }
+  .sidebar-local-state[data-sync-state="enabled"] > i { background:var(--active); }
   .bottom-nav { display:none; }
   .topbar {
     position:relative;
@@ -2263,6 +2269,64 @@ dialog[data-layer-kind="quick"] { background:var(--vault-paper); }
 .personal-lifetime-stats strong,.personal-lifetime-stats span { display:block; }
 .personal-lifetime-stats strong { font:800 19px/1 "Vault Serif",serif; }
 .personal-lifetime-stats span { margin-top:6px; color:var(--vault-ink-tertiary); font-size:8px; }
+.personal-content { display:grid; gap:12px; min-width:0; }
+.personal-content-head { display:flex; align-items:flex-end; justify-content:space-between; gap:18px; padding:4px 2px 8px; }
+.personal-content-head > div { min-width:0; }
+.personal-content-head h2 { margin:4px 0 0; font:800 24px/1.1 "Vault Serif",serif; }
+.personal-content-head p:not(.eyebrow) { margin:6px 0 0; color:var(--vault-ink-tertiary); font-size:10px; line-height:1.55; }
+.personal-content-head .eyebrow { margin:0; color:var(--accent); font-size:8px; font-weight:800; letter-spacing:.18em; }
+.personal-inline-action { display:inline-flex; flex:0 0 auto; align-items:center; gap:8px; min-height:40px; padding:0 13px; border:1px solid var(--vault-line-strong); border-radius:var(--radius-control); background:var(--vault-active-soft); color:var(--accent); font-size:11px; font-weight:750; }
+.personal-inline-action span { font-size:17px; line-height:1; }
+.personal-inline-card { min-width:0; padding:16px; border:1px solid var(--vault-line); border-radius:var(--radius-card); background:var(--vault-paper); }
+.personal-card-head { display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+.personal-card-head > div { display:grid; gap:4px; min-width:0; }
+.personal-card-head > span,.personal-card-head > div > span { color:var(--text); font-size:12px; font-weight:800; }
+.personal-card-head small { color:var(--vault-ink-tertiary); font-size:9px; }
+.personal-month-card { min-height:156px; }
+.personal-month-card .personal-card-head { align-items:start; }
+.personal-card-count { flex:0 0 auto; margin:0!important; color:var(--accent)!important; font:800 20px/1 "Vault Serif",serif!important; }
+.personal-card-count em { margin-left:3px; color:var(--vault-ink-tertiary); font:600 9px/1 inherit; font-style:normal; }
+.personal-month-bars { display:flex; align-items:flex-end; gap:10px; height:102px; margin-top:16px; }
+.personal-month-bars > span { display:flex; flex:1; flex-direction:column; align-items:center; justify-content:flex-end; gap:5px; min-width:0; height:100%; }
+.personal-month-bars > span > b { min-height:12px; color:var(--vault-ink-secondary); font-size:9px; font-variant-numeric:tabular-nums; font-weight:700; }
+.personal-month-bars i { display:block; width:100%; max-width:26px; height:var(--height); min-height:3px; border-radius:var(--radius-micro); background:var(--accent); opacity:.78; }
+.personal-month-bars small { color:var(--vault-ink-tertiary); font-size:8px; }
+.personal-card-foot { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:12px; padding-top:10px; border-top:1px solid var(--vault-line-soft); color:var(--vault-ink-tertiary); font-size:9px; }
+.personal-rating-card .personal-card-head { align-items:start; }
+.personal-rating-hero { display:flex; align-items:baseline; gap:4px; margin-top:18px; }
+.personal-rating-hero strong { margin:0; font:800 30px/1 "Vault Serif",serif; }
+.personal-rating-hero span { color:var(--accent); font-size:18px; }
+.personal-rating-meter { height:7px; margin-top:18px; overflow:hidden; border-radius:999px; background:var(--vault-line-soft); }
+.personal-rating-meter i { display:block; width:var(--score); height:100%; border-radius:inherit; background:var(--accent); }
+.personal-rating-scale { display:flex; justify-content:space-between; margin-top:7px; color:var(--vault-ink-tertiary); font-size:8px; }
+.personal-latest-card .personal-card-head { align-items:start; }
+.personal-card-arrow { flex:0 0 auto; margin:0!important; color:var(--accent)!important; font:400 18px/1 inherit!important; }
+.personal-latest-name { margin:22px 0 0!important; overflow:hidden; color:var(--text); font:800 18px/1.2 "Vault Serif",serif!important; text-overflow:ellipsis; white-space:nowrap; }
+.personal-latest-meta { margin-top:8px!important; color:var(--vault-ink-tertiary); font-size:9px; line-height:1.5; }
+.personal-recent-card .personal-card-head { align-items:center; }
+.personal-recent-card ul { display:grid; gap:0; margin:14px 0 0; padding:0; list-style:none; }
+.personal-recent-card li { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:40px; border-top:1px solid var(--vault-line-soft); color:var(--vault-ink-secondary); font-size:11px; }
+.personal-recent-card li span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.personal-recent-card li small { flex:0 0 auto; color:var(--vault-ink-tertiary); font-size:9px; }
+.personal-inline-empty { margin:0; padding:16px 0 4px; color:var(--vault-ink-tertiary); font-size:10px; }
+.personal-report-list { display:grid; gap:6px; margin-top:12px; }
+.personal-report-row { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:54px; padding:0 11px; border:1px solid var(--vault-line-soft); border-radius:var(--radius-control); background:var(--control-bg); color:var(--text); text-align:left; }
+.personal-report-row span { display:grid; gap:4px; min-width:0; }
+.personal-report-row b { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; }
+.personal-report-row small { color:var(--vault-ink-tertiary); font-size:9px; }
+.personal-report-row strong { color:var(--accent); font-size:18px; font-weight:400; }
+.personal-calendar-card p,.personal-system-card p { margin:14px 0 0; color:var(--vault-ink-tertiary); font-size:10px; line-height:1.6; }
+.personal-mini-heatmap { display:grid; grid-template-columns:repeat(7,minmax(18px,1fr)); gap:7px; max-width:560px; margin-top:18px; }
+.personal-mini-heatmap i { display:block; aspect-ratio:1; border-radius:5px; background:var(--vault-line-soft); }
+.personal-mini-heatmap i.heat-1 { background:color-mix(in srgb,var(--accent) 28%,var(--vault-paper)); }
+.personal-mini-heatmap i.heat-2 { background:color-mix(in srgb,var(--accent) 46%,var(--vault-paper)); }
+.personal-mini-heatmap i.heat-3 { background:color-mix(in srgb,var(--accent) 64%,var(--vault-paper)); }
+.personal-mini-heatmap i.heat-4 { background:var(--accent); }
+.personal-catalog-chips { display:flex; flex-wrap:wrap; gap:7px; margin-top:13px; }
+.personal-catalog-chips span { padding:7px 10px; border:1px solid var(--vault-line-soft); border-radius:999px; background:var(--control-bg); color:var(--vault-ink-secondary); font-size:10px; }
+.personal-system-card { display:grid; gap:7px; min-height:132px; align-content:center; }
+.personal-system-card > span { color:var(--accent); font-size:9px; font-weight:800; letter-spacing:.1em; }
+.personal-system-card > strong { font:800 22px/1.1 "Vault Serif",serif; }
 .personal-dashboard-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 .personal-dashboard-card {
   min-height:116px;
@@ -2315,6 +2379,27 @@ dialog[data-layer-kind="quick"] { background:var(--vault-paper); }
 .settings-toggle-grid { display:grid; }
 .settings-feature-hint { margin-bottom:10px; }
 .settings-footnote { margin:4px 2px 0; color:var(--vault-ink-tertiary); font-size:9px; line-height:1.6; }
+.personal-inline-slot { display:grid; gap:12px; min-width:0; }
+.personal-inline-system { display:grid; gap:12px; min-width:0; }
+.personal-inline-calendar .coffee-calendar { padding:0; }
+.personal-inline-settings .settings-layout { padding:0; }
+.personal-inline-settings .settings-subnav { display:none; }
+.personal-inline-backup .backup-groups { padding:0; }
+.personal-inline-backup .backup-groups,
+.personal-inline-about .about-hero,
+.personal-inline-about .about-update,
+.personal-inline-about .about-copy,
+.personal-inline-sync .sync-settings {
+  border:1px solid var(--vault-line);
+  border-radius:var(--radius-card);
+  background:var(--vault-paper);
+}
+.personal-inline-backup .backup-groups { padding:16px; }
+.personal-inline-about .about-hero { padding:20px; }
+.personal-inline-about .about-update { padding:14px 16px; }
+.personal-inline-about .about-copy { padding:16px; }
+.personal-inline-sync .sync-settings { padding:16px; border-bottom:1px solid var(--vault-line); }
+body:not(.cap-native) #personalLifetimeStats { display:none!important; }
 
 @media (max-width:1099px) {
   body:has(.topbar-search:not([hidden])) { overflow:hidden; }
@@ -2450,7 +2535,7 @@ dialog[data-layer-kind="quick"] { background:var(--vault-paper); }
     margin-inline:auto;
     padding:22px 28px 42px;
   }
-  #personalView .personal-subnav { order:1; align-content:start; position:sticky; top:0; }
+  #personalView .personal-subnav { order:1; align-self:start; align-content:start; position:sticky; top:0; height:max-content; }
   #personalView .personal-subnav > button { min-height:50px; border-color:transparent; background:transparent; }
   #personalView .personal-subnav > button::after { display:none; }
   #personalView .personal-subnav > button.active { border-color:var(--vault-line); background:var(--vault-active-soft); color:var(--accent); }
@@ -2904,17 +2989,29 @@ body[data-shell-view="personal"] .profile-button { border-color:var(--accent); b
   }
   .wide-primary-action[hidden],body.has-context-detail .wide-primary-action { display:none!important; }
   .topbar-search { z-index:30; right:170px; }
+  body[data-shell-view="personal"] .topbar-search { right:24px; }
   body[data-shell-view="beans"] .topbar { grid-template-columns:minmax(0,1fr); column-gap:0; }
-  #beansView:not([hidden]) { display:grid; grid-template-columns:196px minmax(0,1fr); gap:20px; }
-  #beansView > :not(.wide-bean-filters) { grid-column:2; }
-  .wide-bean-filters { display:grid!important; grid-column:1; }
-  #beansView .bean-filter-toolbar { display:none; }
+  /* 宽屏默认保持列表清爽：状态与排序留在内容区，更多条件通过顶部筛选按钮打开。
+     常驻整块筛选栏会把只有一张卡的豆仓压成窄列，并制造大面积无意义留白。 */
+  body[data-shell-view="beans"] .topbar-filter-button {
+    display:grid!important;
+    position:absolute;
+    top:18px;
+    right:calc(178px + min(340px,32vw));
+    z-index:31;
+  }
+  #beansView:not([hidden]) { display:block; }
+  #beansView > :not(.wide-bean-filters) { grid-column:auto; }
+  .wide-bean-filters { display:none!important; }
+  #beansView .bean-filter-toolbar { display:block; }
   body.has-context-detail #beansView:not([hidden]) { display:block; }
   body.has-context-detail #beansView > :not(.wide-bean-filters) { grid-column:auto; }
   body.has-context-detail .wide-bean-filters { display:none!important; }
+  body.has-context-detail .topbar-filter-button { display:none!important; }
   .fab,.scan-fab,#planImportFab { display:none!important; }
   body.has-floating-actions main { padding-bottom:42px; }
-  .bean-list { grid-template-columns:repeat(auto-fill,minmax(290px,1fr)); gap:12px; }
+  .bean-list { grid-template-columns:repeat(auto-fit,minmax(290px,1fr)); gap:12px; }
+  #beansView .overview { max-width:980px; }
   .plan-list { width:100%; max-width:none; }
   .plan-group { grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
   .plan-group > h2 { grid-column:1/-1; }
@@ -2924,7 +3021,7 @@ body[data-shell-view="personal"] .profile-button { border-color:var(--accent); b
   .bean-thumb { width:66px; height:88px; }
   .card-body { padding-block:12px; }
 
-  body.has-context-detail { grid-template-columns:216px 248px minmax(0,1fr); }
+  body.has-context-detail { --context-column-width:clamp(320px,24vw,380px); grid-template-columns:216px var(--context-column-width) minmax(0,1fr); }
   body.has-context-detail .topbar { grid-column:2; }
   body.has-context-detail main { grid-column:2; padding:12px 10px 24px; }
   body.has-context-detail #beansView .bean-filter-toolbar { display:none; }
@@ -2935,7 +3032,11 @@ body[data-shell-view="personal"] .profile-button { border-color:var(--accent); b
   body.has-context-detail .card-title { font-size:12px; }
   body.has-context-detail .card-subtitle { margin-top:3px; font-size:8px; }
   body.has-context-detail .bean-card .card-bottom,body.has-context-detail .bean-card .remaining-bar,body.has-context-detail .bean-card .quick-drink { display:none; }
-  body.has-context-detail #detailDialog,body.has-context-detail #drinkDetailDialog,body.has-context-detail #planDetailDialog { left:464px; }
+  body.has-context-detail #detailDialog,body.has-context-detail #drinkDetailDialog,body.has-context-detail #planDetailDialog { left:calc(216px + var(--context-column-width)); }
+  /* Contextual details are split-pane dialogs in wide mode. They stay above the
+     main workbench without entering the modal top layer, so the primary rail
+     remains clickable while a detail is expanded. */
+  dialog[data-context-presentation="split"] { z-index:80; pointer-events:auto; }
   body.has-context-detail #detailDialog .bean-profile { max-width:1080px; padding:0 28px 42px; }
   body.has-context-detail .profile-hero { min-height:258px; margin:0 -28px 16px; padding:62px 28px 22px; }
   body.has-context-detail .profile-hero-lead { max-width:calc(100% - 190px); }
@@ -2970,21 +3071,34 @@ body[data-shell-view="personal"] .profile-button { border-color:var(--accent); b
   body.has-context-detail #planDetailDialog #planDetailBeansSection { grid-column:2; grid-row:3; }
   body.has-context-detail #planDetailDialog #planDetailNotesSection { grid-column:2; grid-row:4; }
 
-  #personalView .personal-layout { grid-template-columns:190px minmax(0,820px); gap:28px; justify-content:center; padding-top:18px; }
-  #personalView .personal-subnav { margin:0; padding:6px 10px; border-radius:var(--radius-card); }
+  #personalView .personal-layout { grid-template-columns:200px minmax(0,1fr); gap:28px; width:100%; max-width:none; justify-content:stretch; padding-top:18px; }
+  #personalView .personal-subnav { align-self:start; height:max-content; margin:0; padding:6px 10px; border-radius:var(--radius-card); }
   #personalView .personal-subnav > button { min-height:48px; padding-inline:4px; }
-  #personalView .personal-body { display:grid; grid-template-columns:1fr; gap:10px; }
+  #personalView .personal-body { display:grid; grid-template-columns:minmax(0,1fr); gap:10px; width:100%; max-width:1400px; }
   #personalView .personal-profile-card,#personalView .personal-lifetime-stats,#personalView .calendar-entry-card { grid-column:auto; }
-  #personalView .personal-dashboard-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-  #personalView .personal-dashboard-card { min-height:102px; }
+  #personalView .personal-dashboard-grid { display:grid; grid-template-columns:minmax(0,1.4fr) minmax(240px,.9fr); grid-auto-rows:minmax(126px,auto); gap:12px; align-items:stretch; }
+  #personalView .personal-month-card { grid-row:span 2; min-height:270px; }
+  #personalView .personal-month-bars { height:156px; margin-top:20px; }
+  #personalView .personal-rating-card,#personalView .personal-latest-card { min-height:126px; }
   #personalView .mini-heatmap { display:grid; }
   #personalView .calendar-entry-card { grid-template-columns:minmax(0,1fr) auto auto; }
+
+  .timeline-group > h2,.plan-group.timeline-group > h2 { position:static; top:auto; z-index:auto; margin:0 0 2px; padding:4px 2px; border-radius:0; background:transparent; }
 
   #settingsDialog .settings-layout { grid-template-columns:190px minmax(0,760px); gap:28px; justify-content:center; padding-top:18px; }
   #settingsDialog .settings-content { min-width:0; }
   #settingsDialog .settings-card-grid { grid-template-columns:1fr; }
   #settingsDialog .settings-card-wide { grid-column:auto; }
   #settingsDialog .settings-card { padding:16px; }
+  .personal-inline-settings .settings-layout { display:grid; grid-template-columns:190px minmax(0,1fr); gap:28px; align-items:start; padding:0; }
+  .personal-inline-settings .settings-subnav { display:grid; align-content:start; align-self:start; gap:5px; position:sticky; top:18px; height:max-content; }
+  .personal-inline-settings .settings-content { min-width:0; }
+  .personal-inline-settings .settings-subnav > span { margin:14px 10px 3px; color:var(--vault-ink-tertiary); font-size:9px; font-weight:800; letter-spacing:.12em; }
+  .personal-inline-settings .settings-subnav > button { min-height:44px; padding:0 12px; border:1px solid transparent; border-radius:var(--radius-control); background:transparent; color:var(--vault-ink-secondary); text-align:left; }
+  .personal-inline-settings .settings-subnav > button.active { border-color:var(--vault-line); background:var(--vault-active-soft); color:var(--accent); font-weight:800; }
+  .personal-inline-settings .settings-card-grid { grid-template-columns:1fr; }
+  .personal-inline-settings .settings-card-wide { grid-column:auto; }
+  .personal-inline-settings .settings-card { padding:16px; }
 
   /* 13d：宽屏冲煮辅助进入无主导航的三栏专注模式。 */
   .assist-sheet[open] { display:grid; grid-template-rows:auto auto minmax(0,1fr) auto; }

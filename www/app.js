@@ -25,7 +25,7 @@
   const MONTH_NAMES = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
   const DRINK_PAGE_SIZE = 60;
   const themeColors = { 'dark-roast': '#1a1412', frost: '#f7f1e8', obsidian: '#1e2320', blaze: '#f5f3ea' };
-  const state = { beans: [], drinkLogs: [], brewPlans: [], settings: BeanCore.normalizeSettings({}), view: 'beans', status: '在饮', beanFilters: { roastLevels: [], processes: [], origins: [] }, beanFilterDraft: null, drinkSource: '全部', planMethod: '全部', query: '', sort: 'roastDate', direction: 'desc', drinkVisibleLimit: DRINK_PAGE_SIZE, editingId: null, editingDrinkId: null, drinkMode: 'full', viewingDrinkId: null, editingPlanId: null, viewingPlanId: null, managerField: null, choiceTarget: null, dateTarget: null, calendarDate: null, coffeeCalendarDate: new Date(), coffeeCalendarView: 'month', selectedCoffeeDay: BeanCore.dateKey(new Date()), insightsPage: 'home', insightsCatalogTab: 'home', insightsRange: '30d', insightsPreference: 'origin', insightsReportType: null, insightsReportKey: null, activeDrinkStepIndex: -1, activePourStepIndex: -1, drinkDoseRef: null, brewAssist: null, pendingImages: [], pendingDrinkPhotos: [], drinkPhotoDraft: [], drinkPhotosToDelete: [], previewImage: null, shareBeanId: null, shareCardPreview: null, importScope: 'all', syncAuthMode: 'login', syncBusy: false, updateBusy: false, updateResult: null, appInfo: null, initialized: false, resuming: false };
+  const state = { beans: [], drinkLogs: [], brewPlans: [], settings: BeanCore.normalizeSettings({}), view: 'beans', personalSection: 'overview', status: '在饮', beanFilters: { roastLevels: [], processes: [], origins: [] }, beanFilterDraft: null, drinkSource: '全部', planMethod: '全部', query: '', sort: 'roastDate', direction: 'desc', drinkVisibleLimit: DRINK_PAGE_SIZE, editingId: null, editingDrinkId: null, drinkMode: 'full', viewingDrinkId: null, editingPlanId: null, viewingPlanId: null, managerField: null, choiceTarget: null, dateTarget: null, calendarDate: null, coffeeCalendarDate: new Date(), coffeeCalendarView: 'month', selectedCoffeeDay: BeanCore.dateKey(new Date()), insightsPage: 'home', insightsCatalogTab: 'home', insightsRange: '30d', insightsPreference: 'origin', insightsReportType: null, insightsReportKey: null, activeDrinkStepIndex: -1, activePourStepIndex: -1, drinkDoseRef: null, brewAssist: null, pendingImages: [], pendingDrinkPhotos: [], drinkPhotoDraft: [], drinkPhotosToDelete: [], previewImage: null, shareBeanId: null, shareCardPreview: null, importScope: 'all', syncAuthMode: 'login', syncBusy: false, updateBusy: false, updateResult: null, appInfo: null, initialized: false, resuming: false };
   const cloudSync = window.BeanCloudSync ? window.BeanCloudSync.createSyncService() : null;
   let toastTimer = null;
   let confirmResolver = null;
@@ -49,7 +49,9 @@
     window,
     onView(view) {
       if (!brewPlansEnabled() && view === 'plans') return;
+      closeContextDetailsForNavigation();
       state.view = view;
+      if (view === 'personal') state.personalSection = 'overview';
       if (view === 'drinks') state.drinkVisibleLimit = DRINK_PAGE_SIZE;
       render();
       const main = $('main');
@@ -57,15 +59,38 @@
       window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     },
     onAction(action) {
+      closeContextDetailsForNavigation();
       if (action === 'calendar') return openCoffeeCalendar('month');
       if (action === 'insights') return openInsights();
-      if (action === 'settings') return openSettings();
-      if (action === 'sync') { renderSyncSettings(); return setDialog(els.sync, true); }
+      if (action === 'settings') return isNativeApp() ? openSettings() : openPersonalSection('settings');
+      if (action === 'sync') {
+        if (!isNativeApp()) return openPersonalSection('sync');
+        renderSyncSettings();
+        return setDialog(els.sync, true);
+      }
     }
   });
 
   function capPlugin(name) { return window.Capacitor && window.Capacitor.Plugins ? window.Capacitor.Plugins[name] : null; }
   if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) document.body.classList.add('cap-native');
+  function isNativeApp() { return document.body.classList.contains('cap-native') || (typeof BeanRepository !== 'undefined' && BeanRepository.isNative && BeanRepository.isNative()); }
+  function renderSidebarSyncState() {
+    const button = $('.sidebar-local-state');
+    if (!button) return;
+    const title = button.querySelector('b');
+    const hint = button.querySelector('small');
+    const config = cloudSync && cloudSync.getConfig ? cloudSync.getConfig() : {};
+    const loggedIn = Boolean(config.token);
+    const status = loggedIn ? (config.enabled ? 'enabled' : 'paused') : 'offline';
+    const copy = status === 'enabled'
+      ? ['云同步已开启', config.lastSyncAt ? `已登录 · ${formatDateTime(config.lastSyncAt)}` : '已登录 · 等待首次同步']
+      : status === 'paused'
+        ? ['同步已暂停', '已登录 · 云端未访问']
+        : ['本地优先', cloudSync ? '未登录 · 数据不会上传' : '未配置同步 · 数据不会上传'];
+    button.dataset.syncState = status;
+    if (title) title.textContent = copy[0];
+    if (hint) hint.textContent = copy[1];
+  }
   function toast(message) {
     clearTimeout(toastTimer);
     els.toast.classList.remove('show');
@@ -220,6 +245,16 @@
     document.body.classList.remove('dialog-scrim-active'); document.body.classList.add('dialog-scrim-closing');
     dialogScrimTimer = setTimeout(() => document.body.classList.remove('dialog-scrim-closing'), motionReduced() ? 0 : 180);
   }
+  const CONTEXT_DETAIL_IDS = new Set(['detailDialog', 'drinkDetailDialog', 'planDetailDialog']);
+  function isContextDetail(dialog) { return Boolean(dialog && CONTEXT_DETAIL_IDS.has(dialog.id)); }
+  function closeContextDetailsForNavigation() {
+    [els.detail, els.drinkDetail, els.planDetail].forEach((dialog) => {
+      if (!dialog || !dialog.open) return;
+      cancelDialogClose(dialog);
+      dialog.close();
+    });
+    syncDialogScrim();
+  }
   // 关闭是异步的（等 sheet-out 动画），期间 dialog.open 仍为 true。若此时同一个 dialog 又被打开
   // （如「记一杯」先关选择弹窗再复用它显示豆子列表），必须撤销挂起的关闭，否则它会在 260ms 后把刚打开的弹窗关掉。
   const pendingDialogCloses = new WeakMap();
@@ -231,7 +266,14 @@
   function setDialog(dialog, open) {
     if (open) {
       cancelDialogClose(dialog);
-      if (!dialog.open) dialog.showModal();
+      // 宽屏详情是右侧工作台面板，不应使用原生 modal；否则左侧一级导航会被
+      // inert，用户只能先关详情才能切换页面。移动端仍保持 modal sheet 行为。
+      if (!dialog.open) {
+        if (isContextDetail(dialog) && appShell && appShell.isWide()) dialog.show();
+        else dialog.showModal();
+      }
+      if (isContextDetail(dialog) && appShell && appShell.isWide()) dialog.dataset.contextPresentation = 'split';
+      else delete dialog.dataset.contextPresentation;
       if (appShell) appShell.layerOpened(dialog);
       syncDialogScrim();
       return;
@@ -488,7 +530,7 @@
     if (!archived && scanner.discardImage) return scanner.discardImage({ path: ref }).catch(() => {});
   }
 
-  function render() { renderView(); renderBeans(); renderDrinks(); renderBrewPlans(); renderSearchResults(); if (state.view === 'personal') renderPersonal(); if (els.calendar.open) renderCoffeeCalendar(); if (els.insights.open) insightsUi.render(); }
+  function render() { renderSidebarSyncState(); renderView(); renderBeans(); renderDrinks(); renderBrewPlans(); renderSearchResults(); if (state.view === 'personal') renderPersonal(); if (els.calendar.open) renderCoffeeCalendar(); if (els.insights.open) insightsUi.render(); }
   function renderView() {
     if (!brewPlansEnabled() && state.view === 'plans') state.view = 'beans';
     $('#plansTab').hidden = !brewPlansEnabled();
@@ -889,14 +931,123 @@
   function monthKey(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`; }
   function statsForRange(days, predicate) { const values = Object.values(days).filter((day) => predicate(day.date)); const rated = values.filter((day) => day.averageRating); return { cups: values.reduce((sum, day) => sum + day.cups, 0), grams: Math.round(values.reduce((sum, day) => sum + day.grams, 0) * 10) / 10, cost: Math.round(values.reduce((sum, day) => sum + day.cost, 0) * 100) / 100, averageRating: rated.length ? Math.round(rated.reduce((sum, day) => sum + day.averageRating, 0) / rated.length * 10) / 10 : null }; }
   function continuousDays(days) { const keys = Object.keys(days).sort(); if (!keys.length) return 0; let cursor = dateFromKey(keys[keys.length - 1]); let count = 0; while (days[ymd(cursor)]) { count += 1; cursor.setDate(cursor.getDate() - 1); } return count; }
+  function personalMonthRows(logs) {
+    const now = new Date();
+    const rows = [];
+    for (let index = 5; index >= 0; index -= 1) {
+      const date = new Date(now.getFullYear(), now.getMonth() - index, 1);
+      const key = monthKey(date);
+      const cups = logs.filter((log) => String(log.consumedAt || '').slice(0, 7) === key).length;
+      rows.push({ label: `${date.getMonth() + 1}月`, cups });
+    }
+    return rows;
+  }
+  function personalContentAction(kind, label) { return `<button class="personal-inline-action" type="button" data-personal-open="${esc(kind)}">${esc(label)} <span aria-hidden="true">›</span></button>`; }
+  function renderPersonalOverview(liveLogs) {
+    const months = personalMonthRows(liveLogs);
+    const maxCups = Math.max(1, ...months.map((row) => row.cups));
+    const totalMonthCups = months.reduce((sum, row) => sum + row.cups, 0);
+    const monthAverage = (totalMonthCups / months.length).toFixed(1);
+    const peakMonth = months.reduce((best, row) => row.cups > best.cups ? row : best, months[0]);
+    const rated = liveLogs.filter((log) => Number(log.overallRating) > 0);
+    const average = rated.length ? (rated.reduce((sum, log) => sum + Number(log.overallRating), 0) / rated.length).toFixed(1) : '—';
+    const ratingScore = average === '—' ? 0 : Math.round(Number(average) / 5 * 100);
+    const recent = liveLogs.slice().sort((a, b) => String(b.consumedAt || '').localeCompare(String(a.consumedAt || ''))).slice(0, 4);
+    const latest = recent[0];
+    const latestName = latest ? (latest.source === 'external' ? (latest.drinkName || latest.cafeName || '外饮') : (latest.beanName || '未命名咖啡豆')) : '—';
+    const latestMeta = latest ? [latest.source === 'external' ? '外饮' : latest.brewMethod, latest.grams ? formatWeight(latest.grams) : '', formatDateTime(latest.consumedAt)].filter(Boolean).join(' · ') : '还没有记录';
+    const monthBars = months.map((row) => `<span title="${esc(row.label)} ${row.cups} 杯"><b>${row.cups || '—'}</b><i style="--height:${Math.max(row.cups ? 12 : 3, row.cups / maxCups * 100).toFixed(1)}%"></i><small>${esc(row.label)}</small></span>`).join('');
+    const recentRows = recent.length ? recent.map((log) => `<li><span>${esc(log.source === 'external' ? (log.drinkName || log.cafeName || log.beanName || '外饮') : (log.beanName || '未命名咖啡豆'))}</span><small>${esc(formatDateTime(log.consumedAt))}${log.overallRating ? ` · ${esc(log.overallRating)}★` : ''}</small></li>`).join('') : '<li class="personal-inline-empty">还没有饮用记录，先记下第一杯。</li>';
+    return `<section class="personal-content-head"><div><p class="eyebrow">YOUR COFFEE</p><h2>回顾</h2><p>从每一杯里，慢慢看见自己的口味与节奏。</p></div>${personalContentAction('insights', '打开完整回顾')}</section><div class="personal-dashboard-grid"><article class="personal-dashboard-card personal-month-card"><div class="personal-card-head"><div><span>近 6 个月</span><small>饮用趋势</small></div><strong class="personal-card-count">${totalMonthCups}<em>杯</em></strong></div><div class="personal-month-bars" aria-label="近六个月饮用杯数">${monthBars}</div><div class="personal-card-foot"><span>月均 ${monthAverage} 杯</span><span>最高 ${esc(peakMonth.label)} · ${peakMonth.cups} 杯</span></div></article><article class="personal-dashboard-card personal-rating-card"><div class="personal-card-head"><div><span>平均评分</span><small>${rated.length ? `${rated.length} 杯有评分` : '等待评分记录'}</small></div></div><div class="personal-rating-hero"><strong>${esc(average)}</strong><span>${average === '—' ? '' : '★'}</span></div><div class="personal-rating-meter" role="meter" aria-label="平均评分" aria-valuemin="0" aria-valuemax="5" aria-valuenow="${average === '—' ? 0 : average}"><i style="--score:${ratingScore}%"></i></div><div class="personal-rating-scale"><small>1★</small><small>5★</small></div></article><article class="personal-dashboard-card personal-latest-card"><div class="personal-card-head"><div><span>最近一杯</span><small>最后一次记录</small></div><strong class="personal-card-arrow" aria-hidden="true">↗</strong></div><strong class="personal-latest-name">${esc(latestName)}</strong><small class="personal-latest-meta">${esc(latestMeta)}</small></article></div><article class="personal-inline-card personal-recent-card"><div class="personal-card-head"><div><span>最近记录</span><small>${liveLogs.length ? `共 ${liveLogs.length} 杯 · 本地保存` : '本地数据 · 只在此设备保存'}</small></div>${personalContentAction('calendar', '查看日历')}</div><ul>${recentRows}</ul></article>`;
+  }
+  function renderPersonalReports(liveLogs) {
+    const reports = BeanInsights.availableCoffeeReports(liveLogs, new Date()).slice(0, 6);
+    const rows = reports.length ? reports.map((report) => `<button class="personal-report-row" type="button" data-personal-report-type="${esc(report.type)}" data-personal-report-key="${esc(report.key)}"><span><b>${esc(report.label)}</b><small>${esc(report.cups)} 杯记录</small></span><strong aria-hidden="true">›</strong></button>`).join('') : '<p class="personal-inline-empty">记录至少 3 杯后，这里会生成月报或年报。</p>';
+    return `<section class="personal-content-head"><div><p class="eyebrow">COFFEE REPORTS</p><h2>报告</h2><p>把一段时间的饮用记录整理成可回看的报告。</p></div>${personalContentAction('reports', '打开完整报告')}</section><article class="personal-inline-card"><div class="personal-card-head"><span>可用报告</span><small>${reports.length ? `${reports.length} 份` : '等待积累'}</small></div><div class="personal-report-list">${rows}</div></article>`;
+  }
+  function renderPersonalCalendar(liveLogs) {
+    const days = daySummaries();
+    const now = new Date();
+    const total = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const offset = (new Date(now.getFullYear(), now.getMonth(), 1).getDay() + 6) % 7;
+    const cells = `${'<i></i>'.repeat(offset)}${Array.from({ length: total }, (_, index) => { const key = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(index + 1).padStart(2, '0')}`; return `<i class="${days[key] ? `heat-${dayLevel(days[key])}` : ''}" title="${key}"></i>`; }).join('')}`;
+    const monthCups = liveLogs.filter((log) => String(log.consumedAt || '').slice(0, 7) === monthKey(now)).length;
+    return `<section class="personal-content-head"><div><p class="eyebrow">COFFEE CALENDAR</p><h2>咖啡日历</h2><p>把每一次饮用放回日期里，看看自己的连续节奏。</p></div>${personalContentAction('calendar', '打开完整日历')}</section><article class="personal-inline-card personal-calendar-card"><div class="personal-card-head"><span>${now.getFullYear()} 年 ${now.getMonth() + 1} 月</span><small>${monthCups} 杯</small></div><div class="personal-mini-heatmap" aria-label="本月饮用日历">${cells}</div><p>有记录的日期会以深浅色标记，点击完整日历可查看当天详情。</p></article>`;
+  }
+  function renderPersonalCatalog(liveLogs) {
+    const beans = new Map();
+    liveLogs.filter((log) => log.source !== 'external' && log.beanId).forEach((log) => beans.set(log.beanId, log.beanName || '未命名咖啡豆'));
+    const cafes = new Set(liveLogs.filter((log) => log.source === 'external').map((log) => log.cafeName || log.location).filter(Boolean));
+    const beanRows = Array.from(beans.values()).slice(0, 8).map((name) => `<span>${esc(name)}</span>`).join('') || '<p class="personal-inline-empty">还没有自家冲煮豆款。</p>';
+    return `<section class="personal-content-head"><div><p class="eyebrow">COFFEE CATALOG</p><h2>咖啡图鉴</h2><p>记录喝过的豆子和走过的咖啡店，慢慢收集自己的咖啡地图。</p></div>${personalContentAction('catalog', '打开完整图鉴')}</section><div class="personal-dashboard-grid"><article class="personal-dashboard-card"><span>喝过豆款</span><strong>${beans.size}</strong><small>来自本地冲煮记录</small></article><article class="personal-dashboard-card"><span>去过地点</span><strong>${cafes.size}</strong><small>外饮记录中的店铺或地点</small></article></div><article class="personal-inline-card"><div class="personal-card-head"><span>豆款足迹</span><small>最近记录</small></div><div class="personal-catalog-chips">${beanRows}</div></article>`;
+  }
+  function restorePersonalInlineNodes() {
+    const content = $('#personalContent');
+    if (!content) return;
+    $$('.personal-inline-system', content).forEach((host) => {
+      const dialog = els[host.dataset.inlineDialog];
+      if (!dialog) return;
+      Array.from(host.children).forEach((node) => dialog.appendChild(node));
+    });
+  }
+  function mountPersonalInlineNodes(slot, section) {
+    const dialog = els[section];
+    if (!slot || !dialog) return;
+    const selectors = {
+      settings: (node) => node.classList.contains('settings-layout'),
+      sync: (node) => node.classList.contains('sync-settings'),
+      backup: (node) => node.classList.contains('backup-groups'),
+      about: (node) => ['about-hero', 'about-update', 'about-copy'].some((className) => node.classList.contains(className)),
+      calendar: (node) => node.classList.contains('coffee-calendar')
+    };
+    const matcher = selectors[section];
+    if (!matcher) return;
+    const nodes = Array.from(dialog.children).filter(matcher);
+    if (!nodes.length) return;
+    slot.classList.add('personal-inline-system', `personal-inline-${section}`);
+    slot.dataset.inlineDialog = section;
+    nodes.forEach((node) => slot.appendChild(node));
+  }
+  function renderPersonalSystem(section) {
+    const copy = { calendar: ['咖啡日历', '月历与年历', '把每一次饮用放回日期里，看看自己的连续节奏。', '回到回顾'], settings: ['设置', '偏好、提醒与主题', '调整主题、默认页面和饮用偏好。', '打开设置'], sync: ['云同步', '账号与同步状态', '默认保持本地优先，需要时再开启跨设备同步。', '打开云同步'], backup: ['备份与导出', '本地数据进出', '导出一份可恢复的 JSON，或从备份合并数据。', '打开备份与导出'], about: ['关于豆仓', '版本、更新与隐私', '查看当前版本、更新说明和隐私承诺。', '打开关于豆仓'] }[section] || ['我的', '本地咖啡日常', '这里会承载你的统计、报告和工具。', '回到回顾'];
+    if (isNativeApp()) {
+      const action = section === 'calendar' ? 'calendar' : section === 'settings' ? 'settings' : section === 'sync' ? 'sync' : section === 'backup' ? 'backup' : section === 'about' ? 'about' : 'insights';
+      return `<section class="personal-content-head"><div><p class="eyebrow">COFFEE VAULT</p><h2>${esc(copy[0])}</h2><p>${esc(copy[2])}</p></div>${personalContentAction(action, copy[3])}</section><article class="personal-inline-card personal-system-card"><span>${esc(copy[1])}</span><strong>${section === 'sync' ? '本地优先' : section === 'about' ? '3.0.1' : '随时可用'}</strong><p>${esc(copy[2])}</p></article>`;
+    }
+    return `<section class="personal-content-head"><div><p class="eyebrow">COFFEE VAULT</p><h2>${esc(copy[0])}</h2><p>${esc(copy[2])}</p></div>${personalContentAction('overview', '回到回顾')}</section><div class="personal-inline-slot" data-personal-inline="${esc(section)}"></div>`;
+  }
   function renderPersonal() {
     els.count.textContent = '回看每一杯，也管理这座本地豆仓';
+    restorePersonalInlineNodes();
     const liveLogs = state.drinkLogs.filter((log) => !log.deletedAt);
     const total = BeanCore.summarizeDrinkLogs(liveLogs);
     const beanCount = new Set(liveLogs.filter((log) => log.beanId).map((log) => log.beanId)).size;
     $('#personalLifetimeStats').innerHTML = `<article><strong>${esc(total.cups)}</strong><span>累计杯数</span></article><article><strong>${esc(beanCount)}</strong><span>喝过豆款</span></article><article><strong>${esc(formatWeight(total.grams))}</strong><span>累计用豆</span></article>`;
+    const section = ['overview', 'reports', 'calendar', 'catalog', 'settings', 'sync', 'backup', 'about'].includes(state.personalSection) ? state.personalSection : 'overview';
+    state.personalSection = section;
+    $$('.personal-subnav > button[data-personal-section]').forEach((button) => button.classList.toggle('active', button.dataset.personalSection === section));
+    const content = $('#personalContent');
+    if (!content) return;
+    content.innerHTML = section === 'overview' ? renderPersonalOverview(liveLogs) : section === 'reports' ? renderPersonalReports(liveLogs) : section === 'calendar' ? (isNativeApp() ? renderPersonalCalendar(liveLogs) : renderPersonalSystem(section)) : section === 'catalog' ? renderPersonalCatalog(liveLogs) : renderPersonalSystem(section);
+    if (!isNativeApp() && ['calendar', 'settings', 'sync', 'backup', 'about'].includes(section)) {
+      const slot = content.querySelector(`[data-personal-inline="${section}"]`);
+      mountPersonalInlineNodes(slot, section);
+      if (section === 'calendar') renderCoffeeCalendar();
+      if (section === 'settings') renderSettings();
+      if (section === 'sync') renderSyncSettings();
+      if (section === 'backup') syncBackupDialog();
+    }
   }
-  function openPersonal() { state.view = 'personal'; render(); const main = $('main'); if (main) main.scrollTop = 0; window.scrollTo({ top: 0, left: 0, behavior: 'auto' }); }
+  function openPersonalSection(section) { state.view = 'personal'; state.personalSection = section; render(); const main = $('main'); if (main) main.scrollTop = 0; window.scrollTo({ top: 0, left: 0, behavior: 'auto' }); }
+  function selectPersonalSection(section) {
+    // Web 端日历直接作为「我的」内容页展示；原生端保留底部页面层，避免
+    // 把移动端的日历交互从现有 sheet 语义中拆开。
+    if (section === 'calendar' && isNativeApp()) return openCoffeeCalendar('month');
+    if (state.view !== 'personal') return openPersonalSection(section);
+    state.personalSection = section;
+    renderPersonal();
+  }
+  function openPersonal() { if (state.view !== 'personal') state.personalSection = 'overview'; state.view = 'personal'; render(); const main = $('main'); if (main) main.scrollTop = 0; window.scrollTo({ top: 0, left: 0, behavior: 'auto' }); }
   function openSettings() { renderSettings(); els.settings.scrollTop = 0; setDialog(els.settings, true); }
   function openCoffeeCalendar(view) { state.coffeeCalendarView = view || state.coffeeCalendarView || 'month'; if (!state.selectedCoffeeDay) state.selectedCoffeeDay = ymd(new Date()); renderCoffeeCalendar(); setDialog(els.calendar, true); }
   function calendarSummary(stats, fourthLabel, fourthValue) { return `<article class="stat stat-primary"><strong>${esc(stats.cups)}</strong><span>${fourthLabel === '连续饮用' ? '杯数' : '本月杯数'}</span></article><div class="stat-divider"></div><article class="stat"><strong>${esc(formatWeight(stats.grams))}</strong><span>用豆</span></article><article class="stat"><strong>${esc(money(stats.cost))}</strong><span>估算花费</span></article><article class="stat"><strong>${esc(fourthValue)}</strong><span>${esc(fourthLabel)}</span></article>`; }
@@ -2212,7 +2363,7 @@
   }
   // 云同步账号 UI 在 app-sync-ui.js(拆分第二批):依赖显式注入,状态位仍写回共享 state。
   const { renderSyncSettings, setSyncAuthMode, openSyncAuth, syncAuthBack, syncAuthSubmit, syncLogout, syncDeleteAccount, syncToggle, syncNow, copyRecoveryCode } =
-    window.AppSyncUi.create({ $, state, els, cloudSync, toast, setDialog, askConfirm, reload, copyText, formatDateTime });
+    window.AppSyncUi.create({ $, state, els, cloudSync, toast, setDialog, askConfirm, reload, copyText, formatDateTime, onSyncStateChange: renderSidebarSyncState });
   async function copyCurrentPlanShareCode() {
     const plan = state.brewPlans.find((item) => item.id === state.viewingPlanId);
     if (!plan) return;
@@ -2370,7 +2521,7 @@
     window.AppBackup.create({ $, state, els, core: BeanCore, repository: BeanRepository, capPlugin, toast, setDialog, reload, confirmFn: (message) => askConfirm({ eyebrow: 'LOCAL TEST', title: '载入 Mock 数据？', message, confirmText: '载入' }) });
   const insightsUi = window.AppInsights.create({ state, dialog: els.insights, core: BeanInsights, setDialog, toast, imageSrc, shareReport: shareCoffeeReport, shareCatalog: shareCoffeeCatalog, reopenPersonal: openPersonal, openImagePreview });
   function openInsights() { insightsUi.open(); }
-  function openInsightsFromPersonal(openPage) { openPage(); }
+  function openInsightsFromPersonal() { return insightsUi.open({ fromPersonal: true }); }
 
   function exitApp() { const app = capPlugin('App'); if (app) app.exitApp(); }
   // 轻量退出：主界面再次返回（约 2 秒内）才退出，否则先 toast 提示，避免误触整块退出弹窗。
@@ -2470,7 +2621,7 @@
   }
   function bindEvents() {
     els.settings.addEventListener('close', () => { els.settings.scrollTop = 0; });
-    $('#calendarReportOpen').addEventListener('click', () => { const button = $('#calendarReportOpen'); if (!button.dataset.reportKey) return; setDialog(els.calendar, false); insightsUi.openReport(button.dataset.reportType, button.dataset.reportKey); });
+    $('#calendarReportOpen').addEventListener('click', () => { const button = $('#calendarReportOpen'); if (!button.dataset.reportKey) return; setDialog(els.calendar, false); insightsUi.openReport(button.dataset.reportType, button.dataset.reportKey, { fromPersonal: state.view === 'personal' }); });
     setupNumberInputs();
     $$('dialog').forEach((dialog) => dialog.addEventListener('close', syncDialogScrim));
     new MutationObserver(syncDialogScrim).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['open'] });
@@ -2526,7 +2677,7 @@
     els.drinkDetail.addEventListener('keydown', (event) => { if (!['Enter', ' '].includes(event.key)) return; const card = event.target.closest('[data-preview-image]'); if (card) { event.preventDefault(); openImagePreview(card.dataset.previewImage, card.dataset.previewLabel); } });
     $('#detailClose').addEventListener('click', () => setDialog(els.detail, false)); $('#detailShare').addEventListener('click', openBeanShareChoice); $('#detailEdit').addEventListener('click', () => { const bean = state.beans.find((item) => item.id === state.editingId); setDialog(els.detail, false); openEditor(bean); }); $('#detailDrink').addEventListener('click', () => openDrinkDialog(state.beans.find((bean) => bean.id === $('#detailDrink').dataset.beanId), null, 'quick')); $('#detailHistoryToggle').addEventListener('click', () => { const history = $('.profile-history'); const expanded = history.classList.toggle('show-all'); const count = state.drinkLogs.filter((log) => log.beanId === state.editingId).length; $('#detailHistoryToggle').textContent = expanded ? '收起' : `全部 ${count} 杯 ›`; }); $('#detailBrewReview').addEventListener('click', () => { const beanId = $('#detailBrewReview').dataset.beanId; if (!state.beans.some((bean) => bean.id === beanId && !bean.deletedAt)) return; setDialog(els.detail, false); insightsUi.openBeanReview(beanId); });
     $('#drinkDetailClose').addEventListener('click', () => setDialog(els.drinkDetail, false)); $('#drinkSaveAsPlan').addEventListener('click', saveLogAsPlan); $('#drinkDetailEdit').addEventListener('click', () => { const log = state.drinkLogs.find((item) => item.id === state.viewingDrinkId); const bean = log && state.beans.find((item) => item.id === log.beanId); if (!log || (!bean && log.source !== 'external')) return; setDialog(els.drinkDetail, false); return log.source === 'external' ? openExternalDrinkDialog(log) : openDrinkDialog(bean, log); });
-    $$('[data-view]').forEach((button) => button.addEventListener('click', () => { state.view = button.dataset.view; if (state.view === 'drinks') state.drinkVisibleLimit = DRINK_PAGE_SIZE; render(); }));
+    $$('[data-view]').forEach((button) => button.addEventListener('click', () => { closeContextDetailsForNavigation(); state.view = button.dataset.view; if (state.view === 'personal') state.personalSection = 'overview'; if (state.view === 'drinks') state.drinkVisibleLimit = DRINK_PAGE_SIZE; render(); }));
     $('#planDetailClose').addEventListener('click', () => setDialog(els.planDetail, false)); $('#planShare').addEventListener('click', sharePlanCard); $('#planShareCopyCode').addEventListener('click', copyCurrentPlanShareCode); $('#planAssistStart').addEventListener('click', openPlanBrewAssist);
     $('#planDetailEdit').addEventListener('click', () => { const plan = state.brewPlans.find((item) => item.id === state.viewingPlanId); setDialog(els.planDetail, false); openPlanEditor(plan); }); $('#planDuplicate').addEventListener('click', duplicateCurrentPlan); $('#planEditorDelete').addEventListener('click', deleteCurrentPlan); $('#planEditorClose').addEventListener('click', () => setDialog(els.planEditor, false)); els.planForm.addEventListener('submit', savePlan); $('#plan-method').addEventListener('change', () => { syncPlanMethodFields(); syncPlanTotalWater(); fillTemplateOptions($('#plan-method').value); syncChoiceTrigger($('#plan-method')); }); $('#plan-dose').addEventListener('input', syncPlanTotalWater); $('#plan-totalWater').addEventListener('input', syncPlanRatioFromWater); ['plan-ratio-left', 'plan-ratio-right'].forEach((id) => $(`#${id}`).addEventListener('input', () => { syncRatioValue('plan'); syncPlanTotalWater(); })); $$('.duration-field', els.planForm).forEach((field) => field.addEventListener('input', () => { if (field.dataset.autoTarget === '1') field.dataset.autoTarget = ''; syncDurationField(field); })); $('#addPourStep').addEventListener('click', addPourStepFromLast); $('#pourStepList').addEventListener('click', (event) => { const remove = event.target.closest('[data-remove-pour-step]'); if (remove) { const rows = readPourSteps(); rows.splice(Number(remove.dataset.removePourStep), 1); state.activePourStepIndex = Math.min(state.activePourStepIndex, rows.length - 1); renderPourSteps(rows); return; } const open = event.target.closest('[data-pour-step-open]'); if (open) { state.activePourStepIndex = Number(open.dataset.pourStepOpen); renderPourSteps(readPourSteps()); } }); $('#pourStepList').addEventListener('input', () => { updatePourAllocation(); syncPlanTargetDuration(); }); $('#pourTemplateRow').addEventListener('click', (event) => { const chip = event.target.closest('[data-pour-template]'); if (chip) applyPourTemplate(chip.dataset.pourTemplate); }); $('#pourFillRemainder').addEventListener('click', fillPourRemainder); $('#plan-template').addEventListener('change', applySelectedTemplate);
     $('#drinkClose').addEventListener('click', () => { discardDrinkPhotoDraft(); setDialog(els.drink, false); }); $('#drinkEditFull').addEventListener('click', () => { const log = state.drinkLogs.find((item) => item.id === state.editingDrinkId); configureDrinkMode(log || {}, 'full'); }); $('#drinkStartAssist').addEventListener('click', openDrinkBrewAssist); $('#deleteDrink').addEventListener('click', removeDrink); els.drinkForm.addEventListener('submit', saveDrink); $('#drinkPhotoVault').addEventListener('click', (event) => { const add = event.target.closest('[data-add-drink-photo]'); if (add) return addDrinkPhoto(); const remove = event.target.closest('[data-remove-drink-photo]'); if (remove) return removeDrinkPhoto(Number(remove.dataset.removeDrinkPhoto)); const card = event.target.closest('[data-preview-image]'); if (card) return openImagePreview(card.dataset.previewImage, card.dataset.previewLabel); }); $('#drink-notes').addEventListener('input', syncDrinkFlavorChips); $('#drinkFlavorSuggest').addEventListener('click', (event) => { const chip = event.target.closest('[data-flavor-tag]'); if (chip) toggleDrinkFlavorTag(chip.dataset.flavorTag); }); els.drinkForm.addEventListener('click', (event) => { const quickAmount = event.target.closest('[data-quick-grams]'); if (quickAmount) { $('#drink-grams').value = quickAmount.dataset.quickGrams; $('#drink-param-dose').value = quickAmount.dataset.quickGrams; syncDrinkTotalWater(); return renderQuickDrinkPanel(); } const quickCustom = event.target.closest('[data-quick-custom]'); if (quickCustom) { configureDrinkMode({}, 'full'); $('#drink-grams').focus(); return; } const summaryToggle = event.target.closest('#drinkTastingSummaryToggle'); if (summaryToggle) { const detail = $('#drinkTastingSummaryDetail'); detail.hidden = !detail.hidden; summaryToggle.textContent = detail.hidden ? '查看冲煮参数' : '收起冲煮参数'; return; } const dimInfo = event.target.closest('[data-dim-info]'); if (dimInfo) { event.preventDefault(); return showDimInfo(dimInfo.dataset.dimInfo, dimInfo); } if (event.target.closest('[data-drink-feature-dismiss]')) { writeLocalFlag('coffee-vault-hint-drink-features'); return renderDrinkFeatureHint(state.editingDrinkId ? state.drinkLogs.find((item) => item.id === state.editingDrinkId) : null); } const assistButton = event.target.closest('[data-start-brew-assist]'); if (assistButton) return openDrinkBrewAssist(); const lastButton = event.target.closest('[data-use-last-brew]'); if (lastButton) { const bean = state.beans.find((item) => item.id === $('#drink-beanId').value); return applyLastBrew(state.drinkLogs.find((log) => log.id === lastButton.dataset.useLastBrew), bean); } const planButton = event.target.closest('[data-drink-plan]'); if (planButton) { const bean = state.beans.find((item) => item.id === $('#drink-beanId').value); return chooseDrinkPlan(planButton.dataset.drinkPlan, bean); } const openStep = event.target.closest('[data-drink-step-open]'); if (openStep) { state.activeDrinkStepIndex = Number(openStep.dataset.drinkStepOpen); return renderDrinkSteps(readDrinkSteps()); } const removeStep = event.target.closest('[data-remove-drink-step]'); if (removeStep) { const rows = readDrinkSteps(); rows.splice(Number(removeStep.dataset.removeDrinkStep), 1); state.activeDrinkStepIndex = Math.max(0, Math.min(state.activeDrinkStepIndex, rows.length - 1)); return renderDrinkSteps(rows); } const button = event.target.closest('[data-rate]'); if (!button) return; const row = button.parentElement; const clicked = Number(button.dataset.rate); const next = Number(row.dataset.value) === clicked ? null : clicked; renderRating(row, row.dataset.ratingName, next, row.dataset.ratingName === 'bitterness'); }); $('#addDrinkStep').addEventListener('click', addDrinkStep); $('#drink-grams').addEventListener('change', scaleDrinkStepsToDose); $('#drink-param-dose').addEventListener('change', scaleDrinkStepsToDose); $('#drink-grams').addEventListener('input', () => { $('#drink-param-dose').value = $('#drink-grams').value; syncDrinkTotalWater(); if (state.drinkMode === 'quick') renderQuickDrinkPanel(); }); $('#drink-param-dose').addEventListener('input', syncDrinkTotalWater); $('#drink-param-totalWater').addEventListener('input', syncDrinkRatioFromWater); ['drink-ratio-left', 'drink-ratio-right'].forEach((id) => $(`#${id}`).addEventListener('input', () => { syncRatioValue('drink'); syncDrinkTotalWater(); })); $$('.duration-field', els.drinkForm).forEach((field) => field.addEventListener('input', () => syncDurationField(field))); $('#drink-method').addEventListener('change', () => { const custom = $('#drink-method-custom'); custom.hidden = $('#drink-method').value !== '__custom__'; if (!custom.hidden) custom.focus(); syncChoiceTrigger($('#drink-method')); $('#drink-plan-id').value = ''; syncDrinkParamFields(); syncDrinkTotalWater(); const bean = state.beans.find((item) => item.id === $('#drink-beanId').value); if (bean) renderDrinkPlanPicker(bean, null); });
@@ -2579,9 +2730,37 @@
       if (plan) { state.view = 'plans'; render(); return openPlanDetail(state.brewPlans.find((item) => item.id === plan.dataset.searchPlan)); }
     });
     setupSmartSelects(); setupPlanSmartSelects(); syncAllChoiceTriggers(); $$('.picker-control').forEach((input) => input.addEventListener('click', () => openDatePicker(input))); $('#choiceList').addEventListener('click', (event) => { const drinkChoice = event.target.closest('[data-drink-choice]'); if (drinkChoice && !drinkChoice.disabled) { setDialog(els.choice, false); return drinkChoice.dataset.drinkChoice === 'external' ? openExternalDrinkDialog() : openBeanPickerForDrink(); } const drinkBean = event.target.closest('[data-drink-bean]'); if (drinkBean) { const bean = state.beans.find((item) => item.id === drinkBean.dataset.drinkBean); setDialog(els.choice, false); if (bean) openDrinkDialog(bean); return; } chooseOption(event); }); $('#choiceClose').addEventListener('click', () => setDialog(els.choice, false)); $('#datePickerClose').addEventListener('click', () => setDialog(els.datePicker, false)); $('#datePickerCancel').addEventListener('click', () => setDialog(els.datePicker, false)); $('#datePickerConfirm').addEventListener('click', confirmDatePicker); $('#datePickerClear').addEventListener('click', clearDatePicker); $('#calendarPrev').addEventListener('click', () => shiftCalendar(-1)); $('#calendarNext').addEventListener('click', () => shiftCalendar(1)); $('#calendarDays').addEventListener('click', chooseCalendarDay); $$('[data-manage]').forEach((button) => button.addEventListener('click', () => openManager(button.dataset.manage))); $('#managerClose').addEventListener('click', () => setDialog(els.manager, false)); $('#managerList').addEventListener('click', managerAction);
-    $('#profileOpen').addEventListener('click', openPersonal); $('#coffeeCalendarOpen').addEventListener('click', () => openCoffeeCalendar('month')); $('#insightsOpen').addEventListener('click', openInsights); $('#personalInsightsOpen').addEventListener('click', () => openInsightsFromPersonal(() => insightsUi.open({ fromPersonal: true }))); $('#personalCatalogOpen').addEventListener('click', () => openInsightsFromPersonal(() => insightsUi.openCatalog())); $('#personalReportsOpen').addEventListener('click', () => openInsightsFromPersonal(() => insightsUi.openReports())); $('#insightsClose').addEventListener('click', () => { if (!insightsUi.handleBack()) insightsUi.close(); }); els.insights.addEventListener('click', (event) => insightsUi.handleClick(event)); $('#personalSettingsOpen').addEventListener('click', () => { renderSettings(); setDialog(els.settings, true); }); $('#personalSyncOpen').addEventListener('click', () => { renderSyncSettings(); setDialog(els.sync, true); }); $('#dataBackupOpen').addEventListener('click', () => { syncBackupDialog(); setDialog(els.backup, true); }); $('#dataBackupClose').addEventListener('click', () => setDialog(els.backup, false));
+    $('#profileOpen').addEventListener('click', openPersonal); $('#coffeeCalendarOpen').addEventListener('click', () => selectPersonalSection('calendar')); $('#insightsOpen').addEventListener('click', openInsights); $('#personalInsightsOpen').addEventListener('click', () => selectPersonalSection('overview')); $('#personalCatalogOpen').addEventListener('click', () => selectPersonalSection('catalog')); $('#personalReportsOpen').addEventListener('click', () => selectPersonalSection('reports')); $('#insightsClose').addEventListener('click', () => { if (!insightsUi.handleBack()) insightsUi.close(); }); els.insights.addEventListener('click', (event) => insightsUi.handleClick(event)); $('#personalSettingsOpen').addEventListener('click', () => selectPersonalSection('settings')); $('#personalSyncOpen').addEventListener('click', () => selectPersonalSection('sync')); $('#dataBackupOpen').addEventListener('click', () => selectPersonalSection('backup')); $('#dataBackupClose').addEventListener('click', () => setDialog(els.backup, false));
+    $('#personalView').addEventListener('click', (event) => {
+      const navButton = event.target.closest('.personal-subnav > button[data-personal-section]');
+      if (navButton) { selectPersonalSection(navButton.dataset.personalSection); return; }
+      const action = event.target.closest('[data-personal-open]');
+      if (action) {
+        const kind = action.dataset.personalOpen;
+       if (kind === 'insights') return openInsightsFromPersonal();
+       if (kind === 'reports') return insightsUi.openReports();
+       if (kind === 'catalog') return insightsUi.openCatalog();
+       if (kind === 'calendar') return selectPersonalSection('calendar');
+       if (kind === 'overview') return selectPersonalSection('overview');
+        if (kind === 'settings') { if (!isNativeApp()) return selectPersonalSection('settings'); renderSettings(); return setDialog(els.settings, true); }
+        if (kind === 'sync') { if (!isNativeApp()) return selectPersonalSection('sync'); renderSyncSettings(); return setDialog(els.sync, true); }
+        if (kind === 'backup') { if (!isNativeApp()) return selectPersonalSection('backup'); syncBackupDialog(); return setDialog(els.backup, true); }
+        if (kind === 'about') { if (!isNativeApp()) return selectPersonalSection('about'); return showAbout(); }
+      }
+      const calendarView = event.target.closest('[data-calendar-view]');
+      if (calendarView) { state.coffeeCalendarView = calendarView.dataset.calendarView === 'year' ? 'year' : 'month'; return renderCoffeeCalendar(); }
+      const calendarDay = event.target.closest('[data-calendar-day]');
+      if (calendarDay) { state.selectedCoffeeDay = calendarDay.dataset.calendarDay; state.coffeeCalendarDate = dateFromKey(state.selectedCoffeeDay); return renderCoffeeCalendar(); }
+      const calendarYearDay = event.target.closest('[data-year-day]');
+      if (calendarYearDay) { state.selectedCoffeeDay = calendarYearDay.dataset.yearDay; state.coffeeCalendarDate = dateFromKey(state.selectedCoffeeDay); return renderCoffeeCalendar(); }
+      const calendarLog = event.target.closest('[data-log-id]');
+      if (calendarLog) return openDrinkDetail(state.drinkLogs.find((log) => log.id === calendarLog.dataset.logId));
+      if (event.target.closest('#calendarSeeLogs')) { state.view = 'drinks'; state.drinkVisibleLimit = DRINK_PAGE_SIZE; return render(); }
+      const report = event.target.closest('[data-personal-report-type]');
+      if (report) return insightsUi.openReport(report.dataset.personalReportType, report.dataset.personalReportKey, { fromList: true, fromPersonal: true });
+    });
     $('#calendarClose').addEventListener('click', () => setDialog(els.calendar, false)); $('#calendarShare').addEventListener('click', shareCalendarCard); $$('[data-calendar-view]').forEach((button) => button.addEventListener('click', () => { state.coffeeCalendarView = button.dataset.calendarView; renderCoffeeCalendar(); })); $('#calendarPrevMonth').addEventListener('click', () => shiftCoffeeMonth(-1)); $('#calendarNextMonth').addEventListener('click', () => shiftCoffeeMonth(1)); $('#calendarPrevYear').addEventListener('click', () => shiftCoffeeYear(-1)); $('#calendarNextYear').addEventListener('click', () => shiftCoffeeYear(1)); els.calendar.addEventListener('click', (event) => { if (cardPressFired) { cardPressFired = false; return; } const day = event.target.closest('[data-calendar-day]'); if (day) { state.selectedCoffeeDay = day.dataset.calendarDay; state.coffeeCalendarDate = dateFromKey(state.selectedCoffeeDay); renderCoffeeCalendar(); return; } const yearDay = event.target.closest('[data-year-day]'); if (yearDay) { state.selectedCoffeeDay = yearDay.dataset.yearDay; state.coffeeCalendarDate = dateFromKey(state.selectedCoffeeDay); renderCoffeeCalendar(); return; } const logItem = event.target.closest('[data-log-id]'); if (logItem) openDrinkDetail(state.drinkLogs.find((log) => log.id === logItem.dataset.logId)); if (event.target.closest('#calendarSeeLogs')) { setDialog(els.calendar, false); state.view = 'drinks'; state.drinkVisibleLimit = DRINK_PAGE_SIZE; render(); } });
-    $('#settingsClose').addEventListener('click', () => setDialog(els.settings, false)); $('.settings-subnav').addEventListener('click', (event) => { const button = event.target.closest('[data-settings-target]'); if (!button) return; $$('.settings-subnav button').forEach((item) => item.classList.toggle('active', item === button)); const target = $(`#${button.dataset.settingsTarget}`); if (target) target.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); }); $$('[data-theme-value]').forEach((button) => button.addEventListener('click', () => applyTheme(button.datasetThemeValue || button.dataset.themeValue, true))); $('#settingQuickGrams').addEventListener('change', saveSettingsFromUi); $('#settingFlavorReminderDays').addEventListener('change', saveSettingsFromUi); $('#settingLowStockCups').addEventListener('change', saveSettingsFromUi); $('#settingBrewPlans').addEventListener('change', saveSettingsFromUi); $('#settingBeanPhotos').addEventListener('change', saveSettingsFromUi); $('#settingPhotoJournal').addEventListener('change', saveSettingsFromUi); $('#settingPriceUnit').addEventListener('change', () => { syncChoiceTrigger($('#settingPriceUnit')); saveSettingsFromUi(); }); $('#settingDefaultView').addEventListener('change', () => { syncChoiceTrigger($('#settingDefaultView')); saveSettingsFromUi(); }); $('#settingAdvanced').addEventListener('change', () => { $('#dimensionSection').hidden = !$('#settingAdvanced').checked; saveSettingsFromUi(); }); $('#dimensionSettings').addEventListener('click', (event) => { const dimInfo = event.target.closest('[data-dim-info]'); if (dimInfo) { event.preventDefault(); showDimInfo(dimInfo.dataset.dimInfo, dimInfo); } }); $('#dimensionSettings').addEventListener('change', saveSettingsFromUi); $('#syncClose').addEventListener('click', () => setDialog(els.sync, false)); $('#syncLoginOpen').addEventListener('click', () => openSyncAuth('login')); $('#syncAuthClose').addEventListener('click', syncAuthBack); $$('[data-sync-auth-mode]').forEach((button) => button.addEventListener('click', () => setSyncAuthMode(button.dataset.syncAuthMode))); $('#syncAuthSubmit').addEventListener('click', syncAuthSubmit); $('#syncLogout').addEventListener('click', syncLogout); $('#syncDeleteAccount').addEventListener('click', syncDeleteAccount); $('#syncEnabled').addEventListener('change', syncToggle); $('#syncNow').addEventListener('click', syncNow); $('#syncCopyRecovery').addEventListener('click', copyRecoveryCode); $('#aboutOpen').addEventListener('click', showAbout); $('#aboutClose').addEventListener('click', () => setDialog(els.about, false)); $('#aboutCheckUpdate').addEventListener('click', checkForUpdates); $('#aboutOpenReleases').addEventListener('click', openReleasePage); $('#aboutDownloadUpdate').addEventListener('click', openUpdateDownload); $$('[data-export-scope]').forEach((button) => button.addEventListener('click', () => exportBackup(button.dataset.exportScope))); $$('[data-import-scope]').forEach((button) => button.addEventListener('click', () => startImport(button.dataset.importScope))); $('#webImportInput').addEventListener('change', webImport); $('#migrationLater').addEventListener('click', () => setDialog(els.migration, false)); $('#migrationNow').addEventListener('click', migrateLegacy); $('#startupRetry').addEventListener('click', () => location.reload());
+    $('#settingsClose').addEventListener('click', () => setDialog(els.settings, false)); $('.settings-subnav').addEventListener('click', (event) => { const button = event.target.closest('[data-settings-target]'); if (!button) return; $$('.settings-subnav button').forEach((item) => item.classList.toggle('active', item === button)); const target = $(`#${button.dataset.settingsTarget}`); if (target) target.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); }); $$('[data-theme-value]').forEach((button) => button.addEventListener('click', () => applyTheme(button.datasetThemeValue || button.dataset.themeValue, true))); $('#settingQuickGrams').addEventListener('change', saveSettingsFromUi); $('#settingFlavorReminderDays').addEventListener('change', saveSettingsFromUi); $('#settingLowStockCups').addEventListener('change', saveSettingsFromUi); $('#settingBrewPlans').addEventListener('change', saveSettingsFromUi); $('#settingBeanPhotos').addEventListener('change', saveSettingsFromUi); $('#settingPhotoJournal').addEventListener('change', saveSettingsFromUi); $('#settingPriceUnit').addEventListener('change', () => { syncChoiceTrigger($('#settingPriceUnit')); saveSettingsFromUi(); }); $('#settingDefaultView').addEventListener('change', () => { syncChoiceTrigger($('#settingDefaultView')); saveSettingsFromUi(); }); $('#settingAdvanced').addEventListener('change', () => { $('#dimensionSection').hidden = !$('#settingAdvanced').checked; saveSettingsFromUi(); }); $('#dimensionSettings').addEventListener('click', (event) => { const dimInfo = event.target.closest('[data-dim-info]'); if (dimInfo) { event.preventDefault(); showDimInfo(dimInfo.dataset.dimInfo, dimInfo); } }); $('#dimensionSettings').addEventListener('change', saveSettingsFromUi); $('#syncClose').addEventListener('click', () => setDialog(els.sync, false)); $('#syncLoginOpen').addEventListener('click', () => openSyncAuth('login')); $('#syncAuthClose').addEventListener('click', syncAuthBack); $$('[data-sync-auth-mode]').forEach((button) => button.addEventListener('click', () => setSyncAuthMode(button.dataset.syncAuthMode))); $('#syncAuthSubmit').addEventListener('click', syncAuthSubmit); $('#syncLogout').addEventListener('click', syncLogout); $('#syncDeleteAccount').addEventListener('click', syncDeleteAccount); $('#syncEnabled').addEventListener('change', syncToggle); $('#syncNow').addEventListener('click', syncNow); $('#syncCopyRecovery').addEventListener('click', copyRecoveryCode); $('#aboutOpen').addEventListener('click', () => selectPersonalSection('about')); $('#aboutClose').addEventListener('click', () => setDialog(els.about, false)); $('#aboutCheckUpdate').addEventListener('click', checkForUpdates); $('#aboutOpenReleases').addEventListener('click', openReleasePage); $('#aboutDownloadUpdate').addEventListener('click', openUpdateDownload); $$('[data-export-scope]').forEach((button) => button.addEventListener('click', () => exportBackup(button.dataset.exportScope))); $$('[data-import-scope]').forEach((button) => button.addEventListener('click', () => startImport(button.dataset.importScope))); $('#webImportInput').addEventListener('change', webImport); $('#migrationLater').addEventListener('click', () => setDialog(els.migration, false)); $('#migrationNow').addEventListener('click', migrateLegacy); $('#startupRetry').addEventListener('click', () => location.reload());
     $('#brewAssistStop').addEventListener('click', cancelBrewAssist); $('#brewAssistPause').addEventListener('click', pauseBrewAssist); $('#brewAssistRing').addEventListener('click', tapBrewAssistRing); $('#brewAssistRing').addEventListener('keydown', (event) => { if (['Enter', ' '].includes(event.key)) { event.preventDefault(); tapBrewAssistRing(); } }); $('#brewAssistSkip').addEventListener('click', skipBrewAssistStage); $('#brewAssistFinish').addEventListener('click', finishBrewAssist);
     $('#sharePreviewClose').addEventListener('click', closeSharePreview); $('#sharePreviewCancel').addEventListener('click', closeSharePreview); $('#sharePreviewSave').addEventListener('click', saveShareCard); $('#sharePreviewShare').addEventListener('click', confirmShareCard);
     $('#confirmAlternate').addEventListener('click', () => resolveConfirm('alternate')); $('#confirmCancel').addEventListener('click', () => resolveConfirm(false)); $('#confirmAccept').addEventListener('click', () => resolveConfirm(true)); els.confirm.addEventListener('close', () => resolveConfirm(false));

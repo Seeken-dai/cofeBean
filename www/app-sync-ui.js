@@ -12,7 +12,7 @@
   'use strict';
 
   function create(deps) {
-    const { $, state, els, cloudSync, toast, setDialog, askConfirm, reload, copyText, formatDateTime } = deps;
+    const { $, state, els, cloudSync, toast, setDialog, askConfirm, reload, copyText, formatDateTime, onSyncStateChange } = deps;
     ['$', 'state', 'els', 'toast', 'setDialog', 'askConfirm', 'reload', 'copyText', 'formatDateTime'].forEach((key) => {
       if (!deps[key]) throw new Error(`AppSyncUi.create 缺少依赖:${key}`);
     });
@@ -56,6 +56,7 @@
       $('#syncLogout').hidden = !loggedIn;
       $('#syncDeleteAccount').disabled = !loggedIn || state.syncBusy;
       $('#syncLastText').textContent = errorText || lastText;
+      if (typeof onSyncStateChange === 'function') onSyncStateChange(config);
     }
     function renderSyncAuth() {
       const mode = state.syncAuthMode;

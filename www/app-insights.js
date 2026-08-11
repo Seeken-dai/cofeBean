@@ -871,7 +871,11 @@
       hideHelp();
       state.insightsPage = 'report';
       state.insightsReportFromList = Boolean(opts.fromList);
-      if (!opts.fromList) state.insightsExitTo = null;
+      // 个人中心里的报告列表是内嵌内容，详情关闭后应回到「我的」，不能
+      // 把已经不存在的报告弹窗列表重新打开。真正从报告页进入详情时，仍
+      // 保留原有的页内返回语义。
+      if (opts.fromPersonal) state.insightsExitTo = 'personal';
+      else if (!opts.fromList) state.insightsExitTo = null;
       state.insightsReportType = type === 'year' ? 'year' : 'month';
       state.insightsReportKey = key;
       render();
@@ -891,7 +895,7 @@
     function handleBack() {
       if (closeCatalogBurst()) return true;
       if (state.insightsPage === 'report') {
-        if (state.insightsReportFromList) {
+        if (state.insightsReportFromList && state.insightsExitTo !== 'personal') {
           state.insightsPage = 'reports';
           state.insightsReportType = null;
           state.insightsReportKey = null;
