@@ -20,7 +20,7 @@
     'editorDialog', 'drinkDialog', 'settingsDialog', 'syncDialog', 'aboutDialog',
     'migrationDialog'
   ]);
-  const TOOL_LAYERS = new Set(['scanImageDialog', 'imagePreviewDialog', 'brewAssistDialog', 'sharePreviewDialog']);
+  const TOOL_LAYERS = new Set(['brewAssistDialog']);
   const PERSONAL_LAYERS = new Set([
     'dataBackupDialog', 'coffeeCalendarDialog', 'insightsDialog',
     'settingsDialog', 'syncDialog', 'syncAuthDialog', 'aboutDialog', 'smartManagerDialog'

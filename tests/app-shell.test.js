@@ -41,7 +41,9 @@ test('复杂页面、工具流程与快捷面板使用不同层级', () => {
   assert.equal(AppShell.layerKind('detailDialog'), 'page');
   assert.equal(AppShell.layerKind('settingsDialog'), 'page');
   assert.equal(AppShell.layerKind('brewAssistDialog'), 'tool');
-  assert.equal(AppShell.layerKind('imagePreviewDialog'), 'tool');
+  assert.equal(AppShell.layerKind('scanImageDialog'), 'quick');
+  assert.equal(AppShell.layerKind('imagePreviewDialog'), 'quick');
+  assert.equal(AppShell.layerKind('sharePreviewDialog'), 'quick');
   assert.equal(AppShell.layerKind('choiceDialog'), 'quick');
   assert.equal(AppShell.layerKind('beanFilterDialog'), 'quick');
   assert.equal(AppShell.layerKind('confirmDialog'), 'quick');
@@ -52,14 +54,32 @@ test('现有页面与筛选面板全部进入 3.0 页面覆盖矩阵', () => {
   const ids = Array.from(html.matchAll(/<dialog\b[^>]*\bid="([^"]+)"/g), (match) => match[1]);
   const expected = {
     page: ['dataBackupDialog', 'coffeeCalendarDialog', 'insightsDialog', 'detailDialog', 'drinkDetailDialog', 'planDetailDialog', 'planEditorDialog', 'editorDialog', 'drinkDialog', 'settingsDialog', 'syncDialog', 'aboutDialog', 'migrationDialog'],
-    tool: ['scanImageDialog', 'imagePreviewDialog', 'brewAssistDialog', 'sharePreviewDialog'],
-    quick: ['choiceDialog', 'datePickerDialog', 'photoSourceDialog', 'shareImageChoiceDialog', 'planShareChoiceDialog', 'drinkShareChoiceDialog', 'planImportDialog', 'smartManagerDialog', 'syncAuthDialog', 'confirmDialog', 'numberPickerDialog', 'beanFilterDialog']
+    tool: ['brewAssistDialog'],
+    quick: ['choiceDialog', 'datePickerDialog', 'photoSourceDialog', 'scanImageDialog', 'imagePreviewDialog', 'shareImageChoiceDialog', 'planShareChoiceDialog', 'drinkShareChoiceDialog', 'planImportDialog', 'sharePreviewDialog', 'smartManagerDialog', 'syncAuthDialog', 'confirmDialog', 'numberPickerDialog', 'beanFilterDialog']
   };
   assert.equal(ids.length, 29);
   assert.deepEqual(ids.slice().sort(), Object.values(expected).flat().sort());
   Object.entries(expected).forEach(([kind, dialogIds]) => {
     dialogIds.forEach((id) => assert.equal(AppShell.layerKind(id), kind, id));
   });
+});
+
+test('真机验收修正保持底部面板、精简我的并吸顶豆子详情', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../www/index.html'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, '../www/styles.css'), 'utf8');
+  const app = fs.readFileSync(path.join(__dirname, '../www/app.js'), 'utf8');
+  const personal = html.slice(html.indexOf('id="personalView"'), html.indexOf('class="bottom-nav"'));
+  const settings = html.slice(html.indexOf('id="settingsDialog"'), html.indexOf('</dialog>', html.indexOf('id="settingsDialog"')));
+  assert.doesNotMatch(personal, /personal-profile-card|personalSince|我的咖啡日常|personal-dashboard|personalDashboard|calendar-entry-card|profileHeatmap/);
+  assert.match(settings, /id="settingsClose"[^>]*aria-label="关闭"/);
+  assert.match(css, /#scanImageDialog,#imagePreviewDialog,#sharePreviewDialog\s*\{[^}]*inset:auto 0 0;/);
+  assert.match(css, /#detailDialog \.detail-header\s*\{[^}]*position:sticky;/);
+  assert.match(css, /#detailDialog \.detail-header\.is-condensed/);
+  assert.match(css, /\.profile-hero\.has-photo \.profile-hero-thumb\s*\{[^}]*top:calc\(82px \+ var\(--native-safe-top/);
+  assert.match(css, /\.drink-entry \.drink-meta > span,\.drink-entry \.dimension-summary span \{ background:transparent; \}/);
+  assert.match(css, /\.assist-ring strong \{ line-height:1\.14; padding-bottom:\.08em; \}/);
+  assert.match(app, /els\.detail\.addEventListener\('scroll', syncBeanDetailHeader/);
+  assert.match(app, /detailDrink\.hidden = !canDrink/);
 });
 
 test('页面栈重复打开时移到栈顶，关闭时完整移除', () => {

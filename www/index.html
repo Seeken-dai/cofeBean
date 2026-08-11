@@ -158,20 +158,7 @@
           <button id="aboutOpen" type="button"><span><b>关于豆仓</b><small>版本、更新与隐私</small></span></button>
         </nav>
         <section class="personal-body">
-          <section class="personal-profile-card">
-            <div class="personal-avatar" aria-hidden="true">豆</div>
-            <div><span>LOCAL COFFEE VAULT</span><h3>我的咖啡日常</h3><p id="personalSince">所有数据都优先保存在这台设备</p></div>
-          </section>
           <section class="personal-lifetime-stats" id="personalLifetimeStats" aria-label="咖啡日常概览"></section>
-          <section class="personal-dashboard-grid">
-            <button class="personal-dashboard-card" id="personalDashboardInsights" type="button"><span>回顾</span><strong id="personalReviewSummary">最近 30 天</strong><small>查看口味和冲煮习惯</small></button>
-            <button class="personal-dashboard-card" id="personalDashboardReports" type="button"><span>报告</span><strong id="personalReportSummary">月报 · 年报</strong><small>生成阶段性咖啡记录</small></button>
-          </section>
-          <button class="calendar-entry-card" id="personalDashboardCalendar" type="button">
-            <div class="calendar-entry-copy"><span>咖啡日历</span><small>哪些天喝了咖啡、用了多少豆、花了多少钱</small></div>
-            <div class="mini-heatmap" id="profileHeatmap" aria-hidden="true"></div>
-            <div class="calendar-entry-stats" id="profileCalendarStats">本月 0 杯 · 0g · ¥0</div>
-          </button>
           <input id="webImportInput" type="file" accept="application/json,.json" hidden>
         </section>
       </div>
@@ -641,7 +628,7 @@
   </dialog>
 
   <dialog class="sheet compact" id="settingsDialog">
-    <header class="sheet-header"><div><p class="eyebrow">PREFERENCES</p><h2>设置</h2><p class="sheet-subtitle">修改后立即生效</p></div><button class="icon-button" id="settingsClose" type="button" aria-label="返回">‹</button></header>
+    <header class="sheet-header"><div><p class="eyebrow">PREFERENCES</p><h2>设置</h2><p class="sheet-subtitle">修改后立即生效</p></div><button class="icon-button" id="settingsClose" type="button" aria-label="关闭"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6 18 18M18 6 6 18"/></svg></button></header>
     <div class="settings-layout">
       <nav class="settings-subnav" aria-label="设置分类">
         <span>偏好</span>
