@@ -62,8 +62,8 @@ test('Web 端我的页隐藏累计统计，系统入口收进右侧工作区', (
   assert.match(app, /function openPersonalSection\(section\)/);
   assert.match(app, /data-personal-inline/);
   assert.match(app, /calendar: \(node\) => node\.classList\.contains\('coffee-calendar'\)/);
-  assert.match(app, /section === 'calendar' \? \(isNativeApp\(\) \? renderPersonalCalendar\(liveLogs\) : renderPersonalSystem\(section\)/);
-  assert.match(app, /if \(kind === 'calendar'\) return selectPersonalSection\('calendar'\)/);
+  assert.match(app, /isWideWorkspace\(\)/);
+  assert.match(app, /handlePersonalNavigation\(section\)/);
   assert.match(app, /personal-rating-card/);
   assert.match(app, /personal-latest-card/);
   assert.match(css, /\.personal-inline-settings \.settings-layout\s*\{[\s\S]*?display:grid/);

@@ -2269,6 +2269,7 @@ dialog[data-layer-kind="quick"] { background:var(--vault-paper); }
 .personal-lifetime-stats strong,.personal-lifetime-stats span { display:block; }
 .personal-lifetime-stats strong { font:800 19px/1 "Vault Serif",serif; }
 .personal-lifetime-stats span { margin-top:6px; color:var(--vault-ink-tertiary); font-size:8px; }
+.personal-content:empty { display:none; }
 .personal-content { display:grid; gap:12px; min-width:0; }
 .personal-content-head { display:flex; align-items:flex-end; justify-content:space-between; gap:18px; padding:4px 2px 8px; }
 .personal-content-head > div { min-width:0; }
@@ -2277,32 +2278,38 @@ dialog[data-layer-kind="quick"] { background:var(--vault-paper); }
 .personal-content-head .eyebrow { margin:0; color:var(--accent); font-size:8px; font-weight:800; letter-spacing:.18em; }
 .personal-inline-action { display:inline-flex; flex:0 0 auto; align-items:center; gap:8px; min-height:40px; padding:0 13px; border:1px solid var(--vault-line-strong); border-radius:var(--radius-control); background:var(--vault-active-soft); color:var(--accent); font-size:11px; font-weight:750; }
 .personal-inline-action span { font-size:17px; line-height:1; }
-.personal-inline-card { min-width:0; padding:16px; border:1px solid var(--vault-line); border-radius:var(--radius-card); background:var(--vault-paper); }
+.personal-inline-card { min-width:0; padding:12px 14px; border:1px solid var(--vault-line); border-radius:var(--radius-card); background:var(--vault-paper); }
 .personal-card-head { display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
-.personal-card-head > div { display:grid; gap:4px; min-width:0; }
-.personal-card-head > span,.personal-card-head > div > span { color:var(--text); font-size:12px; font-weight:800; }
-.personal-card-head small { color:var(--vault-ink-tertiary); font-size:9px; }
-.personal-month-card { min-height:156px; }
+.personal-card-head > div { display:grid; gap:2px; min-width:0; }
+.personal-card-head > span,.personal-card-head > div > span { color:var(--text); font-size:11px; font-weight:800; }
+.personal-card-head small { color:var(--vault-ink-tertiary); font-size:8.5px; }
+.personal-month-card { display:flex; flex-direction:column; justify-content:space-between; min-height:130px; }
 .personal-month-card .personal-card-head { align-items:start; }
-.personal-card-count { flex:0 0 auto; margin:0!important; color:var(--accent)!important; font:800 20px/1 "Vault Serif",serif!important; }
-.personal-card-count em { margin-left:3px; color:var(--vault-ink-tertiary); font:600 9px/1 inherit; font-style:normal; }
-.personal-month-bars { display:flex; align-items:flex-end; gap:10px; height:102px; margin-top:16px; }
-.personal-month-bars > span { display:flex; flex:1; flex-direction:column; align-items:center; justify-content:flex-end; gap:5px; min-width:0; height:100%; }
-.personal-month-bars > span > b { min-height:12px; color:var(--vault-ink-secondary); font-size:9px; font-variant-numeric:tabular-nums; font-weight:700; }
-.personal-month-bars i { display:block; width:100%; max-width:26px; height:var(--height); min-height:3px; border-radius:var(--radius-micro); background:var(--accent); opacity:.78; }
-.personal-month-bars small { color:var(--vault-ink-tertiary); font-size:8px; }
-.personal-card-foot { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:12px; padding-top:10px; border-top:1px solid var(--vault-line-soft); color:var(--vault-ink-tertiary); font-size:9px; }
+.personal-card-count { flex:0 0 auto; margin:0!important; color:var(--accent)!important; font:800 18px/1 "Vault Serif",serif!important; }
+.personal-card-count em { margin-left:2px; color:var(--vault-ink-tertiary); font:600 8.5px/1 inherit; font-style:normal; }
+.personal-month-bars { flex:1 1 auto; display:flex; align-items:stretch; gap:8px; min-height:56px; margin:4px 0 2px; }
+.personal-month-col { display:flex; flex:1 1 0; flex-direction:column; align-items:center; justify-content:flex-end; min-width:0; height:100%; }
+.personal-month-track { position:relative; flex:1 1 auto; display:flex; align-items:flex-end; justify-content:center; width:100%; min-height:38px; border-bottom:1px solid var(--vault-line-soft); }
+.personal-month-bar { position:relative; display:block; width:100%; max-width:20px; height:var(--height); min-height:3px; border-radius:var(--radius-micro) var(--radius-micro) 0 0; background:var(--accent); opacity:.82; transition:opacity var(--ease),height var(--ease); }
+.personal-month-bar.is-empty { opacity:.32; background:var(--vault-line-strong); }
+.personal-month-col:hover .personal-month-bar:not(.is-empty) { opacity:1; }
+.personal-month-val { position:absolute; bottom:calc(100% + 2px); left:50%; transform:translateX(-50%); color:var(--vault-ink-secondary); font-size:8.5px; font-variant-numeric:tabular-nums; font-weight:700; line-height:1; white-space:nowrap; pointer-events:none; }
+.personal-month-col:hover .personal-month-val { color:var(--text); }
+.personal-month-label { flex:0 0 auto; margin-top:4px; color:var(--vault-ink-tertiary); font-size:8.5px; line-height:1; text-align:center; white-space:nowrap; }
+.personal-card-foot { flex:0 0 auto; display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:4px; padding-top:5px; border-top:1px solid var(--vault-line-soft); color:var(--vault-ink-tertiary); font-size:8.5px; }
+.personal-rating-card { display:flex; flex-direction:column; justify-content:space-between; min-height:130px; }
 .personal-rating-card .personal-card-head { align-items:start; }
-.personal-rating-hero { display:flex; align-items:baseline; gap:4px; margin-top:18px; }
-.personal-rating-hero strong { margin:0; font:800 30px/1 "Vault Serif",serif; }
-.personal-rating-hero span { color:var(--accent); font-size:18px; }
-.personal-rating-meter { height:7px; margin-top:18px; overflow:hidden; border-radius:999px; background:var(--vault-line-soft); }
+.personal-rating-hero { display:flex; align-items:baseline; gap:4px; margin-top:6px; }
+.personal-rating-hero strong { margin:0; font:800 24px/1 "Vault Serif",serif; }
+.personal-rating-hero span { color:var(--accent); font-size:14px; }
+.personal-rating-meter { height:5px; margin-top:6px; overflow:hidden; border-radius:999px; background:var(--vault-line-soft); }
 .personal-rating-meter i { display:block; width:var(--score); height:100%; border-radius:inherit; background:var(--accent); }
-.personal-rating-scale { display:flex; justify-content:space-between; margin-top:7px; color:var(--vault-ink-tertiary); font-size:8px; }
+.personal-rating-scale { display:flex; justify-content:space-between; margin-top:4px; color:var(--vault-ink-tertiary); font-size:8px; }
+.personal-latest-card { display:flex; flex-direction:column; justify-content:space-between; min-height:130px; }
 .personal-latest-card .personal-card-head { align-items:start; }
-.personal-card-arrow { flex:0 0 auto; margin:0!important; color:var(--accent)!important; font:400 18px/1 inherit!important; }
-.personal-latest-name { margin:22px 0 0!important; overflow:hidden; color:var(--text); font:800 18px/1.2 "Vault Serif",serif!important; text-overflow:ellipsis; white-space:nowrap; }
-.personal-latest-meta { margin-top:8px!important; color:var(--vault-ink-tertiary); font-size:9px; line-height:1.5; }
+.personal-card-arrow { flex:0 0 auto; margin:0!important; color:var(--accent)!important; font:400 16px/1 inherit!important; }
+.personal-latest-name { margin:6px 0 0!important; overflow:hidden; color:var(--text); font:800 15px/1.2 "Vault Serif",serif!important; text-overflow:ellipsis; white-space:nowrap; }
+.personal-latest-meta { margin-top:4px!important; color:var(--vault-ink-tertiary); font-size:8.5px; line-height:1.4; }
 .personal-recent-card .personal-card-head { align-items:center; }
 .personal-recent-card ul { display:grid; gap:0; margin:14px 0 0; padding:0; list-style:none; }
 .personal-recent-card li { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:40px; border-top:1px solid var(--vault-line-soft); color:var(--vault-ink-secondary); font-size:11px; }
@@ -3076,10 +3083,14 @@ body[data-shell-view="personal"] .profile-button { border-color:var(--accent); b
   #personalView .personal-subnav > button { min-height:48px; padding-inline:4px; }
   #personalView .personal-body { display:grid; grid-template-columns:minmax(0,1fr); gap:10px; width:100%; max-width:1400px; }
   #personalView .personal-profile-card,#personalView .personal-lifetime-stats,#personalView .calendar-entry-card { grid-column:auto; }
-  #personalView .personal-dashboard-grid { display:grid; grid-template-columns:minmax(0,1.4fr) minmax(240px,.9fr); grid-auto-rows:minmax(126px,auto); gap:12px; align-items:stretch; }
-  #personalView .personal-month-card { grid-row:span 2; min-height:270px; }
-  #personalView .personal-month-bars { height:156px; margin-top:20px; }
-  #personalView .personal-rating-card,#personalView .personal-latest-card { min-height:126px; }
+  #personalView .personal-dashboard-grid { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(240px,1fr); grid-template-rows:auto auto; gap:12px; align-items:stretch; }
+  #personalView .personal-month-card { grid-column:1; grid-row:1 / 3; display:flex; flex-direction:column; justify-content:space-between; min-height:0; padding:14px 16px; }
+  #personalView .personal-month-bars { flex:1 1 auto; display:flex; align-items:stretch; gap:10px; min-height:80px; margin:8px 0 4px; }
+  #personalView .personal-month-col { display:flex; flex:1 1 0; flex-direction:column; align-items:center; justify-content:flex-end; min-width:0; height:100%; }
+  #personalView .personal-month-track { position:relative; flex:1 1 auto; display:flex; align-items:flex-end; justify-content:center; width:100%; min-height:58px; border-bottom:1px solid var(--vault-line-soft); }
+  #personalView .personal-month-bar { position:relative; display:block; width:100%; max-width:22px; height:var(--height); min-height:3px; border-radius:var(--radius-micro) var(--radius-micro) 0 0; background:var(--accent); opacity:.82; transition:opacity var(--ease),height var(--ease); }
+  #personalView .personal-rating-card { grid-column:2; grid-row:1; display:flex; flex-direction:column; justify-content:space-between; min-height:84px; }
+  #personalView .personal-latest-card { grid-column:2; grid-row:2; display:flex; flex-direction:column; justify-content:space-between; min-height:84px; }
   #personalView .mini-heatmap { display:grid; }
   #personalView .calendar-entry-card { grid-template-columns:minmax(0,1fr) auto auto; }
 

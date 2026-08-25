@@ -74,6 +74,7 @@
   function capPlugin(name) { return window.Capacitor && window.Capacitor.Plugins ? window.Capacitor.Plugins[name] : null; }
   if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) document.body.classList.add('cap-native');
   function isNativeApp() { return document.body.classList.contains('cap-native') || (typeof BeanRepository !== 'undefined' && BeanRepository.isNative && BeanRepository.isNative()); }
+  function isWideWorkspace() { return !isNativeApp() && typeof window !== 'undefined' && Boolean(window.matchMedia) && window.matchMedia('(min-width: 1100px)').matches; }
   function renderSidebarSyncState() {
     const button = $('.sidebar-local-state');
     if (!button) return;
@@ -956,30 +957,15 @@
     const latest = recent[0];
     const latestName = latest ? (latest.source === 'external' ? (latest.drinkName || latest.cafeName || '外饮') : (latest.beanName || '未命名咖啡豆')) : '—';
     const latestMeta = latest ? [latest.source === 'external' ? '外饮' : latest.brewMethod, latest.grams ? formatWeight(latest.grams) : '', formatDateTime(latest.consumedAt)].filter(Boolean).join(' · ') : '还没有记录';
-    const monthBars = months.map((row) => `<span title="${esc(row.label)} ${row.cups} 杯"><b>${row.cups || '—'}</b><i style="--height:${Math.max(row.cups ? 12 : 3, row.cups / maxCups * 100).toFixed(1)}%"></i><small>${esc(row.label)}</small></span>`).join('');
-    const recentRows = recent.length ? recent.map((log) => `<li><span>${esc(log.source === 'external' ? (log.drinkName || log.cafeName || log.beanName || '外饮') : (log.beanName || '未命名咖啡豆'))}</span><small>${esc(formatDateTime(log.consumedAt))}${log.overallRating ? ` · ${esc(log.overallRating)}★` : ''}</small></li>`).join('') : '<li class="personal-inline-empty">还没有饮用记录，先记下第一杯。</li>';
-    return `<section class="personal-content-head"><div><p class="eyebrow">YOUR COFFEE</p><h2>回顾</h2><p>从每一杯里，慢慢看见自己的口味与节奏。</p></div>${personalContentAction('insights', '打开完整回顾')}</section><div class="personal-dashboard-grid"><article class="personal-dashboard-card personal-month-card"><div class="personal-card-head"><div><span>近 6 个月</span><small>饮用趋势</small></div><strong class="personal-card-count">${totalMonthCups}<em>杯</em></strong></div><div class="personal-month-bars" aria-label="近六个月饮用杯数">${monthBars}</div><div class="personal-card-foot"><span>月均 ${monthAverage} 杯</span><span>最高 ${esc(peakMonth.label)} · ${peakMonth.cups} 杯</span></div></article><article class="personal-dashboard-card personal-rating-card"><div class="personal-card-head"><div><span>平均评分</span><small>${rated.length ? `${rated.length} 杯有评分` : '等待评分记录'}</small></div></div><div class="personal-rating-hero"><strong>${esc(average)}</strong><span>${average === '—' ? '' : '★'}</span></div><div class="personal-rating-meter" role="meter" aria-label="平均评分" aria-valuemin="0" aria-valuemax="5" aria-valuenow="${average === '—' ? 0 : average}"><i style="--score:${ratingScore}%"></i></div><div class="personal-rating-scale"><small>1★</small><small>5★</small></div></article><article class="personal-dashboard-card personal-latest-card"><div class="personal-card-head"><div><span>最近一杯</span><small>最后一次记录</small></div><strong class="personal-card-arrow" aria-hidden="true">↗</strong></div><strong class="personal-latest-name">${esc(latestName)}</strong><small class="personal-latest-meta">${esc(latestMeta)}</small></article></div><article class="personal-inline-card personal-recent-card"><div class="personal-card-head"><div><span>最近记录</span><small>${liveLogs.length ? `共 ${liveLogs.length} 杯 · 本地保存` : '本地数据 · 只在此设备保存'}</small></div>${personalContentAction('calendar', '查看日历')}</div><ul>${recentRows}</ul></article>`;
+    const monthBars = months.map((row) => `<span class="personal-month-col" title="${esc(row.label)} ${row.cups} 杯"><div class="personal-month-track"><i class="personal-month-bar${row.cups ? '' : ' is-empty'}" style="--height:${Math.max(row.cups ? 10 : 0, (row.cups / maxCups * 100)).toFixed(1)}%"><b class="personal-month-val">${row.cups || '—'}</b></i></div><small class="personal-month-label">${esc(row.label)}</small></span>`).join('');
+    const recentRows = recent.length ? recent.map((log) => `<li data-log-id="${esc(log.id)}"><span>${esc(log.source === 'external' ? (log.drinkName || log.cafeName || log.beanName || '外饮') : (log.beanName || '未命名咖啡豆'))}</span><small>${esc(formatDateTime(log.consumedAt))}${log.overallRating ? ` · ${esc(log.overallRating)}★` : ''}</small></li>`).join('') : '<li class="personal-inline-empty">还没有饮用记录，先记下第一杯。</li>';
+    const latestAttr = latest ? ` data-log-id="${esc(latest.id)}"` : '';
+    return `<section class="personal-content-head"><div><p class="eyebrow">YOUR COFFEE</p><h2>回顾</h2><p>从每一杯里，慢慢看见自己的口味与节奏。</p></div>${personalContentAction('insights', '打开完整回顾')}</section><div class="personal-dashboard-grid"><article class="personal-dashboard-card personal-month-card"><div class="personal-card-head"><div><span>近 6 个月</span><small>饮用趋势</small></div><strong class="personal-card-count">${totalMonthCups}<em>杯</em></strong></div><div class="personal-month-bars" aria-label="近六个月饮用杯数">${monthBars}</div><div class="personal-card-foot"><span>月均 ${monthAverage} 杯</span><span>最高 ${esc(peakMonth.label)} · ${peakMonth.cups} 杯</span></div></article><article class="personal-dashboard-card personal-rating-card"><div class="personal-card-head"><div><span>平均评分</span><small>${rated.length ? `${rated.length} 杯有评分` : '等待评分记录'}</small></div></div><div class="personal-rating-hero"><strong>${esc(average)}</strong><span>${average === '—' ? '' : '★'}</span></div><div class="personal-rating-meter" role="meter" aria-label="平均评分" aria-valuemin="0" aria-valuemax="5" aria-valuenow="${average === '—' ? 0 : average}"><i style="--score:${ratingScore}%"></i></div><div class="personal-rating-scale"><small>1★</small><small>5★</small></div></article><article class="personal-dashboard-card personal-latest-card"${latestAttr}><div class="personal-card-head"><div><span>最近一杯</span><small>最后一次记录</small></div><strong class="personal-card-arrow" aria-hidden="true">↗</strong></div><strong class="personal-latest-name">${esc(latestName)}</strong><small class="personal-latest-meta">${esc(latestMeta)}</small></article></div><article class="personal-inline-card personal-recent-card"><div class="personal-card-head"><div><span>最近记录</span><small>${liveLogs.length ? `共 ${liveLogs.length} 杯 · 本地保存` : '本地数据 · 只在此设备保存'}</small></div>${personalContentAction('calendar', '查看日历')}</div><ul>${recentRows}</ul></article>`;
   }
   function renderPersonalReports(liveLogs) {
     const reports = BeanInsights.availableCoffeeReports(liveLogs, new Date()).slice(0, 6);
     const rows = reports.length ? reports.map((report) => `<button class="personal-report-row" type="button" data-personal-report-type="${esc(report.type)}" data-personal-report-key="${esc(report.key)}"><span><b>${esc(report.label)}</b><small>${esc(report.cups)} 杯记录</small></span><strong aria-hidden="true">›</strong></button>`).join('') : '<p class="personal-inline-empty">记录至少 3 杯后，这里会生成月报或年报。</p>';
     return `<section class="personal-content-head"><div><p class="eyebrow">COFFEE REPORTS</p><h2>报告</h2><p>把一段时间的饮用记录整理成可回看的报告。</p></div>${personalContentAction('reports', '打开完整报告')}</section><article class="personal-inline-card"><div class="personal-card-head"><span>可用报告</span><small>${reports.length ? `${reports.length} 份` : '等待积累'}</small></div><div class="personal-report-list">${rows}</div></article>`;
-  }
-  function renderPersonalCalendar(liveLogs) {
-    const days = daySummaries();
-    const now = new Date();
-    const total = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    const offset = (new Date(now.getFullYear(), now.getMonth(), 1).getDay() + 6) % 7;
-    const cells = `${'<i></i>'.repeat(offset)}${Array.from({ length: total }, (_, index) => { const key = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(index + 1).padStart(2, '0')}`; return `<i class="${days[key] ? `heat-${dayLevel(days[key])}` : ''}" title="${key}"></i>`; }).join('')}`;
-    const monthCups = liveLogs.filter((log) => String(log.consumedAt || '').slice(0, 7) === monthKey(now)).length;
-    return `<section class="personal-content-head"><div><p class="eyebrow">COFFEE CALENDAR</p><h2>咖啡日历</h2><p>把每一次饮用放回日期里，看看自己的连续节奏。</p></div>${personalContentAction('calendar', '打开完整日历')}</section><article class="personal-inline-card personal-calendar-card"><div class="personal-card-head"><span>${now.getFullYear()} 年 ${now.getMonth() + 1} 月</span><small>${monthCups} 杯</small></div><div class="personal-mini-heatmap" aria-label="本月饮用日历">${cells}</div><p>有记录的日期会以深浅色标记，点击完整日历可查看当天详情。</p></article>`;
-  }
-  function renderPersonalCatalog(liveLogs) {
-    const beans = new Map();
-    liveLogs.filter((log) => log.source !== 'external' && log.beanId).forEach((log) => beans.set(log.beanId, log.beanName || '未命名咖啡豆'));
-    const cafes = new Set(liveLogs.filter((log) => log.source === 'external').map((log) => log.cafeName || log.location).filter(Boolean));
-    const beanRows = Array.from(beans.values()).slice(0, 8).map((name) => `<span>${esc(name)}</span>`).join('') || '<p class="personal-inline-empty">还没有自家冲煮豆款。</p>';
-    return `<section class="personal-content-head"><div><p class="eyebrow">COFFEE CATALOG</p><h2>咖啡图鉴</h2><p>记录喝过的豆子和走过的咖啡店，慢慢收集自己的咖啡地图。</p></div>${personalContentAction('catalog', '打开完整图鉴')}</section><div class="personal-dashboard-grid"><article class="personal-dashboard-card"><span>喝过豆款</span><strong>${beans.size}</strong><small>来自本地冲煮记录</small></article><article class="personal-dashboard-card"><span>去过地点</span><strong>${cafes.size}</strong><small>外饮记录中的店铺或地点</small></article></div><article class="personal-inline-card"><div class="personal-card-head"><span>豆款足迹</span><small>最近记录</small></div><div class="personal-catalog-chips">${beanRows}</div></article>`;
   }
   function restorePersonalInlineNodes() {
     const content = $('#personalContent');
@@ -991,30 +977,27 @@
     });
   }
   function mountPersonalInlineNodes(slot, section) {
-    const dialog = els[section];
+    const dialog = section === 'catalog' ? els.insights : els[section];
     if (!slot || !dialog) return;
     const selectors = {
       settings: (node) => node.classList.contains('settings-layout'),
       sync: (node) => node.classList.contains('sync-settings'),
       backup: (node) => node.classList.contains('backup-groups'),
       about: (node) => ['about-hero', 'about-update', 'about-copy'].some((className) => node.classList.contains(className)),
-      calendar: (node) => node.classList.contains('coffee-calendar')
+      calendar: (node) => node.classList.contains('coffee-calendar'),
+      catalog: (node) => node.id === 'catalogPage'
     };
     const matcher = selectors[section];
     if (!matcher) return;
     const nodes = Array.from(dialog.children).filter(matcher);
     if (!nodes.length) return;
     slot.classList.add('personal-inline-system', `personal-inline-${section}`);
-    slot.dataset.inlineDialog = section;
+    slot.dataset.inlineDialog = section === 'catalog' ? 'insights' : section;
     nodes.forEach((node) => slot.appendChild(node));
   }
   function renderPersonalSystem(section) {
-    const copy = { calendar: ['咖啡日历', '月历与年历', '把每一次饮用放回日期里，看看自己的连续节奏。', '回到回顾'], settings: ['设置', '偏好、提醒与主题', '调整主题、默认页面和饮用偏好。', '打开设置'], sync: ['云同步', '账号与同步状态', '默认保持本地优先，需要时再开启跨设备同步。', '打开云同步'], backup: ['备份与导出', '本地数据进出', '导出一份可恢复的 JSON，或从备份合并数据。', '打开备份与导出'], about: ['关于豆仓', '版本、更新与隐私', '查看当前版本、更新说明和隐私承诺。', '打开关于豆仓'] }[section] || ['我的', '本地咖啡日常', '这里会承载你的统计、报告和工具。', '回到回顾'];
-    if (isNativeApp()) {
-      const action = section === 'calendar' ? 'calendar' : section === 'settings' ? 'settings' : section === 'sync' ? 'sync' : section === 'backup' ? 'backup' : section === 'about' ? 'about' : 'insights';
-      return `<section class="personal-content-head"><div><p class="eyebrow">COFFEE VAULT</p><h2>${esc(copy[0])}</h2><p>${esc(copy[2])}</p></div>${personalContentAction(action, copy[3])}</section><article class="personal-inline-card personal-system-card"><span>${esc(copy[1])}</span><strong>${section === 'sync' ? '本地优先' : section === 'about' ? '3.0.1' : '随时可用'}</strong><p>${esc(copy[2])}</p></article>`;
-    }
-    return `<section class="personal-content-head"><div><p class="eyebrow">COFFEE VAULT</p><h2>${esc(copy[0])}</h2><p>${esc(copy[2])}</p></div>${personalContentAction('overview', '回到回顾')}</section><div class="personal-inline-slot" data-personal-inline="${esc(section)}"></div>`;
+    const copy = { calendar: ['咖啡日历', '月历与年历', '把每一次饮用放回日期里，看看自己的连续节奏。', '回到回顾'], catalog: ['咖啡图鉴', '豆子与外饮足迹', '记录喝过的豆子和走过的咖啡店，慢慢收集自己的咖啡地图。', '回到回顾'], settings: ['设置', '偏好、提醒与主题', '调整主题、默认页面和饮用偏好。', '打开设置'], sync: ['云同步', '账号与同步状态', '默认保持本地优先，需要时再开启跨设备同步。', '打开云同步'], backup: ['备份与导出', '本地数据进出', '导出一份可恢复的 JSON，或从备份合并数据。', '打开备份与导出'], about: ['关于豆仓', '版本、更新与隐私', '查看当前版本、更新说明和隐私承诺。', '打开关于豆仓'] }[section] || ['我的', '本地咖啡日常', '这里会承载你的统计、报告和工具。', '回到回顾'];
+    return `<section class="personal-content-head"><div><p class="eyebrow">${section === 'catalog' ? 'COFFEE ATLAS' : 'COFFEE VAULT'}</p><h2>${esc(copy[0])}</h2><p>${esc(copy[2])}</p></div>${personalContentAction('overview', '回到回顾')}</section><div class="personal-inline-slot" data-personal-inline="${esc(section)}"></div>`;
   }
   function renderPersonal() {
     els.count.textContent = '回看每一杯，也管理这座本地豆仓';
@@ -1023,26 +1006,52 @@
     const total = BeanCore.summarizeDrinkLogs(liveLogs);
     const beanCount = new Set(liveLogs.filter((log) => log.beanId).map((log) => log.beanId)).size;
     $('#personalLifetimeStats').innerHTML = `<article><strong>${esc(total.cups)}</strong><span>累计杯数</span></article><article><strong>${esc(beanCount)}</strong><span>喝过豆款</span></article><article><strong>${esc(formatWeight(total.grams))}</strong><span>累计用豆</span></article>`;
+    const content = $('#personalContent');
+    if (!content) return;
+
+    if (!isWideWorkspace()) {
+      state.personalSection = 'overview';
+      $$('.personal-subnav > button[data-personal-section]').forEach((button) => button.classList.remove('active'));
+      content.innerHTML = '';
+      return;
+    }
+
     const section = ['overview', 'reports', 'calendar', 'catalog', 'settings', 'sync', 'backup', 'about'].includes(state.personalSection) ? state.personalSection : 'overview';
     state.personalSection = section;
     $$('.personal-subnav > button[data-personal-section]').forEach((button) => button.classList.toggle('active', button.dataset.personalSection === section));
-    const content = $('#personalContent');
-    if (!content) return;
-    content.innerHTML = section === 'overview' ? renderPersonalOverview(liveLogs) : section === 'reports' ? renderPersonalReports(liveLogs) : section === 'calendar' ? (isNativeApp() ? renderPersonalCalendar(liveLogs) : renderPersonalSystem(section)) : section === 'catalog' ? renderPersonalCatalog(liveLogs) : renderPersonalSystem(section);
-    if (!isNativeApp() && ['calendar', 'settings', 'sync', 'backup', 'about'].includes(section)) {
+    content.innerHTML = section === 'overview' ? renderPersonalOverview(liveLogs) : section === 'reports' ? renderPersonalReports(liveLogs) : renderPersonalSystem(section);
+    if (['calendar', 'catalog', 'settings', 'sync', 'backup', 'about'].includes(section)) {
       const slot = content.querySelector(`[data-personal-inline="${section}"]`);
       mountPersonalInlineNodes(slot, section);
       if (section === 'calendar') renderCoffeeCalendar();
+      if (section === 'catalog') {
+        state.insightsPage = 'catalog';
+        const catPage = $('#catalogPage');
+        if (catPage) catPage.hidden = false;
+        insightsUi.render();
+      }
       if (section === 'settings') renderSettings();
       if (section === 'sync') renderSyncSettings();
       if (section === 'backup') syncBackupDialog();
     }
   }
+  function handlePersonalNavigation(section) {
+    if (!isWideWorkspace()) {
+      if (section === 'overview') return openInsightsFromPersonal();
+      if (section === 'reports') return insightsUi.openReports();
+      if (section === 'calendar') return openCoffeeCalendar('month');
+      if (section === 'catalog') return insightsUi.openCatalog();
+      if (section === 'settings') return openSettings();
+      if (section === 'sync') { renderSyncSettings(); return setDialog(els.sync, true); }
+      if (section === 'backup') { syncBackupDialog(); return setDialog(els.backup, true); }
+      if (section === 'about') return showAbout();
+      return;
+    }
+    selectPersonalSection(section);
+  }
   function openPersonalSection(section) { state.view = 'personal'; state.personalSection = section; render(); const main = $('main'); if (main) main.scrollTop = 0; window.scrollTo({ top: 0, left: 0, behavior: 'auto' }); }
   function selectPersonalSection(section) {
-    // Web 端日历直接作为「我的」内容页展示；原生端保留底部页面层，避免
-    // 把移动端的日历交互从现有 sheet 语义中拆开。
-    if (section === 'calendar' && isNativeApp()) return openCoffeeCalendar('month');
+    if (!isWideWorkspace()) return handlePersonalNavigation(section);
     if (state.view !== 'personal') return openPersonalSection(section);
     state.personalSection = section;
     renderPersonal();
@@ -2730,22 +2739,23 @@
       if (plan) { state.view = 'plans'; render(); return openPlanDetail(state.brewPlans.find((item) => item.id === plan.dataset.searchPlan)); }
     });
     setupSmartSelects(); setupPlanSmartSelects(); syncAllChoiceTriggers(); $$('.picker-control').forEach((input) => input.addEventListener('click', () => openDatePicker(input))); $('#choiceList').addEventListener('click', (event) => { const drinkChoice = event.target.closest('[data-drink-choice]'); if (drinkChoice && !drinkChoice.disabled) { setDialog(els.choice, false); return drinkChoice.dataset.drinkChoice === 'external' ? openExternalDrinkDialog() : openBeanPickerForDrink(); } const drinkBean = event.target.closest('[data-drink-bean]'); if (drinkBean) { const bean = state.beans.find((item) => item.id === drinkBean.dataset.drinkBean); setDialog(els.choice, false); if (bean) openDrinkDialog(bean); return; } chooseOption(event); }); $('#choiceClose').addEventListener('click', () => setDialog(els.choice, false)); $('#datePickerClose').addEventListener('click', () => setDialog(els.datePicker, false)); $('#datePickerCancel').addEventListener('click', () => setDialog(els.datePicker, false)); $('#datePickerConfirm').addEventListener('click', confirmDatePicker); $('#datePickerClear').addEventListener('click', clearDatePicker); $('#calendarPrev').addEventListener('click', () => shiftCalendar(-1)); $('#calendarNext').addEventListener('click', () => shiftCalendar(1)); $('#calendarDays').addEventListener('click', chooseCalendarDay); $$('[data-manage]').forEach((button) => button.addEventListener('click', () => openManager(button.dataset.manage))); $('#managerClose').addEventListener('click', () => setDialog(els.manager, false)); $('#managerList').addEventListener('click', managerAction);
-    $('#profileOpen').addEventListener('click', openPersonal); $('#coffeeCalendarOpen').addEventListener('click', () => selectPersonalSection('calendar')); $('#insightsOpen').addEventListener('click', openInsights); $('#personalInsightsOpen').addEventListener('click', () => selectPersonalSection('overview')); $('#personalCatalogOpen').addEventListener('click', () => selectPersonalSection('catalog')); $('#personalReportsOpen').addEventListener('click', () => selectPersonalSection('reports')); $('#insightsClose').addEventListener('click', () => { if (!insightsUi.handleBack()) insightsUi.close(); }); els.insights.addEventListener('click', (event) => insightsUi.handleClick(event)); $('#personalSettingsOpen').addEventListener('click', () => selectPersonalSection('settings')); $('#personalSyncOpen').addEventListener('click', () => selectPersonalSection('sync')); $('#dataBackupOpen').addEventListener('click', () => selectPersonalSection('backup')); $('#dataBackupClose').addEventListener('click', () => setDialog(els.backup, false));
+    $('#profileOpen').addEventListener('click', openPersonal); $('#coffeeCalendarOpen').addEventListener('click', () => handlePersonalNavigation('calendar')); $('#insightsOpen').addEventListener('click', openInsights); $('#personalInsightsOpen').addEventListener('click', () => handlePersonalNavigation('overview')); $('#personalCatalogOpen').addEventListener('click', () => handlePersonalNavigation('catalog')); $('#personalReportsOpen').addEventListener('click', () => handlePersonalNavigation('reports')); $('#insightsClose').addEventListener('click', () => { if (!insightsUi.handleBack()) insightsUi.close(); }); els.insights.addEventListener('click', (event) => insightsUi.handleClick(event)); $('#personalSettingsOpen').addEventListener('click', () => handlePersonalNavigation('settings')); $('#personalSyncOpen').addEventListener('click', () => handlePersonalNavigation('sync')); $('#dataBackupOpen').addEventListener('click', () => handlePersonalNavigation('backup')); $('#dataBackupClose').addEventListener('click', () => setDialog(els.backup, false));
     $('#personalView').addEventListener('click', (event) => {
+      if (isWideWorkspace() && insightsUi && insightsUi.handleClick(event)) return;
       const navButton = event.target.closest('.personal-subnav > button[data-personal-section]');
-      if (navButton) { selectPersonalSection(navButton.dataset.personalSection); return; }
+      if (navButton) { handlePersonalNavigation(navButton.dataset.personalSection); return; }
       const action = event.target.closest('[data-personal-open]');
       if (action) {
         const kind = action.dataset.personalOpen;
-       if (kind === 'insights') return openInsightsFromPersonal();
-       if (kind === 'reports') return insightsUi.openReports();
-       if (kind === 'catalog') return insightsUi.openCatalog();
-       if (kind === 'calendar') return selectPersonalSection('calendar');
-       if (kind === 'overview') return selectPersonalSection('overview');
-        if (kind === 'settings') { if (!isNativeApp()) return selectPersonalSection('settings'); renderSettings(); return setDialog(els.settings, true); }
-        if (kind === 'sync') { if (!isNativeApp()) return selectPersonalSection('sync'); renderSyncSettings(); return setDialog(els.sync, true); }
-        if (kind === 'backup') { if (!isNativeApp()) return selectPersonalSection('backup'); syncBackupDialog(); return setDialog(els.backup, true); }
-        if (kind === 'about') { if (!isNativeApp()) return selectPersonalSection('about'); return showAbout(); }
+        if (kind === 'insights') return openInsightsFromPersonal();
+        if (kind === 'reports') return isWideWorkspace() ? selectPersonalSection('reports') : insightsUi.openReports();
+        if (kind === 'catalog') return isWideWorkspace() ? selectPersonalSection('catalog') : insightsUi.openCatalog();
+        if (kind === 'calendar') return isWideWorkspace() ? selectPersonalSection('calendar') : openCoffeeCalendar('month');
+        if (kind === 'overview') return selectPersonalSection('overview');
+        if (kind === 'settings') return isWideWorkspace() ? selectPersonalSection('settings') : openSettings();
+        if (kind === 'sync') return isWideWorkspace() ? selectPersonalSection('sync') : (renderSyncSettings(), setDialog(els.sync, true));
+        if (kind === 'backup') return isWideWorkspace() ? selectPersonalSection('backup') : (syncBackupDialog(), setDialog(els.backup, true));
+        if (kind === 'about') return isWideWorkspace() ? selectPersonalSection('about') : showAbout();
       }
       const calendarView = event.target.closest('[data-calendar-view]');
       if (calendarView) { state.coffeeCalendarView = calendarView.dataset.calendarView === 'year' ? 'year' : 'month'; return renderCoffeeCalendar(); }
@@ -2771,6 +2781,11 @@
     window.addEventListener('orientationchange', updateFabInset);
     if (window.visualViewport) window.visualViewport.addEventListener('resize', updateFabInset);
     setInterval(updateFabInset, 300);
+    if (window.matchMedia) {
+      window.matchMedia('(min-width: 1100px)').addEventListener('change', () => {
+        if (state.view === 'personal') renderPersonal();
+      });
+    }
     // 点背景关闭。sheet 左右各只剩 10px 空白，握着手机时很容易蹭到，以前一蹭就退出；
     // 所以只认弹窗「上下方」的空白，左右两侧一律不关（2.4.2）。编辑类弹窗和冲煮辅助
     // 直接不参与：填了一半的表单或正在跑的计时器不该被一次误触清掉，只能走 ✕ / 取消。
