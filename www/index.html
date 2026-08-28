@@ -38,9 +38,14 @@
       <h1 id="shellTitle">豆仓</h1>
       <p id="recordCount">正在打开豆仓…</p>
     </div>
-    <button class="icon-button search-button" id="searchToggle" type="button" aria-label="搜索" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg></button>
-    <button class="icon-button topbar-filter-button" id="beanFilterOpen" type="button" aria-label="打开更多筛选"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg><em id="beanFilterCount" hidden>0</em></button>
-    <button class="wide-primary-action" id="widePrimaryAction" type="button" hidden>＋ 加一包豆</button>
+    <div class="topbar-actions">
+      <button class="icon-button search-button" id="searchToggle" type="button" aria-label="搜索" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg></button>
+      <button class="icon-button topbar-tool" id="scanBean" type="button" aria-label="拍照识别咖啡豆"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 5.5 10 3h4l1.5 2.5H19A2.5 2.5 0 0 1 21.5 8v9A2.5 2.5 0 0 1 19 19.5H5A2.5 2.5 0 0 1 2.5 17V8A2.5 2.5 0 0 1 5 5.5h3.5Z"/><circle cx="12" cy="12.5" r="4"/></svg></button>
+      <button class="icon-button topbar-tool" id="planImportFab" type="button" aria-label="导入方案" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10"/><path d="m8 10 4 4 4-4"/><path d="M5 12v5.5A1.5 1.5 0 0 0 6.5 19h11a1.5 1.5 0 0 0 1.5-1.5V12"/></svg></button>
+      <button class="icon-button topbar-tool topbar-add" id="addBean" type="button" aria-label="新增咖啡豆">＋</button>
+      <button class="wide-primary-action" id="widePrimaryAction" type="button">＋ 加一包豆</button>
+      <button class="icon-button topbar-filter-button" id="beanFilterOpen" type="button" aria-label="打开更多筛选"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg><em id="beanFilterCount" hidden>0</em></button>
+    </div>
     <button class="icon-button profile-button" id="profileOpen" type="button" aria-label="个人中心"><svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M861.866667 179.2l4.266666 4.266667c59.733333 68.266667 85.333333 157.866667 68.266667 245.333333-25.6 125.866667-85.333333 238.933333-174.933333 328.533333-89.6 89.6-204.8 151.466667-328.533334 174.933334-17.066667 4.266667-36.266667 4.266667-53.333333 4.266666-74.666667 0-149.333333-29.866667-202.666667-85.333333-2.133333-2.133333-4.266667-6.4-8.533333-8.533333l-4.266667-4.266667c-59.733333-68.266667-85.333333-157.866667-68.266666-245.333333 25.6-125.866667 85.333333-238.933333 174.933333-328.533334 89.6-89.6 204.8-151.466667 328.533333-174.933333 91.733333-17.066667 187.733333 12.8 256 81.066667l8.533334 8.533333z m-12.8 232.533333c8.533333-38.4 2.133333-78.933333-12.8-115.2-78.933333 134.4-194.133333 194.133333-305.066667 253.866667-115.2 59.733333-224 117.333333-288 253.866667 46.933333 40.533333 108.8 57.6 168.533333 44.8 108.8-21.333333 206.933333-74.666667 285.866667-151.466667s130.133333-177.066667 151.466667-285.866667zM174.933333 612.266667c-8.533333 38.4-2.133333 78.933333 12.8 115.2 78.933333-134.4 194.133333-194.133333 305.066667-253.866667 115.2-59.733333 224-117.333333 288-253.866667C744.533333 187.733333 697.6 170.666667 650.666667 170.666667c-12.8 0-25.6 2.133333-38.4 4.266666-108.8 21.333333-206.933333 74.666667-285.866667 151.466667-76.8 78.933333-130.133333 177.066667-151.466667 285.866667z" fill="currentColor"/></svg></button>
   </header>
 
@@ -75,7 +80,7 @@
     <section class="overview" aria-label="豆仓概览">
       <article class="stat stat-primary"><strong id="statTotal">0</strong><span>豆款</span></article>
       <div class="stat-divider"></div>
-      <article class="stat"><strong id="statActive">0</strong><span>饮用中</span></article>
+      <article class="stat"><strong id="statActive">0</strong><span>在饮</span></article>
       <article class="stat"><strong id="statRemaining">0g</strong><span>剩余总量</span></article>
     </section>
     <section class="reminder-panel" id="beanReminderPanel" hidden></section>
@@ -105,9 +110,8 @@
     <section class="startup-state" id="startupState" hidden><i aria-hidden="true">!</i><h2>豆仓暂时没有打开</h2><p id="startupStateMessage">本地数据仍然保留，可以重新尝试载入。</p><button id="startupRetry" type="button">重新载入</button></section>
     <section class="bean-list" id="beanList" aria-live="polite"></section>
     <section class="empty-state" id="emptyState" hidden>
-      <div class="empty-bag" aria-hidden="true"><svg viewBox="0 0 1024 1024"><path d="M861.866667 179.2l4.266666 4.266667c59.733333 68.266667 85.333333 157.866667 68.266667 245.333333-25.6 125.866667-85.333333 238.933333-174.933333 328.533333-89.6 89.6-204.8 151.466667-328.533334 174.933334-17.066667 4.266667-36.266667 4.266667-53.333333 4.266666-74.666667 0-149.333333-29.866667-202.666667-85.333333-2.133333-2.133333-4.266667-6.4-8.533333-8.533333l-4.266667-4.266667c-59.733333-68.266667-85.333333-157.866667-68.266666-245.333333 25.6-125.866667 85.333333-238.933333 174.933333-328.533334 89.6-89.6 204.8-151.466667 328.533333-174.933333 91.733333-17.066667 187.733333 12.8 256 81.066667l8.533334 8.533333z m-12.8 232.533333c8.533333-38.4 2.133333-78.933333-12.8-115.2-78.933333 134.4-194.133333 194.133333-305.066667 253.866667-115.2 59.733333-224 117.333333-288 253.866667 46.933333 40.533333 108.8 57.6 168.533333 44.8 108.8-21.333333 206.933333-74.666667 285.866667-151.466667s130.133333-177.066667 151.466667-285.866667zM174.933333 612.266667c-8.533333 38.4-2.133333 78.933333 12.8 115.2 78.933333-134.4 194.133333-194.133333 305.066667-253.866667 115.2-59.733333 224-117.333333 288-253.866667C744.533333 187.733333 697.6 170.666667 650.666667 170.666667c-12.8 0-25.6 2.133333-38.4 4.266666-108.8 21.333333-206.933333 74.666667-285.866667 151.466667-76.8 78.933333-130.133333 177.066667-151.466667 285.866667z" fill="currentColor"/></svg></div>
-      <h2>一包豆子，故事从这里开始</h2>
-      <p>放入第一包咖啡豆，记下它的来处、风味与变化。</p>
+      <h2>还没有咖啡豆</h2>
+      <p>放进第一包豆子，记下它的来处、烘焙与风味。</p>
       <div class="empty-guide" id="beanEmptyGuide"></div>
     </section>
     </div>
@@ -128,7 +132,7 @@
         <button class="chip" data-value="外饮" type="button">外饮</button>
       </nav>
       <section class="timeline" id="globalDrinkList" aria-live="polite"></section>
-      <section class="empty-state" id="drinkEmpty" hidden><div class="empty-bag" aria-hidden="true"><svg viewBox="0 0 1024 1024"><path d="M861.866667 179.2l4.266666 4.266667c59.733333 68.266667 85.333333 157.866667 68.266667 245.333333-25.6 125.866667-85.333333 238.933333-174.933333 328.533333-89.6 89.6-204.8 151.466667-328.533334 174.933334-17.066667 4.266667-36.266667 4.266667-53.333333 4.266666-74.666667 0-149.333333-29.866667-202.666667-85.333333-2.133333-2.133333-4.266667-6.4-8.533333-8.533333l-4.266667-4.266667c-59.733333-68.266667-85.333333-157.866667-68.266666-245.333333 25.6-125.866667 85.333333-238.933333 174.933333-328.533334 89.6-89.6 204.8-151.466667 328.533333-174.933333 91.733333-17.066667 187.733333 12.8 256 81.066667l8.533334 8.533333z m-12.8 232.533333c8.533333-38.4 2.133333-78.933333-12.8-115.2-78.933333 134.4-194.133333 194.133333-305.066667 253.866667-115.2 59.733333-224 117.333333-288 253.866667 46.933333 40.533333 108.8 57.6 168.533333 44.8 108.8-21.333333 206.933333-74.666667 285.866667-151.466667s130.133333-177.066667 151.466667-285.866667zM174.933333 612.266667c-8.533333 38.4-2.133333 78.933333 12.8 115.2 78.933333-134.4 194.133333-194.133333 305.066667-253.866667 115.2-59.733333 224-117.333333 288-253.866667C744.533333 187.733333 697.6 170.666667 650.666667 170.666667c-12.8 0-25.6 2.133333-38.4 4.266666-108.8 21.333333-206.933333 74.666667-285.866667 151.466667-76.8 78.933333-130.133333 177.066667-151.466667 285.866667z" fill="currentColor"/></svg></div><h2>还没有饮用记录</h2><p>可以从豆仓扣量，也可以记一笔外饮。</p><div class="empty-actions"><button class="primary-button" data-drink-empty-action="bean" type="button">从豆仓记一杯</button><button class="secondary-button" data-drink-empty-action="external" type="button">记一笔外饮</button></div></section>
+      <section class="empty-state" id="drinkEmpty" hidden><h2>还没有冲煮记录</h2><p>从豆仓扣一杯，把今天的风味留下来。</p><div class="empty-actions"><button class="primary-button" data-drink-empty-action="bean" type="button">喝一杯</button></div></section>
     </section>
     <section id="plansView" hidden>
       <section class="overview plan-overview" aria-label="冲煮方案概览">
@@ -139,10 +143,11 @@
       </section>
       <nav class="filter-row" id="planMethodFilters" aria-label="按冲煮方式筛选方案"></nav>
       <section class="plan-list" id="brewPlanList" aria-live="polite"></section>
-      <section class="empty-state" id="planEmpty" hidden><div class="empty-bag" aria-hidden="true"><svg viewBox="0 0 1024 1024"><path d="M861.866667 179.2l4.266666 4.266667c59.733333 68.266667 85.333333 157.866667 68.266667 245.333333-25.6 125.866667-85.333333 238.933333-174.933333 328.533333-89.6 89.6-204.8 151.466667-328.533334 174.933334-17.066667 4.266667-36.266667 4.266667-53.333333 4.266666-74.666667 0-149.333333-29.866667-202.666667-85.333333-2.133333-2.133333-4.266667-6.4-8.533333-8.533333l-4.266667-4.266667c-59.733333-68.266667-85.333333-157.866667-68.266666-245.333333 25.6-125.866667 85.333333-238.933333 174.933333-328.533334 89.6-89.6 204.8-151.466667 328.533333-174.933333 91.733333-17.066667 187.733333 12.8 256 81.066667l8.533334 8.533333z m-12.8 232.533333c8.533333-38.4 2.133333-78.933333-12.8-115.2-78.933333 134.4-194.133333 194.133333-305.066667 253.866667-115.2 59.733333-224 117.333333-288 253.866667 46.933333 40.533333 108.8 57.6 168.533333 44.8 108.8-21.333333 206.933333-74.666667 285.866667-151.466667s130.133333-177.066667 151.466667-285.866667zM174.933333 612.266667c-8.533333 38.4-2.133333 78.933333 12.8 115.2 78.933333-134.4 194.133333-194.133333 305.066667-253.866667 115.2-59.733333 224-117.333333 288-253.866667C744.533333 187.733333 697.6 170.666667 650.666667 170.666667c-12.8 0-25.6 2.133333-38.4 4.266666-108.8 21.333333-206.933333 74.666667-285.866667 151.466667-76.8 78.933333-130.133333 177.066667-151.466667 285.866667z" fill="currentColor"/></svg></div><h2>还没有冲煮方案</h2><p>从右下角保存第一套冲煮参数。</p></section>
+      <section class="empty-state" id="planEmpty" hidden><h2>还没有冲煮方案</h2><p>记下冲煮参数，让喜欢的风味下次还能找到。</p></section>
     </section>
     <section class="personal-view" id="personalView" hidden>
       <div class="personal-layout">
+        <p class="personal-tagline">收藏咖啡，也收藏与咖啡相处的时间</p>
         <nav class="personal-subnav" aria-label="我的页面">
           <span>数据</span>
           <button class="active" id="personalInsightsOpen" data-personal-section="overview" type="button"><span><b>回顾</b><small>自选区间与口味变化</small></span></button>
@@ -171,13 +176,6 @@
     <button data-shell-view="personal" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.6"/><path d="M5.5 20c1-3.6 3.5-5.4 6.5-5.4s5.5 1.8 6.5 5.4"/></svg><span>我的</span></button>
   </nav>
 
-  <button class="scan-fab" id="scanBean" type="button" aria-label="拍照识别咖啡豆">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 5.5 10 3h4l1.5 2.5H19A2.5 2.5 0 0 1 21.5 8v9A2.5 2.5 0 0 1 19 19.5H5A2.5 2.5 0 0 1 2.5 17V8A2.5 2.5 0 0 1 5 5.5h3.5Z"/><circle cx="12" cy="12.5" r="4"/></svg>
-  </button>
-  <button class="scan-fab" id="planImportFab" type="button" aria-label="导入方案" hidden>
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10"/><path d="m8 10 4 4 4-4"/><path d="M5 12v5.5A1.5 1.5 0 0 0 6.5 19h11a1.5 1.5 0 0 0 1.5-1.5V12"/></svg>
-  </button>
-  <button class="fab" id="addBean" type="button" aria-label="新增咖啡豆">＋</button>
   <div class="toast" id="toast" role="status" aria-live="polite" popover="manual"></div>
   <div class="dim-info-popover" id="dimInfoPopover" popover="auto" role="tooltip"></div>
   <div class="dim-info-popover insight-help-popover" id="insightsHelpPopover" popover="manual" role="tooltip"></div>
@@ -412,7 +410,7 @@
         </div>
 
         <label class="field"><span>烘焙度</span><select id="field-roastLevel" name="roastLevel"><option value="">未记录</option><option>浅烘</option><option>中浅烘</option><option>中烘</option><option>中深烘</option><option>深烘</option></select></label>
-        <label class="field"><span>状态</span><select id="field-status" name="status"><option>未开封</option><option>饮用中</option><option>已喝完</option></select></label>
+        <label class="field"><span>状态</span><select id="field-status" name="status"><option value="未开封">未开封</option><option value="饮用中">在饮</option><option value="已喝完">已归档</option></select></label>
         <label class="field"><span>烘焙日期</span><input id="field-roastDate" name="roastDate" class="picker-control" data-picker-kind="date" type="text" readonly placeholder="选择日期"></label>
         <label class="field"><span>开封日期</span><input id="field-openedDate" name="openedDate" class="picker-control" data-picker-kind="date" type="text" readonly placeholder="选择日期"></label>
         <label class="field"><span>最佳赏味期</span><div class="input-unit"><input id="field-bestFlavorDays" name="bestFlavorDays" type="number" min="1" max="3650" step="1" inputmode="numeric" placeholder="例如 30"><em>天</em></div></label>
@@ -502,7 +500,7 @@
         <label class="field tasting-visible full"><span>风味 / 评价备注</span><textarea id="drink-notes" name="notes" maxlength="2000" rows="4" placeholder="例如：酸奶、牛奶巧克力、柑橘；也可以写下风味变化和下次想调整的地方…"></textarea></label>
         <section class="flavor-suggest tasting-visible full" id="drinkFlavorSuggest" hidden></section>
       </div>
-      <footer class="sheet-footer"><span></span><div><button class="secondary-button" id="drinkEditFull" type="button" hidden>编辑完整记录</button><button class="secondary-button assist-footer-button" id="drinkStartAssist" type="button" hidden>冲煮辅助</button><button class="primary-button" id="saveDrink" type="submit">保存并扣量</button></div></footer>
+      <footer class="sheet-footer"><span></span><div><button class="secondary-button" id="drinkEditFull" type="button" hidden>编辑完整记录</button><button class="secondary-button assist-footer-button" id="drinkStartAssist" type="button" hidden>冲煮辅助</button><button class="primary-button" id="saveDrink" type="submit">保存</button></div></footer>
     </form>
   </dialog>
 

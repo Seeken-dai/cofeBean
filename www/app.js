@@ -368,7 +368,7 @@
     const label = button.querySelector('span'); if (label) label.textContent = button.dataset.originalLabel || label.textContent;
     delete button.dataset.originalLabel;
   }
-  function floatingActionsActive() { return ['beans', 'plans', 'drinks'].includes(state.view) && !(state.view === 'beans' && state.beans.length === 0); }
+  function floatingActionsActive() { return false; }
   function readLocalFlag(key) { try { return localStorage.getItem(key) === '1'; } catch (_) { return false; } }
   function writeLocalFlag(key) { try { localStorage.setItem(key, '1'); } catch (_) {} }
   const REMINDER_ACK_KEY = 'coffee-vault-reminder-ack-v1';
@@ -541,12 +541,13 @@
     const order = { beans: 0, drinks: 1, plans: 2, personal: 3 }; const activeView = $(`#${state.view}View`);
     if (activeView && previousView !== state.view) { activeView.classList.remove('slide-from-left', 'slide-from-right'); void activeView.offsetWidth; activeView.classList.add(order[state.view] > order[previousView] ? 'slide-from-right' : 'slide-from-left'); previousView = state.view; }
     document.body.classList.toggle('empty-onboarding', state.view === 'beans' && state.beans.length === 0);
-    $('#addBean').hidden = !floatingActionsActive(); $('#scanBean').hidden = state.view !== 'beans' || !floatingActionsActive(); $('#planImportFab').hidden = state.view !== 'plans';
-    $('#addBean').setAttribute('aria-label', state.view === 'plans' ? '新增冲煮方案' : state.view === 'drinks' ? '记一杯' : '新增咖啡豆');
-    $('#addBean').textContent = '+';
+    $('#scanBean').hidden = state.view !== 'beans';
+    $('#planImportFab').hidden = state.view !== 'plans';
+    $('#addBean').hidden = state.view !== 'beans' && state.view !== 'plans';
+    $('#addBean').setAttribute('aria-label', state.view === 'plans' ? '新增冲煮方案' : '新增咖啡豆');
     const wideAction = $('#widePrimaryAction');
     if (wideAction) {
-      const labels = { beans: '＋ 加一包豆', drinks: '＋ 记一杯', plans: '＋ 新建方案' };
+      const labels = { beans: '＋ 加一包豆', plans: '＋ 新建方案' };
       wideAction.hidden = !labels[state.view];
       wideAction.textContent = labels[state.view] || '';
     }
@@ -647,7 +648,7 @@
     }
     guide.innerHTML = `
       <div class="empty-guide-actions">
-        <button class="primary-button" type="button" data-empty-action="add">添加第一包</button>
+        <button class="primary-button" type="button" data-empty-action="add">添加第一款</button>
         <button type="button" data-empty-action="scan">拍照识别</button>
         <button type="button" data-empty-action="backup">导入备份</button>
       </div>
@@ -702,6 +703,11 @@
     const badge = bean.bagImagePath && config.markPhoto ? '<span class="bean-thumb-photo-badge" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8.5 6 10 4h4l1.5 2H19a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3.5Z"/><circle cx="12" cy="12.5" r="3.5"/></svg></span>' : '';
     return `<div class="bean-thumb generated bean-thumb--${esc(ph.roastKey)}${badge ? ' has-photo-badge' : ''}" aria-hidden="true">${thumbMotif(ph)}<span class="bean-thumb-glyph">${esc(ph.glyph)}</span>${processBadge(bean)}${badge}</div>`;
   }
+  function displayStatus(status) {
+    if (status === '饮用中') return '在饮';
+    if (status === '已喝完') return '已归档';
+    return status;
+  }
   function remainingBar(bean, remaining) {
     const initial = Number(bean.initialWeight) || 0;
     if (!(initial > 0)) return '';
@@ -736,8 +742,8 @@
     const thumb = `<div class="bean-thumb-wrap">${beanThumb(bean, showThumb ? null : { forcePlaceholder: true, markPhoto: Boolean(bean.bagImagePath) })}</div>`;
     const drinkButton = finished ? '' : `<button class="quick-drink" data-drink-id="${esc(bean.id)}" type="button" aria-label="喝一杯 ${esc(formatWeight(grams))}" ${remaining <= 0 ? 'disabled' : ''}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h12v7a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5V8Z"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17M8 4c0 1 1 1 1 2M12 3c0 1 1 1 1 2"/></svg><span>${esc(formatWeight(grams))}</span></button>`;
     const archiveMeta = finished ? `<div class="bean-archive-meta"><span>已归档${history.completedAt ? ` · ${esc(formatDate(history.completedAt))} 喝完` : ''}</span><span>${history.cups} 杯${history.average ? ` · 平均 ${history.average}★` : ''}</span></div>` : '';
-    const actionRow = finished || lowStock ? `<div class="bean-card-actions">${lowStock ? `<button data-mark-finished-id="${esc(bean.id)}" type="button">标记喝完</button>` : ''}<button data-repurchase-id="${esc(bean.id)}" type="button">${bean.purchaseUrl ? '打开购买链接' : '再买一包'}</button></div>` : '';
-    return `<article class="bean-card has-thumb${finished ? ' is-archived' : ''}${lowStock ? ' is-low-stock' : ''}" data-id="${esc(bean.id)}" data-status="${esc(bean.status)}" tabindex="0" role="button" aria-label="查看 ${esc(bean.name)}" style="animation-delay:${Math.min(index * 28, 180)}ms">${thumb}<div class="card-body"><div class="card-head"><div class="card-title-wrap"><h2 class="card-title">${esc(bean.name)}</h2><p class="card-subtitle">${esc(subtitle)}</p></div><div class="card-icons">${bean.favorite ? '<span class="favorite">◆</span>' : ''}${drinkButton}</div></div><div class="card-bottom"><div class="tag-row">${tags}</div>${finished ? archiveMeta : `<div class="compact-meta"><span>${esc(beanFreshnessText(bean))}</span><strong>${esc(formatWeight(remaining))}</strong></div>`}</div>${finished ? '' : remainingBar(bean, remaining)}${actionRow}</div></article>`;
+    const actionRow = finished || lowStock ? `<div class="bean-card-actions">${lowStock ? `<button data-mark-finished-id="${esc(bean.id)}" type="button">标记归档</button>` : ''}<button data-repurchase-id="${esc(bean.id)}" type="button">${bean.purchaseUrl ? '打开购买链接' : '再买一包'}</button></div>` : '';
+    return `<article class="bean-card has-thumb${finished ? ' is-archived' : ''}${lowStock ? ' is-low-stock' : ''}" data-id="${esc(bean.id)}" data-status="${esc(bean.status)}" tabindex="0" role="button" aria-label="查看 ${esc(bean.name)}" style="animation-delay:${Math.min(index * 28, 180)}ms">${thumb}<div class="card-body"><div class="card-head"><div class="card-title-wrap"><h2 class="card-title">${esc(bean.name)}</h2><p class="card-subtitle">${esc(subtitle)}</p></div><div class="card-icons">${bean.favorite ? '<span class="favorite">◆</span>' : ''}${drinkButton}</div></div><div class="card-bottom"><div class="tag-row"><span class="tag status">${esc(displayStatus(bean.status))}</span>${tags}</div>${finished ? archiveMeta : `<div class="compact-meta"><span>${esc(beanFreshnessText(bean))}</span><strong>${esc(formatWeight(remaining))}</strong></div>`}</div>${finished ? '' : remainingBar(bean, remaining)}${actionRow}</div></article>`;
   }
   // 冲煮方式线性图标（20px 级，与 quick-drink 同风格）。时间线、方案卡、方案分组头共用。
   const BREW_ICONS = {
@@ -1005,7 +1011,7 @@
     const liveLogs = state.drinkLogs.filter((log) => !log.deletedAt);
     const total = BeanCore.summarizeDrinkLogs(liveLogs);
     const beanCount = new Set(liveLogs.filter((log) => log.beanId).map((log) => log.beanId)).size;
-    $('#personalLifetimeStats').innerHTML = `<article><strong>${esc(total.cups)}</strong><span>累计杯数</span></article><article><strong>${esc(beanCount)}</strong><span>喝过豆款</span></article><article><strong>${esc(formatWeight(total.grams))}</strong><span>累计用豆</span></article>`;
+    if ($('#personalLifetimeStats')) $('#personalLifetimeStats').innerHTML = `<article><strong>${esc(total.cups)}</strong><span>累计杯数</span></article><article><strong>${esc(beanCount)}</strong><span>喝过豆款</span></article><article><strong>${esc(formatWeight(total.grams))}</strong><span>累计用豆</span></article>`;
     const content = $('#personalContent');
     if (!content) return;
 
@@ -1132,7 +1138,7 @@
     if (!bean) return; state.editingId = bean.id; const logs = state.drinkLogs.filter((log) => log.beanId === bean.id); const remaining = Number(bean.remainingWeight) || 0;
     markListSelection(els.list, '.bean-card', 'data-id', bean.id);
     renderDetailHero(bean);
-    $('#detailName').textContent = bean.name; $('#detailTitle').textContent = bean.name; $('#detailStatus').innerHTML = [bean.roastLevel, bean.process, bean.status].filter(Boolean).map((value, index) => `<span${index === 2 ? ' class="is-state"' : ''}>${esc(value)}</span>`).join(''); $('#detailStatus').dataset.status = bean.status;
+    $('#detailName').textContent = bean.name; $('#detailTitle').textContent = bean.name; $('#detailStatus').innerHTML = [bean.roastLevel, bean.process, displayStatus(bean.status)].filter(Boolean).map((value, index) => `<span${index === 2 ? ' class="is-state"' : ''}>${esc(value)}</span>`).join(''); $('#detailStatus').dataset.status = bean.status;
     $('#detailSubtitle').textContent = [bean.roaster, bean.origin, bean.roastDate ? `${bean.roastDate} 烘焙` : ''].filter(Boolean).join(' · ') || '尚未记录烘焙商与产地';
     const taste = beanTasteProfile(logs);
     const flavorDays = BeanCore.bestFlavorDaysLeft(bean);
@@ -2138,7 +2144,7 @@
     const grams = $('#drink-grams');
     if (external) { grams.required = false; grams.removeAttribute('min'); grams.removeAttribute('max'); }
     else { grams.required = true; grams.min = '0.1'; }
-    $('#saveDrink').textContent = external ? '保存' : '保存并扣量';
+    $('#saveDrink').textContent = '保存';
     $('#drinkStartAssist').hidden = external || $('#drinkStartAssist').hidden;
     $$('#drinkForm input, #drinkForm select, #drinkForm textarea, #drinkForm [data-rate], #drinkForm .select-trigger, #drinkForm [data-drink-plan], #drinkForm [data-use-last-brew], #drinkForm [data-drink-step-open], #drinkForm [data-remove-drink-step], #addDrinkStep, [data-add-drink-photo], [data-remove-drink-photo]').forEach((control) => { if (control.id !== 'deleteDrink') control.disabled = orphaned; });
   }
@@ -2166,7 +2172,7 @@
       if (log && log.id) {
         $('#drinkTitle').textContent = log.source === 'external' ? '编辑外饮记录' : '编辑饮用记录';
         $('#deleteDrink').hidden = false;
-        $('#saveDrink').textContent = log.source === 'external' ? '保存' : '保存并扣量';
+        $('#saveDrink').textContent = '保存';
       }
       return;
     }
@@ -2641,8 +2647,8 @@
     $('#drink-param-mokaPotSize-choice').addEventListener('change', () => syncMokaSize('drink-param'));
     $('#drink-param-mokaPotSize-custom').addEventListener('input', () => syncMokaSize('drink-param'));
     ['addBean', 'scanBean', 'planImportFab'].forEach((id) => $(`#${id}`).addEventListener('click', floatingActionClickGuard, true));
-    $('#addBean').addEventListener('click', () => { expandFloatingActions(); return state.view === 'plans' ? openPlanEditor(null) : state.view === 'drinks' ? openDrinkTypePicker() : openEditor(null); }); $('#scanBean').addEventListener('click', () => { expandFloatingActions(); scanCoffeeLabel(); }); $('#editorClose').addEventListener('click', () => { clearPendingImages(true); beanImagesToDelete = []; setDialog(els.editor, false); }); $('#deleteBean').addEventListener('click', removeCurrent); els.form.addEventListener('submit', saveForm); $('#field-initialWeight').addEventListener('input', syncInitialWeightToRemaining); $('#field-remainingWeight').addEventListener('input', markRemainingWeightEdited); $('#editorImageVault').addEventListener('click', (event) => { if (event.target.closest('[data-preview-cutout]')) return openImagePreview($('#field-bagCutoutImagePath').value, '手账封面'); if (event.target.closest('[data-remove-cutout]')) return removeDraftCutout(); if (event.target.closest('[data-regenerate-cutout]')) return generateDraftCutout($('#field-bagImagePath').value); const remove = event.target.closest('[data-remove-image-role]'); if (remove) return removeBeanImage(remove.dataset.removeImageRole); const button = event.target.closest('[data-add-image-role]'); if (button) return addBeanImage(button.dataset.addImageRole); const card = event.target.closest('[data-preview-image]'); if (card) openImagePreview(card.dataset.previewImage, card.dataset.previewLabel); });
-    $('#widePrimaryAction').addEventListener('click', () => state.view === 'plans' ? openPlanEditor(null) : state.view === 'drinks' ? openDrinkTypePicker() : openEditor(null));
+    $('#addBean').addEventListener('click', () => { return state.view === 'plans' ? openPlanEditor(null) : openEditor(null); }); $('#scanBean').addEventListener('click', () => { scanCoffeeLabel(); }); $('#editorClose').addEventListener('click', () => { clearPendingImages(true); beanImagesToDelete = []; setDialog(els.editor, false); }); $('#deleteBean').addEventListener('click', removeCurrent); els.form.addEventListener('submit', saveForm); $('#field-initialWeight').addEventListener('input', syncInitialWeightToRemaining); $('#field-remainingWeight').addEventListener('input', markRemainingWeightEdited); $('#editorImageVault').addEventListener('click', (event) => { if (event.target.closest('[data-preview-cutout]')) return openImagePreview($('#field-bagCutoutImagePath').value, '手账封面'); if (event.target.closest('[data-remove-cutout]')) return removeDraftCutout(); if (event.target.closest('[data-regenerate-cutout]')) return generateDraftCutout($('#field-bagImagePath').value); const remove = event.target.closest('[data-remove-image-role]'); if (remove) return removeBeanImage(remove.dataset.removeImageRole); const button = event.target.closest('[data-add-image-role]'); if (button) return addBeanImage(button.dataset.addImageRole); const card = event.target.closest('[data-preview-image]'); if (card) openImagePreview(card.dataset.previewImage, card.dataset.previewLabel); });
+    $('#widePrimaryAction').addEventListener('click', () => state.view === 'plans' ? openPlanEditor(null) : openEditor(null));
     els.empty.addEventListener('click', (event) => {
       const button = event.target.closest('[data-empty-action]');
       if (!button) return;
@@ -2677,7 +2683,7 @@
     $('#detailFacts').addEventListener('click', (event) => { const item = event.target.closest('[data-purchase-url]'); if (item) openPurchaseUrl(item.dataset.purchaseUrl); });
     $('#detailFacts').addEventListener('keydown', (event) => { if (!['Enter', ' '].includes(event.key)) return; const item = event.target.closest('[data-purchase-url]'); if (item) { event.preventDefault(); openPurchaseUrl(item.dataset.purchaseUrl); } });
     $('#detailPlanLinkList').addEventListener('click', (event) => { const button = event.target.closest('[data-detail-plan]'); if (!button) return; const plan = state.brewPlans.find((item) => item.id === button.dataset.detailPlan); if (!plan) return; setDialog(els.detail, false); openPlanDetail(plan); });
-    $('#imagePreviewClose').addEventListener('click', () => setDialog(els.imagePreview, false)); $('#imagePreviewCancel').addEventListener('click', () => setDialog(els.imagePreview, false)); $('#imagePreviewSave').addEventListener('click', sharePreviewImage); $('#shareImageChoiceClose').addEventListener('click', () => setDialog(els.shareChoice, false)); $('#shareImageChoiceCancel').addEventListener('click', () => setDialog(els.shareChoice, false)); $('#shareImageChoiceConfirm').addEventListener('click', confirmBeanShareChoice); $('#planShareChoiceClose').addEventListener('click', () => setDialog(els.planShareChoice, false)); $('#planShareChoiceCancel').addEventListener('click', () => setDialog(els.planShareChoice, false)); $('#planShareChoiceConfirm').addEventListener('click', confirmPlanShareChoice); $('#planImportFab').addEventListener('click', () => { expandFloatingActions(); openPlanImport(); }); $('#settingsImportPlan').addEventListener('click', () => { setDialog(els.settings, false); openPlanImport(); }); $('#planImportClose').addEventListener('click', () => setDialog(els.planImport, false)); $('#planImportCancel').addEventListener('click', () => setDialog(els.planImport, false)); $('#planImportCamera').addEventListener('click', () => importQrFromSource('camera')); $('#planImportGallery').addEventListener('click', () => importQrFromSource('photos')); $('#planImportParse').addEventListener('click', parsePastedImportCode); $('#planImportConfirm').addEventListener('click', confirmImportPlan); $('#planImportTabs').addEventListener('click', (event) => { const chip = event.target.closest('[data-import-tab]'); if (chip) setPlanImportTab(chip.dataset.importTab); }); $('#planImportCopyPrompt').addEventListener('click', copyAiPlanPrompt); $('#planImportAiParse').addEventListener('click', parseAiPlanInput);
+    $('#imagePreviewClose').addEventListener('click', () => setDialog(els.imagePreview, false)); $('#imagePreviewCancel').addEventListener('click', () => setDialog(els.imagePreview, false)); $('#imagePreviewSave').addEventListener('click', sharePreviewImage); $('#shareImageChoiceClose').addEventListener('click', () => setDialog(els.shareChoice, false)); $('#shareImageChoiceCancel').addEventListener('click', () => setDialog(els.shareChoice, false)); $('#shareImageChoiceConfirm').addEventListener('click', confirmBeanShareChoice); $('#planShareChoiceClose').addEventListener('click', () => setDialog(els.planShareChoice, false)); $('#planShareChoiceCancel').addEventListener('click', () => setDialog(els.planShareChoice, false)); $('#planShareChoiceConfirm').addEventListener('click', confirmPlanShareChoice); $('#planImportFab').addEventListener('click', () => { openPlanImport(); }); $('#settingsImportPlan').addEventListener('click', () => { setDialog(els.settings, false); openPlanImport(); }); $('#planImportClose').addEventListener('click', () => setDialog(els.planImport, false)); $('#planImportCancel').addEventListener('click', () => setDialog(els.planImport, false)); $('#planImportCamera').addEventListener('click', () => importQrFromSource('camera')); $('#planImportGallery').addEventListener('click', () => importQrFromSource('photos')); $('#planImportParse').addEventListener('click', parsePastedImportCode); $('#planImportConfirm').addEventListener('click', confirmImportPlan); $('#planImportTabs').addEventListener('click', (event) => { const chip = event.target.closest('[data-import-tab]'); if (chip) setPlanImportTab(chip.dataset.importTab); }); $('#planImportCopyPrompt').addEventListener('click', copyAiPlanPrompt); $('#planImportAiParse').addEventListener('click', parseAiPlanInput);
     $('#drinkShareChoiceClose').addEventListener('click', () => setDialog(els.drinkShareChoice, false));
     $('#drinkShareChoiceCancel').addEventListener('click', () => setDialog(els.drinkShareChoice, false));
     $('#drinkShareChoiceConfirm').addEventListener('click', confirmDrinkShareChoice);

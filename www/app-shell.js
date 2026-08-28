@@ -10,9 +10,9 @@
   const WIDE_BREAKPOINT = 1100;
   const VIEW_META = {
     beans: { title: '豆仓', eyebrow: 'COFFEE VAULT' },
-    drinks: { title: '饮用记录', eyebrow: 'DRINK LOG' },
-    plans: { title: '冲煮方案', eyebrow: 'BREW RECIPES' },
-    personal: { title: '我的', eyebrow: 'MY COFFEE' }
+    drinks: { title: '饮用', eyebrow: 'BREW LOG' },
+    plans: { title: '方案', eyebrow: 'BREW RECIPE' },
+    personal: { title: '我的', eyebrow: 'PERSONAL BREW' }
   };
   const PAGE_LAYERS = new Set([
     'dataBackupDialog', 'coffeeCalendarDialog', 'insightsDialog',
