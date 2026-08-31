@@ -2970,7 +2970,14 @@ body[data-shell-view="personal"] .profile-button { border-color:var(--accent); b
     font-weight:800;
   }
   .wide-primary-action[hidden],body.has-context-detail .wide-primary-action { display:none!important; }
-  .topbar-search { z-index:30; right:170px; }
+  .topbar-search {
+    z-index:30;
+    right:170px;
+    position:absolute;
+    top:18px;
+    display:block!important;
+    width:min(340px,32vw);
+  }
   body[data-shell-view="personal"] .topbar-search { right:24px; }
   body[data-shell-view="beans"] .topbar { grid-template-columns:minmax(0,1fr); column-gap:0; }
   /* 宽屏默认保持列表清爽：状态与排序留在内容区，更多条件通过顶部筛选按钮打开。
@@ -3048,10 +3055,62 @@ body[data-shell-view="personal"] .profile-button { border-color:var(--accent); b
   body.has-context-detail #planDetailDialog #planDetailBeansSection { grid-column:2; grid-row:3; }
   body.has-context-detail #planDetailDialog #planDetailNotesSection { grid-column:2; grid-row:4; }
 
-  #personalView .personal-layout { grid-template-columns:200px minmax(0,1fr); gap:28px; width:100%; max-width:none; justify-content:stretch; padding-top:18px; }
-  #personalView .personal-subnav { align-self:start; height:max-content; margin:0; padding:6px 10px; border-radius:var(--radius-card); }
-  #personalView .personal-subnav > button { min-height:48px; padding-inline:4px; }
-  #personalView .personal-body { display:grid; grid-template-columns:minmax(0,1fr); gap:10px; width:100%; max-width:1400px; }
+  #personalView .personal-tagline { display:none!important; }
+  #personalView .personal-layout {
+    display:grid!important;
+    grid-template-columns:200px minmax(0,1fr)!important;
+    gap:28px!important;
+    width:100%!important;
+    max-width:1240px!important;
+    margin-inline:auto!important;
+    padding:22px 28px 42px!important;
+  }
+  #personalView .personal-subnav {
+    grid-column:1!important;
+    display:grid!important;
+    gap:4px!important;
+    align-self:start!important;
+    height:max-content!important;
+    margin:0!important;
+    padding:0!important;
+    border:0!important;
+    border-radius:0!important;
+    background:transparent!important;
+  }
+  #personalView .personal-subnav > span {
+    margin:12px 8px 4px!important;
+    color:var(--vault-ink-tertiary)!important;
+    font-size:9px!important;
+    font-weight:800!important;
+    letter-spacing:.12em!important;
+  }
+  #personalView .personal-subnav > button {
+    min-height:46px!important;
+    padding:0 12px!important;
+    border:1px solid transparent!important;
+    border-radius:var(--radius-control)!important;
+    background:transparent!important;
+    color:var(--vault-ink-secondary)!important;
+  }
+  #personalView .personal-subnav > button::after { display:none!important; }
+  #personalView .personal-subnav > button:hover {
+    background:var(--vault-active-soft)!important;
+    color:var(--text)!important;
+  }
+  #personalView .personal-subnav > button.active {
+    border-color:var(--vault-line)!important;
+    background:var(--vault-active-soft)!important;
+    color:var(--accent)!important;
+    font-weight:800!important;
+  }
+  #personalView .personal-body {
+    grid-column:2!important;
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    gap:16px!important;
+    width:100%!important;
+    min-width:0!important;
+  }
   #personalView .personal-profile-card,#personalView .personal-lifetime-stats,#personalView .calendar-entry-card { grid-column:auto; }
   #personalView .personal-dashboard-grid { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(240px,1fr); grid-template-rows:auto auto; gap:12px; align-items:stretch; }
   #personalView .personal-month-card { grid-column:1; grid-row:1 / 3; display:flex; flex-direction:column; justify-content:space-between; min-height:0; padding:14px 16px; }

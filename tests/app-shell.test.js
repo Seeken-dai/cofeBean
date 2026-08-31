@@ -47,7 +47,7 @@ test('3.0.1 宽屏把我的、搜索、轻量筛选和新增操作放到主工�
   assert.match(css, /\.topbar-search\s*\{\s*z-index:30;\s*right:170px;/);
   assert.match(css, /body\[data-shell-view="personal"\] \.topbar-search\s*\{\s*right:24px;/);
   assert.match(css, /\.wide-bean-filters\s*\{\s*display:none!important;/);
-  assert.match(css, /body\[data-shell-view="beans"\] \.topbar-filter-button\s*\{[\s\S]*?display:grid!important;/);
+  assert.match(css, /body\[data-shell-view="beans"\] \.topbar-filter-button\s*\{[\s\S]*?display:none!important;/);
   assert.match(css, /body\.has-context-detail \.topbar-filter-button\s*\{\s*display:none!important;/);
 });
 
