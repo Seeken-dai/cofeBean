@@ -427,8 +427,9 @@
     }
 
     function hideHelp() {
+      if (typeof document === 'undefined') return;
       const pop = document.querySelector('#insightsHelpPopover');
-      if (pop && pop.matches(':popover-open')) pop.hidePopover();
+      if (pop && typeof pop.matches === 'function' && pop.matches(':popover-open')) pop.hidePopover();
       if (pop) pop.dataset.helpKey = '';
     }
 
@@ -749,7 +750,7 @@
       if (eyebrow) eyebrow.textContent = isCatalogPage ? (isExternalCatalog ? 'CAFE ATLAS' : 'COFFEE ATLAS') : isBrewReview ? 'POUR-OVER NOTES' : isReportPage ? 'COFFEE REPORT' : 'YOUR COFFEE';
       // 返回箭头已移除：✕ 接管分层返回，所以它的 aria-label 要跟着当前页说清楚会退到哪。
       if (closeButton) {
-        const reportDetailFromList = isReportDetail && state.insightsReportFromList;
+        const reportDetailFromList = isReportDetail;
         const backToPersonal = (isCatalogPage || state.insightsPage === 'reports' || state.insightsPage === 'home') && state.insightsExitTo === 'personal';
         closeButton.setAttribute('aria-label', isBeanReview ? '返回手冲回顾' : reportDetailFromList ? '返回咖啡月报与年报' : backToPersonal ? '返回个人中心' : isBrewReview ? '返回回顾首页' : '关闭');
       }
@@ -895,15 +896,12 @@
     function handleBack() {
       if (closeCatalogBurst()) return true;
       if (state.insightsPage === 'report') {
-        if (state.insightsReportFromList && state.insightsExitTo !== 'personal') {
-          state.insightsPage = 'reports';
-          state.insightsReportType = null;
-          state.insightsReportKey = null;
-          hideHelp();
-          render();
-          return true;
-        }
-        exitInsights();
+        state.insightsPage = 'reports';
+        state.insightsReportType = null;
+        state.insightsReportKey = null;
+        state.insightsReportFromList = false;
+        hideHelp();
+        render();
         return true;
       }
       if (state.insightsPage === 'reports' || state.insightsPage === 'catalog') {
@@ -991,16 +989,20 @@
       return false;
     }
 
-    window.addEventListener('resize', () => { if (dialog.open || !dialog.hasAttribute('hidden')) syncNavOffset(); });
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', () => { if (dialog.open || !dialog.hasAttribute('hidden')) syncNavOffset(); });
+    }
     dialog.addEventListener('scroll', syncNavOffset, { passive: true });
     dialog.addEventListener('close', () => { hideHelp(); stopCatalogBurst(); stopCatalogRotator(); });
     // 炸开层开着时 Esc 先收起它，而不是把整张 sheet 关掉。
     dialog.addEventListener('cancel', (event) => { if (closeCatalogBurst()) event.preventDefault(); });
     // 面板切到后台就停掉轮播，省得白烧电；回到前台再按当前页决定要不要重启。
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) stopCatalogRotator();
-      else if (dialog.open) startCatalogRotator();
-    });
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) stopCatalogRotator();
+        else if (dialog.open) startCatalogRotator();
+      });
+    }
     dialog.addEventListener('error', (event) => {
       const target = event.target.closest && event.target;
       // 轮播图片加载失败：把这张从该格的清单里剔掉，别让它再被抽中。

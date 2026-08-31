@@ -2103,13 +2103,7 @@
     const list = $('#choiceList');
     list.className = mode === 'source' ? 'source-actions' : 'choice-list';
   }
-  function openDrinkTypePicker() {
-    const beans = drinkableBeans();
-    $('#choiceTitle').textContent = '记一杯';
-    setChoiceListLayout('source');
-    $('#choiceList').innerHTML = `<button type="button" data-drink-choice="bean" ${beans.length ? '' : 'disabled'}><span>从豆仓记一杯</span><small>${beans.length ? '扣减库存克数' : '暂无可喝豆'}</small></button><button type="button" data-drink-choice="external"><span>外饮记录</span><small>咖啡馆 / 外卖，不扣库存</small></button>`;
-    setDialog(els.choice, true);
-  }
+
   function openBeanPickerForDrink() {
     const beans = drinkableBeans();
     if (!beans.length) return toast('暂无余量足够的豆子');

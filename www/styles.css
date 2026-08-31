@@ -2545,7 +2545,6 @@ body:not(.cap-native) #personalLifetimeStats { display:none!important; }
 }
 
 /* 3.0 composition correction: align the implemented shell with the selected 2a / 2c boards. */
-body[data-shell-view="beans"] .topbar { grid-template-columns:minmax(0,1fr) 44px 44px; column-gap:8px; }
 .topbar-filter-button {
   position:relative;
   align-self:center;

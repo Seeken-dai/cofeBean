@@ -13,10 +13,11 @@ import {
   assignServerSeq
 } from './sync-logic.mjs';
 import { collectGarbage, parsePayloadShas, purgeUserPrefix, sweepOrphanImages } from './image-gc.mjs';
+import { recordAnalyticsHit, getAnalyticsStats } from './analytics.mjs';
 
 const SYNC_PROTOCOL = 1;
 const TYPES = ['bean', 'drinkLog', 'brewPlan'];
-const ALLOWED_ORIGINS = ['https://app.cofevault.top', 'https://cofebean.pages.dev', 'http://localhost:4173', 'http://127.0.0.1:4173', 'http://localhost:4178', 'http://127.0.0.1:4178', 'http://localhost', 'https://localhost', 'capacitor://localhost'];
+const ALLOWED_ORIGINS = ['https://app.cofevault.top', 'https://cofevault.top', 'https://www.cofevault.top', 'https://cofebean.pages.dev', 'http://localhost:4173', 'http://127.0.0.1:4173', 'http://localhost:4178', 'http://127.0.0.1:4178', 'http://localhost', 'https://localhost', 'capacitor://localhost'];
 const SESSION_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 // last_seen 只用于 90 天 TTL 滑动,按小时粒度刷新即可;避免每个同步请求都写一次 D1。
 const LAST_SEEN_REFRESH_MS = 60 * 60 * 1000;
@@ -296,6 +297,16 @@ export default {
       if (request.method === 'POST' && path === '/auth/recover') return await handleRecover(request, env);
 
       if (path === '/sync/hello') return json({ protocol: SYNC_PROTOCOL, minWritableProtocol: 1, minReadableProtocol: 1, types: TYPES }, 200, request);
+
+      if (request.method === 'POST' && path === '/analytics/hit') {
+        const result = await recordAnalyticsHit(request, env);
+        return json(result, 200, request);
+      }
+      if (request.method === 'GET' && path === '/analytics/stats') {
+        const result = await getAnalyticsStats(request, env);
+        if (result.error) return bad(result.error, result.status || 400, request);
+        return json(result, 200, request);
+      }
 
       // 以下需要登录
       const userId = await currentUser(request, env);

@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark-roast">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>访问统计 · 豆仓 Coffee Vault</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #1a1412;
+      --surface: #241c19;
+      --surface-2: #2e2420;
+      --surface-3: #382c27;
+      --line: #3d302a;
+      --line-soft: #2d231f;
+      --text: #f5f2ed;
+      --muted: #a8998d;
+      --faint: #6e625a;
+      --accent: #e6be8a;
+      --accent-soft: rgba(230, 190, 138, 0.12);
+      --accent-ink: #1f1610;
+      --success: #8fb877;
+      --cyan: #7ec4cf;
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --font-sans: "Noto Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-serif: "Noto Serif SC", serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      padding: 24px 16px 60px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      max-width: 1080px;
+      margin: 0 auto;
+    }
+
+    /* 顶部导航与控制栏 */
+    .dashboard-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 28px;
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-sm);
+    }
+
+    .brand-title h1 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .brand-title p {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+    }
+
+    .controls-section {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .pill-group {
+      display: flex;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 3px;
+    }
+
+    .pill-btn {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .pill-btn.active {
+      background: var(--accent);
+      color: var(--accent-ink);
+    }
+
+    .action-btn {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 8px 14px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+
+    .action-btn:hover {
+      background: var(--surface-2);
+      border-color: var(--accent);
+    }
+
+    /* 状态与通知条 */
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      font-size: 12px;
+      color: var(--faint);
+    }
+
+    .live-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--success);
+      font-weight: 600;
+    }
+
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--success);
+      border-radius: 50%;
+      box-shadow: 0 0 8px rgba(143, 184, 119, 0.6);
+      animation: pulse 2s infinite ease-in-out;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.2); opacity: 0.6; }
+    }
+
+    /* 指标卡片网格 */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .metric-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .metric-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: transparent;
+      transition: background 0.2s ease;
+    }
+
+    .metric-card:hover::before {
+      background: var(--accent);
+    }
+
+    .metric-label {
+      font-size: 12px;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .metric-value {
+      font-size: 30px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      font-family: var(--font-mono);
+      line-height: 1.1;
+      margin-bottom: 8px;
+    }
+
+    .metric-sub {
+      font-size: 11px;
+      color: var(--faint);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .metric-sub strong {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    /* 主图表卡片 */
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .card-title {
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .chart-legend {
+      display: flex;
+      gap: 16px;
+      font-size: 12px;
+      color: var(--muted);
+      flex-wrap: wrap;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 3px;
+    }
+
+    .legend-dot.pv { background: var(--accent); }
+    .legend-dot.webapp { background: var(--cyan); }
+    .legend-dot.uv { background: var(--success); }
+    .legend-dot.dl { background: #d88c8c; }
+
+    .chart-container {
+      width: 100%;
+      height: 240px;
+      position: relative;
+    }
+
+    svg.chart-svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+
+    .chart-grid-line {
+      stroke: var(--line-soft);
+      stroke-dasharray: 4 4;
+      stroke-width: 1;
+    }
+
+    .chart-axis-text {
+      font-size: 10px;
+      fill: var(--faint);
+      font-family: var(--font-mono);
+    }
+
+    .chart-line-pv {
+      fill: none;
+      stroke: var(--accent);
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .chart-area-pv {
+      fill: url(#pvGrad);
+      opacity: 0.3;
+    }
+
+    .chart-line-webapp {
+      fill: none;
+      stroke: var(--cyan);
+      stroke-width: 2;
+      stroke-linecap: round;
+    }
+
+    .chart-line-uv {
+      fill: none;
+      stroke: var(--success);
+      stroke-width: 1.8;
+      stroke-dasharray: 4 3;
+    }
+
+    .chart-point {
+      fill: var(--bg);
+      stroke-width: 2;
+      cursor: pointer;
+      transition: r 0.15s ease;
+    }
+    .chart-point.pv { stroke: var(--accent); }
+    .chart-point:hover { r: 5; }
+
+    /* 细分数据网格 */
+    .details-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    .detail-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      padding: 20px;
+    }
+
+    .breakdown-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .breakdown-row {
+      display: grid;
+      grid-template-columns: minmax(80px, 1fr) 2fr 50px;
+      align-items: center;
+      gap: 12px;
+      font-size: 12px;
+    }
+
+    .breakdown-name {
+      color: var(--text);
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .breakdown-bar-wrap {
+      background: var(--surface-2);
+      border-radius: 999px;
+      height: 8px;
+      overflow: hidden;
+      width: 100%;
+    }
+
+    .breakdown-bar {
+      background: var(--accent);
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.4s ease;
+    }
+
+    .breakdown-bar.alt { background: var(--success); }
+    .breakdown-bar.alt2 { background: #b07d45; }
+    .breakdown-bar.cyan { background: var(--cyan); }
+
+    .breakdown-count {
+      text-align: right;
+      font-family: var(--font-mono);
+      color: var(--muted);
+    }
+
+    /* 实时日志流 */
+    .logs-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      padding: 20px;
+    }
+
+    .logs-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 14px;
+      font-size: 12px;
+    }
+
+    .logs-table th {
+      text-align: left;
+      padding: 8px 12px;
+      color: var(--faint);
+      font-weight: 600;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .logs-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line-soft);
+      color: var(--muted);
+      font-family: var(--font-sans);
+    }
+
+    .logs-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .event-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .site-tag {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-size: 9px;
+      font-weight: 700;
+      margin-right: 4px;
+    }
+    .site-tag.landing { background: var(--surface-3); color: var(--accent); }
+    .site-tag.webapp { background: rgba(126, 196, 207, 0.15); color: var(--cyan); }
+
+    .event-badge.pageview { background: var(--surface-2); color: var(--text); border: 1px solid var(--line); }
+    .event-badge.click_download { background: rgba(216, 140, 140, 0.15); color: #e8a5a5; border: 1px solid rgba(216, 140, 140, 0.3); }
+    .event-badge.click_webapp { background: var(--accent-soft); color: var(--accent); border: 1px solid rgba(230, 190, 138, 0.3); }
+    .event-badge.click_github { background: var(--surface-3); color: var(--muted); border: 1px solid var(--line); }
+
+    .time-cell {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--faint);
+      white-space: nowrap;
+    }
+
+    .loading-state, .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--muted);
+    }
+
+    .tooltip {
+      position: absolute;
+      background: var(--surface-3);
+      border: 1px solid var(--accent);
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      pointer-events: none;
+      z-index: 10;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+    }
+
+    @media (max-width: 600px) {
+      .dashboard-header { flex-direction: column; align-items: flex-start; }
+      .metrics-grid { grid-template-columns: 1fr 1fr; }
+      .metric-value { font-size: 24px; }
+      .details-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="dashboard-header">
+      <div class="brand-section">
+        <img class="brand-logo" src="assets/logo.svg" alt="" />
+        <div class="brand-title">
+          <h1>豆仓 · 访问统计</h1>
+          <p>LANDING &amp; WEB APP ANALYTICS</p>
+        </div>
+      </div>
+
+      <div class="controls-section">
+        <div class="pill-group" role="tablist">
+          <button class="pill-btn" data-range="24h" type="button">今日</button>
+          <button class="pill-btn active" data-range="7d" type="button">近 7 天</button>
+          <button class="pill-btn" data-range="30d" type="button">近 30 天</button>
+          <button class="pill-btn" data-range="all" type="button">全量</button>
+        </div>
+        <button id="refreshBtn" class="action-btn" type="button">⟳ 刷新</button>
+        <a href="index.html" class="action-btn">返回落地页 ↗</a>
+      </div>
+    </header>
+
+    <!-- Status -->
+    <div class="status-bar">
+      <div class="live-tag">
+        <span class="live-dot"></span>
+        <span id="sourceStatus">连接中…</span>
+      </div>
+      <div id="lastUpdated">更新时间: --</div>
+    </div>
+
+    <!-- 5 大核心指标卡片 -->
+    <section class="metrics-grid">
+      <article class="metric-card">
+        <div class="metric-label">
+          <span>总访问量 (Total PV)</span>
+          <span style="color: var(--accent);">👁</span>
+        </div>
+        <div class="metric-value" id="valTotalPv">--</div>
+        <div class="metric-sub">今日 <strong><span id="valTodayPv">--</span></strong> · 昨日 <span id="valYesterdayPv">--</span></div>
+      </article>
+
+      <article class="metric-card">
+        <div class="metric-label">
+          <span>独立访客 (Total UV)</span>
+          <span style="color: var(--success);">👤</span>
+        </div>
+        <div class="metric-value" id="valTotalUv">--</div>
+        <div class="metric-sub">今日 <strong><span id="valTodayUv">--</span></strong> · 昨日 <span id="valYesterdayUv">--</span></div>
+      </article>
+
+      <article class="metric-card">
+        <div class="metric-label">
+          <span>实际 Web 应用访问</span>
+          <span style="color: var(--cyan);">⚡</span>
+        </div>
+        <div class="metric-value" id="valWebappPv">--</div>
+        <div class="metric-sub">独立访客: <strong><span id="valWebappUv">--</span></strong> · PWA: <span id="valPwaUv">--</span></div>
+      </article>
+
+      <article class="metric-card">
+        <div class="metric-label">
+          <span>APK 下载点击</span>
+          <span style="color: #d88c8c;">📥</span>
+        </div>
+        <div class="metric-value" id="valDownloads">--</div>
+        <div class="metric-sub">访客转化率: <strong><span id="valDownloadRate">--</span>%</strong></div>
+      </article>
+
+      <article class="metric-card">
+        <div class="metric-label">
+          <span>落地页访问 (Landing)</span>
+          <span style="color: var(--muted);">📄</span>
+        </div>
+        <div class="metric-value" id="valLandingPv">--</div>
+        <div class="metric-sub">独立访客: <strong><span id="valLandingUv">--</span></strong></div>
+      </article>
+    </section>
+
+    <!-- 趋势折线图 -->
+    <section class="chart-card">
+      <div class="card-head">
+        <h2 class="card-title">访问与转化趋势</h2>
+        <div class="chart-legend">
+          <div class="legend-item"><span class="legend-dot pv"></span><span>总页面访问 (PV)</span></div>
+          <div class="legend-item"><span class="legend-dot webapp"></span><span>Web 应用访问</span></div>
+          <div class="legend-item"><span class="legend-dot uv"></span><span>独立访客 (UV)</span></div>
+          <div class="legend-item"><span class="legend-dot dl"></span><span>下载转化</span></div>
+        </div>
+      </div>
+      <div class="chart-container" id="chartBox">
+        <svg class="chart-svg" id="trendSvg" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="pvGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#e6be8a" stop-opacity="0.5" />
+              <stop offset="100%" stop-color="#e6be8a" stop-opacity="0.0" />
+            </linearGradient>
+          </defs>
+          <g id="chartGrid"></g>
+          <g id="chartAxes"></g>
+          <path id="chartAreaPv" class="chart-area-pv" d="" />
+          <path id="chartLinePv" class="chart-line-pv" d="" />
+          <path id="chartLineWebapp" class="chart-line-webapp" d="" />
+          <path id="chartLineUv" class="chart-line-uv" d="" />
+          <g id="chartPoints"></g>
+        </svg>
+        <div class="tooltip" id="chartTooltip"></div>
+      </div>
+    </section>
+
+    <!-- 细分维度 -->
+    <section class="details-grid">
+      <!-- 来源排行 -->
+      <article class="detail-card">
+        <h2 class="card-title">Top 来源渠道 (Referrer)</h2>
+        <div class="breakdown-list" id="referrersList">
+          <div class="loading-state">载入中…</div>
+        </div>
+      </article>
+
+      <!-- 操作系统与设备 -->
+      <article class="detail-card">
+        <h2 class="card-title">操作系统 (OS)</h2>
+        <div class="breakdown-list" id="osList">
+          <div class="loading-state">载入中…</div>
+        </div>
+      </article>
+
+      <!-- 国家地区 -->
+      <article class="detail-card">
+        <h2 class="card-title">国家与地区 (Geo)</h2>
+        <div class="breakdown-list" id="countriesList">
+          <div class="loading-state">载入中…</div>
+        </div>
+      </article>
+    </section>
+
+    <!-- 实时事件流 -->
+    <section class="logs-card">
+      <div class="card-head">
+        <h2 class="card-title">实时访问动态 (最近 20 条事件)</h2>
+      </div>
+      <table class="logs-table">
+        <thead>
+          <tr>
+            <th>应用场景 / 事件类型</th>
+            <th>时间</th>
+            <th>地区</th>
+            <th>系统 / 终端</th>
+            <th>来源</th>
+          </tr>
+        </thead>
+        <tbody id="recentEventsTable">
+          <tr><td colspan="5" class="loading-state">载入中…</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      var API_BASE = 'https://sync.cofevault.top';
+      var activeRange = '7d';
+
+      function generateMockData(range) {
+        var days = range === '30d' ? 30 : range === '24h' ? 1 : 7;
+        var daily = [];
+        var totalPv = 0, totalUv = 0, totalDl = 0, webappPv = 0, webappUv = 0;
+        var now = new Date();
+
+        for (var i = days - 1; i >= 0; i--) {
+          var d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+          var dateStr = d.toISOString().slice(5, 10);
+          var base = 40 + Math.floor(Math.sin(i * 0.8) * 15) + Math.floor(Math.random() * 20);
+          var uv = Math.floor(base * 0.65);
+          var dl = Math.floor(uv * 0.22);
+          var webPv = Math.floor(base * 0.35);
+          daily.push({ date: dateStr, pv: base, uv: uv, downloads: dl, webapp_pv: webPv, webapp_clicks: Math.floor(uv * 0.18) });
+          totalPv += base; totalUv += uv; totalDl += dl; webappPv += webPv; webappUv += Math.floor(uv * 0.3);
+        }
+
+        return {
+          summary: {
+            range: range,
+            totalPv: totalPv,
+            totalUv: totalUv,
+            landingPv: totalPv - webappPv,
+            landingUv: totalUv - Math.floor(webappUv * 0.6),
+            webappPv: webappPv,
+            webappUv: webappUv,
+            totalDownloads: totalDl,
+            pwaUv: Math.floor(webappUv * 0.4),
+            todayPv: daily[daily.length - 1].pv,
+            todayUv: daily[daily.length - 1].uv,
+            yesterdayPv: daily.length > 1 ? daily[daily.length - 2].pv : 0,
+            yesterdayUv: daily.length > 1 ? daily[daily.length - 2].uv : 0
+          },
+          daily: daily,
+          referrers: [
+            { referrer_host: 'Direct (直接访问 / 书签)', count: Math.floor(totalPv * 0.45) },
+            { referrer_host: 'github.com', count: Math.floor(totalPv * 0.28) },
+            { referrer_host: 'v2ex.com', count: Math.floor(totalPv * 0.12) },
+            { referrer_host: 'xiaohongshu.com', count: Math.floor(totalPv * 0.08) },
+            { referrer_host: 'google.com', count: Math.floor(totalPv * 0.07) }
+          ],
+          os: [
+            { os: 'Android', count: Math.floor(totalPv * 0.52) },
+            { os: 'iOS', count: Math.floor(totalPv * 0.24) },
+            { os: 'Windows', count: Math.floor(totalPv * 0.16) },
+            { os: 'macOS', count: Math.floor(totalPv * 0.08) }
+          ],
+          countries: [
+            { country: 'CN (中国)', count: Math.floor(totalPv * 0.84) },
+            { country: 'US (美国)', count: Math.floor(totalPv * 0.08) },
+            { country: 'HK (中国香港)', count: Math.floor(totalPv * 0.05) },
+            { country: 'JP (日本)', count: Math.floor(totalPv * 0.03) }
+          ],
+          recent: [
+            { created_at: new Date(now.getTime() - 2 * 60 * 1000).toISOString(), site: 'webapp', event_type: 'pageview', country: 'CN', os: 'Android', browser: 'Chrome', referrer_host: 'Direct' },
+            { created_at: new Date(now.getTime() - 5 * 60 * 1000).toISOString(), site: 'landing', event_type: 'click_download', country: 'CN', os: 'Android', browser: 'Chrome', referrer_host: 'github.com' },
+            { created_at: new Date(now.getTime() - 12 * 60 * 1000).toISOString(), site: 'landing', event_type: 'click_webapp', country: 'US', os: 'macOS', browser: 'Safari', referrer_host: 'Direct' },
+            { created_at: new Date(now.getTime() - 25 * 60 * 1000).toISOString(), site: 'webapp', event_type: 'pageview', country: 'CN', os: 'iOS', browser: 'Safari', referrer_host: 'Direct' }
+          ]
+        };
+      }
+
+      function formatRelativeTime(isoStr) {
+        if (!isoStr) return '--';
+        var diff = Math.max(0, Math.floor((Date.now() - new Date(isoStr).getTime()) / 1000));
+        if (diff < 60) return diff + ' 秒前';
+        if (diff < 3600) return Math.floor(diff / 60) + ' 分钟前';
+        if (diff < 86400) return Math.floor(diff / 3600) + ' 小时前';
+        return Math.floor(diff / 86400) + ' 天前';
+      }
+
+      function renderDashboard(data, isMock) {
+        var s = data.summary || {};
+        document.getElementById('valTotalPv').textContent = s.totalPv.toLocaleString();
+        document.getElementById('valTodayPv').textContent = s.todayPv.toLocaleString();
+        document.getElementById('valYesterdayPv').textContent = s.yesterdayPv.toLocaleString();
+
+        document.getElementById('valTotalUv').textContent = s.totalUv.toLocaleString();
+        document.getElementById('valTodayUv').textContent = s.todayUv.toLocaleString();
+        document.getElementById('valYesterdayUv').textContent = s.yesterdayUv.toLocaleString();
+
+        document.getElementById('valWebappPv').textContent = (s.webappPv || 0).toLocaleString();
+        document.getElementById('valWebappUv').textContent = (s.webappUv || 0).toLocaleString();
+        document.getElementById('valPwaUv').textContent = (s.pwaUv || 0).toLocaleString();
+
+        document.getElementById('valLandingPv').textContent = (s.landingPv || 0).toLocaleString();
+        document.getElementById('valLandingUv').textContent = (s.landingUv || 0).toLocaleString();
+
+        document.getElementById('valDownloads').textContent = (s.totalDownloads || 0).toLocaleString();
+        var dlRate = s.totalUv > 0 ? (((s.totalDownloads || 0) / s.totalUv) * 100).toFixed(1) : '0.0';
+        document.getElementById('valDownloadRate').textContent = dlRate;
+
+        var sourceStatus = document.getElementById('sourceStatus');
+        sourceStatus.textContent = isMock ? '演示模式 (Mock)' : '实时在线 (Live)';
+        if (isMock) sourceStatus.style.color = 'var(--muted)';
+        else sourceStatus.style.color = 'var(--success)';
+
+        document.getElementById('lastUpdated').textContent = '更新时间: ' + new Date().toLocaleTimeString();
+
+        renderTrendChart(data.daily || []);
+        renderBreakdown('referrersList', data.referrers, 'referrer_host');
+        renderBreakdown('osList', data.os, 'os', 'alt');
+        renderBreakdown('countriesList', data.countries, 'country', 'alt2');
+        renderRecentTable(data.recent || []);
+      }
+
+      function renderBreakdown(containerId, list, keyName, barClass) {
+        var el = document.getElementById(containerId);
+        if (!el) return;
+        if (!list || !list.length) {
+          el.innerHTML = '<div class="empty-state">暂无数据</div>';
+          return;
+        }
+
+        var max = Math.max.apply(null, list.map(function (item) { return item.count; })) || 1;
+        el.innerHTML = list.map(function (item) {
+          var name = item[keyName] || '未知';
+          var pct = Math.max(4, Math.round((item.count / max) * 100));
+          return '<div class="breakdown-row">' +
+            '<span class="breakdown-name" title="' + name + '">' + name + '</span>' +
+            '<div class="breakdown-bar-wrap"><div class="breakdown-bar ' + (barClass || '') + '" style="width: ' + pct + '%"></div></div>' +
+            '<span class="breakdown-count">' + item.count + '</span>' +
+            '</div>';
+        }).join('');
+      }
+
+      function renderRecentTable(list) {
+        var tbody = document.getElementById('recentEventsTable');
+        if (!tbody) return;
+        if (!list || !list.length) {
+          tbody.innerHTML = '<tr><td colspan="5" class="empty-state">暂无事件记录</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = list.map(function (item) {
+          var isWebapp = item.site === 'webapp' || (item.path && item.path.indexOf('/app') === 0);
+          var siteBadge = '<span class="site-tag ' + (isWebapp ? 'webapp' : 'landing') + '">' + (isWebapp ? 'WEB APP' : 'LANDING') + '</span>';
+          var badgeClass = item.event_type || 'pageview';
+          var label = item.event_type === 'click_download' ? '下载 APK' : item.event_type === 'click_webapp' ? '打开 Web' : item.event_type === 'click_github' ? 'GitHub' : '页面访问';
+          return '<tr>' +
+            '<td>' + siteBadge + '<span class="event-badge ' + badgeClass + '">' + label + '</span></td>' +
+            '<td class="time-cell">' + formatRelativeTime(item.created_at) + '</td>' +
+            '<td>' + (item.country || '未知') + '</td>' +
+            '<td>' + (item.os || '其他') + ' / ' + (item.browser || 'Browser') + '</td>' +
+            '<td>' + (item.referrer_host || 'Direct') + '</td>' +
+            '</tr>';
+        }).join('');
+      }
+
+      function renderTrendChart(daily) {
+        var svg = document.getElementById('trendSvg');
+        var grid = document.getElementById('chartGrid');
+        var axes = document.getElementById('chartAxes');
+        var areaPv = document.getElementById('chartAreaPv');
+        var linePv = document.getElementById('chartLinePv');
+        var lineWebapp = document.getElementById('chartLineWebapp');
+        var lineUv = document.getElementById('chartLineUv');
+        var pointsG = document.getElementById('chartPoints');
+        var tooltip = document.getElementById('chartTooltip');
+
+        if (!daily || !daily.length) {
+          linePv.setAttribute('d', '');
+          lineWebapp.setAttribute('d', '');
+          lineUv.setAttribute('d', '');
+          areaPv.setAttribute('d', '');
+          pointsG.innerHTML = '';
+          return;
+        }
+
+        var box = document.getElementById('chartBox');
+        var w = box.clientWidth || 800;
+        var h = box.clientHeight || 240;
+        var padLeft = 40, padRight = 20, padTop = 20, padBottom = 30;
+        var innerW = w - padLeft - padRight;
+        var innerH = h - padTop - padBottom;
+
+        var maxVal = 5;
+        daily.forEach(function (d) {
+          if (d.pv > maxVal) maxVal = d.pv;
+        });
+        maxVal = Math.ceil(maxVal * 1.15);
+
+        // 网格与 Y 轴刻度
+        var gridHtml = '', axesHtml = '';
+        var steps = 4;
+        for (var i = 0; i <= steps; i++) {
+          var y = padTop + (innerH * (steps - i)) / steps;
+          var val = Math.round((maxVal * i) / steps);
+          gridHtml += '<line class="chart-grid-line" x1="' + padLeft + '" y1="' + y + '" x2="' + (w - padRight) + '" y2="' + y + '" />';
+          axesHtml += '<text class="chart-axis-text" x="' + (padLeft - 8) + '" y="' + (y + 3) + '" text-anchor="end">' + val + '</text>';
+        }
+
+        var pvPoints = [], uvPoints = [], webappPoints = [];
+        var pointsHtml = '';
+
+        daily.forEach(function (d, idx) {
+          var x = daily.length === 1 ? padLeft + innerW / 2 : padLeft + (innerW * idx) / (daily.length - 1);
+          var yPv = padTop + innerH - (d.pv / maxVal) * innerH;
+          var yUv = padTop + innerH - (d.uv / maxVal) * innerH;
+          var yWebapp = padTop + innerH - ((d.webapp_pv || 0) / maxVal) * innerH;
+
+          pvPoints.push(x + ',' + yPv);
+          uvPoints.push(x + ',' + yUv);
+          webappPoints.push(x + ',' + yWebapp);
+
+          axesHtml += '<text class="chart-axis-text" x="' + x + '" y="' + (h - 8) + '" text-anchor="middle">' + d.date + '</text>';
+
+          pointsHtml += '<circle class="chart-point pv" cx="' + x + '" cy="' + yPv + '" r="3.5" data-idx="' + idx + '" />' +
+            '<circle class="chart-point uv" cx="' + x + '" cy="' + yUv + '" r="3" data-idx="' + idx + '" />';
+        });
+
+        grid.innerHTML = gridHtml;
+        axes.innerHTML = axesHtml;
+        pointsG.innerHTML = pointsHtml;
+
+        if (pvPoints.length) {
+          linePv.setAttribute('d', 'M ' + pvPoints.join(' L '));
+          var firstX = pvPoints[0].split(',')[0];
+          var lastX = pvPoints[pvPoints.length - 1].split(',')[0];
+          var bottomY = padTop + innerH;
+          areaPv.setAttribute('d', 'M ' + firstX + ',' + bottomY + ' L ' + pvPoints.join(' L ') + ' L ' + lastX + ',' + bottomY + ' Z');
+        }
+
+        if (webappPoints.length) {
+          lineWebapp.setAttribute('d', 'M ' + webappPoints.join(' L '));
+        }
+
+        if (uvPoints.length) {
+          lineUv.setAttribute('d', 'M ' + uvPoints.join(' L '));
+        }
+
+        pointsG.onmousemove = function (e) {
+          var target = e.target;
+          if (!target || !target.getAttribute('data-idx')) return;
+          var idx = Number(target.getAttribute('data-idx'));
+          var item = daily[idx];
+          if (!item) return;
+
+          var cx = Number(target.getAttribute('cx'));
+          var cy = Number(target.getAttribute('cy'));
+
+          tooltip.innerHTML = '<strong>' + item.date + '</strong><br/>' +
+            '总 PV: ' + item.pv + '<br/>' +
+            'Web 应用 PV: ' + (item.webapp_pv || 0) + '<br/>' +
+            '独立 UV: ' + item.uv + '<br/>' +
+            '下载转化: ' + (item.downloads || 0);
+          tooltip.style.left = (cx + 12) + 'px';
+          tooltip.style.top = (cy - 20) + 'px';
+          tooltip.style.opacity = '1';
+        };
+
+        pointsG.onmouseleave = function () {
+          tooltip.style.opacity = '0';
+        };
+      }
+
+      function loadData() {
+        var statusEl = document.getElementById('sourceStatus');
+        statusEl.textContent = '载入中…';
+
+        var token = new URLSearchParams(location.search).get('token') || '';
+        var url = API_BASE + '/analytics/stats?range=' + activeRange + (token ? '&token=' + encodeURIComponent(token) : '');
+
+        fetch(url)
+          .then(function (r) {
+            if (!r.ok) throw new Error('API 返回 ' + r.status);
+            return r.json();
+          })
+          .then(function (data) {
+            renderDashboard(data, false);
+          })
+          .catch(function (err) {
+            console.warn('[Analytics] 真实数据拉取失败，启用演示数据:', err);
+            var mock = generateMockData(activeRange);
+            renderDashboard(mock, true);
+          });
+      }
+
+      document.querySelectorAll('[data-range]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          document.querySelectorAll('[data-range]').forEach(function (b) { b.classList.remove('active'); });
+          btn.classList.add('active');
+          activeRange = btn.getAttribute('data-range') || '7d';
+          loadData();
+        });
+      });
+
+      document.getElementById('refreshBtn').addEventListener('click', loadData);
+      window.addEventListener('resize', loadData);
+
+      loadData();
+    })();
+  </script>
+</body>
+</html>

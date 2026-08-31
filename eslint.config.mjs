@@ -25,6 +25,7 @@ const projectGlobals = {
   SubjectCropCore: 'readonly',
   AppSubjectCrop: 'readonly',
   AppShell: 'readonly',
+  AppTracker: 'readonly',
   PhotoTone: 'readonly',
   Capacitor: 'readonly',
   qrcode: 'readonly',

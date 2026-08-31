@@ -283,7 +283,32 @@
       .catch(function () {});
   })();
 
-  // ----- footer year -----
+  // ----- footer year & secret stats portal -----
   var yearEl = document.getElementById('year');
   if (yearEl) yearEl.textContent = String(new Date().getFullYear());
+
+  (function initSecretStatsPortal() {
+    var footMeta = document.querySelector('.foot-meta');
+    if (!footMeta) return;
+    var clicks = 0;
+    var timer = null;
+
+    footMeta.style.cursor = 'default';
+    footMeta.addEventListener('click', function () {
+      clicks += 1;
+      if (timer) clearTimeout(timer);
+      if (clicks >= 3) {
+        clicks = 0;
+        location.href = 'stats.html';
+        return;
+      }
+      timer = setTimeout(function () { clicks = 0; }, 600);
+    });
+
+    window.addEventListener('keydown', function (e) {
+      if (e.ctrlKey && e.altKey && (e.key === 's' || e.key === 'S')) {
+        location.href = 'stats.html';
+      }
+    });
+  })();
 })();

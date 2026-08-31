@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#1a1412">
   <meta name="color-scheme" content="dark light">
   <title>豆仓</title>
-  <link rel="stylesheet" href="styles.css?v=3.0.3">
+  <link rel="stylesheet" href="styles.css?v=3.0.4">
   <style>
     #aboutDialog .about-actions { display:flex; align-items:center; justify-content:center; gap:8px; color:var(--faint); font-size:12px; }
     #aboutDialog .about-actions .text-link-button { width:auto; min-width:0; min-height:0; padding:2px; border:0; border-radius:0; background:transparent; box-shadow:none; color:var(--accent); font:700 12px/1 inherit; text-decoration:underline; text-underline-offset:4px; }
@@ -719,7 +719,7 @@
 
   <dialog class="sheet compact" id="aboutDialog">
     <header class="sheet-header"><div><p class="eyebrow">ABOUT</p><h2>关于豆仓</h2></div><button class="icon-button" id="aboutClose" type="button" aria-label="关闭">×</button></header>
-    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 3.0.3</p></section>
+    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 3.0.4</p></section>
     <section class="about-update" aria-live="polite">
       <div class="about-actions"><button class="text-link-button" id="aboutCheckUpdate" type="button">检查更新</button><span aria-hidden="true">·</span><button class="text-link-button" id="aboutOpenReleases" type="button">查看发布页</button></div>
       <div class="update-status" id="updateStatus" hidden></div>
@@ -728,8 +728,8 @@
     <section class="about-copy">
       <h3>收藏咖啡，也收藏与咖啡相处的时间。</h3>
       <p>豆仓是一款为咖啡爱好者设计的本地优先记录工具。你可以保存每一包咖啡豆的产地、风味与价格，记录每次饮用和冲煮方案，让日常里喝过的咖啡慢慢有迹可循。</p>
-      <h4>3.0.3 最新功能</h4>
-      <ul><li>去掉角落悬浮加号，新增豆子、扫码和导入方案改进行页顶栏</li><li>饮用页顶栏只留搜索；列表不再被底栏挡住，空状态改成说明加按钮</li><li>筛选文案统一为「在饮 / 已归档 / 全部」，宽屏侧栏加宽并保留大标题</li></ul>
+      <h4>3.0.4 最新功能</h4>
+      <ul><li>修复豆仓顶部操作按钮偏居中的视觉对齐问题，恢复自然靠右贴边</li><li>优化咖啡报告导航层级：查看具体月报或年报时，返回先回到报告列表，再次返回才回到个人中心</li><li>落地页与 Web 端加入轻量访问统计看板，严格隔离 Android 原生端保持完全离线承诺</li></ul>
       <div class="privacy-note"><b>离线与隐私</b><p>豆仓默认完全离线使用，数据保存在你的设备中。云同步为可选功能，仅在登录并开启后使用。</p><p>检查更新仅在你主动点击时联网，不会影响本地记录使用。</p></div>
     </section>
   </dialog>
@@ -781,6 +781,7 @@
   <script src="subject-crop-core.js"></script>
   <script src="app-subject-crop.js"></script>
   <script src="app-shell.js"></script>
+  <script src="app-tracker.js"></script>
   <script src="app.js"></script>
   <script>
     // 仅在真正的 Web 环境注册 Service Worker；Capacitor 原生壳内跳过。

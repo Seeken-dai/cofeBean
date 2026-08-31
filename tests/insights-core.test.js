@@ -450,14 +450,13 @@ test('咖啡年报提供十二月节奏，报告列表与首页提醒只使用�
   assert.equal(monthPayload.rhythm.length, 0);
 });
 
-test('咖啡月报与年报移出回顾首页，来自我的详情返回我的', () => {
+test('咖啡月报与年报移出回顾首页，详情页返回报告列表，列表页返回我的', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'www', 'app-insights.js'), 'utf8');
   const html = fs.readFileSync(path.join(__dirname, '..', 'www', 'index.html'), 'utf8');
   // 月报/年报不再作为回顾首页的第 05 类 section，只从个人中心（月报也从日历）进入。
   assert.doesNotMatch(source, /insightsSectionReports|report-home-section|<span>05<\/span>/);
-  // 报告详情：来自个人中心时直接退回我的，真正从报告页进入时才回列表。
-  assert.match(source, /if \(opts\.fromPersonal\) state\.insightsExitTo = 'personal'/);
-  assert.match(source, /if \(state\.insightsReportFromList && state\.insightsExitTo !== 'personal'\)[\s\S]*?state\.insightsPage = 'reports'/);
+  // 报告详情返回上一级报告列表，报告列表返回个人中心。
+  assert.match(source, /if \(state\.insightsPage === 'report'\)[\s\S]*?state\.insightsPage = 'reports'/);
   assert.match(source, /if \(state\.insightsPage === 'reports' \|\| state\.insightsPage === 'catalog'\)[\s\S]*?exitInsights\(\)/);
   assert.match(source, /function exitInsights\(\)[\s\S]*?reopenPersonal\(\)/);
   assert.match(html, /id="reportReviewPage"/);
