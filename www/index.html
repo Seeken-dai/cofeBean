@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#1a1412">
   <meta name="color-scheme" content="dark light">
   <title>豆仓</title>
-  <link rel="stylesheet" href="styles.css?v=3.0.5">
+  <link rel="stylesheet" href="styles.css?v=3.0.6">
   <style>
     #aboutDialog .about-actions { display:flex; align-items:center; justify-content:center; gap:8px; color:var(--faint); font-size:12px; }
     #aboutDialog .about-actions .text-link-button { width:auto; min-width:0; min-height:0; padding:2px; border:0; border-radius:0; background:transparent; box-shadow:none; color:var(--accent); font:700 12px/1 inherit; text-decoration:underline; text-underline-offset:4px; }
@@ -719,7 +719,7 @@
 
   <dialog class="sheet compact" id="aboutDialog">
     <header class="sheet-header"><div><p class="eyebrow">ABOUT</p><h2>关于豆仓</h2></div><button class="icon-button" id="aboutClose" type="button" aria-label="关闭">×</button></header>
-    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 3.0.5</p></section>
+    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 3.0.6</p></section>
     <section class="about-update" aria-live="polite">
       <div class="about-actions"><button class="text-link-button" id="aboutCheckUpdate" type="button">检查更新</button><span aria-hidden="true">·</span><button class="text-link-button" id="aboutOpenReleases" type="button">查看发布页</button></div>
       <div class="update-status" id="updateStatus" hidden></div>
@@ -728,8 +728,8 @@
     <section class="about-copy">
       <h3>收藏咖啡，也收藏与咖啡相处的时间。</h3>
       <p>豆仓是一款为咖啡爱好者设计的本地优先记录工具。你可以保存每一包咖啡豆的产地、风味与价格，记录每次饮用和冲煮方案，让日常里喝过的咖啡慢慢有迹可循。</p>
-      <h4>3.0.5 最新功能</h4>
-      <ul><li>月报门槛降到 3 杯，当月喝满 3 杯就能生成咖啡月报</li><li>冲煮回顾跟随顶部「近 30 天 / 90 天 / 今年 / 全部」范围一起变</li><li>手机可左右滑切换底栏页面（弹层与横向滚动不会误触）</li><li>页面切换与底部面板动效再收紧一档</li><li>宽屏「我的 → 设置」子导航改为横向芯片，手机端不变</li></ul>
+      <h4>3.0.6 最新功能</h4>
+      <ul><li>咖啡月报与年报排版重构，细化未填金额脚注与年度饮用节奏</li><li>修复手机端在卡片区域左右滑动切换页面的误拦截问题</li><li>优化宽屏三级弹窗层级，导航侧栏不再被锁死，支持随时切换</li><li>喝一杯详情的风味雷达图调整为对比本款豆的历史均分</li></ul>
       <div class="privacy-note"><b>离线与隐私</b><p>豆仓默认完全离线使用，数据保存在你的设备中。云同步为可选功能，仅在登录并开启后使用。</p><p>检查更新仅在你主动点击时联网，不会影响本地记录使用。</p></div>
     </section>
   </dialog>
