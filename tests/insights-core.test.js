@@ -496,35 +496,96 @@ test('咖啡年报提供十二月节奏，报告列表与首页提醒只使用�
 test('咖啡报告 UI 细稿：列表/花费脚注/产地/节奏/宽屏 rail-share 锁定', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'www', 'app-insights.js'), 'utf8');
   const css = fs.readFileSync(path.join(__dirname, '..', 'www', 'styles.css'), 'utf8');
-  const core = fs.readFileSync(path.join(__dirname, '..', 'www', 'insights-core.js'), 'utf8');
-  // 1 spend footnote + never fake hero spend
+  const coreSrc = fs.readFileSync(path.join(__dirname, '..', 'www', 'insights-core.js'), 'utf8');
+  const shareSrc = fs.readFileSync(path.join(__dirname, '..', 'www', 'app-share-card.js'), 'utf8');
+  const ui = require(path.join(__dirname, '..', 'www', 'app-insights.js'));
+
   assert.match(source, /杯未填金额/);
   assert.doesNotMatch(source, /reportMoney|待补充/);
   assert.match(source, /estimatedSpend != null/);
-  // 2 origins month < 2 hide; year any
   assert.match(source, /origins \|\| \[\]\)\.length >= 2/);
   assert.match(source, /isYear \? \(data\.origins \|\| \[\]\)\.length > 0/);
-  // 3 list cups + chip, no topBeanName
   assert.match(source, /coffee-report-badge/);
   assert.match(source, /coffee-report-chip/);
   assert.doesNotMatch(source, /topBeanName/);
-  // 4 share omit spend when null
-  assert.match(core, /estimatedSpend == null \? null/);
-  assert.doesNotMatch(core, /estimatedSpend == null \? '—'/);
-  // 5 wide rail-share
+  assert.match(coreSrc, /estimatedSpend == null \? null/);
+  assert.doesNotMatch(coreSrc, /estimatedSpend == null \? '—'/);
   assert.match(css, /rail-share/);
   assert.match(css, /minmax\(300px,\s*360px\)/);
   assert.match(source, /rail-share zone-share/);
-  // 6 empty modules omitted via conditional cards
   assert.match(source, /zone-02/);
   assert.match(source, /zone-03/);
   assert.match(source, /zone-04/);
-  // year rhythm only
   assert.match(source, /isYear \? reportRhythm\(data\.monthlyRhythm/);
   assert.match(source, /最忙的一个月/);
-  // phone share dock / no FAB dependency in report detail markup
   assert.match(css, /is-report-detail/);
   assert.match(source, /is-report-detail/);
+  assert.match(shareSrc, /杯未填金额/);
+  assert.doesNotMatch(shareSrc, /杯金额未计入估算/);
+
+  const beans = [
+    bean('b1', { name: '耶加', origin: '埃塞俄比亚' }),
+    bean('b2', { name: '肯尼亚', origin: '肯尼亚' })
+  ];
+  const monthLogs = [];
+  for (let i = 1; i <= 8; i += 1) {
+    monthLogs.push(log('m' + i, atLocal(2026, 6, i), {
+      source: i <= 5 ? 'bean' : 'external',
+      beanId: i <= 5 ? 'b1' : 'b2',
+      overallRating: i === 2 ? 4.5 : null,
+      price: i === 6 ? 28 : null
+    }));
+  }
+  const month = insights.coffeePeriodReport(monthLogs, beans, { type: 'month', key: '2026-06', now: new Date(2026, 6, 3) });
+  assert.equal(month.ok, true);
+  assert.equal(month.data.origins.length, 1);
+  assert.ok(month.data.unknownCostCount > 0);
+  const monthHtml = ui.coffeeReportDetail(month);
+  assert.match(monthHtml, /report-layout/);
+  assert.match(monthHtml, /zone-01/);
+  assert.match(monthHtml, /rail-share zone-share/);
+  assert.match(monthHtml, new RegExp('「' + month.data.unknownCostCount + ' 杯未填金额」'));
+  assert.doesNotMatch(monthHtml, /zone-rhythm|年度节奏|最忙的一个月/);
+  assert.doesNotMatch(monthHtml, /coffee-report-origins/);
+  assert.doesNotMatch(monthHtml, /待补充|reportMoney/);
+  if (month.data.estimatedSpend == null) assert.doesNotMatch(monthHtml, /花费<\/span>/);
+  else assert.match(monthHtml, /花费<\/span>/);
+
+  const listHtml = ui.coffeeReportList([
+    { type: 'year', key: '2025', label: '2025 年', cups: 100 },
+    { type: 'month', key: '2026-06', label: '2026 年 6 月', cups: 8 }
+  ]);
+  assert.match(listHtml, /coffee-report-badge/);
+  assert.match(listHtml, /年报/);
+  assert.match(listHtml, /月报/);
+  assert.doesNotMatch(listHtml, /topBeanName|主力豆/);
+
+  const yearLogs = [];
+  for (let monthIdx = 0; monthIdx < 12; monthIdx += 1) {
+    const cups = monthIdx === 2 ? 6 : 1;
+    for (let c = 0; c < cups; c += 1) {
+      yearLogs.push(log('y' + monthIdx + '-' + c, atLocal(2025, monthIdx + 1, c + 1), { beanId: 'b1', source: 'bean' }));
+    }
+  }
+  const annual = insights.coffeePeriodReport(yearLogs, beans, { type: 'year', key: '2025', now: new Date(2026, 0, 2) });
+  assert.equal(annual.ok, true);
+  assert.equal(annual.data.monthlyRhythm.length, 12);
+  assert.equal(annual.data.activeMonth && annual.data.activeMonth.label, '3月');
+  const yearHtml = ui.coffeeReportDetail(annual);
+  assert.match(yearHtml, /zone-rhythm/);
+  assert.match(yearHtml, /最忙的一个月 · 3月 · 6 杯/);
+  assert.match(yearHtml, /足迹 · 产地|coffee-report-origins/);
+  assert.match(yearHtml, /分享这份咖啡年报/);
+
+  const sparseLogs = [1, 2, 3].map((i) => log('s' + i, atLocal(2026, 5, i), { source: 'external', drinkName: '美式', price: null }));
+  const sparse = insights.coffeePeriodReport(sparseLogs, [], { type: 'month', key: '2026-05', now: new Date(2026, 6, 1) });
+  assert.equal(sparse.ok, true);
+  const sparseHtml = ui.coffeeReportDetail(sparse);
+  assert.doesNotMatch(sparseHtml, /zone-02|味道与主力/);
+  assert.doesNotMatch(sparseHtml, /zone-rhythm/);
+  assert.equal(sparse.data.estimatedSpend, null);
+  assert.doesNotMatch(sparseHtml, />花费</);
+  assert.match(sparseHtml, /杯未填金额/);
 });
 
 test('咖啡月报与年报移出回顾首页，详情页返回报告列表，列表页返回我的', () => {

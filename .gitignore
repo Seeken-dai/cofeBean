@@ -16,6 +16,7 @@ privateDocs/
 dist/
 .claude/
 .interface-design/
+design/
 mock/
 !www/mock/
 !www/mock/**
