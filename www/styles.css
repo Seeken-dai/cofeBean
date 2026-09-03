@@ -1899,6 +1899,7 @@ dialog[data-layer-kind="quick"] { background:var(--vault-paper); }
     padding:22px 24px 42px;
     overflow-x:hidden;
     overflow-y:auto;
+    scrollbar-gutter:stable;
   }
   .overview { grid-template-columns:1.1fr 1px 1fr 1.2fr; max-width:560px; }
   .filter-row { width:max-content; max-width:100%; }

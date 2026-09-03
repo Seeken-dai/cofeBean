@@ -227,9 +227,11 @@ test('3.0.6 宽屏侧栏具备高层级与事件穿透保护，主容器声明 p
   const css = fs.readFileSync(path.join(__dirname, '../www/styles.css'), 'utf8');
   const app = fs.readFileSync(path.join(__dirname, '../www/app.js'), 'utf8');
   assert.match(css, /main\s*\{[^}]*touch-action:\s*pan-y/);
+  assert.match(css, /scrollbar-gutter:\s*stable/);
   assert.match(css, /\.app-sidebar\s*\{[^}]*position:\s*relative;[^}]*z-index:\s*100;[^}]*pointer-events:\s*auto;/);
   assert.match(css, /body::before\s*\{[^}]*z-index:\s*70/);
   assert.match(app, /const FLOATING_NAV_PAGE_IDS = new Set\(\[/);
   assert.match(app, /closeContextDetailsForNavigation/);
+  assert.match(app, /if \(els\.insights && els\.insights\.open\) setDialog\(els\.insights, false\);/);
 });
 

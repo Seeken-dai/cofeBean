@@ -1069,9 +1069,18 @@
     }
     selectPersonalSection(section);
   }
-  function openPersonalSection(section) { state.view = 'personal'; state.personalSection = section; render(); const main = $('main'); if (main) main.scrollTop = 0; window.scrollTo({ top: 0, left: 0, behavior: 'auto' }); }
+  function openPersonalSection(section) {
+    if (els.insights && els.insights.open) setDialog(els.insights, false);
+    state.view = 'personal';
+    state.personalSection = section;
+    render();
+    const main = $('main');
+    if (main) main.scrollTop = 0;
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }
   function selectPersonalSection(section) {
     if (!isWideWorkspace()) return handlePersonalNavigation(section);
+    if (els.insights && els.insights.open) setDialog(els.insights, false);
     if (state.view !== 'personal') return openPersonalSection(section);
     state.personalSection = section;
     renderPersonal();

@@ -917,7 +917,17 @@
     }
 
     // insightsExitTo 必须在这里清掉：否则从个人中心进来后直接关闭，残值会让下一次会话误以为还要回个人中心。
-    function close() { state.insightsExitTo = null; stopCatalogBurst(); stopCatalogRotator(); hideHelp(); setDialog(dialog, false); }
+    function close() {
+      state.insightsExitTo = null;
+      state.insightsPage = 'home';
+      state.insightsReportType = null;
+      state.insightsReportKey = null;
+      state.insightsReportFromList = false;
+      stopCatalogBurst();
+      stopCatalogRotator();
+      hideHelp();
+      setDialog(dialog, false);
+    }
 
     function openBrewReview(beanId) {
       hideHelp();
