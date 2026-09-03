@@ -81,7 +81,7 @@
   // ----- theme preview switch (layered crossfade) -----
   function crossfade(shot, theme) {
     var screen = shot.getAttribute('data-screen');
-    var src = 'assets/screens/' + theme + '/' + screen + '.webp';
+    var src = 'assets/screens/' + theme + '/' + screen + '.webp?v=3.0.5';
     var images = shot.querySelectorAll('img');
     var cur = images.length ? images[images.length - 1] : null;
     Array.prototype.forEach.call(images, function (img) {
