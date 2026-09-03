@@ -475,7 +475,9 @@ test('咖啡年报提供十二月节奏，报告列表与首页提醒只使用�
   assert.equal(payload.style, 'report');
   assert.equal(payload.badge.big, '2025');
   assert.equal(payload.rhythm.length, 12);
-  assert.equal(payload.hero.length, 4);
+  assert.ok(payload.hero.every((item) => item.label !== '估算花费' || !String(item.value).includes('—')));
+  assert.equal(payload.hero.some((item) => item.label === '估算花费'), annual.data.estimatedSpend != null);
+  assert.equal(payload.hero.length, annual.data.estimatedSpend == null ? 3 : 4);
   const monthRows = [
     log('m1', atLocal(2026, 6, 1)), log('m2', atLocal(2026, 6, 2)), log('m3', atLocal(2026, 6, 3)),
     log('m4', atLocal(2026, 6, 4)), log('m5', atLocal(2026, 6, 5))
@@ -484,6 +486,45 @@ test('咖啡年报提供十二月节奏，报告列表与首页提醒只使用�
   const monthPayload = insights.buildCoffeeReportSharePayload(monthReport.data);
   assert.equal(monthPayload.badge.big, '6月');
   assert.equal(monthPayload.rhythm.length, 0);
+  assert.equal(monthPayload.hero.some((item) => item.label === '估算花费'), monthReport.data.estimatedSpend != null);
+  if (monthReport.data.estimatedSpend == null) {
+    assert.equal(monthPayload.hero.length, 3);
+    assert.ok(!JSON.stringify(monthPayload.hero).includes('—'));
+  }
+});
+
+test('咖啡报告 UI 细稿：列表/花费脚注/产地/节奏/宽屏 rail-share 锁定', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'www', 'app-insights.js'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, '..', 'www', 'styles.css'), 'utf8');
+  const core = fs.readFileSync(path.join(__dirname, '..', 'www', 'insights-core.js'), 'utf8');
+  // 1 spend footnote + never fake hero spend
+  assert.match(source, /杯未填金额/);
+  assert.doesNotMatch(source, /reportMoney|待补充/);
+  assert.match(source, /estimatedSpend != null/);
+  // 2 origins month < 2 hide; year any
+  assert.match(source, /origins \|\| \[\]\)\.length >= 2/);
+  assert.match(source, /isYear \? \(data\.origins \|\| \[\]\)\.length > 0/);
+  // 3 list cups + chip, no topBeanName
+  assert.match(source, /coffee-report-badge/);
+  assert.match(source, /coffee-report-chip/);
+  assert.doesNotMatch(source, /topBeanName/);
+  // 4 share omit spend when null
+  assert.match(core, /estimatedSpend == null \? null/);
+  assert.doesNotMatch(core, /estimatedSpend == null \? '—'/);
+  // 5 wide rail-share
+  assert.match(css, /rail-share/);
+  assert.match(css, /minmax\(300px,\s*360px\)/);
+  assert.match(source, /rail-share zone-share/);
+  // 6 empty modules omitted via conditional cards
+  assert.match(source, /zone-02/);
+  assert.match(source, /zone-03/);
+  assert.match(source, /zone-04/);
+  // year rhythm only
+  assert.match(source, /isYear \? reportRhythm\(data\.monthlyRhythm/);
+  assert.match(source, /最忙的一个月/);
+  // phone share dock / no FAB dependency in report detail markup
+  assert.match(css, /is-report-detail/);
+  assert.match(source, /is-report-detail/);
 });
 
 test('咖啡月报与年报移出回顾首页，详情页返回报告列表，列表页返回我的', () => {

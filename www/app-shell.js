@@ -8,10 +8,11 @@
   'use strict';
 
   const WIDE_BREAKPOINT = 1100;
-  // 手机壳左右滑切底栏：距离或速度达标即切；边缘避让 Android 返回手势。
+  // 手机壳左右滑切底栏：距离或速度达标即切；边缘 20px 避让 Android 返回手势。
+  // distance 52（可 48–56）、axisRatio 1.2：竖滑优先仍 clearTracking，但略松以免真机横滑过钝。
   const TAB_SWIPE = {
     edgeGuard: 20,
-    distance: 64,
+    distance: 52,
     velocity: 0.5,
     axisRatio: 1.2,
     axisSlop: 10
@@ -86,6 +87,16 @@
     return distance >= conf.distance || velocity >= conf.velocity;
   }
 
+
+  // Cards use role=button for a11y; only block real controls / nested button|a, not the card shell.
+  function tabSwipeBlocksTracking(target) {
+    if (!target || typeof target.closest !== 'function') return false;
+    if (target.closest('input, textarea, select, label, [contenteditable="true"]')) return true;
+    const control = target.closest('button, a');
+    if (!control) return false;
+    if (control.matches('.bean-card, .drink-entry, .plan-card')) return false;
+    return true;
+  }
   function layerKind(id) {
     if (TOOL_LAYERS.has(String(id || ''))) return 'tool';
     if (PAGE_LAYERS.has(String(id || ''))) return 'page';
@@ -245,15 +256,19 @@
       main.dataset.shellTabSwipeBound = '1';
       let tracking = null;
 
-      const clearTracking = () => { tracking = null; };
+      const clearTracking = () => {
+        if (tracking && tracking.captured && typeof main.releasePointerCapture === 'function') {
+          try { main.releasePointerCapture(tracking.id); } catch (_) {}
+        }
+        tracking = null;
+      };
 
       main.addEventListener('pointerdown', (event) => {
         if (event.isPrimary === false) return;
         if (event.pointerType === 'mouse' && event.button !== 0) return;
         if (rootNode.dataset.shellLayout === 'wide') return;
         if (layersBlockTabSwipe()) return;
-        if (event.target && event.target.closest
-          && event.target.closest('input, textarea, select, button, a, label, [role="button"], [contenteditable="true"]')) return;
+        if (tabSwipeBlocksTracking(event.target)) return;
         if (isHorizontalScrollTarget(event.target)) return;
         if (tabSwipeFromEdge(event.clientX, win.innerWidth, TAB_SWIPE.edgeGuard)) return;
         tracking = {
@@ -262,7 +277,8 @@
           y0: event.clientY,
           t0: typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now(),
           locked: false,
-          horizontal: false
+          horizontal: false,
+          captured: false
         };
       }, { passive: true });
 
@@ -278,9 +294,19 @@
           if (Math.abs(dx) < TAB_SWIPE.axisSlop && Math.abs(dy) < TAB_SWIPE.axisSlop) return;
           tracking.locked = true;
           tracking.horizontal = tabSwipeAxisDominant(dx, dy, TAB_SWIPE.axisRatio);
-          if (!tracking.horizontal) clearTracking();
+          if (!tracking.horizontal) {
+            clearTracking();
+            return;
+          }
+          if (typeof main.setPointerCapture === 'function') {
+            try {
+              main.setPointerCapture(event.pointerId);
+              tracking.captured = true;
+            } catch (_) {}
+          }
         }
-      }, { passive: true });
+        if (tracking.horizontal && event.cancelable) event.preventDefault();
+      }, { passive: false });
 
       const finish = (event) => {
         if (!tracking || event.pointerId !== tracking.id) return;
@@ -352,6 +378,7 @@
     tabSwipeFromEdge,
     tabSwipeAxisDominant,
     tabSwipeShouldSwitch,
+    tabSwipeBlocksTracking,
     layerKind,
     resolveBackLayer,
     updateLayerStack,

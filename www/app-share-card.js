@@ -463,8 +463,8 @@
     }
     function drawReportHero(ctx, stats, palette, x, y, w) {
       if (!stats || !stats.length) return y;
-      const gap = 16; const cols = 4; const cardW = (w - gap * (cols - 1)) / cols; const h = 150;
-      stats.slice(0, 4).forEach((stat, index) => {
+      const gap = 16; const cols = Math.min(4, Math.max(1, stats.length)); const cardW = (w - gap * (cols - 1)) / cols; const h = 150;
+      stats.slice(0, cols).forEach((stat, index) => {
         const px = x + index * (cardW + gap); const dark = index === 0;
         fillRound(ctx, px, y, cardW, h, 22, dark ? palette.ink : palette.surface, dark ? null : palette.border);
         setCanvasFont(ctx, 20, 700, false); ctx.fillStyle = dark ? palette.line : palette.muted; ctx.fillText(stat.label, px + 20, y + 40);
@@ -484,7 +484,7 @@
       let labelY = y + barH + 42;
       setCanvasFont(ctx, 24, 600, false); ctx.fillStyle = palette.ink; ctx.fillText(`自家冲煮 ${source.home} 杯`, x, labelY);
       const right = `外饮 ${source.external} 杯`; ctx.fillStyle = palette.muted; ctx.fillText(right, x + w - ctx.measureText(right).width, labelY);
-      if (source.unknownCost) { labelY += 34; setCanvasFont(ctx, 20, 500, false); ctx.fillStyle = palette.muted; ctx.fillText(`${source.unknownCost} 杯金额未计入估算`, x, labelY); }
+      if (source.unknownCost) { labelY += 34; setCanvasFont(ctx, 20, 500, false); ctx.fillStyle = palette.muted; ctx.fillText(`「 杯未填金额」`, x, labelY); }
       return labelY + 28;
     }
     function drawReportRhythm(ctx, rhythm, palette, x, y, w, activeLabel) {

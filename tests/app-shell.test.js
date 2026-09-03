@@ -53,6 +53,51 @@ test('3.0.5 左右滑手势：弹层/边缘/纵向优先禁用，阈值可触发
   assert.match(source, /has-quick-layer/);
   assert.match(source, /TAB_SWIPE/);
   assert.match(source, /options\.onView\(next\)/);
+  assert.equal(AppShell.TAB_SWIPE.distance >= 48 && AppShell.TAB_SWIPE.distance <= 56, true);
+  assert.equal(AppShell.tabSwipeShouldSwitch(52, 10, 200), true);
+  assert.equal(AppShell.tabSwipeShouldSwitch(40, 10, 200), false);
+});
+
+test('3.0.6 横滑允许豆卡/饮用卡/方案卡，仅拦截真控件与卡内 button/a', () => {
+  const card = {
+    matches: (sel) => String(sel).split(',').map((part) => part.trim()).includes('.drink-entry'),
+    closest(sel) {
+      if (sel === 'button, a') return null;
+      if (String(sel).includes('input')) return null;
+      return null;
+    }
+  };
+  const nestedButton = {
+    matches: () => false,
+    closest(sel) {
+      if (sel === 'button, a') return this;
+      if (String(sel).includes('input')) return null;
+      return null;
+    }
+  };
+  const textInput = {
+    matches: () => false,
+    closest(sel) {
+      if (String(sel).includes('input')) return this;
+      return null;
+    }
+  };
+  const onCard = {
+    closest(sel) {
+      if (String(sel).includes('input')) return null;
+      if (sel === 'button, a') return null;
+      return null;
+    }
+  };
+  assert.equal(AppShell.tabSwipeBlocksTracking(onCard), false);
+  assert.equal(AppShell.tabSwipeBlocksTracking(card), false);
+  assert.equal(AppShell.tabSwipeBlocksTracking(nestedButton), true);
+  assert.equal(AppShell.tabSwipeBlocksTracking(textInput), true);
+  const source = fs.readFileSync(path.join(__dirname, '../www/app-shell.js'), 'utf8');
+  assert.match(source, /tabSwipeBlocksTracking\(event\.target\)/);
+  assert.match(source, /setPointerCapture/);
+  assert.match(source, /passive:\s*false/);
+  assert.doesNotMatch(source, /closest\('input, textarea, select, button, a, label, \[role="button"\]/);
 });
 
 test('我的使用主视图而不是返回栈中的页面层', () => {

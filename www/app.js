@@ -248,6 +248,10 @@
   }
   const CONTEXT_DETAIL_IDS = new Set(['detailDialog', 'drinkDetailDialog', 'planDetailDialog']);
   function isContextDetail(dialog) { return Boolean(dialog && CONTEXT_DETAIL_IDS.has(dialog.id)); }
+  // 宽屏 left:216px 个人页级 page dialog：与详情一样用 show()，避免侧栏被 inert。
+  const WIDE_SIDE_PAGE_IDS = new Set(['insightsDialog', 'coffeeCalendarDialog', 'settingsDialog', 'dataBackupDialog', 'aboutDialog', 'syncDialog', 'migrationDialog']);
+  function isWideSidePage(dialog) { return Boolean(dialog && WIDE_SIDE_PAGE_IDS.has(dialog.id)); }
+  function usesWideNonModal(dialog) { return isContextDetail(dialog) || isWideSidePage(dialog); }
   function closeContextDetailsForNavigation() {
     [els.detail, els.drinkDetail, els.planDetail].forEach((dialog) => {
       if (!dialog || !dialog.open) return;
@@ -270,10 +274,11 @@
       // 宽屏详情是右侧工作台面板，不应使用原生 modal；否则左侧一级导航会被
       // inert，用户只能先关详情才能切换页面。移动端仍保持 modal sheet 行为。
       if (!dialog.open) {
-        if (isContextDetail(dialog) && appShell && appShell.isWide()) dialog.show();
+        if (usesWideNonModal(dialog) && appShell && appShell.isWide()) dialog.show();
         else dialog.showModal();
       }
       if (isContextDetail(dialog) && appShell && appShell.isWide()) dialog.dataset.contextPresentation = 'split';
+      else if (isWideSidePage(dialog) && appShell && appShell.isWide()) dialog.dataset.contextPresentation = 'page';
       else delete dialog.dataset.contextPresentation;
       if (appShell) appShell.layerOpened(dialog);
       syncDialogScrim();
@@ -804,7 +809,7 @@
       return `<text x="${x}" y="${y}" text-anchor="${anchor}" class="radar-label"${delay}>${DIMENSIONS[key]}<tspan class="radar-label-val"> ${log[key]}${key === 'bitterness' ? '☹' : '☺'}</tspan></text>`;
     }).join('') : '';
     const cls = `rating-radar${short ? ' rating-radar--mini' : ''}${opts.animate ? ' radar-enter' : ''}`;
-    return `<svg class="${cls}" viewBox="0 0 200 200" role="img" aria-label="${comparison ? '本次与上次高级评价对比雷达图' : '高级评价雷达图'}">${grid}${spokes}${previousShape}${previousDots}${shape}${dots}${labelSvg}</svg>`;
+    return `<svg class="${cls}" viewBox="0 0 200 200" role="img" aria-label="${comparison ? '本次与本豆均分对比雷达图' : '高级评价雷达图'}">${grid}${spokes}${previousShape}${previousDots}${shape}${dots}${labelSvg}</svg>`;
   }
   function logTemplate(log, compact) {
     const advancedKeys = BeanCore.DIMENSION_KEYS.filter((key) => log[key]);
@@ -1182,11 +1187,15 @@
     $('#drinkDetailNotesSection').hidden = !log.notes;
     $('#drinkDetailNotes').textContent = log.notes || '';
     const dimensions = BeanCore.DIMENSION_KEYS.filter((key) => log[key]); $('#drinkDetailDimensions').hidden = !dimensions.length;
-    const previousCandidate = BeanCore.previousComparableDrink(state.drinkLogs, log);
-    const previous = previousCandidate && dimensions.filter((key) => previousCandidate[key]).length >= 3 ? previousCandidate : null;
-    const radar = buildRatingRadar(log, { labels: true, animate: true, compare: previous });
-    $('#drinkDetailDimensions').querySelector('.section-heading small').textContent = previous ? '与上次同豆评价对比' : '本次风味感受';
-    const legend = previous ? `<div class="radar-legend"><span class="current">本次</span><span class="previous">上次 · ${esc(formatDateTime(previous.consumedAt))}</span></div>` : '';
+    let compareProfile = null;
+    if (log.beanId) {
+      const beanLogs = state.drinkLogs.filter((item) => item && item.beanId === log.beanId && item.id !== log.id && !item.deletedAt);
+      const average = BeanInsights.averageDimensions(beanLogs, { enabled: Boolean(state.settings.advancedRatings), enabledDimensions: state.settings.enabledDimensions });
+      if (average.ok) compareProfile = Object.fromEntries(average.data.axes.map((axis) => [axis.key, axis.value]));
+    }
+    const radar = buildRatingRadar(log, { labels: true, animate: true, compare: compareProfile });
+    $('#drinkDetailDimensions').querySelector('.section-heading small').textContent = compareProfile ? '与本豆均分对比' : '本次风味感受';
+    const legend = compareProfile ? `<div class="radar-legend"><span class="current">本次</span><span class="previous">本豆均分</span></div>` : '';
     $('#drinkDetailRadar').innerHTML = radar + legend;
     // 画出雷达图时不再重复显示字段式维度列表（分值已标在雷达轴上）；不足 3 维回退到列表。
     $('#drinkDetailDimensionList').innerHTML = radar ? '' : dimensions.map((key) => `<div><span>${DIMENSIONS[key]}</span><strong>${key === 'bitterness' ? '☹' : '☺'} ${log[key]} / 5</strong></div>`).join('');

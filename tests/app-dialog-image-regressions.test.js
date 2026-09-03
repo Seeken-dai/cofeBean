@@ -91,3 +91,23 @@ test('Android 相机回收进程后会恢复外饮表单和照片结果', () => 
   assert.match(appSource, /pendingRestoredCameraResult[\s\S]{0,300}?restoreDrinkCameraDraft\(result\)/);
   assert.match(appSource, /restoreDrinkCameraDraft[\s\S]{0,1400}?state\.pendingDrinkPhotos\.push\(\{ path \}\)[\s\S]{0,120}?state\.drinkPhotoDraft\.push\(path\)/);
 });
+
+test('3.0.6 宽屏个人页级 dialog 用 show()，避免侧栏 inert；tool 仍可 modal', () => {
+  assert.match(appSource, /WIDE_SIDE_PAGE_IDS/);
+  assert.match(appSource, /usesWideNonModal\(dialog\) && appShell && appShell\.isWide\(\)\) dialog\.show\(\)/);
+  assert.match(appSource, /'insightsDialog'/);
+  assert.match(appSource, /'coffeeCalendarDialog'/);
+  assert.match(appSource, /'settingsDialog'/);
+  assert.match(appSource, /'migrationDialog'/);
+  assert.match(appSource, /isContextDetail\(dialog\) && appShell && appShell\.isWide\(\)\) dialog\.dataset\.contextPresentation = 'split'/);
+  assert.match(appSource, /isWideSidePage\(dialog\) && appShell && appShell\.isWide\(\)\) dialog\.dataset\.contextPresentation = 'page'/);
+  assert.match(appSource, /else dialog\.showModal\(\)/);
+});
+
+test('3.0.6 饮用详情雷达对比改为本豆均分，不再用 previousComparableDrink', () => {
+  assert.match(appSource, /BeanInsights\.averageDimensions\(beanLogs/);
+  assert.match(appSource, /本豆均分/);
+  assert.match(appSource, /item\.id !== log\.id/);
+  assert.match(appSource, /compare: compareProfile/);
+  assert.doesNotMatch(appSource, /previousComparableDrink\(state\.drinkLogs, log\)/);
+});

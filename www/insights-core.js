@@ -601,8 +601,8 @@
         { label: '咖啡', value: `${report.cups}`, unit: '杯' },
         { label: '记录日', value: `${report.days}`, unit: '天' },
         { label: '豆款', value: `${report.beanCount}`, unit: '款' },
-        { label: '估算花费', value: report.estimatedSpend == null ? '—' : `¥${round(report.estimatedSpend, 2)}`, unit: '' }
-      ],
+        report.estimatedSpend == null ? null : { label: '估算花费', value: `¥${round(report.estimatedSpend, 2)}`, unit: '' }
+      ].filter(Boolean),
       source: { home: report.homeCups, external: report.externalCups, unknownCost: report.unknownCostCount || 0 },
       rhythm: (report.monthlyRhythm || []).map((item) => ({ label: item.label, cups: item.cups })),
       activeMonthLabel: report.activeMonth ? report.activeMonth.label : '',

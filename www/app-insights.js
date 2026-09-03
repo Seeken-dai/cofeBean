@@ -210,30 +210,93 @@
     return `<section class="insight-section handbrew-home-section" id="insightsSectionBrew"><div class="insight-section-title"><span>04</span><div><h3>冲煮回顾</h3><p>${esc(label)}手冲记录，看看平时怎么冲</p></div></div>${handBrewSummaryCard(result, label)}</section>`;
   }
 
-  function reportMoney(value) {
-    return value == null ? '待补充' : money(value);
-  }
-
   function coffeeReportList(reports) {
     const list = Array.isArray(reports) ? reports : [];
-    if (!list.length) return `<p class="report-list-note">只收录已经结束、并留下至少 3 杯记录的自然月与自然年。${helpButton('report')}</p><div class="insight-unlock"><span class="insight-bean-mark" aria-hidden="true"></span><div><strong>第一份报告还在积累</strong><p>一个完整自然月记录满 3 杯后，月报会出现在这里。</p></div></div>`;
-    return `<p class="report-list-note">从已经走完的月份和年份里，翻出一段咖啡日常。${helpButton('report')}</p><div class="coffee-report-list">${list.map((report) => `<article class="coffee-report-link report-${esc(report.type)}" data-insights-report-type="${esc(report.type)}" data-insights-report-key="${esc(report.key)}" role="button" tabindex="0"><div><span>${report.type === 'year' ? '咖啡年报' : '咖啡月报'}</span><h4>${esc(report.label)}</h4><p>${esc(`${report.cups} 杯记录 · 已完成自然${report.type === 'year' ? '年' : '月'}`)}</p></div><strong aria-hidden="true">›</strong></article>`).join('')}</div>`;
+    if (!list.length) {
+      return `<div class="zone-list"><p class="report-list-note">只收录已经结束、并留下至少 3 杯记录的自然月与自然年。${helpButton('report')}</p><div class="insight-unlock"><span class="insight-bean-mark" aria-hidden="true"></span><div><strong>第一份报告还在积累</strong><p>一个完整自然月记录满 3 杯后，月报会出现在这里。</p></div></div></div>`;
+    }
+    return `<div class="zone-list"><p class="report-list-note">从已经走完的月份和年份里，翻出一段咖啡日常。${helpButton('report')}</p><div class="coffee-report-list">${list.map((report) => {
+      const isYear = report.type === 'year';
+      return `<article class="coffee-report-link report-${esc(report.type)}" data-insights-report-type="${esc(report.type)}" data-insights-report-key="${esc(report.key)}" role="button" tabindex="0"><div class="coffee-report-badge"><strong>${esc(report.cups)}</strong><em>杯</em></div><div class="coffee-report-meta${isYear ? ' is-year' : ''}"><span class="coffee-report-chip">${isYear ? '年报' : '月报'}</span><h4>${esc(report.label)}</h4><p>${isYear ? '已完成自然年' : '已完成自然月'}</p></div><strong class="coffee-report-chev" aria-hidden="true">›</strong></article>`;
+    }).join('')}</div></div>`;
   }
 
-  function reportRhythm(rows) {
+  function reportSec(num, title, body, extraClass) {
+    if (!body) return '';
+    return `<section class="report-sec ${extraClass || ''}"><div class="report-sec-h"><span class="report-sec-num">${esc(num)}</span><h3>${esc(title)}</h3><i class="report-sec-line" aria-hidden="true"></i></div>${body}</section>`;
+  }
+
+  function reportRhythm(rows, activeMonth) {
     const list = Array.isArray(rows) ? rows : [];
     if (!list.length) return '';
     const max = Math.max(1, ...list.map((item) => Number(item.cups) || 0));
-    return `<section class="coffee-report-rhythm"><div><span>12 个月杯数节奏</span><small>只呈现记录数量，不比较好坏</small></div><div role="img" aria-label="${esc(list.map((item) => `${item.label}${item.cups}杯`).join('，'))}">${list.map((item) => `<i style="--height:${Math.max(item.cups ? 8 : 2, item.cups / max * 100).toFixed(1)}%"><b>${item.cups || ''}</b><span>${esc(item.label.replace('月', ''))}</span></i>`).join('')}</div></section>`;
+    const activeKey = activeMonth && activeMonth.key ? activeMonth.key : '';
+    const callout = activeMonth && activeMonth.cups
+      ? `<b>最忙的一个月 · ${esc(activeMonth.label)} · ${esc(activeMonth.cups)} 杯</b>`
+      : '';
+    return `<div class="coffee-report-rhythm zone-rhythm"><div class="coffee-report-rhythm-h"><span>年度节奏</span>${callout}</div><div class="coffee-report-bars" role="img" aria-label="${esc(list.map((item) => `${item.label}${item.cups}杯`).join('，'))}">${list.map((item) => {
+      const cups = Number(item.cups) || 0;
+      const on = activeKey && item.key === activeKey && cups ? 'on' : '';
+      const height = Math.max(cups ? 8 : 4, Math.round((cups / max) * 68));
+      return `<i${on ? ` class="${on}"` : ''} style="height:${height}px" title="${esc(`${item.label} ${cups}杯`)}"></i>`;
+    }).join('')}</div><div class="coffee-report-bars-l">${list.map((item) => `<span>${esc(String(item.label || '').replace('月', ''))}</span>`).join('')}</div></div>`;
   }
 
   function coffeeReportDetail(result) {
     if (!result || !result.ok) return emptyCard(result, '这份报告暂时无法生成，请确认周期已经结束并积累至少 3 杯记录。');
     const data = result.data;
-    const flavor = data.flavors.length ? `<div class="coffee-report-flavors"><span>笔记里的常见风味</span><p>${data.flavors.map((item) => `<b>${esc(item.label)}<small>${item.count}</small></b>`).join('')}</p></div>` : '';
-    const topRated = data.topRated ? `<article><span>一杯评分较高的记录</span><strong>${esc(data.topRated.name)}</strong><small>${esc(handBrewDate(data.topRated.consumedAt))} · ${esc(data.topRated.rating)}★</small></article>` : '';
-    const spendNote = data.unknownCostCount ? `<p class="insight-cost-note">${esc(data.unknownCostCount)} 杯缺少可估算金额，未按零元计入。</p>` : '';
-    return `<div class="report-page-intro report-detail-intro"><p class="eyebrow">${data.type === 'year' ? 'COFFEE YEAR REPORT' : 'COFFEE MONTH REPORT'}</p><h3>${esc(data.title)}</h3><p>${esc(data.summary)} ${helpButton('report')}</p></div><section class="coffee-report-hero"><div><span>${esc(data.label)}</span><strong>${esc(data.cups)}</strong><small>杯咖啡</small></div><p><span><b>${esc(data.days)}</b> 个记录日</span><span><b>${esc(data.beanCount)}</b> 款豆</span><span><b>${esc(reportMoney(data.estimatedSpend))}</b> 估算花费</span></p></section><section class="coffee-report-story"><div class="coffee-report-source"><article><span>自家冲煮</span><strong>${esc(data.homeCups)} 杯</strong></article><article><span>外饮</span><strong>${esc(data.externalCups)} 杯</strong></article></div><div class="coffee-report-highlights">${data.topBean ? `<article><span>喝得最多的豆子</span><strong>${esc(data.topBean.beanName)}</strong><small>${esc(data.topBean.cups)} 杯</small></article>` : ''}${topRated}${data.commonTime ? `<article><span>常喝时段</span><strong>${esc(data.commonTime.label)}</strong><small>${esc(data.commonTime.cups)} 杯落在这个时段</small></article>` : ''}${data.longestStreak ? `<article><span>最长连续记录</span><strong>${esc(data.longestStreak)} 天</strong><small>按本地自然日计算</small></article>` : ''}</div>${flavor}${data.beans.length ? `<p class="coffee-report-origins"><span>这一阶段喝过</span>${data.beans.slice(0, 6).map((item) => `<b>${esc(item.beanName)}</b>`).join('')}</p>` : ''}${data.origins.length ? `<p class="coffee-report-origins"><span>探索过的产地</span>${data.origins.map((origin) => `<b>${esc(origin)}</b>`).join('')}</p>` : ''}${reportRhythm(data.monthlyRhythm)}${spendNote}</section><button class="coffee-report-share" data-insights-report-share type="button"><span>分享这份${data.type === 'year' ? '咖啡年报' : '咖啡月报'}</span><strong aria-hidden="true">↗</strong></button>`;
+    const isYear = data.type === 'year';
+    const totalCups = (Number(data.homeCups) || 0) + (Number(data.externalCups) || 0);
+    const homePct = totalCups ? Math.round(((Number(data.homeCups) || 0) / totalCups) * 100) : 0;
+    const extPct = totalCups ? 100 - homePct : 0;
+    const spendCell = data.estimatedSpend != null
+      ? `<span><b>${esc(money(data.estimatedSpend))}</b> 花费</span>`
+      : '';
+    const footnote = data.unknownCostCount > 0
+      ? `<p class="report-foot-note">「${esc(data.unknownCostCount)} 杯未填金额」</p>`
+      : '';
+    const ratio = totalCups > 0
+      ? `<div class="coffee-report-ratio zone-ratio"><div class="coffee-report-ratio-top"><span>自家 <b>${esc(data.homeCups)}</b> · ${homePct}%</span><span>外饮 <b>${esc(data.externalCups)}</b> · ${extPct}%</span></div><div class="coffee-report-ratio-bar" aria-hidden="true"><i style="width:${homePct}%"></i><u style="width:${extPct}%"></u></div><div class="coffee-report-ratio-legend"><span class="is-home">自家冲煮</span><span class="is-ext">外饮</span></div></div>`
+      : '';
+    const overview = `<div class="coffee-report-hero"><div class="coffee-report-period">${esc(data.label)}</div><div class="coffee-report-cups"><strong>${esc(data.cups)}</strong><em>杯咖啡</em></div><div class="coffee-report-hero-sec"><span><b>${esc(data.days)}</b> 记录日</span><span><b>${esc(data.beanCount)}</b> 款豆</span>${spendCell}</div>${ratio}${footnote}</div>`;
+
+    const topBeanCard = data.topBean
+      ? `<article class="coffee-report-card"><span>主力豆</span><strong>${esc(data.topBean.beanName)}</strong><small>${esc(data.topBean.cups)} 杯</small></article>`
+      : '';
+    const topRatedCard = data.topRated
+      ? `<article class="coffee-report-card"><span>难忘一杯</span><strong>${esc(data.topRated.name)}</strong><small>${esc(data.topRated.rating)}★ · ${data.topRated.source === 'external' ? '外饮' : '自家'}</small></article>`
+      : '';
+    const flavors = Array.isArray(data.flavors) ? data.flavors.slice(0, 3) : [];
+    const flavorPills = flavors.length
+      ? `<div class="coffee-report-flavors">${flavors.map((item) => `<span class="coffee-report-pill">${esc(item.label)}</span>`).join('')}</div>`
+      : '';
+    const tasteCards = [topBeanCard, topRatedCard].filter(Boolean).join('');
+    const tasteBody = (tasteCards ? `<div class="coffee-report-cards">${tasteCards}</div>` : '') + flavorPills;
+    const zone02 = reportSec('02', '味道与主力', tasteBody, 'zone-02 span-2');
+
+    const timeCard = data.commonTime
+      ? `<article class="coffee-report-card"><span>常喝时段</span><strong>${esc(data.commonTime.label)}</strong><small>${esc(data.commonTime.cups)} 杯落在此时段</small></article>`
+      : '';
+    const streakCard = data.longestStreak
+      ? `<article class="coffee-report-card"><span>最长连续</span><strong>${esc(data.longestStreak)} 天</strong><small>按自然日</small></article>`
+      : '';
+    const habitCards = [timeCard, streakCard].filter(Boolean).join('');
+    const zone03 = reportSec('03', '习惯', habitCards ? `<div class="coffee-report-cards">${habitCards}</div>` : '', 'zone-03');
+
+    const beansTop5 = Array.isArray(data.beans) ? data.beans.slice(0, 5) : [];
+    const rank = beansTop5.length
+      ? `<p class="coffee-report-sub-label">喝过的豆 · TOP 5</p><div class="coffee-report-rank"><ol>${beansTop5.map((item, index) => `<li><span class="n">${String(index + 1).padStart(2, '0')}</span><span class="name">${esc(item.beanName)}</span><span class="c">${esc(item.cups)} 杯</span></li>`).join('')}</ol></div>`
+      : '';
+    const showOrigins = isYear ? (data.origins || []).length > 0 : (data.origins || []).length >= 2;
+    const origins = showOrigins
+      ? `<div class="coffee-report-origins"><span class="coffee-report-origins-label">${isYear ? '足迹 · 产地' : '产地'}</span>${data.origins.map((origin) => `<span class="coffee-report-pill">${esc(origin)}</span>`).join('')}</div>`
+      : '';
+    const rhythm = isYear ? reportRhythm(data.monthlyRhythm, data.activeMonth) : '';
+    const trailBody = rank + rhythm + origins;
+    const zone04 = reportSec('04', isYear ? '足迹与节奏' : '足迹', trailBody, 'zone-04 span-2');
+
+    const shareLabel = isYear ? '分享这份咖啡年报' : '分享这份咖啡月报';
+    return `<div class="report-layout"><div class="zone-rail"><div class="rail-scroll"><div class="report-page-intro zone-intro"><p class="eyebrow">${isYear ? 'COFFEE YEAR REPORT' : 'COFFEE MONTH REPORT'}</p><h3>${esc(data.title)}</h3><p>${esc(data.summary)} ${helpButton('report')}</p></div>${reportSec('01', '概览', overview, 'zone-01')}</div><div class="rail-share zone-share"><button class="coffee-report-share" data-insights-report-share type="button"><span>${shareLabel}</span><strong aria-hidden="true">↗</strong></button></div></div><div class="zone-modules">${zone02}${zone03}${zone04}</div></div>`;
   }
 
   function handBrewHabitCard(result, core, rangeLabel) {
@@ -754,6 +817,8 @@
       brewReviewPage.hidden = !isBrewReview;
       reportReviewPage.hidden = !isReportPage;
       catalogPage.hidden = !isCatalogPage;
+      dialog.classList.toggle('is-report-detail', isReportDetail);
+      dialog.classList.toggle('is-report-list', state.insightsPage === 'reports');
       const isExternalCatalog = isCatalogPage && catalogTab() === 'external';
       if (title) title.textContent = isCatalogPage ? '咖啡图鉴' : isBrewReview ? '手冲回顾' : isReportDetail ? (state.insightsReportType === 'year' ? '咖啡年报' : '咖啡月报') : isReportPage ? '咖啡报告' : '回顾';
       if (subtitle) subtitle.textContent = isCatalogPage ? (isExternalCatalog ? '走过的咖啡馆，一格一格亮起来' : '喝过的豆子，一格一格亮起来') : isBrewReview ? `${insightsRangeLabel(state.insightsRange)} · 页内回看你的冲煮习惯` : isReportPage ? '只看已经走完的自然月与自然年' : '从每一杯里，慢慢看见自己的口味';
@@ -1053,5 +1118,5 @@
     return { render, open, close, handleClick, handleBack, openBrewReview, openBeanReview: openBrewReview, openReports, openReport, openCatalog };
   }
 
-  return { HELP_CONTENT, create, buildRadar, buildSpendLineChart, emptyCard, helpButton, remainingText, handBrewSummaryCard, handBrewRecordCard, handBrewBeanPage, coffeeReportDetail };
+  return { HELP_CONTENT, create, buildRadar, buildSpendLineChart, emptyCard, helpButton, remainingText, handBrewSummaryCard, handBrewRecordCard, handBrewBeanPage, coffeeReportList, coffeeReportDetail };
 });
