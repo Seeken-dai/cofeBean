@@ -252,9 +252,18 @@
   const WIDE_SIDE_PAGE_IDS = new Set(['insightsDialog', 'coffeeCalendarDialog', 'settingsDialog', 'dataBackupDialog', 'aboutDialog', 'syncDialog', 'migrationDialog']);
   function isWideSidePage(dialog) { return Boolean(dialog && WIDE_SIDE_PAGE_IDS.has(dialog.id)); }
   function usesWideNonModal(dialog) { return isContextDetail(dialog) || isWideSidePage(dialog); }
+  const FLOATING_NAV_PAGE_IDS = new Set([
+    'detailDialog', 'drinkDetailDialog', 'planDetailDialog',
+    'insightsDialog', 'coffeeCalendarDialog', 'settingsDialog', 'dataBackupDialog', 'aboutDialog', 'syncDialog', 'migrationDialog',
+    'editorDialog', 'drinkDialog', 'planEditorDialog'
+  ]);
   function closeContextDetailsForNavigation() {
-    [els.detail, els.drinkDetail, els.planDetail].forEach((dialog) => {
-      if (!dialog || !dialog.open) return;
+    [
+      els.detail, els.drinkDetail, els.planDetail,
+      els.insights, els.calendar, els.settings, els.backup, els.about, els.sync, els.migration,
+      els.editor, els.drink, els.planEditor
+    ].filter((dialog) => dialog && FLOATING_NAV_PAGE_IDS.has(dialog.id)).forEach((dialog) => {
+      if (!dialog.open) return;
       cancelDialogClose(dialog);
       dialog.close();
     });

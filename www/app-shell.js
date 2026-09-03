@@ -88,13 +88,13 @@
   }
 
 
-  // Cards use role=button for a11y; only block real controls / nested button|a, not the card shell.
+  // 仅在真实表单输入控件或卡片内特定独立按钮上拦截滑动；卡片外壳与个人中心大入口允许滑动手势
   function tabSwipeBlocksTracking(target) {
     if (!target || typeof target.closest !== 'function') return false;
     if (target.closest('input, textarea, select, label, [contenteditable="true"]')) return true;
     const control = target.closest('button, a');
     if (!control) return false;
-    if (control.matches('.bean-card, .drink-entry, .plan-card')) return false;
+    if (control.matches('.bean-card, .drink-entry, .plan-card, [data-personal-section], .personal-subnav button, .personal-layout button')) return false;
     return true;
   }
   function layerKind(id) {
