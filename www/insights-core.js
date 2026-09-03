@@ -14,7 +14,7 @@
   const MIN_SAMPLE = 3;
   const HAND_BREW_MIN = 5;
   const HAND_BREW_BEAN_MIN = 3;
-  const COFFEE_REPORT_MIN = 5;
+  const COFFEE_REPORT_MIN = 3;
   const CATALOG_REQUIRED = 1;
   const CATALOG_ORIGIN_MILESTONES = [1, 3, 5, 8, 12, 18, 25];
   const CATALOG_CUP_MILESTONES = [10, 50, 100, 300, 500, 1000];

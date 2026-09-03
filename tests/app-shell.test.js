@@ -18,6 +18,43 @@ test('计划入口随功能开关显隐且我的始终保留', () => {
   assert.deepEqual(AppShell.navigationItems(true), ['beans', 'drinks', 'plans', 'personal']);
 });
 
+test('3.0.5 左右滑相邻 Tab：宽屏断点一致、方案关闭跳过 plans', () => {
+  assert.equal(AppShell.WIDE_BREAKPOINT, 1100);
+  assert.equal(AppShell.layoutForWidth(AppShell.WIDE_BREAKPOINT - 1), 'mobile');
+  assert.equal(AppShell.layoutForWidth(AppShell.WIDE_BREAKPOINT), 'wide');
+  assert.equal(AppShell.adjacentNavigationView('beans', 1, true), 'drinks');
+  assert.equal(AppShell.adjacentNavigationView('drinks', 1, true), 'plans');
+  assert.equal(AppShell.adjacentNavigationView('plans', 1, true), 'personal');
+  assert.equal(AppShell.adjacentNavigationView('personal', 1, true), null);
+  assert.equal(AppShell.adjacentNavigationView('drinks', 1, false), 'personal');
+  assert.equal(AppShell.adjacentNavigationView('personal', -1, false), 'drinks');
+  assert.equal(AppShell.adjacentNavigationView('drinks', -1, false), 'beans');
+  assert.equal(AppShell.adjacentNavigationView('beans', -1, false), null);
+});
+
+test('3.0.5 左右滑手势：弹层/边缘/纵向优先禁用，阈值可触发', () => {
+  assert.equal(AppShell.tabSwipeBlockedByLayers({ hasQuickLayer: true }), true);
+  assert.equal(AppShell.tabSwipeBlockedByLayers({ hasPageLayer: true }), true);
+  assert.equal(AppShell.tabSwipeBlockedByLayers({ hasToolLayer: true }), true);
+  assert.equal(AppShell.tabSwipeBlockedByLayers({ hasOpenDialog: true }), true);
+  assert.equal(AppShell.tabSwipeBlockedByLayers({}), false);
+  assert.equal(AppShell.tabSwipeFromEdge(10, 390, 20), true);
+  assert.equal(AppShell.tabSwipeFromEdge(380, 390, 20), true);
+  assert.equal(AppShell.tabSwipeFromEdge(120, 390, 20), false);
+  assert.equal(AppShell.tabSwipeAxisDominant(50, 20, 1.2), true);
+  assert.equal(AppShell.tabSwipeAxisDominant(20, 50, 1.2), false);
+  assert.equal(AppShell.tabSwipeShouldSwitch(70, 10, 200), true);
+  assert.equal(AppShell.tabSwipeShouldSwitch(40, 10, 40), true);
+  assert.equal(AppShell.tabSwipeShouldSwitch(40, 10, 200), false);
+  assert.equal(AppShell.tabSwipeShouldSwitch(80, 90, 100), false);
+  const source = fs.readFileSync(path.join(__dirname, '../www/app-shell.js'), 'utf8');
+  assert.match(source, /bindTabSwipe/);
+  assert.match(source, /shellLayout === 'wide'/);
+  assert.match(source, /has-quick-layer/);
+  assert.match(source, /TAB_SWIPE/);
+  assert.match(source, /options\.onView\(next\)/);
+});
+
 test('我的使用主视图而不是返回栈中的页面层', () => {
   const html = fs.readFileSync(path.join(__dirname, '../www/index.html'), 'utf8');
   assert.match(html, /<section\b[^>]*\bid="personalView"/);
@@ -68,7 +105,12 @@ test('Web 端我的页隐藏累计统计，系统入口收进右侧工作区', (
   assert.match(app, /personal-latest-card/);
   assert.match(css, /\.personal-inline-settings \.settings-layout\s*\{[\s\S]*?display:grid/);
   assert.match(css, /#personalView \.personal-subnav\s*\{[\s\S]*?align-self:start;[\s\S]*?height:max-content/);
-  assert.match(css, /\.personal-inline-settings \.settings-subnav\s*\{[\s\S]*?position:sticky; top:18px;[\s\S]*?height:max-content/);
+  // 3.0.5 §5：宽屏设置内分类改顶栏横向 chip，不再占左侧竖列
+  assert.match(css, /\.personal-inline-settings \.settings-subnav\s*\{[\s\S]*?display:flex/);
+  assert.match(css, /\.personal-inline-settings \.settings-subnav\s*\{[\s\S]*?gap:8px/);
+  assert.match(css, /\.personal-inline-settings \.settings-subnav > button\s*\{[\s\S]*?min-height:38px;[\s\S]*?padding:0 15px;[\s\S]*?font-size:13px/);
+  assert.match(css, /#settingsDialog \.settings-subnav\s*\{[\s\S]*?display:flex/);
+  assert.doesNotMatch(css, /\.personal-inline-settings \.settings-layout\s*\{[\s\S]*?grid-template-columns:190px/);
 });
 
 test('复杂页面、工具流程与快捷面板使用不同层级', () => {

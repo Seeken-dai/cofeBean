@@ -11,7 +11,7 @@
   <p>
     <a href="https://cofevault.top/"><img src="https://img.shields.io/badge/官网-cofevault.top-8B5A2B?style=flat-square&logo=safari&logoColor=white" alt="Official Website" /></a>
     <a href="https://app.cofevault.top/"><img src="https://img.shields.io/badge/Web_App-app.cofevault.top-6F4E37?style=flat-square&logo=pwa&logoColor=white" alt="Web PWA" /></a>
-    <a href="https://github.com/Seeken-dai/cofeBean/releases/latest"><img src="https://img.shields.io/badge/Release-v3.0.4-2D6A4F?style=flat-square&logo=android&logoColor=white" alt="Latest Release" /></a>
+    <a href="https://github.com/Seeken-dai/cofeBean/releases/latest"><img src="https://img.shields.io/badge/Release-v3.0.5-2D6A4F?style=flat-square&logo=android&logoColor=white" alt="Latest Release" /></a>
     <img src="https://img.shields.io/badge/Platform-Android_%7C_Web_PWA-3D405B?style=flat-square" alt="Platform" />
     <img src="https://img.shields.io/badge/Privacy-本地优先_%7C_零广告-D4A373?style=flat-square" alt="Privacy First" />
   </p>
@@ -115,7 +115,7 @@
 
 ### 安装 Android 客户端
 1. 前往 **[GitHub Releases 最新发布页](https://github.com/Seeken-dai/cofeBean/releases/latest)** 下载最新的正式安装包：
-   - 文件名：`coffee-vault-3.0.4-release.apk`
+   - 文件名：`coffee-vault-3.0.5-release.apk`
    - 兼容：支持 Android 7.0 (API 24) 及以上（目标 Android 16 / API 36）
 2. 手机打开 APK 并按照提示允许「安装未知应用」。
 3. 后续升级只需下载新版本 APK 直接覆盖安装，本地数据库将自动无缝迁移保留。

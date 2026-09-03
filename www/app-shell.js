@@ -8,6 +8,14 @@
   'use strict';
 
   const WIDE_BREAKPOINT = 1100;
+  // 手机壳左右滑切底栏：距离或速度达标即切；边缘避让 Android 返回手势。
+  const TAB_SWIPE = {
+    edgeGuard: 20,
+    distance: 64,
+    velocity: 0.5,
+    axisRatio: 1.2,
+    axisSlop: 10
+  };
   const VIEW_META = {
     beans: { title: '豆仓', eyebrow: 'COFFEE VAULT' },
     drinks: { title: '饮用', eyebrow: 'BREW LOG' },
@@ -42,6 +50,40 @@
 
   function navigationItems(plansEnabled) {
     return ['beans', 'drinks', ...(plansEnabled ? ['plans'] : []), 'personal'];
+  }
+
+  function adjacentNavigationView(current, direction, plansEnabled) {
+    const items = navigationItems(plansEnabled);
+    const index = items.indexOf(current);
+    if (index < 0) return null;
+    const next = items[index + Number(direction) || 0];
+    return next || null;
+  }
+
+  function tabSwipeBlockedByLayers(flags) {
+    const state = flags || {};
+    return Boolean(state.hasPageLayer || state.hasQuickLayer || state.hasToolLayer || state.hasOpenDialog);
+  }
+
+  function tabSwipeFromEdge(clientX, viewportWidth, edgeGuard) {
+    const guard = Number.isFinite(edgeGuard) ? edgeGuard : TAB_SWIPE.edgeGuard;
+    const x = Number(clientX);
+    const width = Number(viewportWidth);
+    if (!Number.isFinite(x) || !Number.isFinite(width) || width <= 0) return true;
+    return x < guard || x > width - guard;
+  }
+
+  function tabSwipeAxisDominant(dx, dy, ratio) {
+    const axisRatio = Number.isFinite(ratio) ? ratio : TAB_SWIPE.axisRatio;
+    return Math.abs(Number(dx) || 0) > Math.abs(Number(dy) || 0) * axisRatio;
+  }
+
+  function tabSwipeShouldSwitch(dx, dy, elapsedMs, thresholds) {
+    const conf = Object.assign({}, TAB_SWIPE, thresholds || {});
+    if (!tabSwipeAxisDominant(dx, dy, conf.axisRatio)) return false;
+    const distance = Math.abs(Number(dx) || 0);
+    const velocity = distance / Math.max(1, Number(elapsedMs) || 0);
+    return distance >= conf.distance || velocity >= conf.velocity;
   }
 
   function layerKind(id) {
@@ -171,6 +213,98 @@
 
     function topLayer() { return stack.length ? stack[stack.length - 1] : null; }
 
+    function layersBlockTabSwipe() {
+      return tabSwipeBlockedByLayers({
+        hasPageLayer: body.classList.contains('has-page-layer'),
+        hasQuickLayer: body.classList.contains('has-quick-layer'),
+        hasToolLayer: body.classList.contains('has-tool-layer'),
+        hasOpenDialog: Boolean(doc.querySelector('dialog[open]'))
+      });
+    }
+
+    function isHorizontalScrollTarget(target) {
+      const main = doc.querySelector('main');
+      let node = target && target.nodeType === 1 ? target : target && target.parentElement;
+      while (node && node !== main && node !== body && node !== rootNode) {
+        if (node.nodeType === 1 && typeof win.getComputedStyle === 'function') {
+          const style = win.getComputedStyle(node);
+          const overflowX = style && style.overflowX;
+          if ((overflowX === 'auto' || overflowX === 'scroll' || overflowX === 'overlay')
+            && node.scrollWidth > node.clientWidth + 2) {
+            return true;
+          }
+        }
+        node = node.parentElement;
+      }
+      return false;
+    }
+
+    function bindTabSwipe() {
+      const main = doc.querySelector('main');
+      if (!main || main.dataset.shellTabSwipeBound === '1') return;
+      main.dataset.shellTabSwipeBound = '1';
+      let tracking = null;
+
+      const clearTracking = () => { tracking = null; };
+
+      main.addEventListener('pointerdown', (event) => {
+        if (event.isPrimary === false) return;
+        if (event.pointerType === 'mouse' && event.button !== 0) return;
+        if (rootNode.dataset.shellLayout === 'wide') return;
+        if (layersBlockTabSwipe()) return;
+        if (event.target && event.target.closest
+          && event.target.closest('input, textarea, select, button, a, label, [role="button"], [contenteditable="true"]')) return;
+        if (isHorizontalScrollTarget(event.target)) return;
+        if (tabSwipeFromEdge(event.clientX, win.innerWidth, TAB_SWIPE.edgeGuard)) return;
+        tracking = {
+          id: event.pointerId,
+          x0: event.clientX,
+          y0: event.clientY,
+          t0: typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now(),
+          locked: false,
+          horizontal: false
+        };
+      }, { passive: true });
+
+      main.addEventListener('pointermove', (event) => {
+        if (!tracking || event.pointerId !== tracking.id) return;
+        if (rootNode.dataset.shellLayout === 'wide' || layersBlockTabSwipe()) {
+          clearTracking();
+          return;
+        }
+        const dx = event.clientX - tracking.x0;
+        const dy = event.clientY - tracking.y0;
+        if (!tracking.locked) {
+          if (Math.abs(dx) < TAB_SWIPE.axisSlop && Math.abs(dy) < TAB_SWIPE.axisSlop) return;
+          tracking.locked = true;
+          tracking.horizontal = tabSwipeAxisDominant(dx, dy, TAB_SWIPE.axisRatio);
+          if (!tracking.horizontal) clearTracking();
+        }
+      }, { passive: true });
+
+      const finish = (event) => {
+        if (!tracking || event.pointerId !== tracking.id) return;
+        const dx = event.clientX - tracking.x0;
+        const dy = event.clientY - tracking.y0;
+        const started = tracking;
+        clearTracking();
+        if (rootNode.dataset.shellLayout === 'wide' || layersBlockTabSwipe()) return;
+        const horizontal = started.horizontal
+          || (!started.locked && tabSwipeAxisDominant(dx, dy, TAB_SWIPE.axisRatio));
+        if (!horizontal) return;
+        const elapsed = Math.max(1, (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now()) - started.t0);
+        if (!tabSwipeShouldSwitch(dx, dy, elapsed)) return;
+        const direction = dx < 0 ? 1 : -1;
+        const next = adjacentNavigationView(activeView, direction, plansEnabled);
+        if (!next || typeof options.onView !== 'function') return;
+        options.onView(next);
+      };
+
+      main.addEventListener('pointerup', finish, { passive: true });
+      main.addEventListener('pointercancel', clearTracking, { passive: true });
+      main.addEventListener('lostpointercapture', clearTracking, { passive: true });
+    }
+
     doc.querySelectorAll('dialog').forEach((dialog) => {
       classifyLayer(dialog);
       dialog.addEventListener('close', () => layerClosed(dialog));
@@ -191,6 +325,7 @@
     setLayout();
     setPlansEnabled(false);
     setView('beans');
+    bindTabSwipe();
 
     return {
       setLayout,
@@ -206,5 +341,20 @@
     };
   }
 
-  return { WIDE_BREAKPOINT, BACK_PRIORITY, layoutForWidth, navigationItems, layerKind, resolveBackLayer, updateLayerStack, create };
+  return {
+    WIDE_BREAKPOINT,
+    TAB_SWIPE,
+    BACK_PRIORITY,
+    layoutForWidth,
+    navigationItems,
+    adjacentNavigationView,
+    tabSwipeBlockedByLayers,
+    tabSwipeFromEdge,
+    tabSwipeAxisDominant,
+    tabSwipeShouldSwitch,
+    layerKind,
+    resolveBackLayer,
+    updateLayerStack,
+    create
+  };
 });

@@ -286,7 +286,7 @@ test('手冲回顾只收录自家手冲、排除已删除豆，但保留已喝�
   assert.deepEqual(insights.filterHandBrewLogs(rows, beans).map((item) => item.id), ['keep-a', 'keep-finished']);
 });
 
-test('手冲习惯使用全部历史，五杯解锁，缺失参数只影响对应统计项', () => {
+test('手冲习惯跟随传入记录，五杯解锁，缺失参数只影响对应统计项', () => {
   const now = new Date(2026, 6, 13, 18);
   const beans = [bean('bean-a'), bean('bean-b', { status: '已喝完' })];
   const rows = [
@@ -297,6 +297,7 @@ test('手冲习惯使用全部历史，五杯解锁，缺失参数只影响对�
     handLog('manual', atLocal(2026, 5, 10), { grams: 23, beanId: 'bean-a', brewPlanSnapshot: brewSnapshot({ ratio: null, totalWater: 460, waterTemp: 96, targetDuration: null }) })
   ];
   assert.equal(insights.filterLogsByRange(rows, '30d', now).length, 0);
+  assert.equal(insights.handBrewSummary(insights.filterLogsByRange(rows, '30d', now), beans, { now }).reason, 'empty');
   const result = insights.handBrewSummary(rows, beans, { now });
   assert.equal(result.ok, true);
   assert.equal(result.data.cups, 5);
@@ -388,7 +389,41 @@ test('手冲回顾首页归入第04类，单豆页面按层级返回', () => {
   assert.doesNotMatch(html, /id="insightsBackLabel"/);
 });
 
-test('咖啡月报只统计完整自然月，五杯解锁并排除无效记录', () => {
+test('冲煮回顾跟随顶部时间范围过滤后再统计', () => {
+  const now = new Date(2026, 6, 13, 18);
+  const beans = [bean('bean-a'), bean('bean-b')];
+  const rows = [
+    handLog('in-range-1', atLocal(2026, 6, 14), { grams: 15, beanId: 'bean-a', overallRating: 5, brewPlanSnapshot: brewSnapshot({ ratio: '1:15', waterTemp: 90, targetDuration: '2:00' }) }),
+    handLog('in-range-2', atLocal(2026, 6, 20), { grams: 16, beanId: 'bean-a', overallRating: 4, brewPlanSnapshot: brewSnapshot({ ratio: '1:16', waterTemp: 91, targetDuration: '2:10' }) }),
+    handLog('in-range-3', atLocal(2026, 6, 28), { grams: 17, beanId: 'bean-a', overallRating: 5, brewPlanSnapshot: brewSnapshot({ ratio: '1:17', waterTemp: 92, targetDuration: '2:20' }) }),
+    handLog('old-1', atLocal(2026, 1, 10), { grams: 18, beanId: 'bean-b', overallRating: 4, brewPlanSnapshot: brewSnapshot({ ratio: '1:15', waterTemp: 88, targetDuration: '2:00' }) }),
+    handLog('old-2', atLocal(2026, 2, 10), { grams: 19, beanId: 'bean-b', overallRating: 5, brewPlanSnapshot: brewSnapshot({ ratio: '1:16', waterTemp: 89, targetDuration: '2:30' }) }),
+    handLog('old-3', atLocal(2026, 3, 10), { grams: 20, beanId: 'bean-b', overallRating: 4, brewPlanSnapshot: brewSnapshot({ ratio: '1:17', waterTemp: 90, targetDuration: '3:00' }) }),
+    handLog('old-4', atLocal(2026, 4, 10), { grams: 21, beanId: 'bean-b', overallRating: 5, brewPlanSnapshot: brewSnapshot({ ratio: '1:18', waterTemp: 91, targetDuration: '3:10' }) }),
+    handLog('old-5', atLocal(2026, 5, 1), { grams: 22, beanId: 'bean-b', overallRating: 4, brewPlanSnapshot: brewSnapshot({ ratio: '1:15', waterTemp: 92, targetDuration: '3:20' }) })
+  ];
+  const recent = insights.filterLogsByRange(rows, '30d', now);
+  assert.equal(recent.length, 3);
+  assert.equal(insights.handBrewSummary(recent, beans, { now }).reason, 'insufficient');
+  assert.equal(insights.handBrewBeanReview(recent, beans, 'bean-a', { now }).ok, true);
+  assert.equal(insights.handBrewBeanReview(recent, beans, 'bean-b', { now }).reason, 'empty');
+  const all = insights.filterLogsByRange(rows, 'all', now);
+  assert.equal(insights.handBrewSummary(all, beans, { now }).ok, true);
+  assert.equal(insights.handBrewSummary(all, beans, { now }).data.cups, 8);
+
+  const source = fs.readFileSync(path.join(__dirname, '..', 'www', 'app-insights.js'), 'utf8');
+  const htmlSource = fs.readFileSync(path.join(__dirname, '..', 'www', 'index.html'), 'utf8');
+  assert.match(source, /handBrewSummary\(logs/);
+  assert.match(source, /handBrewBeanReview\(logs/);
+  assert.match(source, /insightsRangeLabel/);
+  assert.match(source, /跟随上方回顾范围/);
+  assert.doesNotMatch(source, /不受回顾范围影响/);
+  assert.doesNotMatch(source, /基于全部历史手冲记录/);
+  assert.doesNotMatch(source, /不受首页时间范围影响/);
+  assert.match(htmlSource, /冲煮回顾/);
+});
+
+test('咖啡月报只统计完整自然月，三杯解锁并排除无效记录', () => {
   const beans = [
     bean('bean-a', { name: '日常豆' }),
     bean('bean-deleted', { name: '已删除豆', deletedAt: atLocal(2026, 7, 1) })
@@ -413,7 +448,8 @@ test('咖啡月报只统计完整自然月，五杯解锁并排除无效记录',
   assert.equal(report.data.estimatedSpend, 52.5);
   assert.equal(report.data.unknownCostCount, 1);
   assert.equal(report.data.flavors[0].label, '柠檬');
-  assert.equal(insights.coffeePeriodReport(rows.slice(0, 4), beans, { type: 'month', key: '2026-06', now: new Date(2026, 6, 3) }).reason, 'insufficient');
+  assert.equal(insights.coffeePeriodReport(rows.slice(0, 2), beans, { type: 'month', key: '2026-06', now: new Date(2026, 6, 3) }).reason, 'insufficient');
+  assert.equal(insights.coffeePeriodReport(rows.slice(0, 3), beans, { type: 'month', key: '2026-06', now: new Date(2026, 6, 3) }).ok, true);
   assert.equal(insights.coffeePeriodReport(rows, beans, { type: 'month', key: '2026-07', now: new Date(2026, 6, 3) }).reason, 'incompletePeriod');
 });
 
