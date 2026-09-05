@@ -128,7 +128,7 @@
       $('#brewAssistFinish').classList.remove('assist-finish-emphasis');
       if (assist.source === 'drink') await saveCompletedDrink(assist);
     }
-    // 圆环中心主数字为秤上「共计」读数；副文案提示本段加量。
+    // 圆环中心主数字直接显示累计克重（如 120g）；副文案提示本段加量。
     function assistCumulativeTo(index) {
       const assist = state.brewAssist;
       if (!assist || index == null || index < 0) return null;
@@ -142,7 +142,7 @@
       const cumulative = assistCumulativeTo(index == null ? 0 : index);
       const hasCumulative = cumulative != null && cumulative > 0;
       if (hasCumulative) {
-        setAnimatedText($('#brewAssistWater'), `注到共计 ${formatWeight(cumulative)}`);
+        setAnimatedText($('#brewAssistWater'), formatWeight(cumulative));
         $('#brewAssistWaterCaption').textContent = hasSegment ? `本段加 ${formatWeight(segment)}` : '按秤上读数注水';
       } else if (hasSegment) {
         setAnimatedText($('#brewAssistWater'), formatWeight(segment));
