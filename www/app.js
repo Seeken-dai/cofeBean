@@ -209,7 +209,7 @@
       { selector: '#field-initialWeight, #field-remainingWeight', mode: 'wheel', label: '咖啡豆克重', unit: 'g', step: 1, min: 0, max: 10000, defaultValue: 200, defaults: [100, 200, 250, 500], suggestions: beanWeightCandidates },
       { selector: '#drink-grams', mode: 'wheel', label: '本次用豆', unit: 'g', step: 0.5, min: 0.1, max: (input) => Number(input.max || 1000), defaults: [15, 18, 20], suggestions: gramCandidates },
       { selector: '#plan-dose, #drink-param-dose, #plan-targetYield, #drink-param-targetYield', mode: 'wheel', unit: 'g', step: 0.5, min: 0, max: 1000, defaults: [15, 18, 20], suggestions: () => snapshotCandidates('dose') },
-      { selector: '#plan-liquid, #drink-param-liquid, #plan-totalWater, #drink-param-totalWater, [data-pour-water], [data-pour-cumulative], [data-drink-step-water], [data-drink-step-cumulative]', mode: 'wheel', unit: 'g', step: 5, min: 0, max: 5000, suggestions: waterCandidates },
+      { selector: '#plan-liquid, #drink-param-liquid, #plan-totalWater, #drink-param-totalWater, [data-pour-water], [data-pour-cumulative], [data-import-segment], [data-import-cumulative], [data-drink-step-water], [data-drink-step-cumulative]', mode: 'wheel', unit: 'g', step: 5, min: 0, max: 5000, suggestions: waterCandidates },
       { selector: '#plan-ratio-right, #drink-ratio-right', mode: 'wheel', label: '粉水比', step: 0.5, min: 1, max: 40, defaults: [15, 16, 17], suggestions: ratioCandidates },
       { selector: '#plan-waterTemp, #drink-param-waterTemp', mode: 'wheel', label: '水温', unit: '°C', step: 1, min: 0, max: 100, defaults: [88, 90, 92, 94], suggestions: () => snapshotCandidates('waterTemp') },
       { selector: '.duration-control', mode: 'group', column: columnProfile, suggestions: durationCandidates },
@@ -2568,16 +2568,53 @@
     $('#planImportName').textContent = plan.name;
     $('#planImportMeta').textContent = [plan.brewMethod, plan.dose ? plan.dose + 'g' : '', plan.ratio, plan.waterTemp].filter(Boolean).join(' · ');
     const steps = plan.steps || [];
-    const cumulatives = BeanCore.cumulativeWatersFromSegments(steps.map((step) => step.water));
-    $('#planImportSteps').textContent = steps.length
-      ? `${steps.length} 段 · ` + steps.map((step, index) => {
-        const bits = [step.label || `第 ${index + 1} 段`];
-        if (step.water) bits.push(`本段 ${step.water}g`);
-        if (cumulatives[index] != null) bits.push(`共计 ${cumulatives[index]}g`);
-        return bits.join(' ');
-      }).join('；')
-      : '无分段步骤';
+    $('#planImportSteps').textContent = steps.length ? `${steps.length} 段步骤 · 可改本段/共计` : '无分段步骤';
+    renderPlanImportStepWaters(plan);
     $('#planImportSummary').hidden = false; $('#planImportConfirm').disabled = false; setImportStatus(statusMessage || '已识别方案，确认后导入');
+  }
+  function renderPlanImportStepWaters(plan) {
+    const host = $('#planImportStepEditor');
+    if (!host) return;
+    const steps = (plan && plan.steps) || [];
+    if (!steps.length) { host.innerHTML = ""; host.hidden = true; return; }
+    const cumulatives = BeanCore.cumulativeWatersFromSegments(steps.map((step) => step.water));
+    host.hidden = false;
+    host.innerHTML = steps.map((step, index) => {
+      const label = step.label || pourStageName(index);
+      const cumulative = cumulatives[index];
+      return `<article class="import-step-water" data-import-step="${index}"><b>${esc(label)}</b><div class="pour-step-grid import-step-water-grid"><label><span>本段注水</span><div class="input-unit"><input data-import-segment type="number" min="0" step="0.1" inputmode="decimal" value="${step.water == null ? '' : esc(step.water)}"><em>g</em></div></label><label><span>共计注水</span><div class="input-unit"><input data-import-cumulative type="number" min="0" step="0.1" inputmode="decimal" value="${cumulative == null ? '' : esc(cumulative)}"><em>g</em></div></label></div></article>`;
+    }).join("");
+  }
+  function syncImportPlanDraftWaters(event) {
+    const input = event && event.target;
+    const draft = state.importPlanDraft;
+    const host = $('#planImportStepEditor');
+    if (!draft || !host || !input) return;
+    if (!input.matches('[data-import-segment]') && !input.matches('[data-import-cumulative]')) return;
+    const row = input.closest('[data-import-step]');
+    if (!row) return;
+    const index = Number(row.dataset.importStep);
+    const steps = (draft.steps || []).map((step) => ({ ...step }));
+    if (!steps[index]) return;
+    const prevSeries = BeanCore.cumulativeWatersFromSegments(steps.slice(0, index).map((step) => step.water));
+    const prev = prevSeries.length ? Number(prevSeries[prevSeries.length - 1]) || 0 : 0;
+    if (input.matches('[data-import-cumulative]')) {
+      const total = Number(input.value);
+      steps[index].water = Number.isFinite(total) ? Math.max(0, Math.round((total - prev) * 10) / 10) : null;
+    } else {
+      const segment = Number(input.value);
+      steps[index].water = Number.isFinite(segment) ? segment : null;
+    }
+    draft.steps = steps;
+    state.importPlanDraft = draft;
+    const focusCumulative = input.matches('[data-import-cumulative]');
+    renderPlanImportStepWaters(draft);
+    const next = host.querySelector(`[data-import-step="${index}"] ${focusCumulative ? "[data-import-cumulative]" : "[data-import-segment]"}`);
+    if (next) {
+      next.focus();
+      const len = String(next.value || '').length;
+      if (typeof next.setSelectionRange === "function") next.setSelectionRange(len, len);
+    }
   }
   async function copyAiPlanPrompt() {
     const beanId = $('#planImportBean').value;

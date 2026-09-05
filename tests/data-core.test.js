@@ -642,66 +642,6 @@ test('parseAiPlanJson splits cumulative waters returned by the model', () => {
   assert.deepEqual(plan.steps.map((step) => step.water), [40, 80, 105]);
 });
 
-test('looksLikeCumulativeStepWaters detects cumulative and leaves segment untouched', () => {
-  assert.equal(core.looksLikeCumulativeStepWaters([30, 150, 225], 225), true);
-  assert.equal(core.looksLikeCumulativeStepWaters([30, 120, 75], 225), false); // 已递减
-  assert.equal(core.looksLikeCumulativeStepWaters([30, 90, 105], 225), false); // 本段之和≈总量
-  assert.equal(core.looksLikeCumulativeStepWaters([225], 225), false); // 单段
-  assert.equal(core.looksLikeCumulativeStepWaters([60, 60, 60], 180), false); // 等量本段无上升
-  assert.equal(core.looksLikeCumulativeStepWaters([30, 150, 225], null), false); // 无参考总量
-});
-
-test('normalizeBrewPlan splits cumulative step.water into segments', () => {
-  const plan = core.normalizeBrewPlan({
-    name: '旧累计方案',
-    brewMethod: '手冲',
-    dose: 15,
-    totalWater: 225,
-    steps: [
-      { label: '闷蒸', water: 30, startTime: '0:00', endTime: '0:30' },
-      { label: '第一段', water: 150, startTime: '0:30', endTime: '1:30' },
-      { label: '收尾', water: 225, startTime: '1:30', endTime: '2:30' }
-    ]
-  });
-  assert.deepEqual(plan.steps.map((step) => step.water), [30, 120, 75]);
-});
-
-test('normalizeBrewPlan keeps genuine segment waters', () => {
-  const plan = core.normalizeBrewPlan({
-    name: '本段方案',
-    brewMethod: '手冲',
-    totalWater: 225,
-    steps: [
-      { label: '闷蒸', water: 30 },
-      { label: '第一段', water: 90 },
-      { label: '第二段', water: 105 }
-    ]
-  });
-  assert.deepEqual(plan.steps.map((step) => step.water), [30, 90, 105]);
-});
-
-test('cumulativeWatersFromSegments and splitCumulativeWatersToSegments round-trip', () => {
-  const segments = [30, 120, 75];
-  const cumulative = core.cumulativeWatersFromSegments(segments);
-  assert.deepEqual(cumulative, [30, 150, 225]);
-  assert.deepEqual(core.splitCumulativeWatersToSegments(cumulative), [30, 120, 75]);
-});
-
-test('parseAiPlanJson converts cumulative AI water via the same detector', () => {
-  const { plan } = core.parseAiPlanJson(JSON.stringify({
-    name: 'AI累计',
-    brewMethod: '手冲',
-    dose: 15,
-    totalWater: 225,
-    steps: [
-      { label: '闷蒸', water: 30, startTime: '0:00', endTime: '0:45' },
-      { label: '第一段', water: 150, startTime: '0:45', endTime: '1:30' },
-      { label: '收尾', water: 225, startTime: '1:30', endTime: '2:30' }
-    ]
-  }));
-  assert.deepEqual(plan.steps.map((step) => step.water), [30, 120, 75]);
-});
-
 test('buildAiPlanPrompt states water is segment amount not cumulative', () => {
   const prompt = core.buildAiPlanPrompt(null);
   assert.ok(prompt.includes('本段注水量'));

@@ -1275,7 +1275,7 @@ html.number-picker-open { overflow:hidden; }
 .assist-ring > div { position:relative; z-index:2; display:grid; gap:3px; justify-items:center; width:min(58vw,208px); padding:10px; text-align:center; }
 .assist-ring span,.assist-ring small { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .assist-ring span { color:var(--accent); font-size:11px; font-weight:800; }
-.assist-ring strong { box-sizing:border-box; max-width:100%; padding:0 5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text); font-size:52px; font-weight:850; line-height:1.14; font-variant-numeric:tabular-nums; letter-spacing:0; }
+.assist-ring strong { box-sizing:border-box; max-width:100%; padding:0 5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text); font-size:clamp(26px, 7.2vw, 52px); font-weight:850; line-height:1.14; font-variant-numeric:tabular-nums; letter-spacing:0; }
 .assist-ring-clock b span.digit-changing { animation:assist-digit-change var(--motion-fast) ease-out both; }
 .assist-ring-clock b span { display:inline-block; min-width:.58em; text-align:center; }
 .assist-ring-clock b span:nth-child(3) { min-width:.3em; }
