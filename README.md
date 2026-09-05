@@ -11,7 +11,7 @@
   <p>
     <a href="https://cofevault.top/"><img src="https://img.shields.io/badge/官网-cofevault.top-8B5A2B?style=flat-square&logo=safari&logoColor=white" alt="Official Website" /></a>
     <a href="https://app.cofevault.top/"><img src="https://img.shields.io/badge/Web_App-app.cofevault.top-6F4E37?style=flat-square&logo=pwa&logoColor=white" alt="Web PWA" /></a>
-    <a href="https://github.com/Seeken-dai/cofeBean/releases/latest"><img src="https://img.shields.io/badge/Release-v3.0.8-2D6A4F?style=flat-square&logo=android&logoColor=white" alt="Latest Release" /></a>
+    <a href="https://github.com/Seeken-dai/cofeBean/releases/latest"><img src="https://img.shields.io/badge/Release-v3.0.9-2D6A4F?style=flat-square&logo=android&logoColor=white" alt="Latest Release" /></a>
     <img src="https://img.shields.io/badge/Platform-Android_%7C_Web_PWA-3D405B?style=flat-square" alt="Platform" />
     <img src="https://img.shields.io/badge/Privacy-本地优先_%7C_零广告-D4A373?style=flat-square" alt="Privacy First" />
   </p>
