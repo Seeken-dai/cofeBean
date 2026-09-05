@@ -1909,7 +1909,7 @@ dialog[data-layer-kind="quick"] { background:var(--vault-paper); }
     overflow-y:auto;
     scrollbar-gutter:stable;
   }
-  .overview { grid-template-columns:1.1fr 1px 1fr 1.2fr; max-width:560px; }
+  .overview { grid-template-columns:1.1fr 1px 1fr 1.2fr; max-width:none; }
   .filter-row { width:max-content; max-width:100%; }
   .chip { flex:0 0 auto; }
   .bean-list { grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:12px; }
@@ -1920,7 +1920,7 @@ dialog[data-layer-kind="quick"] { background:var(--vault-paper); }
     box-shadow:inset 3px 0 0 var(--accent);
   }
   .bean-thumb { width:64px; height:64px; border-radius:var(--radius-control); }
-  .timeline,.plan-list { max-width:900px; }
+  .timeline,.plan-list { max-width:none; }
   dialog[data-layer-kind="page"] {
     position:fixed;
     inset:0 0 0 auto;
@@ -3213,17 +3213,54 @@ body[data-shell-view="personal"] .profile-button { border-color:var(--accent); b
   body.has-context-detail .wide-bean-filters { display:none!important; }
   body.has-context-detail .topbar-filter-button { display:none!important; }
   #addBean { display:none!important; }
-  .bean-list { grid-template-columns:repeat(auto-fit,minmax(290px,1fr)); gap:12px; }
-  #beansView .overview { max-width:980px; }
-  /* Issue3 A: shared content rail (list state, ≥1100) */
+  /* Coffee Vault 3.0.9 FINE — widescreen list multi-col (list state only) */
+  :root {
+    --list-card-min:300px;
+    --list-gap:12px;
+  }
+  /* DROP all narrow tracks: lists + trend + top stats (full main width) */
+  #beansView .overview,
+  #drinksView .overview,
+  #drinksView .drink-overview,
+  #plansView .overview,
+  #plansView .plan-overview,
+  #beansView .reminder-panel,
+  #drinksView .reminder-panel,
+  #plansView .reminder-panel,
   #drinksView .drink-trend-wrap,
   #drinksView .timeline,
   #plansView .plan-list {
     width:100%;
-    max-width:min(960px,100%);
+    max-width:none;
   }
-  .plan-group { grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
-  .plan-group > h2 { grid-column:1/-1; }
+  #beansView .overview { max-width:none; }
+  .overview { max-width:none; }
+  .timeline,
+  .plan-list { max-width:none; }
+  /* Shared multi-col: auto-fill + hard cap 4 (1100→2 / 1280→3 / 1600→4) */
+  body:not(.has-context-detail) .bean-list,
+  body:not(.has-context-detail) .timeline-group,
+  body:not(.has-context-detail) .plan-group {
+    grid-template-columns:
+      repeat(
+        auto-fill,
+        minmax(
+          max(
+            var(--list-card-min),
+            calc((100% - (3 * var(--list-gap))) / 4)
+          ),
+          1fr
+        )
+      );
+    gap:var(--list-gap);
+  }
+  .timeline-group > h2,
+  .plan-group > h2 { grid-column:1 / -1; }
+  /* Plan facts → 2×2 in wide list multi-col only */
+  body:not(.has-context-detail) .plan-card-facts {
+    grid-template-columns:1fr 1fr;
+  }
+  /* KEEP detail list forced 1-col */
   body.has-context-detail .plan-group { grid-template-columns:1fr; }
   .bean-card,.bean-card.has-thumb { grid-template-columns:88px minmax(0,1fr); min-height:118px; }
   .bean-thumb-wrap { padding:11px; }

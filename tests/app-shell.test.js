@@ -234,7 +234,7 @@ test('3.0.6 宽屏侧栏具备高层级与事件穿透保护，主容器声明 p
   assert.match(app, /closeContextDetailsForNavigation/);
   assert.match(app, /if \(els\.insights && els\.insights\.open\) setDialog\(els\.insights, false\);/);
 });
-test('3.0.7 宽屏细稿：token / 960 轨 / Plans grid / 无 280px', () => {
+test('3.0.9 宽屏列表多列：DROP 窄轨 / auto-fill max-4 / plan facts 2x2 / detail tokens 保留', () => {
   const css = fs.readFileSync(path.join(__dirname, '../www/styles.css'), 'utf8');
   const app = fs.readFileSync(path.join(__dirname, '../www/app.js'), 'utf8');
   const html = fs.readFileSync(path.join(__dirname, '../www/index.html'), 'utf8');
@@ -244,7 +244,15 @@ test('3.0.7 宽屏细稿：token / 960 轨 / Plans grid / 无 280px', () => {
   assert.match(css, /--shell-nav-width:\s*216px/);
   assert.match(css, /--context-column-width:\s*clamp\(360px,\s*28vw,\s*420px\)/);
   assert.match(css, /left:\s*calc\(var\(--shell-nav-width\)\s*\+\s*var\(--context-column-width\)\)/);
-  assert.match(css, /#drinksView \.drink-trend-wrap,[\s\S]*?#drinksView \.timeline,[\s\S]*?#plansView \.plan-list[\s\S]*?max-width:\s*min\(960px,\s*100%\)/);
+  // FINE 3.0.9: drop 560/900/960/980 list rails; keep trend+lists full width
+  assert.doesNotMatch(css, /max-width:\s*min\(960px,\s*100%\)/);
+  assert.doesNotMatch(css, /\.bean-list \{[^}]*auto-fit/);
+  assert.match(css, /--list-card-min:\s*300px/);
+  assert.match(css, /--list-gap:\s*12px/);
+  assert.match(css, /body:not\(\.has-context-detail\) \.bean-list,[\s\S]*?body:not\(\.has-context-detail\) \.timeline-group,[\s\S]*?body:not\(\.has-context-detail\) \.plan-group[\s\S]*?auto-fill/);
+  assert.match(css, /body:not\(\.has-context-detail\) \.plan-card-facts[\s\S]*?grid-template-columns:\s*1fr 1fr/);
+  assert.match(css, /#drinksView \.drink-trend-wrap,[\s\S]*?#drinksView \.timeline,[\s\S]*?#plansView \.plan-list[\s\S]*?max-width:\s*none/);
+  assert.match(css, /body\.has-context-detail \.plan-group \{ grid-template-columns:1fr; \}/);
   assert.match(css, /body\[data-shell-view="plans"\]:not\(\.has-context-detail\) \.topbar[\s\S]*?grid-template-columns:\s*auto\s+minmax\(180px,1fr\)\s+auto/);
   assert.match(css, /body\[data-shell-view="plans"\]:not\(\.has-context-detail\) \.topbar-search[\s\S]*?position:\s*static/);
   assert.match(css, /body\[data-shell-view="plans"\]:not\(\.has-context-detail\) \.wide-primary-action[\s\S]*?position:\s*static/);
