@@ -115,7 +115,7 @@
 
 ### 安装 Android 客户端
 1. 前往 **[GitHub Releases 最新发布页](https://github.com/Seeken-dai/cofeBean/releases/latest)** 下载最新的正式安装包：
-   - 文件名：`coffee-vault-3.0.5-release.apk`
+   - 文件名：`coffee-vault-3.0.8-release.apk`
    - 兼容：支持 Android 7.0 (API 24) 及以上（目标 Android 16 / API 36）
 2. 手机打开 APK 并按照提示允许「安装未知应用」。
 3. 后续升级只需下载新版本 APK 直接覆盖安装，本地数据库将自动无缝迁移保留。
