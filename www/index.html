@@ -38,18 +38,8 @@
       <h1 id="shellTitle">豆仓</h1>
       <p id="recordCount">正在打开豆仓…</p>
     </div>
-    <div class="topbar-actions">
-      <button class="icon-button search-button" id="searchToggle" type="button" aria-label="搜索" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg></button>
-      <button class="icon-button topbar-tool" id="scanBean" type="button" aria-label="拍照识别咖啡豆"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 5.5 10 3h4l1.5 2.5H19A2.5 2.5 0 0 1 21.5 8v9A2.5 2.5 0 0 1 19 19.5H5A2.5 2.5 0 0 1 2.5 17V8A2.5 2.5 0 0 1 5 5.5h3.5Z"/><circle cx="12" cy="12.5" r="4"/></svg></button>
-      <button class="icon-button topbar-tool" id="planImportFab" type="button" aria-label="导入方案" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10"/><path d="m8 10 4 4 4-4"/><path d="M5 12v5.5A1.5 1.5 0 0 0 6.5 19h11a1.5 1.5 0 0 0 1.5-1.5V12"/></svg></button>
-      <button class="icon-button topbar-tool topbar-add" id="addBean" type="button" aria-label="新增咖啡豆">＋</button>
-      <button class="wide-primary-action" id="widePrimaryAction" type="button">＋ 加一包豆</button>
-      <button class="icon-button topbar-filter-button" id="beanFilterOpen" type="button" aria-label="打开更多筛选"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg><em id="beanFilterCount" hidden>0</em></button>
-    </div>
-    <button class="icon-button profile-button" id="profileOpen" type="button" aria-label="个人中心"><svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M861.866667 179.2l4.266666 4.266667c59.733333 68.266667 85.333333 157.866667 68.266667 245.333333-25.6 125.866667-85.333333 238.933333-174.933333 328.533333-89.6 89.6-204.8 151.466667-328.533334 174.933334-17.066667 4.266667-36.266667 4.266667-53.333333 4.266666-74.666667 0-149.333333-29.866667-202.666667-85.333333-2.133333-2.133333-4.266667-6.4-8.533333-8.533333l-4.266667-4.266667c-59.733333-68.266667-85.333333-157.866667-68.266666-245.333333 25.6-125.866667 85.333333-238.933333 174.933333-328.533334 89.6-89.6 204.8-151.466667 328.533333-174.933333 91.733333-17.066667 187.733333 12.8 256 81.066667l8.533334 8.533333z m-12.8 232.533333c8.533333-38.4 2.133333-78.933333-12.8-115.2-78.933333 134.4-194.133333 194.133333-305.066667 253.866667-115.2 59.733333-224 117.333333-288 253.866667 46.933333 40.533333 108.8 57.6 168.533333 44.8 108.8-21.333333 206.933333-74.666667 285.866667-151.466667s130.133333-177.066667 151.466667-285.866667zM174.933333 612.266667c-8.533333 38.4-2.133333 78.933333 12.8 115.2 78.933333-134.4 194.133333-194.133333 305.066667-253.866667 115.2-59.733333 224-117.333333 288-253.866667C744.533333 187.733333 697.6 170.666667 650.666667 170.666667c-12.8 0-25.6 2.133333-38.4 4.266666-108.8 21.333333-206.933333 74.666667-285.866667 151.466667-76.8 78.933333-130.133333 177.066667-151.466667 285.866667z" fill="currentColor"/></svg></button>
-  </header>
 
-  <section class="search-panel topbar-search" id="searchPanel" hidden aria-label="全局搜索">
+    <section class="search-panel topbar-search" id="searchPanel" hidden aria-label="全局搜索">
     <div class="search-panel-head">
       <label class="search-box">
         <span aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg></span>
@@ -61,7 +51,18 @@
     <div class="search-results" id="searchResults" aria-live="polite"></div>
   </section>
 
-  <main>
+    <div class="topbar-actions">
+      <button class="icon-button search-button" id="searchToggle" type="button" aria-label="搜索" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg></button>
+      <button class="icon-button topbar-tool" id="scanBean" type="button" aria-label="拍照识别咖啡豆"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 5.5 10 3h4l1.5 2.5H19A2.5 2.5 0 0 1 21.5 8v9A2.5 2.5 0 0 1 19 19.5H5A2.5 2.5 0 0 1 2.5 17V8A2.5 2.5 0 0 1 5 5.5h3.5Z"/><circle cx="12" cy="12.5" r="4"/></svg></button>
+      <button class="icon-button topbar-tool" id="planImportFab" type="button" aria-label="导入方案" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10"/><path d="m8 10 4 4 4-4"/><path d="M5 12v5.5A1.5 1.5 0 0 0 6.5 19h11a1.5 1.5 0 0 0 1.5-1.5V12"/></svg></button>
+      <button class="icon-button topbar-tool topbar-add" id="addBean" type="button" aria-label="新增咖啡豆">＋</button>
+      <button class="wide-primary-action" id="widePrimaryAction" type="button">＋ 加一包豆</button>
+      <button class="icon-button topbar-filter-button" id="beanFilterOpen" type="button" aria-label="打开更多筛选"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg><em id="beanFilterCount" hidden>0</em></button>
+    </div>
+    <button class="icon-button profile-button" id="profileOpen" type="button" aria-label="个人中心"><svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M861.866667 179.2l4.266666 4.266667c59.733333 68.266667 85.333333 157.866667 68.266667 245.333333-25.6 125.866667-85.333333 238.933333-174.933333 328.533333-89.6 89.6-204.8 151.466667-328.533334 174.933334-17.066667 4.266667-36.266667 4.266667-53.333333 4.266666-74.666667 0-149.333333-29.866667-202.666667-85.333333-2.133333-2.133333-4.266667-6.4-8.533333-8.533333l-4.266667-4.266667c-59.733333-68.266667-85.333333-157.866667-68.266666-245.333333 25.6-125.866667 85.333333-238.933333 174.933333-328.533334 89.6-89.6 204.8-151.466667 328.533333-174.933333 91.733333-17.066667 187.733333 12.8 256 81.066667l8.533334 8.533333z m-12.8 232.533333c8.533333-38.4 2.133333-78.933333-12.8-115.2-78.933333 134.4-194.133333 194.133333-305.066667 253.866667-115.2 59.733333-224 117.333333-288 253.866667 46.933333 40.533333 108.8 57.6 168.533333 44.8 108.8-21.333333 206.933333-74.666667 285.866667-151.466667s130.133333-177.066667 151.466667-285.866667zM174.933333 612.266667c-8.533333 38.4-2.133333 78.933333 12.8 115.2 78.933333-134.4 194.133333-194.133333 305.066667-253.866667 115.2-59.733333 224-117.333333 288-253.866667C744.533333 187.733333 697.6 170.666667 650.666667 170.666667c-12.8 0-25.6 2.133333-38.4 4.266666-108.8 21.333333-206.933333 74.666667-285.866667 151.466667-76.8 78.933333-130.133333 177.066667-151.466667 285.866667z" fill="currentColor"/></svg></button>
+  </header>
+
+    <main>
     <nav class="view-tabs legacy-view-tabs" aria-label="首页视图">
       <button class="active" data-view="beans" type="button">豆仓</button>
       <button data-view="drinks" type="button">饮用记录</button>

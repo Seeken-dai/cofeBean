@@ -2587,10 +2587,14 @@ body:not(.cap-native) #personalLifetimeStats { display:none!important; }
   .drink-dialog.quick-mode { width:480px; min-width:0; height:auto; max-height:min(78vh,640px); margin:auto; border:1px solid var(--vault-line); border-radius:var(--radius-overlay); box-shadow:0 24px 72px rgb(0 0 0 / .36); }
   .bean-skeleton { grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); }
 
-  body.has-context-detail { grid-template-columns:216px 280px minmax(0,1fr); }
   body.has-context-detail .topbar { grid-column:2; padding-inline:16px; }
-  body.has-context-detail .topbar .profile-button,body.has-context-detail .topbar-search { display:none!important; }
-  body.has-context-detail .brand-copy h1 { font-size:19px; }
+  body.has-context-detail .topbar .profile-button,body.has-context-detail .topbar-search,body.has-context-detail #planImportFab { display:none!important; }
+  body.has-context-detail .brand-copy h1 {
+    font-size:19px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
   body.has-context-detail .brand-copy p { max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   body.has-context-detail main { grid-column:2; padding:14px 12px 28px; }
   body.has-context-detail .overview,body.has-context-detail .reminder-panel,body.has-context-detail .drink-trend-wrap,body.has-context-detail .sort-row { display:none!important; }
@@ -2610,7 +2614,7 @@ body:not(.cap-native) #personalLifetimeStats { display:none!important; }
   body.has-context-detail .bean-card .tag-row,body.has-context-detail .bean-card .remaining-track,body.has-context-detail .bean-card .quick-drink { display:none; }
   body.has-context-detail .drink-entry,body.has-context-detail .plan-card { border-radius:var(--radius-card); }
   body.has-context-detail #detailDialog,body.has-context-detail #drinkDetailDialog,body.has-context-detail #planDetailDialog {
-    left:496px;
+    left:calc(var(--shell-nav-width) + var(--context-column-width));
     right:0;
     width:auto;
     min-width:0;
@@ -3128,6 +3132,64 @@ body[data-shell-view="personal"] .profile-button { border-color:var(--accent); b
     width:min(340px,32vw);
   }
   body[data-shell-view="personal"] .topbar-search { right:24px; }
+
+  /* Plans list topbar: kill absolute → in-flow grid end-cluster */
+  body[data-shell-view="plans"]:not(.has-context-detail) .topbar {
+    display:grid;
+    grid-template-columns:auto minmax(180px,1fr) auto;
+    align-items:center;
+    column-gap:16px;
+  }
+  body[data-shell-view="plans"]:not(.has-context-detail) .topbar-search {
+    position:static;
+    right:auto;
+    top:auto;
+    z-index:auto;
+    width:100%;
+    max-width:360px;
+    justify-self:stretch;
+  }
+  body[data-shell-view="plans"]:not(.has-context-detail) .wide-primary-action {
+    position:static;
+    right:auto;
+    top:auto;
+    z-index:auto;
+  }
+  body[data-shell-view="plans"]:not(.has-context-detail) .topbar-actions {
+    display:flex;
+    align-items:center;
+    gap:8px;
+    justify-self:end;
+    margin-top:0;
+  }
+  body[data-shell-view="plans"]:not(.has-context-detail) #planImportFab {
+    display:inline-flex!important;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    width:auto;
+    min-width:72px;
+    min-height:44px;
+    height:44px;
+    padding:0 16px;
+    border:1px solid var(--accent);
+    border-radius:var(--radius-control);
+    background:transparent;
+    color:var(--accent);
+    font-size:14px;
+    font-weight:700;
+    line-height:1;
+    box-shadow:none;
+  }
+  body[data-shell-view="plans"]:not(.has-context-detail) #planImportFab svg {
+    width:18px;
+    height:18px;
+    flex:0 0 auto;
+  }
+  body[data-shell-view="plans"]:not(.has-context-detail) #planImportFab .plan-import-label {
+    font:inherit;
+    color:inherit;
+  }
   body[data-shell-view="beans"] .topbar { grid-template-columns:minmax(0,1fr); column-gap:0; }
   /* 宽屏默认保持列表清爽：状态与排序留在内容区，更多条件通过顶部筛选按钮打开。
      常驻整块筛选栏会把只有一张卡的豆仓压成窄列，并制造大面积无意义留白。 */
@@ -3145,7 +3207,13 @@ body[data-shell-view="personal"] .profile-button { border-color:var(--accent); b
   #addBean { display:none!important; }
   .bean-list { grid-template-columns:repeat(auto-fit,minmax(290px,1fr)); gap:12px; }
   #beansView .overview { max-width:980px; }
-  .plan-list { width:100%; max-width:none; }
+  /* Issue3 A: shared content rail (list state, ≥1100) */
+  #drinksView .drink-trend-wrap,
+  #drinksView .timeline,
+  #plansView .plan-list {
+    width:100%;
+    max-width:min(960px,100%);
+  }
   .plan-group { grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
   .plan-group > h2 { grid-column:1/-1; }
   body.has-context-detail .plan-group { grid-template-columns:1fr; }
@@ -3154,7 +3222,15 @@ body[data-shell-view="personal"] .profile-button { border-color:var(--accent); b
   .bean-thumb { width:66px; height:88px; }
   .card-body { padding-block:12px; }
 
-  body.has-context-detail { --context-column-width:clamp(320px,24vw,380px); grid-template-columns:216px var(--context-column-width) minmax(0,1fr); }
+  /* Unified context tokens — single source (no 280px / no per-view overrides) */
+  body.has-context-detail {
+    --shell-nav-width:216px;
+    --context-column-width:clamp(360px,28vw,420px);
+    grid-template-columns:
+      var(--shell-nav-width)
+      var(--context-column-width)
+      minmax(0,1fr);
+  }
   body.has-context-detail .topbar { grid-column:2; }
   body.has-context-detail main { grid-column:2; padding:12px 10px 24px; }
   body.has-context-detail #beansView .bean-filter-toolbar { display:none; }
@@ -3165,7 +3241,7 @@ body[data-shell-view="personal"] .profile-button { border-color:var(--accent); b
   body.has-context-detail .card-title { font-size:12px; }
   body.has-context-detail .card-subtitle { margin-top:3px; font-size:8px; }
   body.has-context-detail .bean-card .card-bottom,body.has-context-detail .bean-card .remaining-bar,body.has-context-detail .bean-card .quick-drink { display:none; }
-  body.has-context-detail #detailDialog,body.has-context-detail #drinkDetailDialog,body.has-context-detail #planDetailDialog { left:calc(216px + var(--context-column-width)); }
+  body.has-context-detail #detailDialog,body.has-context-detail #drinkDetailDialog,body.has-context-detail #planDetailDialog { left:calc(var(--shell-nav-width) + var(--context-column-width)); }
   /* Contextual details are split-pane dialogs in wide mode. They stay above the
      main workbench without entering the modal top layer, so the primary rail
      remains clickable while a detail is expanded. */

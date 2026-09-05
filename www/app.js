@@ -75,6 +75,23 @@
   if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) document.body.classList.add('cap-native');
   function isNativeApp() { return document.body.classList.contains('cap-native') || (typeof BeanRepository !== 'undefined' && BeanRepository.isNative && BeanRepository.isNative()); }
   function isWideWorkspace() { return !isNativeApp() && typeof window !== 'undefined' && Boolean(window.matchMedia) && window.matchMedia('(min-width: 1100px)').matches; }
+  function syncPlanImportFabLabel() {
+    const fab = $('#planImportFab');
+    if (!fab) return;
+    const wide = isWideWorkspace();
+    fab.setAttribute('aria-label', wide ? '导入' : '导入方案');
+    let label = fab.querySelector('.plan-import-label');
+    if (wide) {
+      if (!label) {
+        label = document.createElement('span');
+        label.className = 'plan-import-label';
+        fab.appendChild(label);
+      }
+      label.textContent = '导入';
+    } else if (label) {
+      label.remove();
+    }
+  }
   function renderSidebarSyncState() {
     const button = $('.sidebar-local-state');
     if (!button) return;
@@ -557,6 +574,7 @@
     document.body.classList.toggle('empty-onboarding', state.view === 'beans' && state.beans.length === 0);
     $('#scanBean').hidden = state.view !== 'beans';
     $('#planImportFab').hidden = state.view !== 'plans';
+    syncPlanImportFabLabel();
     $('#addBean').hidden = state.view !== 'beans' && state.view !== 'plans';
     $('#addBean').setAttribute('aria-label', state.view === 'plans' ? '新增冲煮方案' : '新增咖啡豆');
     const wideAction = $('#widePrimaryAction');
@@ -2810,6 +2828,7 @@
     setInterval(updateFabInset, 300);
     if (window.matchMedia) {
       window.matchMedia('(min-width: 1100px)').addEventListener('change', () => {
+        syncPlanImportFabLabel();
         if (state.view === 'personal') renderPersonal();
       });
     }

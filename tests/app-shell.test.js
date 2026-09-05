@@ -234,4 +234,25 @@ test('3.0.6 宽屏侧栏具备高层级与事件穿透保护，主容器声明 p
   assert.match(app, /closeContextDetailsForNavigation/);
   assert.match(app, /if \(els\.insights && els\.insights\.open\) setDialog\(els\.insights, false\);/);
 });
-
+test('3.0.7 宽屏细稿：token / 960 轨 / Plans grid / 无 280px', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../www/styles.css'), 'utf8');
+  const app = fs.readFileSync(path.join(__dirname, '../www/app.js'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '../www/index.html'), 'utf8');
+  assert.doesNotMatch(css, /grid-template-columns:\s*216px\s+280px/);
+  assert.doesNotMatch(css, /left:\s*496px/);
+  assert.doesNotMatch(css, /clamp\(320px,\s*24vw,\s*380px\)/);
+  assert.match(css, /--shell-nav-width:\s*216px/);
+  assert.match(css, /--context-column-width:\s*clamp\(360px,\s*28vw,\s*420px\)/);
+  assert.match(css, /left:\s*calc\(var\(--shell-nav-width\)\s*\+\s*var\(--context-column-width\)\)/);
+  assert.match(css, /#drinksView \.drink-trend-wrap,[\s\S]*?#drinksView \.timeline,[\s\S]*?#plansView \.plan-list[\s\S]*?max-width:\s*min\(960px,\s*100%\)/);
+  assert.match(css, /body\[data-shell-view="plans"\]:not\(\.has-context-detail\) \.topbar[\s\S]*?grid-template-columns:\s*auto\s+minmax\(180px,1fr\)\s+auto/);
+  assert.match(css, /body\[data-shell-view="plans"\]:not\(\.has-context-detail\) \.topbar-search[\s\S]*?position:\s*static/);
+  assert.match(css, /body\[data-shell-view="plans"\]:not\(\.has-context-detail\) \.wide-primary-action[\s\S]*?position:\s*static/);
+  assert.match(css, /body\.has-context-detail \.brand-copy h1[\s\S]*?white-space:\s*nowrap/);
+  assert.match(css, /body\.has-context-detail[\s\S]*?#planImportFab[\s\S]*?display:\s*none!important/);
+  assert.match(app, /function syncPlanImportFabLabel\(\)/);
+  assert.match(app, /aria-label', wide \? '导入' : '导入方案'/);
+  const topbar = html.slice(html.indexOf('<header class="topbar">'), html.indexOf('</header>'));
+  assert.match(topbar, /id="searchPanel"/);
+  assert.doesNotMatch(css, /body\[data-shell-view="beans"\]\.has-context-detail[\s\S]{0,80}grid-template-columns/);
+});
