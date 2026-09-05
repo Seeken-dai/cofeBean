@@ -58,10 +58,26 @@
     const sqlite = plugin('CapacitorSQLite');
     if (!sqlite) throw new Error('SQLite 插件没有加载');
     nativeAdapter = createNativeAdapter(sqlite);
+    // 覆盖安装 / WebView 重启后，原生连接字典常与 JS 侧不一致；直接 createConnection 可能永久挂起。
+    // 先 checkConnectionsConsistency + isConnection，仅在无连接时再建连。
     try {
-      await nativeDb().createConnection({ database: DB_NAME, encrypted: false, mode: 'no-encryption', version: DB_VERSION, readonly: false });
-    } catch (error) {
-      if (!String(error && error.message || error).toLowerCase().includes('already')) throw error;
+      if (typeof sqlite.checkConnectionsConsistency === 'function') {
+        await sqlite.checkConnectionsConsistency({ dbNames: [DB_NAME], openModes: ['RW'] });
+      }
+    } catch (_) {}
+    let hasConn = false;
+    try {
+      if (typeof sqlite.isConnection === 'function') {
+        const res = await sqlite.isConnection({ database: DB_NAME, readonly: false });
+        hasConn = Boolean(res && res.result);
+      }
+    } catch (_) {}
+    if (!hasConn) {
+      try {
+        await nativeDb().createConnection({ database: DB_NAME, encrypted: false, mode: 'no-encryption', version: DB_VERSION, readonly: false });
+      } catch (error) {
+        if (!String(error && error.message || error).toLowerCase().includes('already')) throw error;
+      }
     }
     await nativeDb().open({ database: DB_NAME, readonly: false });
     await migrate();
@@ -201,8 +217,29 @@
 
   function fromPlanRow(row) {
     let payload = {};
-    try { payload = JSON.parse(row.payload || '{}'); } catch (_) {}
-    return root.BeanCore.normalizeBrewPlan({ ...payload, id: row.id, name: row.name, brewMethod: row.brew_method, version: row.version, source: row.source, beanIds: JSON.parse(row.bean_ids || '[]'), createdAt: row.created_at, updatedAt: row.updated_at }, row.updated_at);
+    try { payload = JSON.parse(row.payload || '{}'); } catch (_) { payload = {}; }
+    let beanIds = [];
+    try {
+      const parsed = JSON.parse(row.bean_ids || '[]');
+      beanIds = Array.isArray(parsed) ? parsed : [];
+    } catch (_) { beanIds = []; }
+    const base = { ...payload, id: row.id, name: row.name, brewMethod: row.brew_method, version: row.version, source: row.source, beanIds, createdAt: row.created_at, updatedAt: row.updated_at };
+    try {
+      return root.BeanCore.normalizeBrewPlan(base, row.updated_at);
+    } catch (error) {
+      console.error('brew plan normalize failed', row && row.id, error);
+      return root.BeanCore.normalizeBrewPlan({
+        id: row.id,
+        name: row.name || '方案',
+        brewMethod: row.brew_method || '手冲',
+        version: row.version || 1,
+        source: row.source || 'user',
+        beanIds,
+        steps: [],
+        createdAt: row.created_at,
+        updatedAt: row.updated_at
+      }, row.updated_at);
+    }
   }
 
   async function seedPresetPlans() {

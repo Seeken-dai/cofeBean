@@ -572,8 +572,12 @@
     });
     if (!BREW_METHODS.includes(plan.brewMethod)) plan.brewMethod = plan.brewMethod || '自定义';
     if (!plan.totalWater && plan.dose && plan.ratio) plan.totalWater = waterFromRatio(plan.dose, plan.ratio);
-    const waterNorm = normalizeStepsWaterToSegments(plan.steps, plan.totalWater);
-    if (waterNorm.converted) plan.steps = waterNorm.steps.map(normalizeStep);
+    try {
+      const waterNorm = normalizeStepsWaterToSegments(plan.steps, plan.totalWater);
+      if (waterNorm.converted) plan.steps = waterNorm.steps.map(normalizeStep);
+    } catch (_) {
+      // 旧方案水量形态异常时不阻断启动读库；保留已 normalize 的 steps
+    }
     return plan;
   }
 

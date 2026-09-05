@@ -280,3 +280,53 @@ test('native bean remove tombstones synced beans without invalid brew plan colum
   assert.match(statements.at(-1), /^UPDATE beans SET deleted_at/);
   cleanupNativeRepository();
 });
+
+test('native init skips createConnection when isConnection is already true', async () => {
+  const calls = [];
+  const sqlite = {
+    checkConnectionsConsistency: async (options) => { calls.push(['checkConnectionsConsistency', options]); return { result: true }; },
+    isConnection: async (options) => { calls.push(['isConnection', options]); return { result: true }; },
+    createConnection: async (options) => calls.push(['createConnection', options]),
+    open: async (options) => calls.push(['open', options]),
+    execute: async (options) => calls.push(['execute', options]),
+    executeSet: async (options) => calls.push(['executeSet', options]),
+    query: async (options) => { calls.push(['query', options]); return migrationQuery(options.statement); }
+  };
+  const repo = loadNativeRepository(sqlite, { normalizeBean: (value) => value, normalizeBrewPlan: (value) => value, presetBrewPlans: () => [] });
+  await repo.init();
+  assert.equal(calls.some(([name]) => name === 'checkConnectionsConsistency'), true);
+  assert.equal(calls.some(([name]) => name === 'isConnection'), true);
+  assert.equal(calls.some(([name]) => name === 'createConnection'), false);
+  assert.equal(calls.some(([name]) => name === 'open'), true);
+  cleanupNativeRepository();
+});
+
+test('native getBrewPlans survives corrupt bean_ids JSON', async () => {
+  const calls = [];
+  const sqlite = {
+    createConnection: async (options) => calls.push(['createConnection', options]),
+    open: async (options) => calls.push(['open', options]),
+    execute: async (options) => calls.push(['execute', options]),
+    executeSet: async (options) => calls.push(['executeSet', options]),
+    query: async (options) => {
+      calls.push(['query', options]);
+      if (options.statement && options.statement.includes('FROM brew_plans')) {
+        return { values: [{
+          id: 'bad-plan', name: '坏方案', brew_method: '手冲', version: 1, source: 'user',
+          bean_ids: '{not-json', payload: JSON.stringify({ dose: 15, totalWater: 225, steps: [{ label: '闷蒸', water: 30, startTime: '0:00', endTime: '0:30' }, { label: '一刀', water: 225, startTime: '0:30', endTime: '1:30' }] }),
+          created_at: '2026-01-01T00:00:00.000Z', updated_at: '2026-01-01T00:00:00.000Z'
+        }] };
+      }
+      return migrationQuery(options.statement);
+    }
+  };
+  const repo = loadNativeRepository(sqlite);
+  await repo.init();
+  const plans = await repo.getBrewPlans();
+  const bad = plans.find((plan) => plan.id === 'bad-plan');
+  assert.ok(bad);
+  assert.deepEqual(bad.beanIds, []);
+  assert.equal(bad.steps[0].water, 30);
+  assert.equal(bad.steps[1].water, 195);
+  cleanupNativeRepository();
+});

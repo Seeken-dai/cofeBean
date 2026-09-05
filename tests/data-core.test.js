@@ -648,3 +648,13 @@ test('buildAiPlanPrompt states water is segment amount not cumulative', () => {
   assert.ok(prompt.includes('不是') && prompt.includes('累计'));
 });
 
+test('normalizeBrewPlan tolerates malformed step water payloads', () => {
+  const plan = core.normalizeBrewPlan({
+    name: '畸形水量',
+    totalWater: 225,
+    steps: [null, { label: 'x', water: 'nope' }, { label: 'y', water: Infinity }, { label: 'z', water: -3 }]
+  }, '2026-01-01T00:00:00.000Z');
+  assert.equal(plan.name, '畸形水量');
+  assert.ok(Array.isArray(plan.steps));
+  assert.doesNotThrow(() => core.normalizeStepsWaterToSegments(plan.steps, plan.totalWater));
+});

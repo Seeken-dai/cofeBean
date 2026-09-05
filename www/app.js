@@ -2997,6 +2997,59 @@
     });
     app.addListener('appStateChange', async ({ isActive }) => { if (!isActive || state.resuming) return; state.resuming = true; await reload({ keepForm: true }); state.resuming = false; scheduleAutoSync(); });
   }
-  async function boot() { applyTheme(localStorage.getItem('coffee-vault-theme') || 'dark-roast', false); bindEvents(); bindNativeLifecycle(); try { await BeanRepository.init(); await reload({ applyDefaultView: true }); await offerMigration(); state.initialized = true; if (pendingRestoredCameraResult) { const result = pendingRestoredCameraResult; pendingRestoredCameraResult = null; await restoreDrinkCameraDraft(result); } const app = capPlugin('App'); if (app && app.getLaunchUrl) { const launch = await app.getLaunchUrl(); if (launch && launch.url) handleWidgetUrl(launch.url); } syncFloatingActions({ showHint: true }); scheduleAutoSync(1500); } catch (error) { console.error(error); document.body.classList.add('app-startup-error'); $('#startupState').hidden = false; $('#startupStateMessage').textContent = error.message || '本地数据库初始化失败，已有数据没有被修改。'; els.count.textContent = '豆仓启动失败'; toast(error.message || '数据库初始化失败'); } finally { document.body.classList.remove('app-loading'); const splash = capPlugin('SplashScreen'); if (splash) splash.hide().catch(() => {}); } }
+  const BOOT_DB_TIMEOUT_MS = 10000;
+  function withBootDeadline(promise, ms, label) {
+    let timer = null;
+    const timeout = new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error((label || '启动') + '超时（' + Math.round(ms / 1000) + 's），本地库可能卡住，请重试')), ms);
+    });
+    return Promise.race([promise, timeout]).finally(() => { if (timer) clearTimeout(timer); });
+  }
+  async function boot() {
+    try {
+      applyTheme(localStorage.getItem('coffee-vault-theme') || 'dark-roast', false);
+      bindEvents();
+      bindNativeLifecycle();
+      try {
+        await withBootDeadline((async () => {
+          await BeanRepository.init();
+          await reload({ applyDefaultView: true });
+        })(), BOOT_DB_TIMEOUT_MS, '本地数据库初始化');
+        await offerMigration();
+        state.initialized = true;
+        if (pendingRestoredCameraResult) {
+          const result = pendingRestoredCameraResult;
+          pendingRestoredCameraResult = null;
+          await restoreDrinkCameraDraft(result);
+        }
+        const app = capPlugin('App');
+        if (app && app.getLaunchUrl) {
+          const launch = await app.getLaunchUrl();
+          if (launch && launch.url) handleWidgetUrl(launch.url);
+        }
+        syncFloatingActions({ showHint: true });
+        scheduleAutoSync(1500);
+      } catch (error) {
+        console.error(error);
+        document.body.classList.add('app-startup-error');
+        $('#startupState').hidden = false;
+        $('#startupStateMessage').textContent = error.message || '本地数据库初始化失败，已有数据没有被修改。';
+        els.count.textContent = '豆仓启动失败';
+        toast(error.message || '数据库初始化失败');
+      }
+    } catch (error) {
+      console.error(error);
+      document.body.classList.add('app-startup-error');
+      try {
+        $('#startupState').hidden = false;
+        $('#startupStateMessage').textContent = (error && error.message) || '豆仓启动失败';
+        if (els.count) els.count.textContent = '豆仓启动失败';
+      } catch (_) {}
+    } finally {
+      document.body.classList.remove('app-loading');
+      const splash = capPlugin('SplashScreen');
+      if (splash) splash.hide().catch(() => {});
+    }
+  }
   boot();
 })();
