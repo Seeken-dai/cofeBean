@@ -1135,6 +1135,9 @@ html.number-picker-open { overflow:hidden; }
 .pour-step-head input:focus { border-color:var(--border); background:var(--surface-2); }
 .pour-step-head button { width:32px; height:32px; border:1px solid var(--border); border-radius:var(--radius-control); background:var(--surface-2); color:var(--danger); font-size:16px; }
 .pour-step-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+@media (min-width:640px) {
+  .pour-step-grid { grid-template-columns:repeat(2,minmax(54px,.9fr)) repeat(2,minmax(0,1.05fr)); }
+}
 .pour-step-grid label { display:flex; flex-direction:column; gap:5px; color:var(--faint); font-size:11px; }
 .pour-step-grid label.full { grid-column:1/-1; }
 .pour-step-grid input { width:100%; min-height:40px; padding:8px 9px; border:1px solid var(--border); border-radius:var(--radius-control); background:var(--surface-2); color:var(--text); font-size:15px; }
@@ -1275,7 +1278,7 @@ html.number-picker-open { overflow:hidden; }
 .assist-ring > div { position:relative; z-index:2; display:grid; gap:3px; justify-items:center; width:min(58vw,208px); padding:10px; text-align:center; }
 .assist-ring span,.assist-ring small { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .assist-ring span { color:var(--accent); font-size:11px; font-weight:800; }
-.assist-ring strong { box-sizing:border-box; max-width:100%; padding:0 8px; overflow:visible; white-space:nowrap; color:var(--text); font-size:clamp(26px, 7.2vw, 52px); font-weight:850; line-height:1.14; font-variant-numeric:tabular-nums; letter-spacing:0; }
+.assist-ring strong { box-sizing:border-box; max-width:100%; padding:0 8px .14em; overflow:visible; text-overflow:clip; white-space:nowrap; color:var(--text); font-size:clamp(26px, 7.2vw, 52px); font-weight:850; line-height:1.22; font-variant-numeric:tabular-nums; letter-spacing:0; }
 .assist-ring-clock b span.digit-changing { animation:assist-digit-change var(--motion-fast) ease-out both; }
 .assist-ring-clock b span { display:inline-block; min-width:.58em; text-align:center; }
 .assist-ring-clock b span:nth-child(3) { min-width:.3em; }
@@ -1382,7 +1385,7 @@ html.number-picker-open { overflow:hidden; }
   .rating-row { gap:4px; }.rating-row button { width:38px; height:40px; }.dimension-settings { grid-template-columns:1fr 1fr; }
   .sync-actions { grid-template-columns:1fr 1fr; }.sync-actions #syncLogout { grid-column:1/-1; }
   .sync-account-card { grid-template-columns:42px 1fr; }.sync-account-card .sync-badge { grid-column:2; justify-self:start; }
-  .assist-ring strong { font-size:46px; }
+  .assist-ring strong,#brewAssistWater { font-size:clamp(34px, 10.5vw, 46px); line-height:1.22; overflow:visible; }
   .assist-result-grid { grid-template-columns:1fr; }
   .assist-footer button { padding:0 10px; font-size:15px; }
 }
@@ -2997,7 +3000,7 @@ body[data-shell-view="personal"] .profile-button { border-color:var(--accent); b
 .assist-stage-progress i { position:relative; height:4px; overflow:hidden; border-radius:2px; background:var(--vault-line); }
 .assist-stage-progress i span { position:absolute; inset:0 auto 0 0; width:var(--stage-progress,0%); border-radius:inherit; background:var(--accent); transition:width .18s linear; }
 .assist-stage-progress i.done span { width:100%; }
-.assist-body { gap:0; padding:0 18px 0; }
+.assist-body { gap:0; padding:0 18px 0; overflow:visible; }
 .assist-ticker { margin-top:10px; }
 .assist-ring {
   width:100%;
@@ -3010,7 +3013,7 @@ body[data-shell-view="personal"] .profile-button { border-color:var(--accent); b
 .assist-ring::before { display:none; }
 .assist-ring > div { gap:7px; width:100%; padding:36px 0 84px; }
 #brewAssistPhase { max-width:90%; padding:6px 14px; border-radius:999px; background:var(--vault-active-soft); color:var(--accent); font-size:10px; letter-spacing:.04em; }
-.assist-ring strong { box-sizing:border-box; max-width:100%; padding:0 12px; overflow:visible; color:var(--accent); font:800 clamp(40px, 14vw, 56px)/1.12 "Vault Serif",serif; letter-spacing:-.02em; }
+.assist-ring strong,#brewAssistWater { box-sizing:border-box; max-width:100%; padding:0 10px .16em; overflow:visible; text-overflow:clip; color:var(--accent); font:800 clamp(36px, 11.5vw, 56px)/1.22 "Vault Serif",serif; letter-spacing:-.02em; }
 .assist-ring > div > small { color:var(--muted); font-size:11px; }
 .assist-water-wave {
   top:auto;
@@ -3415,7 +3418,7 @@ body[data-shell-view="personal"] .profile-button { border-color:var(--accent); b
   .assist-sheet .assist-step { grid-template-columns:30px minmax(0,1fr) auto; min-height:62px; border:0; border-radius:var(--radius-control); background:var(--vault-paper); }
   .assist-sheet .assist-ring { grid-column:2; grid-row:1; align-self:stretch; min-height:100%; }
   .assist-sheet .assist-ring > div { max-width:720px; padding:44px 26px 116px; }
-  .assist-sheet .assist-ring strong { font-size:96px; }
+  .assist-sheet .assist-ring strong,#brewAssistWater { font-size:clamp(64px, 7vw, 96px); line-height:1.22; padding-bottom:.16em; overflow:visible; }
   .assist-sheet .assist-water-wave { right:17%; bottom:118px; left:17%; }
   .assist-sheet .assist-ring-clock b { font-size:31px; }
   .assist-sheet .assist-ticker { grid-column:2; grid-row:1; z-index:3; align-self:start; margin:18px auto 0; }
@@ -3451,7 +3454,7 @@ body[data-shell-view="personal"] .profile-button { border-color:var(--accent); b
 .assist-result-grid strong,
 .assist-context-grid strong { line-height:1.25; padding-bottom:1px; }
 .quick-drink > span:not(.drink-float) { padding-bottom:3px; }
-.assist-ring strong { line-height:1.14; padding-bottom:.08em; }
+.assist-ring strong,#brewAssistWater { line-height:1.22; padding-bottom:.16em; overflow:visible; }
 
 @media (min-width:1100px) {
   .personal-body { display:grid!important; }
