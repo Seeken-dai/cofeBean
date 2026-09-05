@@ -59,7 +59,7 @@ Set-Location android
 
 数据库当前 `PRAGMA user_version = 12`。以后改变表结构时，在 `www/repository.js` 中增加顺序迁移，禁止删除数据库或清空旧表。（本地 SQLite 迁移与云端 D1 迁移是两回事，后者见 `RELEASING.md`。）
 
-3.0.8 正式包（含同轮发布的 3.0.7 宽屏）从 `main` 的 `c128a67`（随后文档补记提交）干净构建；`versionName=3.0.8`、`versionCode=84`。本轮用户向变更见 `docs/CHANGELOG.md` 的 3.0.7 / 3.0.8。正式产物为 `dist/coffee-vault-3.0.8-release.apk`（构建完成后补 SHA-256）。
+3.0.8 正式包（含同轮发布的 3.0.7 宽屏）从 `main` 的 `c128a67`（文档补记后 `779657c`）干净构建；`versionName=3.0.8`、`versionCode=84`。本轮用户向变更见 `docs/CHANGELOG.md` 的 3.0.7 / 3.0.8。正式产物为 `dist/coffee-vault-3.0.8-release.apk`，APK SHA-256 为 `05CA1E0227ED6812EA2C146DDD8072CC4F58C674E0E1C01C4E78EBCDF812C89C`。
 
 3.0.7 宽屏细稿随本轮发布，未单独打 versionCode；窄屏无回归，只动 ≥1100。
 
