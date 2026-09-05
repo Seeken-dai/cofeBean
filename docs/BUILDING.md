@@ -59,6 +59,10 @@ Set-Location android
 
 数据库当前 `PRAGMA user_version = 12`。以后改变表结构时，在 `www/repository.js` 中增加顺序迁移，禁止删除数据库或清空旧表。（本地 SQLite 迁移与云端 D1 迁移是两回事，后者见 `RELEASING.md`。）
 
+3.0.8 正式包（含同轮发布的 3.0.7 宽屏）从 `main` 的 `c128a67`（随后文档补记提交）干净构建；`versionName=3.0.8`、`versionCode=84`。本轮用户向变更见 `docs/CHANGELOG.md` 的 3.0.7 / 3.0.8。正式产物为 `dist/coffee-vault-3.0.8-release.apk`（构建完成后补 SHA-256）。
+
+3.0.7 宽屏细稿随本轮发布，未单独打 versionCode；窄屏无回归，只动 ≥1100。
+
 3.0.5 正式包从 `release/3.0.5`（ff-only 合入 `main` 的 `788362e`）干净构建（Microsoft JDK 21.0.11 + `cap sync` + `assembleRelease`），已用 `aapt2 dump badging` 核对 `versionName=3.0.5`、`versionCode=82`、`minSdk 24` / `targetSdk 36`；权限仍为 `CAMERA`、`INTERNET`、`VIBRATE` 及 Android 自动生成的应用内接收器权限，未新增权限。`apksigner verify --print-certs` 核对证书 SHA-256 为 `aab5e3d3bd224b98f885945ecd868d54a99e2c96bf099a0c9e6ee59ca02151ae`，与既有正式版一致，可覆盖升级并保留数据库。本版：月报门槛 5→3；冲煮回顾跟随 insightsRange；窄屏底栏左右滑切换；动效 Token 收紧；宽屏设置子导航改为横向芯片。**不修改 SQLite、备份、同步协议、Worker 或 Android 权限**，`user_version` 仍为 12。发布前 insights-core / app-shell 相关测试、Capacitor 同步和 Release 构建通过；本机未连接 ADB 真机，未执行安装后的可视点击冒烟。正式产物为 `dist/coffee-vault-3.0.5-release.apk`，APK SHA-256 为 `711B60779DBB9BBEF07A9CBE2B4F969BD10084AEBABB4F3459ED84234083D8BF`。
 
 3.0.3 正式包从 `release/3.0.3`（与随后 ff-only 合入 `main` 的源码一致）干净构建（Microsoft JDK 21.0.11 + `cap sync` + `assembleRelease`），已用 `aapt2 dump badging` 核对 `versionName=3.0.3`、`versionCode=80`、`minSdk 24` / `targetSdk 36`；权限仍为 `CAMERA`、`INTERNET`、`VIBRATE` 及 Android 自动生成的应用内接收器权限，未新增权限。`apksigner verify --print-certs` 核对证书 SHA-256 为 `aab5e3d3bd224b98f885945ecd868d54a99e2c96bf099a0c9e6ee59ca02151ae`，与既有正式版一致，可覆盖升级并保留数据库。本版收口 3.0 视觉：去掉全部悬浮加号，新增/扫码/导入收入各页顶栏，饮用页只留搜索；列表底部避开底栏；空状态改为说明加按钮；筛选文案统一为「在饮 / 已归档 / 全部」。**不修改 SQLite、备份、同步协议、Worker 或 Android 权限**，`user_version` 仍为 12。发布前 301 项 Node 测试、Capacitor 同步和 Release 构建全部通过；本机未连接 ADB 真机，未执行安装后的可视点击冒烟。正式产物为 `dist/coffee-vault-3.0.3-release.apk`，APK SHA-256 为 `CA3E8AD1526D81579216EB41EA59BDA8DDC819D1A0B7E0CF2258AFDEFA230185`。
