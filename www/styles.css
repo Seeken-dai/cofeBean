@@ -1134,7 +1134,7 @@ html.number-picker-open { overflow:hidden; }
 .pour-step-head input { width:100%; min-height:36px; padding:6px 9px; border:1px solid transparent; border-radius:var(--radius-control); background:transparent; color:var(--accent); font-size:14px; font-weight:700; }
 .pour-step-head input:focus { border-color:var(--border); background:var(--surface-2); }
 .pour-step-head button { width:32px; height:32px; border:1px solid var(--border); border-radius:var(--radius-control); background:var(--surface-2); color:var(--danger); font-size:16px; }
-.pour-step-grid { display:grid; grid-template-columns:repeat(2,minmax(54px,.9fr)) repeat(2,minmax(0,1.05fr)); gap:8px; }
+.pour-step-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
 .pour-step-grid label { display:flex; flex-direction:column; gap:5px; color:var(--faint); font-size:11px; }
 .pour-step-grid label.full { grid-column:1/-1; }
 .pour-step-grid input { width:100%; min-height:40px; padding:8px 9px; border:1px solid var(--border); border-radius:var(--radius-control); background:var(--surface-2); color:var(--text); font-size:15px; }
@@ -1275,7 +1275,7 @@ html.number-picker-open { overflow:hidden; }
 .assist-ring > div { position:relative; z-index:2; display:grid; gap:3px; justify-items:center; width:min(58vw,208px); padding:10px; text-align:center; }
 .assist-ring span,.assist-ring small { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .assist-ring span { color:var(--accent); font-size:11px; font-weight:800; }
-.assist-ring strong { box-sizing:border-box; max-width:100%; padding:0 5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text); font-size:clamp(26px, 7.2vw, 52px); font-weight:850; line-height:1.14; font-variant-numeric:tabular-nums; letter-spacing:0; }
+.assist-ring strong { box-sizing:border-box; max-width:100%; padding:0 8px; overflow:visible; white-space:nowrap; color:var(--text); font-size:clamp(26px, 7.2vw, 52px); font-weight:850; line-height:1.14; font-variant-numeric:tabular-nums; letter-spacing:0; }
 .assist-ring-clock b span.digit-changing { animation:assist-digit-change var(--motion-fast) ease-out both; }
 .assist-ring-clock b span { display:inline-block; min-width:.58em; text-align:center; }
 .assist-ring-clock b span:nth-child(3) { min-width:.3em; }
@@ -3010,7 +3010,7 @@ body[data-shell-view="personal"] .profile-button { border-color:var(--accent); b
 .assist-ring::before { display:none; }
 .assist-ring > div { gap:7px; width:100%; padding:36px 0 84px; }
 #brewAssistPhase { max-width:90%; padding:6px 14px; border-radius:999px; background:var(--vault-active-soft); color:var(--accent); font-size:10px; letter-spacing:.04em; }
-.assist-ring strong { max-width:100%; padding:0; color:var(--accent); font:800 70px/1.04 "Vault Serif",serif; letter-spacing:-.035em; }
+.assist-ring strong { box-sizing:border-box; max-width:100%; padding:0 12px; overflow:visible; color:var(--accent); font:800 clamp(40px, 14vw, 56px)/1.12 "Vault Serif",serif; letter-spacing:-.02em; }
 .assist-ring > div > small { color:var(--muted); font-size:11px; }
 .assist-water-wave {
   top:auto;
