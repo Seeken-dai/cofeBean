@@ -128,11 +128,29 @@
       $('#brewAssistFinish').classList.remove('assist-finish-emphasis');
       if (assist.source === 'drink') await saveCompletedDrink(assist);
     }
-    // 圆环中心突出「本段注水量」；无水量时回退显示占位。
-    function setAssistWater(step) {
-      const hasWater = step && step.water;
-      setAnimatedText($('#brewAssistWater'), hasWater ? formatWeight(step.water) : (step ? '—' : '准备器具'));
-      $('#brewAssistWaterCaption').textContent = hasWater ? '本段目标注水' : (step ? '本段未记录水量' : '确认粉量、水量和器具后开始');
+    // 圆环中心主数字为秤上「共计」读数；副文案提示本段加量。
+    function assistCumulativeTo(index) {
+      const assist = state.brewAssist;
+      if (!assist || index == null || index < 0) return null;
+      const series = core.cumulativeWatersFromSegments((assist.steps || []).slice(0, index + 1).map((step) => step.water));
+      const last = series[series.length - 1];
+      return last == null ? null : last;
+    }
+    function setAssistWater(step, index) {
+      const segment = step ? Number(step.water) : NaN;
+      const hasSegment = Number.isFinite(segment) && segment > 0;
+      const cumulative = assistCumulativeTo(index == null ? 0 : index);
+      const hasCumulative = cumulative != null && cumulative > 0;
+      if (hasCumulative) {
+        setAnimatedText($('#brewAssistWater'), `注到共计 ${formatWeight(cumulative)}`);
+        $('#brewAssistWaterCaption').textContent = hasSegment ? `本段加 ${formatWeight(segment)}` : '按秤上读数注水';
+      } else if (hasSegment) {
+        setAnimatedText($('#brewAssistWater'), formatWeight(segment));
+        $('#brewAssistWaterCaption').textContent = '本段注水';
+      } else {
+        setAnimatedText($('#brewAssistWater'), step ? '—' : '准备器具');
+        $('#brewAssistWaterCaption').textContent = step ? '本段未记录水量' : '确认粉量、水量和器具后开始';
+      }
     }
     // 开始前的参数跑马灯：粉量/水温这类「手上要先备好」的信息，滚动一遍比塞进圆环里更好读。
     // 轨道里放两份相同内容，CSS 平移 -50% 即无缝循环，所以这里必须成对写。
@@ -215,7 +233,7 @@
         const first = assist.steps[0];
         updateAssistStageProgress(0, 0);
         $('#brewAssistPhase').textContent = `准备就绪 · 共 ${assist.steps.length} 段`;
-        setAssistWater(first);
+        setAssistWater(first, 0);
         setAnimatedClock($('#brewAssistTime'), assistClock(0));
         $('#brewAssistStageMeta').textContent = first ? `${first.time} · 点此开始` : `全程 ${durationText(assist.total, 'minute')}`;
         setAssistProgress(0);
@@ -230,7 +248,7 @@
         const left = Math.max(0, 3 - (Date.now() - assist.countdownStartedAt) / 1000);
         updateAssistStageProgress(0, (3 - left) / 3 * 100);
         $('#brewAssistPhase').textContent = '准备开始';
-        setAssistWater(assist.steps[0]);
+        setAssistWater(assist.steps[0], 0);
         setAnimatedClock($('#brewAssistTime'), `00:0${Math.ceil(left) || 0}`);
         $('#brewAssistStageMeta').textContent = '倒计时结束进入第一段';
         setAssistProgress((3 - left) / 3 * 100);
@@ -316,7 +334,7 @@
       const stageElapsed = Math.max(0, elapsed - current.start);
       updateAssistStageProgress(status.index, stageElapsed / current.duration * 100);
       $('#brewAssistPhase').textContent = `第 ${status.index + 1}/${assist.steps.length} 段 · ${current.label}`;
-      setAssistWater(current);
+      setAssistWater(current, status.index);
       setAnimatedClock($('#brewAssistTime'), assistClock(stageElapsed));
       $('#brewAssistStageMeta').textContent = current.time;
       setAssistProgress(stageElapsed / current.duration * 100);
@@ -345,7 +363,9 @@
     }
     function assistStepTemplate(step, index, activeIndex) {
       const cls = index < activeIndex ? ' done' : index === activeIndex ? ' active' : '';
-      return `<article class="assist-step${cls}"><b>${index < activeIndex ? '✓' : index + 1}</b><div><span>${esc(step.label)}</span><small>${esc(step.time)}</small></div><em>${step.water ? esc(formatWeight(step.water)) : '未记录'}</em></article>`;
+      const cumul = assistCumulativeTo(index);
+      const waterLabel = step.water ? (cumul != null ? `${formatWeight(cumul)}（+${formatWeight(step.water)}）` : formatWeight(step.water)) : '未记录';
+      return `<article class="assist-step${cls}"><b>${index < activeIndex ? '✓' : index + 1}</b><div><span>${esc(step.label)}</span><small>${esc(step.time)}</small></div><em>${esc(waterLabel)}</em></article>`;
     }
     function startAssistTimer() {
       stopAssistTimer();

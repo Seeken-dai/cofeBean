@@ -313,7 +313,7 @@
 
   function prepareBrewAssistSteps(steps) {
     let nextStart = 0;
-    return (Array.isArray(steps) ? steps : []).map((step, index) => {
+    const prepared = (Array.isArray(steps) ? steps : []).map((step, index) => {
       const source = step && typeof step === 'object' ? step : {};
       const parts = cleanText(source.time, 40).split('-').map((part) => part.trim());
       let start = parseBrewAssistTime(source.startTime) ?? parseBrewAssistTime(parts[0]);
@@ -330,6 +330,12 @@
         time: `${brewAssistDurationText(start)}-${brewAssistDurationText(end)}`
       };
     }).filter((step) => step.duration > 0);
+    let poured = 0;
+    return prepared.map((step) => {
+      const hasWater = step.water != null && Number(step.water) >= 0;
+      if (hasWater) poured = roundPourWater(poured + (Number(step.water) || 0));
+      return Object.assign({}, step, { cumulativeWater: hasWater ? poured : null });
+    });
   }
 
   function brewAssistStatus(steps, elapsed) {
@@ -454,6 +460,79 @@
     return log;
   }
 
+  // 冲煮分段水量约定：step.water 永远存「本段注水量」（利于粉量等比缩放）。
+  // 历史/AI 可能写成累计到杯内的读数；读入时用检测器拆回本段，下次保存即本段形态。
+  function roundPourWater(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n < 0) return null;
+    return Math.round(n * 10) / 10;
+  }
+
+  function stepWaterSeries(steps) {
+    return (Array.isArray(steps) ? steps : []).map((step) => (
+      step && typeof step === 'object' ? cleanNumber(step.water) : cleanNumber(step)
+    ));
+  }
+
+  // 判定水量序列是否为累计形态：
+  // 多段、水量齐全、单调不减且至少一次上升；参考总量存在时，若各段之和≈总量则已是本段，
+  // 若末段≈总量则视为累计。单段 / 已递减 / 缺参考总量 / 总和≈总量 均不动。
+  function looksLikeCumulativeStepWaters(waters, totalWater) {
+    const nums = (Array.isArray(waters) ? waters : []).map(cleanNumber);
+    if (nums.length < 2) return false;
+    if (nums.some((n) => n == null || n < 0)) return false;
+    let hasIncrease = false;
+    for (let i = 1; i < nums.length; i += 1) {
+      if (nums[i] < nums[i - 1]) return false;
+      if (nums[i] > nums[i - 1]) hasIncrease = true;
+    }
+    if (!hasIncrease) return false;
+    const total = cleanNumber(totalWater);
+    if (!(total > 0)) return false;
+    const last = nums[nums.length - 1];
+    const sum = nums.reduce((acc, n) => acc + n, 0);
+    const tol = Math.max(1.5, Math.round(total * 0.02 * 10) / 10);
+    if (Math.abs(sum - total) <= tol) return false;
+    return Math.abs(last - total) <= tol;
+  }
+
+  function splitCumulativeWatersToSegments(waters) {
+    let previous = 0;
+    return (Array.isArray(waters) ? waters : []).map((water) => {
+      const n = cleanNumber(water);
+      if (n == null) return null;
+      const segment = roundPourWater(Math.max(0, n - previous));
+      previous = n;
+      return segment;
+    });
+  }
+
+  function cumulativeWatersFromSegments(waters) {
+    let sum = 0;
+    return (Array.isArray(waters) ? waters : []).map((water) => {
+      const n = cleanNumber(water);
+      if (n == null) return null;
+      sum = roundPourWater(sum + n);
+      return sum;
+    });
+  }
+
+  function normalizeStepsWaterToSegments(steps, totalWater) {
+    const list = Array.isArray(steps) ? steps : [];
+    const waters = stepWaterSeries(list);
+    if (!looksLikeCumulativeStepWaters(waters, totalWater)) {
+      return { steps: list, converted: false };
+    }
+    const segments = splitCumulativeWatersToSegments(waters);
+    return {
+      steps: list.map((step, index) => {
+        const source = step && typeof step === 'object' ? step : {};
+        return { ...source, water: segments[index] };
+      }),
+      converted: true
+    };
+  }
+
   function normalizeStep(input) {
     const source = input && typeof input === 'object' ? input : {};
     const startTime = cleanText(source.startTime, 80);
@@ -493,6 +572,8 @@
     });
     if (!BREW_METHODS.includes(plan.brewMethod)) plan.brewMethod = plan.brewMethod || '自定义';
     if (!plan.totalWater && plan.dose && plan.ratio) plan.totalWater = waterFromRatio(plan.dose, plan.ratio);
+    const waterNorm = normalizeStepsWaterToSegments(plan.steps, plan.totalWater);
+    if (waterNorm.converted) plan.steps = waterNorm.steps.map(normalizeStep);
     return plan;
   }
 
@@ -552,7 +633,8 @@
       '- dose：粉量（克，数字）；totalWater：总水量（克，数字）；ratio：粉水比，如 "1:15"。',
       '- waterTemp：水温，如 "92℃"；grindSetting：研磨度描述；targetDuration：目标总时长，如 "2:30"。',
       '- notes：冲煮要点说明，不超过 3000 字。',
-      '- steps：分段数组，每段为 { "label": 段名, "water": 该段注水量数字, "startTime": "0:00", "endTime": "0:45", "note": 该段要点 }。',
+      '- steps：分段数组，每段为 { "label": 段名, "water": 本段注水量（克，数字；只写这一段新注入的水量，不是秤上累计到的总水量）, "startTime": "0:00", "endTime": "0:45", "note": 该段要点 }。',
+      '- 严禁把 steps[].water 写成累计注水（错误例：40 / 120 / 225）；必须写本段增量（正确例：40 / 80 / 105）。若误写累计，导入端会尝试拆回本段。',
       '',
       '【示例（仅示范结构，请按实际方案填写）】',
       JSON.stringify(example)
@@ -1503,5 +1585,5 @@
     }).sort((a, b) => compareDrinkChronology(b, a))[0] || null;
   }
 
-  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, COFFEE_TYPES, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, hasTastingContent, resolveTastingStatus, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, selectHomeReminder, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, buildAiPlanPrompt, parseAiPlanJson, prepareBrewAssistSteps, brewAssistStatus, resolveOpenedDate, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareAppVersions, isAppVersionNewer, selectReleaseApkAsset, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, FLAVOR_LEXICON, flavorTags, recentFlavorTags, beanFreshness, recentDrinkSeries, compareDrinkChronology, recentCafeNames, recentExternalDrinkNames, previousComparableDrink, beanProcessKind, recentDrinkLocations };
+  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, COFFEE_TYPES, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, hasTastingContent, resolveTastingStatus, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, selectHomeReminder, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, buildAiPlanPrompt, parseAiPlanJson, looksLikeCumulativeStepWaters, splitCumulativeWatersToSegments, cumulativeWatersFromSegments, normalizeStepsWaterToSegments, prepareBrewAssistSteps, brewAssistStatus, resolveOpenedDate, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareAppVersions, isAppVersionNewer, selectReleaseApkAsset, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, FLAVOR_LEXICON, flavorTags, recentFlavorTags, beanFreshness, recentDrinkSeries, compareDrinkChronology, recentCafeNames, recentExternalDrinkNames, previousComparableDrink, beanProcessKind, recentDrinkLocations };
 });

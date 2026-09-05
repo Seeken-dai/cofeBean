@@ -353,6 +353,11 @@ body.photo-journal #editorImageVault .vault-image-card img { filter:none; }
 .import-summary { display:grid; gap:4px; padding:13px; border:1px solid color-mix(in srgb,var(--accent) 45%,var(--border)); border-radius:var(--radius-card); background:color-mix(in srgb,var(--accent) 10%,var(--surface-2)); }
 .import-summary b { font-size:14px; color:var(--text); }
 .import-summary small { color:var(--muted); font-size:12px; }
+.import-step-editor { display:grid; gap:8px; margin-top:8px; }
+.import-step-water { display:grid; gap:6px; padding:8px 10px; border:1px solid color-mix(in srgb,var(--border) 80%,transparent); border-radius:var(--radius-control); background:var(--surface); }
+.import-step-water > b { color:var(--accent); font-size:13px; }
+.import-step-water-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+
 #planImportDialog [data-import-panel] { display:grid; gap:12px; }
 .import-parse.secondary { background:var(--surface-2); color:var(--muted); border-color:var(--border); }
 .import-ai-hint { margin:0; color:var(--faint); font-size:12px; line-height:1.5; }
@@ -1129,7 +1134,7 @@ html.number-picker-open { overflow:hidden; }
 .pour-step-head input { width:100%; min-height:36px; padding:6px 9px; border:1px solid transparent; border-radius:var(--radius-control); background:transparent; color:var(--accent); font-size:14px; font-weight:700; }
 .pour-step-head input:focus { border-color:var(--border); background:var(--surface-2); }
 .pour-step-head button { width:32px; height:32px; border:1px solid var(--border); border-radius:var(--radius-control); background:var(--surface-2); color:var(--danger); font-size:16px; }
-.pour-step-grid { display:grid; grid-template-columns:minmax(58px,.7fr) repeat(2,minmax(0,1.15fr)); gap:8px; }
+.pour-step-grid { display:grid; grid-template-columns:repeat(2,minmax(54px,.9fr)) repeat(2,minmax(0,1.05fr)); gap:8px; }
 .pour-step-grid label { display:flex; flex-direction:column; gap:5px; color:var(--faint); font-size:11px; }
 .pour-step-grid label.full { grid-column:1/-1; }
 .pour-step-grid input { width:100%; min-height:40px; padding:8px 9px; border:1px solid var(--border); border-radius:var(--radius-control); background:var(--surface-2); color:var(--text); font-size:15px; }

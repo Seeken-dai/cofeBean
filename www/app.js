@@ -209,7 +209,7 @@
       { selector: '#field-initialWeight, #field-remainingWeight', mode: 'wheel', label: '咖啡豆克重', unit: 'g', step: 1, min: 0, max: 10000, defaultValue: 200, defaults: [100, 200, 250, 500], suggestions: beanWeightCandidates },
       { selector: '#drink-grams', mode: 'wheel', label: '本次用豆', unit: 'g', step: 0.5, min: 0.1, max: (input) => Number(input.max || 1000), defaults: [15, 18, 20], suggestions: gramCandidates },
       { selector: '#plan-dose, #drink-param-dose, #plan-targetYield, #drink-param-targetYield', mode: 'wheel', unit: 'g', step: 0.5, min: 0, max: 1000, defaults: [15, 18, 20], suggestions: () => snapshotCandidates('dose') },
-      { selector: '#plan-liquid, #drink-param-liquid, #plan-totalWater, #drink-param-totalWater, [data-pour-water], [data-drink-step-water]', mode: 'wheel', unit: 'g', step: 5, min: 0, max: 5000, suggestions: waterCandidates },
+      { selector: '#plan-liquid, #drink-param-liquid, #plan-totalWater, #drink-param-totalWater, [data-pour-water], [data-pour-cumulative], [data-drink-step-water], [data-drink-step-cumulative]', mode: 'wheel', unit: 'g', step: 5, min: 0, max: 5000, suggestions: waterCandidates },
       { selector: '#plan-ratio-right, #drink-ratio-right', mode: 'wheel', label: '粉水比', step: 0.5, min: 1, max: 40, defaults: [15, 16, 17], suggestions: ratioCandidates },
       { selector: '#plan-waterTemp, #drink-param-waterTemp', mode: 'wheel', label: '水温', unit: '°C', step: 1, min: 0, max: 100, defaults: [88, 90, 92, 94], suggestions: () => snapshotCandidates('waterTemp') },
       { selector: '.duration-control', mode: 'group', column: columnProfile, suggestions: durationCandidates },
@@ -937,9 +937,16 @@
   }
   function beanNames(ids) { return (ids || []).map((id) => { const bean = state.beans.find((item) => item.id === id); return bean && bean.name; }).filter(Boolean); }
   function brewStepRows(steps) {
-    return (steps || []).map((step) => ({
+    const rows = steps || [];
+    const cumulatives = BeanCore.cumulativeWatersFromSegments(rows.map((step) => step.water));
+    return rows.map((step, index) => ({
       label: step.label || '步骤',
-      value: [step.water ? formatWeight(step.water) : '', step.time, step.note].filter(Boolean).join(' · ') || '未记录'
+      value: [
+        step.water ? `本段 ${formatWeight(step.water)}` : '',
+        cumulatives[index] != null ? `共计 ${formatWeight(cumulatives[index])}` : '',
+        step.time,
+        step.note
+      ].filter(Boolean).join(' · ') || '未记录'
     }));
   }
   function drinkParamSummary(snapshot, method) {
@@ -1755,12 +1762,16 @@
       return { label, water, time, note };
     }).filter((step) => step.label || step.water || step.time || step.note);
   }
-  function pourStepSummary(step) {
+  function pourStepSummary(step, cumulative) {
     const time = [step.startTime, step.endTime].filter(Boolean).join('-');
-    return [step.water ? formatWeight(step.water) : '', time, step.note].filter(Boolean).join(' · ') || '未填写细节';
+    const waterText = step.water
+      ? (cumulative != null ? `本段 ${formatWeight(step.water)} · 共计 ${formatWeight(cumulative)}` : formatWeight(step.water))
+      : '';
+    return [waterText, time, step.note].filter(Boolean).join(' · ') || '未填写细节';
   }
   function renderPourSteps(steps) {
     const rows = steps && steps.length ? steps : [{ label: '闷蒸', water: 30, startTime: '0:00', endTime: '0:30' }];
+    const cumulatives = BeanCore.cumulativeWatersFromSegments(rows.map((step) => step.water));
     state.activePourStepIndex = state.activePourStepIndex >= 0 ? Math.min(state.activePourStepIndex, rows.length - 1) : -1;
     let previousEnd = '';
     $('#pourStepList').innerHTML = rows.map((step, index) => {
@@ -1771,9 +1782,10 @@
       previousEnd = end || previousEnd;
       const active = index === state.activePourStepIndex;
       const label = step.label || stage;
-      const data = `data-step-label="${esc(label)}" data-step-water="${step.water == null ? '' : esc(step.water)}" data-step-start="${esc(start)}" data-step-end="${esc(end)}" data-step-note="${esc(step.note || '')}"`;
-      const collapsed = `<button class="pour-step-summary" type="button" data-pour-step-open="${index}"><span><b>${esc(label)}</b><small>${esc(pourStepSummary({ ...step, startTime: start, endTime: end }))}</small></span><i>编辑</i></button>`;
-      const editor = `<div class="pour-step-head"><input data-pour-label type="text" maxlength="80" value="${esc(label)}" placeholder="${esc(stage)}" aria-label="步骤名称"><button type="button" data-remove-pour-step="${index}" aria-label="删除这一段">×</button></div><div class="pour-step-grid"><label><span>水量</span><div class="input-unit"><input data-pour-water type="number" min="0" step="0.1" inputmode="decimal" value="${step.water == null ? '' : esc(step.water)}"><em>g</em></div></label><label><span>开始</span>${pourTimeControl('start', start)}</label><label><span>结束</span>${pourTimeControl('end', end)}</label><label class="full"><span>备注</span><input data-pour-note type="text" maxlength="200" value="${esc(step.note || '')}" placeholder="可选"></label></div>`;
+      const cumulative = cumulatives[index];
+      const data = `data-step-label="${esc(label)}" data-step-water="${step.water == null ? '' : esc(step.water)}" data-step-cumulative="${cumulative == null ? '' : esc(cumulative)}" data-step-start="${esc(start)}" data-step-end="${esc(end)}" data-step-note="${esc(step.note || '')}"`;
+      const collapsed = `<button class="pour-step-summary" type="button" data-pour-step-open="${index}"><span><b>${esc(label)}</b><small>${esc(pourStepSummary({ ...step, startTime: start, endTime: end }, cumulative))}</small></span><i>编辑</i></button>`;
+      const editor = `<div class="pour-step-head"><input data-pour-label type="text" maxlength="80" value="${esc(label)}" placeholder="${esc(stage)}" aria-label="步骤名称"><button type="button" data-remove-pour-step="${index}" aria-label="删除这一段">×</button></div><div class="pour-step-grid"><label><span>本段注水</span><div class="input-unit"><input data-pour-water type="number" min="0" step="0.1" inputmode="decimal" value="${step.water == null ? '' : esc(step.water)}"><em>g</em></div></label><label><span>共计注水</span><div class="input-unit"><input data-pour-cumulative type="number" min="0" step="0.1" inputmode="decimal" value="${cumulative == null ? '' : esc(cumulative)}"><em>g</em></div></label><label><span>开始</span>${pourTimeControl('start', start)}</label><label><span>结束</span>${pourTimeControl('end', end)}</label><label class="full"><span>备注</span><input data-pour-note type="text" maxlength="200" value="${esc(step.note || '')}" placeholder="可选"></label></div>`;
       return `<article class="pour-step${active ? ' active' : ''}" data-step-index="${index}" ${data}>${active ? editor : collapsed}</article>`;
     }).join('');
     updatePourAllocation();
@@ -1790,6 +1802,35 @@
     if (target.value === next) return;
     target.value = next;
     setDurationControl(field, next);
+  }
+  function previousPourCumulative(rows, index) {
+    let sum = 0;
+    for (let i = 0; i < index; i += 1) {
+      const n = Number(rows[i] && rows[i].water);
+      if (Number.isFinite(n) && n > 0) sum += n;
+    }
+    return Math.round(sum * 10) / 10;
+  }
+  function syncPourStepWaterInputs(target) {
+    const row = target && target.closest('.pour-step');
+    if (!row || !row.classList.contains('active')) return;
+    const list = $('.pour-step', $('#pourStepList'));
+    const index = list.indexOf(row);
+    if (index < 0) return;
+    const draft = readPourSteps();
+    const waterEl = $('[data-pour-water]', row);
+    const cumulEl = $('[data-pour-cumulative]', row);
+    if (!waterEl || !cumulEl) return;
+    const prev = previousPourCumulative(draft, index);
+    if (target.hasAttribute('data-pour-cumulative')) {
+      const cumul = Number(cumulEl.value);
+      if (cumulEl.value === '' || !Number.isFinite(cumul)) return;
+      waterEl.value = String(Math.round(Math.max(0, cumul - prev) * 10) / 10);
+    } else if (target.hasAttribute('data-pour-water')) {
+      const seg = Number(waterEl.value);
+      if (waterEl.value === '' || !Number.isFinite(seg)) { cumulEl.value = ''; return; }
+      cumulEl.value = String(Math.round((prev + Math.max(0, seg)) * 10) / 10);
+    }
   }
   function readPourSteps() {
     return $$('.pour-step', $('#pourStepList')).map((row, index) => {
@@ -2026,9 +2067,12 @@
     const sec = Number(secInput || 0);
     return min || secInput !== '' ? `${min}:${pad(Math.min(59, Math.max(0, sec)))}` : '';
   }
-  function drinkStepSummary(step) {
+  function drinkStepSummary(step, cumulative) {
     const time = [step.startTime, step.endTime].filter(Boolean).join('-');
-    return [step.water ? formatWeight(step.water) : '', time, step.note].filter(Boolean).join(' · ') || '未填写细节';
+    const waterBits = [];
+    if (step.water) waterBits.push(`本段 ${formatWeight(step.water)}`);
+    if (cumulative) waterBits.push(`共计 ${formatWeight(cumulative)}`);
+    return [...waterBits, time, step.note].filter(Boolean).join(' · ') || '未填写细节';
   }
   function normalizedDrinkStepRows(steps) {
     return (steps || []).map((step, index) => {
@@ -2038,17 +2082,48 @@
   }
   function renderDrinkSteps(steps) {
     const rows = normalizedDrinkStepRows(steps);
+    const cumulatives = BeanCore.cumulativeWatersFromSegments(rows.map((step) => step.water));
     state.activeDrinkStepIndex = rows.length && state.activeDrinkStepIndex >= 0 ? Math.min(state.activeDrinkStepIndex, rows.length - 1) : -1;
     $('#drinkStepCount').textContent = rows.length ? `${rows.length} 段 · 只保存到本次饮用记录` : '可从方案带入，也可只调整本次记录';
     $('#drinkStepList').innerHTML = rows.length ? rows.map((step, index) => {
       const active = index === state.activeDrinkStepIndex;
       const stage = pourStageName(index);
-      const data = `data-step-label="${esc(step.label)}" data-step-water="${esc(step.water)}" data-step-start="${esc(step.startTime)}" data-step-end="${esc(step.endTime)}" data-step-note="${esc(step.note)}"`;
-      const collapsed = `<button class="drink-step-summary" type="button" data-drink-step-open="${index}"><span><b>${esc(step.label || stage)}</b><small>${esc(drinkStepSummary(step))}</small></span><i>编辑</i></button>`;
-      const editor = `<div class="pour-step-head"><input data-drink-step-label type="text" maxlength="80" value="${esc(step.label || stage)}" placeholder="${esc(stage)}" aria-label="步骤名称"><button type="button" data-remove-drink-step="${index}" aria-label="删除这一段">×</button></div><div class="pour-step-grid"><label><span>水量</span><div class="input-unit"><input data-drink-step-water type="number" min="0" step="0.1" inputmode="decimal" value="${step.water == null ? '' : esc(step.water)}"><em>g</em></div></label><label><span>开始</span>${drinkStepTimeControl('start', step.startTime)}</label><label><span>结束</span>${drinkStepTimeControl('end', step.endTime)}</label><label class="full"><span>备注</span><input data-drink-step-note type="text" maxlength="200" value="${esc(step.note)}" placeholder="可选"></label></div>`;
+      const cumulative = cumulatives[index];
+      const data = `data-step-label="${esc(step.label)}" data-step-water="${esc(step.water)}" data-step-cumulative="${cumulative == null ? '' : esc(cumulative)}" data-step-start="${esc(step.startTime)}" data-step-end="${esc(step.endTime)}" data-step-note="${esc(step.note)}"`;
+      const collapsed = `<button class="drink-step-summary" type="button" data-drink-step-open="${index}"><span><b>${esc(step.label || stage)}</b><small>${esc(drinkStepSummary(step, cumulative))}</small></span><i>编辑</i></button>`;
+      const editor = `<div class="pour-step-head"><input data-drink-step-label type="text" maxlength="80" value="${esc(step.label || stage)}" placeholder="${esc(stage)}" aria-label="步骤名称"><button type="button" data-remove-drink-step="${index}" aria-label="删除这一段">×</button></div><div class="pour-step-grid"><label><span>本段注水</span><div class="input-unit"><input data-drink-step-water type="number" min="0" step="0.1" inputmode="decimal" value="${step.water == null ? '' : esc(step.water)}"><em>g</em></div></label><label><span>共计注水</span><div class="input-unit"><input data-drink-step-cumulative type="number" min="0" step="0.1" inputmode="decimal" value="${cumulative == null ? '' : esc(cumulative)}"><em>g</em></div></label><label><span>开始</span>${drinkStepTimeControl('start', step.startTime)}</label><label><span>结束</span>${drinkStepTimeControl('end', step.endTime)}</label><label class="full"><span>备注</span><input data-drink-step-note type="text" maxlength="200" value="${esc(step.note)}" placeholder="可选"></label></div>`;
       return `<article class="drink-step-card${active ? ' active' : ''}" data-drink-step-index="${index}" ${data}>${active ? editor : collapsed}</article>`;
     }).join('') : '<p class="manager-empty compact-empty">当前没有注水步骤，可以从方案带入或手动添加。</p>';
     updateDrinkAssistEntry();
+  }
+  function previousDrinkCumulative(rows, index) {
+    let sum = 0;
+    for (let i = 0; i < index; i += 1) {
+      const n = Number(rows[i] && rows[i].water);
+      if (Number.isFinite(n) && n > 0) sum += n;
+    }
+    return Math.round(sum * 10) / 10;
+  }
+  function syncDrinkStepWaterInputs(target) {
+    const row = target && target.closest('.drink-step-card');
+    if (!row || !row.classList.contains('active')) return;
+    const list = $('.drink-step-card', $('#drinkStepList'));
+    const index = list.indexOf(row);
+    if (index < 0) return;
+    const draft = readDrinkSteps();
+    const waterEl = $('[data-drink-step-water]', row);
+    const cumulEl = $('[data-drink-step-cumulative]', row);
+    if (!waterEl || !cumulEl) return;
+    const prev = previousDrinkCumulative(draft, index);
+    if (target.hasAttribute('data-drink-step-cumulative')) {
+      const cumul = Number(cumulEl.value);
+      if (cumulEl.value === '' || !Number.isFinite(cumul)) return;
+      waterEl.value = String(Math.round(Math.max(0, cumul - prev) * 10) / 10);
+    } else if (target.hasAttribute('data-drink-step-water')) {
+      const seg = Number(waterEl.value);
+      if (waterEl.value === '' || !Number.isFinite(seg)) { cumulEl.value = ''; return; }
+      cumulEl.value = String(Math.round((prev + Math.max(0, seg)) * 10) / 10);
+    }
   }
   function readDrinkSteps() {
     return $$('.drink-step-card', $('#drinkStepList')).map((row, index) => {
@@ -2468,7 +2543,7 @@
     try { await shareCanvas(BeanCore.buildSharePayload('brewPlan', plan, { style: 'receipt', includeQr })); } catch (error) { console.error(error); toast('分享失败'); }
   }
   function setImportStatus(message, isError) { const el = $('#planImportStatus'); el.textContent = message || ''; el.classList.toggle('error', Boolean(isError)); }
-  function clearImportSummary() { state.importPlanDraft = null; $('#planImportSummary').hidden = true; $('#planImportConfirm').disabled = true; }
+  function clearImportSummary() { state.importPlanDraft = null; $('#planImportSummary').hidden = true; $('#planImportConfirm').disabled = true; const host = $('#planImportStepEditor'); if (host) { host.innerHTML = ''; host.hidden = true; } }
   function fillPlanImportBeans() {
     const select = $('#planImportBean'); if (!select) return;
     const beans = state.beans.filter((bean) => !bean.deletedAt);
@@ -2492,7 +2567,16 @@
     state.importPlanDraft = plan;
     $('#planImportName').textContent = plan.name;
     $('#planImportMeta').textContent = [plan.brewMethod, plan.dose ? plan.dose + 'g' : '', plan.ratio, plan.waterTemp].filter(Boolean).join(' · ');
-    $('#planImportSteps').textContent = plan.steps && plan.steps.length ? `${plan.steps.length} 段步骤` : '无分段步骤';
+    const steps = plan.steps || [];
+    const cumulatives = BeanCore.cumulativeWatersFromSegments(steps.map((step) => step.water));
+    $('#planImportSteps').textContent = steps.length
+      ? `${steps.length} 段 · ` + steps.map((step, index) => {
+        const bits = [step.label || `第 ${index + 1} 段`];
+        if (step.water) bits.push(`本段 ${step.water}g`);
+        if (cumulatives[index] != null) bits.push(`共计 ${cumulatives[index]}g`);
+        return bits.join(' ');
+      }).join('；')
+      : '无分段步骤';
     $('#planImportSummary').hidden = false; $('#planImportConfirm').disabled = false; setImportStatus(statusMessage || '已识别方案，确认后导入');
   }
   async function copyAiPlanPrompt() {
@@ -2722,7 +2806,8 @@
     $('#detailFacts').addEventListener('click', (event) => { const item = event.target.closest('[data-purchase-url]'); if (item) openPurchaseUrl(item.dataset.purchaseUrl); });
     $('#detailFacts').addEventListener('keydown', (event) => { if (!['Enter', ' '].includes(event.key)) return; const item = event.target.closest('[data-purchase-url]'); if (item) { event.preventDefault(); openPurchaseUrl(item.dataset.purchaseUrl); } });
     $('#detailPlanLinkList').addEventListener('click', (event) => { const button = event.target.closest('[data-detail-plan]'); if (!button) return; const plan = state.brewPlans.find((item) => item.id === button.dataset.detailPlan); if (!plan) return; setDialog(els.detail, false); openPlanDetail(plan); });
-    $('#imagePreviewClose').addEventListener('click', () => setDialog(els.imagePreview, false)); $('#imagePreviewCancel').addEventListener('click', () => setDialog(els.imagePreview, false)); $('#imagePreviewSave').addEventListener('click', sharePreviewImage); $('#shareImageChoiceClose').addEventListener('click', () => setDialog(els.shareChoice, false)); $('#shareImageChoiceCancel').addEventListener('click', () => setDialog(els.shareChoice, false)); $('#shareImageChoiceConfirm').addEventListener('click', confirmBeanShareChoice); $('#planShareChoiceClose').addEventListener('click', () => setDialog(els.planShareChoice, false)); $('#planShareChoiceCancel').addEventListener('click', () => setDialog(els.planShareChoice, false)); $('#planShareChoiceConfirm').addEventListener('click', confirmPlanShareChoice); $('#planImportFab').addEventListener('click', () => { openPlanImport(); }); $('#settingsImportPlan').addEventListener('click', () => { setDialog(els.settings, false); openPlanImport(); }); $('#planImportClose').addEventListener('click', () => setDialog(els.planImport, false)); $('#planImportCancel').addEventListener('click', () => setDialog(els.planImport, false)); $('#planImportCamera').addEventListener('click', () => importQrFromSource('camera')); $('#planImportGallery').addEventListener('click', () => importQrFromSource('photos')); $('#planImportParse').addEventListener('click', parsePastedImportCode); $('#planImportConfirm').addEventListener('click', confirmImportPlan); $('#planImportTabs').addEventListener('click', (event) => { const chip = event.target.closest('[data-import-tab]'); if (chip) setPlanImportTab(chip.dataset.importTab); }); $('#planImportCopyPrompt').addEventListener('click', copyAiPlanPrompt); $('#planImportAiParse').addEventListener('click', parseAiPlanInput);
+    $('#imagePreviewClose').addEventListener('click', () => setDialog(els.imagePreview, false)); $('#imagePreviewCancel').addEventListener('click', () => setDialog(els.imagePreview, false)); $('#imagePreviewSave').addEventListener('click', sharePreviewImage); $('#shareImageChoiceClose').addEventListener('click', () => setDialog(els.shareChoice, false)); $('#shareImageChoiceCancel').addEventListener('click', () => setDialog(els.shareChoice, false)); $('#shareImageChoiceConfirm').addEventListener('click', confirmBeanShareChoice); $('#planShareChoiceClose').addEventListener('click', () => setDialog(els.planShareChoice, false)); $('#planShareChoiceCancel').addEventListener('click', () => setDialog(els.planShareChoice, false)); $('#planShareChoiceConfirm').addEventListener('click', confirmPlanShareChoice); $('#planImportFab').addEventListener('click', () => { openPlanImport(); }); $('#settingsImportPlan').addEventListener('click', () => { setDialog(els.settings, false); openPlanImport(); }); $('#planImportClose').addEventListener('click', () => setDialog(els.planImport, false)); $('#planImportCancel').addEventListener('click', () => setDialog(els.planImport, false)); $('#planImportCamera').addEventListener('click', () => importQrFromSource('camera')); $('#planImportGallery').addEventListener('click', () => importQrFromSource('photos')); $('#planImportParse').addEventListener('click', parsePastedImportCode); $('#planImportStepEditor') && $('#planImportStepEditor').addEventListener('input', syncImportPlanDraftWaters);
+    $('#planImportConfirm').addEventListener('click', confirmImportPlan); $('#planImportTabs').addEventListener('click', (event) => { const chip = event.target.closest('[data-import-tab]'); if (chip) setPlanImportTab(chip.dataset.importTab); }); $('#planImportCopyPrompt').addEventListener('click', copyAiPlanPrompt); $('#planImportAiParse').addEventListener('click', parseAiPlanInput);
     $('#drinkShareChoiceClose').addEventListener('click', () => setDialog(els.drinkShareChoice, false));
     $('#drinkShareChoiceCancel').addEventListener('click', () => setDialog(els.drinkShareChoice, false));
     $('#drinkShareChoiceConfirm').addEventListener('click', confirmDrinkShareChoice);
@@ -2733,8 +2818,8 @@
     $('#drinkDetailClose').addEventListener('click', () => setDialog(els.drinkDetail, false)); $('#drinkSaveAsPlan').addEventListener('click', saveLogAsPlan); $('#drinkDetailEdit').addEventListener('click', () => { const log = state.drinkLogs.find((item) => item.id === state.viewingDrinkId); const bean = log && state.beans.find((item) => item.id === log.beanId); if (!log || (!bean && log.source !== 'external')) return; setDialog(els.drinkDetail, false); return log.source === 'external' ? openExternalDrinkDialog(log) : openDrinkDialog(bean, log); });
     $$('[data-view]').forEach((button) => button.addEventListener('click', () => { closeContextDetailsForNavigation(); state.view = button.dataset.view; if (state.view === 'personal') state.personalSection = 'overview'; if (state.view === 'drinks') state.drinkVisibleLimit = DRINK_PAGE_SIZE; render(); }));
     $('#planDetailClose').addEventListener('click', () => setDialog(els.planDetail, false)); $('#planShare').addEventListener('click', sharePlanCard); $('#planShareCopyCode').addEventListener('click', copyCurrentPlanShareCode); $('#planAssistStart').addEventListener('click', openPlanBrewAssist);
-    $('#planDetailEdit').addEventListener('click', () => { const plan = state.brewPlans.find((item) => item.id === state.viewingPlanId); setDialog(els.planDetail, false); openPlanEditor(plan); }); $('#planDuplicate').addEventListener('click', duplicateCurrentPlan); $('#planEditorDelete').addEventListener('click', deleteCurrentPlan); $('#planEditorClose').addEventListener('click', () => setDialog(els.planEditor, false)); els.planForm.addEventListener('submit', savePlan); $('#plan-method').addEventListener('change', () => { syncPlanMethodFields(); syncPlanTotalWater(); fillTemplateOptions($('#plan-method').value); syncChoiceTrigger($('#plan-method')); }); $('#plan-dose').addEventListener('input', syncPlanTotalWater); $('#plan-totalWater').addEventListener('input', syncPlanRatioFromWater); ['plan-ratio-left', 'plan-ratio-right'].forEach((id) => $(`#${id}`).addEventListener('input', () => { syncRatioValue('plan'); syncPlanTotalWater(); })); $$('.duration-field', els.planForm).forEach((field) => field.addEventListener('input', () => { if (field.dataset.autoTarget === '1') field.dataset.autoTarget = ''; syncDurationField(field); })); $('#addPourStep').addEventListener('click', addPourStepFromLast); $('#pourStepList').addEventListener('click', (event) => { const remove = event.target.closest('[data-remove-pour-step]'); if (remove) { const rows = readPourSteps(); rows.splice(Number(remove.dataset.removePourStep), 1); state.activePourStepIndex = Math.min(state.activePourStepIndex, rows.length - 1); renderPourSteps(rows); return; } const open = event.target.closest('[data-pour-step-open]'); if (open) { state.activePourStepIndex = Number(open.dataset.pourStepOpen); renderPourSteps(readPourSteps()); } }); $('#pourStepList').addEventListener('input', () => { updatePourAllocation(); syncPlanTargetDuration(); }); $('#pourTemplateRow').addEventListener('click', (event) => { const chip = event.target.closest('[data-pour-template]'); if (chip) applyPourTemplate(chip.dataset.pourTemplate); }); $('#pourFillRemainder').addEventListener('click', fillPourRemainder); $('#plan-template').addEventListener('change', applySelectedTemplate);
-    $('#drinkClose').addEventListener('click', () => { discardDrinkPhotoDraft(); setDialog(els.drink, false); }); $('#drinkEditFull').addEventListener('click', () => { const log = state.drinkLogs.find((item) => item.id === state.editingDrinkId); configureDrinkMode(log || {}, 'full'); }); $('#drinkStartAssist').addEventListener('click', openDrinkBrewAssist); $('#deleteDrink').addEventListener('click', removeDrink); els.drinkForm.addEventListener('submit', saveDrink); $('#drinkPhotoVault').addEventListener('click', (event) => { const add = event.target.closest('[data-add-drink-photo]'); if (add) return addDrinkPhoto(); const remove = event.target.closest('[data-remove-drink-photo]'); if (remove) return removeDrinkPhoto(Number(remove.dataset.removeDrinkPhoto)); const card = event.target.closest('[data-preview-image]'); if (card) return openImagePreview(card.dataset.previewImage, card.dataset.previewLabel); }); $('#drink-notes').addEventListener('input', syncDrinkFlavorChips); $('#drinkFlavorSuggest').addEventListener('click', (event) => { const chip = event.target.closest('[data-flavor-tag]'); if (chip) toggleDrinkFlavorTag(chip.dataset.flavorTag); }); els.drinkForm.addEventListener('click', (event) => { const quickAmount = event.target.closest('[data-quick-grams]'); if (quickAmount) { $('#drink-grams').value = quickAmount.dataset.quickGrams; $('#drink-param-dose').value = quickAmount.dataset.quickGrams; syncDrinkTotalWater(); return renderQuickDrinkPanel(); } const quickCustom = event.target.closest('[data-quick-custom]'); if (quickCustom) { configureDrinkMode({}, 'full'); $('#drink-grams').focus(); return; } const summaryToggle = event.target.closest('#drinkTastingSummaryToggle'); if (summaryToggle) { const detail = $('#drinkTastingSummaryDetail'); detail.hidden = !detail.hidden; summaryToggle.textContent = detail.hidden ? '查看冲煮参数' : '收起冲煮参数'; return; } const dimInfo = event.target.closest('[data-dim-info]'); if (dimInfo) { event.preventDefault(); return showDimInfo(dimInfo.dataset.dimInfo, dimInfo); } if (event.target.closest('[data-drink-feature-dismiss]')) { writeLocalFlag('coffee-vault-hint-drink-features'); return renderDrinkFeatureHint(state.editingDrinkId ? state.drinkLogs.find((item) => item.id === state.editingDrinkId) : null); } const assistButton = event.target.closest('[data-start-brew-assist]'); if (assistButton) return openDrinkBrewAssist(); const lastButton = event.target.closest('[data-use-last-brew]'); if (lastButton) { const bean = state.beans.find((item) => item.id === $('#drink-beanId').value); return applyLastBrew(state.drinkLogs.find((log) => log.id === lastButton.dataset.useLastBrew), bean); } const planButton = event.target.closest('[data-drink-plan]'); if (planButton) { const bean = state.beans.find((item) => item.id === $('#drink-beanId').value); return chooseDrinkPlan(planButton.dataset.drinkPlan, bean); } const openStep = event.target.closest('[data-drink-step-open]'); if (openStep) { state.activeDrinkStepIndex = Number(openStep.dataset.drinkStepOpen); return renderDrinkSteps(readDrinkSteps()); } const removeStep = event.target.closest('[data-remove-drink-step]'); if (removeStep) { const rows = readDrinkSteps(); rows.splice(Number(removeStep.dataset.removeDrinkStep), 1); state.activeDrinkStepIndex = Math.max(0, Math.min(state.activeDrinkStepIndex, rows.length - 1)); return renderDrinkSteps(rows); } const button = event.target.closest('[data-rate]'); if (!button) return; const row = button.parentElement; const clicked = Number(button.dataset.rate); const next = Number(row.dataset.value) === clicked ? null : clicked; renderRating(row, row.dataset.ratingName, next, row.dataset.ratingName === 'bitterness'); }); $('#addDrinkStep').addEventListener('click', addDrinkStep); $('#drink-grams').addEventListener('change', scaleDrinkStepsToDose); $('#drink-param-dose').addEventListener('change', scaleDrinkStepsToDose); $('#drink-grams').addEventListener('input', () => { $('#drink-param-dose').value = $('#drink-grams').value; syncDrinkTotalWater(); if (state.drinkMode === 'quick') renderQuickDrinkPanel(); }); $('#drink-param-dose').addEventListener('input', syncDrinkTotalWater); $('#drink-param-totalWater').addEventListener('input', syncDrinkRatioFromWater); ['drink-ratio-left', 'drink-ratio-right'].forEach((id) => $(`#${id}`).addEventListener('input', () => { syncRatioValue('drink'); syncDrinkTotalWater(); })); $$('.duration-field', els.drinkForm).forEach((field) => field.addEventListener('input', () => syncDurationField(field))); $('#drink-method').addEventListener('change', () => { const custom = $('#drink-method-custom'); custom.hidden = $('#drink-method').value !== '__custom__'; if (!custom.hidden) custom.focus(); syncChoiceTrigger($('#drink-method')); $('#drink-plan-id').value = ''; syncDrinkParamFields(); syncDrinkTotalWater(); const bean = state.beans.find((item) => item.id === $('#drink-beanId').value); if (bean) renderDrinkPlanPicker(bean, null); });
+    $('#planDetailEdit').addEventListener('click', () => { const plan = state.brewPlans.find((item) => item.id === state.viewingPlanId); setDialog(els.planDetail, false); openPlanEditor(plan); }); $('#planDuplicate').addEventListener('click', duplicateCurrentPlan); $('#planEditorDelete').addEventListener('click', deleteCurrentPlan); $('#planEditorClose').addEventListener('click', () => setDialog(els.planEditor, false)); els.planForm.addEventListener('submit', savePlan); $('#plan-method').addEventListener('change', () => { syncPlanMethodFields(); syncPlanTotalWater(); fillTemplateOptions($('#plan-method').value); syncChoiceTrigger($('#plan-method')); }); $('#plan-dose').addEventListener('input', syncPlanTotalWater); $('#plan-totalWater').addEventListener('input', syncPlanRatioFromWater); ['plan-ratio-left', 'plan-ratio-right'].forEach((id) => $(`#${id}`).addEventListener('input', () => { syncRatioValue('plan'); syncPlanTotalWater(); })); $$('.duration-field', els.planForm).forEach((field) => field.addEventListener('input', () => { if (field.dataset.autoTarget === '1') field.dataset.autoTarget = ''; syncDurationField(field); })); $('#addPourStep').addEventListener('click', addPourStepFromLast); $('#pourStepList').addEventListener('click', (event) => { const remove = event.target.closest('[data-remove-pour-step]'); if (remove) { const rows = readPourSteps(); rows.splice(Number(remove.dataset.removePourStep), 1); state.activePourStepIndex = Math.min(state.activePourStepIndex, rows.length - 1); renderPourSteps(rows); return; } const open = event.target.closest('[data-pour-step-open]'); if (open) { state.activePourStepIndex = Number(open.dataset.pourStepOpen); renderPourSteps(readPourSteps()); } }); $('#pourStepList').addEventListener('input', (event) => { if (event.target.closest('[data-pour-water], [data-pour-cumulative]')) syncPourStepWaterInputs(event.target); updatePourAllocation(); syncPlanTargetDuration(); }); $('#pourTemplateRow').addEventListener('click', (event) => { const chip = event.target.closest('[data-pour-template]'); if (chip) applyPourTemplate(chip.dataset.pourTemplate); }); $('#pourFillRemainder').addEventListener('click', fillPourRemainder); $('#plan-template').addEventListener('change', applySelectedTemplate);
+    $('#drinkClose').addEventListener('click', () => { discardDrinkPhotoDraft(); setDialog(els.drink, false); }); $('#drinkEditFull').addEventListener('click', () => { const log = state.drinkLogs.find((item) => item.id === state.editingDrinkId); configureDrinkMode(log || {}, 'full'); }); $('#drinkStartAssist').addEventListener('click', openDrinkBrewAssist); $('#deleteDrink').addEventListener('click', removeDrink); els.drinkForm.addEventListener('submit', saveDrink); $('#drinkPhotoVault').addEventListener('click', (event) => { const add = event.target.closest('[data-add-drink-photo]'); if (add) return addDrinkPhoto(); const remove = event.target.closest('[data-remove-drink-photo]'); if (remove) return removeDrinkPhoto(Number(remove.dataset.removeDrinkPhoto)); const card = event.target.closest('[data-preview-image]'); if (card) return openImagePreview(card.dataset.previewImage, card.dataset.previewLabel); }); $('#drink-notes').addEventListener('input', syncDrinkFlavorChips); $('#drinkFlavorSuggest').addEventListener('click', (event) => { const chip = event.target.closest('[data-flavor-tag]'); if (chip) toggleDrinkFlavorTag(chip.dataset.flavorTag); }); els.drinkForm.addEventListener('click', (event) => { const quickAmount = event.target.closest('[data-quick-grams]'); if (quickAmount) { $('#drink-grams').value = quickAmount.dataset.quickGrams; $('#drink-param-dose').value = quickAmount.dataset.quickGrams; syncDrinkTotalWater(); return renderQuickDrinkPanel(); } const quickCustom = event.target.closest('[data-quick-custom]'); if (quickCustom) { configureDrinkMode({}, 'full'); $('#drink-grams').focus(); return; } const summaryToggle = event.target.closest('#drinkTastingSummaryToggle'); if (summaryToggle) { const detail = $('#drinkTastingSummaryDetail'); detail.hidden = !detail.hidden; summaryToggle.textContent = detail.hidden ? '查看冲煮参数' : '收起冲煮参数'; return; } const dimInfo = event.target.closest('[data-dim-info]'); if (dimInfo) { event.preventDefault(); return showDimInfo(dimInfo.dataset.dimInfo, dimInfo); } if (event.target.closest('[data-drink-feature-dismiss]')) { writeLocalFlag('coffee-vault-hint-drink-features'); return renderDrinkFeatureHint(state.editingDrinkId ? state.drinkLogs.find((item) => item.id === state.editingDrinkId) : null); } const assistButton = event.target.closest('[data-start-brew-assist]'); if (assistButton) return openDrinkBrewAssist(); const lastButton = event.target.closest('[data-use-last-brew]'); if (lastButton) { const bean = state.beans.find((item) => item.id === $('#drink-beanId').value); return applyLastBrew(state.drinkLogs.find((log) => log.id === lastButton.dataset.useLastBrew), bean); } const planButton = event.target.closest('[data-drink-plan]'); if (planButton) { const bean = state.beans.find((item) => item.id === $('#drink-beanId').value); return chooseDrinkPlan(planButton.dataset.drinkPlan, bean); } const openStep = event.target.closest('[data-drink-step-open]'); if (openStep) { state.activeDrinkStepIndex = Number(openStep.dataset.drinkStepOpen); return renderDrinkSteps(readDrinkSteps()); } const removeStep = event.target.closest('[data-remove-drink-step]'); if (removeStep) { const rows = readDrinkSteps(); rows.splice(Number(removeStep.dataset.removeDrinkStep), 1); state.activeDrinkStepIndex = Math.max(0, Math.min(state.activeDrinkStepIndex, rows.length - 1)); return renderDrinkSteps(rows); } const button = event.target.closest('[data-rate]'); if (!button) return; const row = button.parentElement; const clicked = Number(button.dataset.rate); const next = Number(row.dataset.value) === clicked ? null : clicked; renderRating(row, row.dataset.ratingName, next, row.dataset.ratingName === 'bitterness'); }); $('#addDrinkStep').addEventListener('click', addDrinkStep); $('#drinkStepList').addEventListener('input', (event) => { if (event.target.closest('[data-drink-step-water], [data-drink-step-cumulative]')) syncDrinkStepWaterInputs(event.target); }); $('#drink-grams').addEventListener('change', scaleDrinkStepsToDose); $('#drink-param-dose').addEventListener('change', scaleDrinkStepsToDose); $('#drink-grams').addEventListener('input', () => { $('#drink-param-dose').value = $('#drink-grams').value; syncDrinkTotalWater(); if (state.drinkMode === 'quick') renderQuickDrinkPanel(); }); $('#drink-param-dose').addEventListener('input', syncDrinkTotalWater); $('#drink-param-totalWater').addEventListener('input', syncDrinkRatioFromWater); ['drink-ratio-left', 'drink-ratio-right'].forEach((id) => $(`#${id}`).addEventListener('input', () => { syncRatioValue('drink'); syncDrinkTotalWater(); })); $$('.duration-field', els.drinkForm).forEach((field) => field.addEventListener('input', () => syncDurationField(field))); $('#drink-method').addEventListener('change', () => { const custom = $('#drink-method-custom'); custom.hidden = $('#drink-method').value !== '__custom__'; if (!custom.hidden) custom.focus(); syncChoiceTrigger($('#drink-method')); $('#drink-plan-id').value = ''; syncDrinkParamFields(); syncDrinkTotalWater(); const bean = state.beans.find((item) => item.id === $('#drink-beanId').value); if (bean) renderDrinkPlanPicker(bean, null); });
     $('#drink-cafeName').addEventListener('input', () => { renderCafeSuggestions(); renderDrinkNameSuggestions(); });
     $('#drink-drinkName').addEventListener('input', renderDrinkNameSuggestions);
     // 包一层：input 事件会把 Event 当首参传入，直接传函数会让 showRecent 恒为真。
