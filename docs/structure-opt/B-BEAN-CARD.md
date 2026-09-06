@@ -53,15 +53,25 @@
 4. **删除** 中段 `.bean-card:active { transform:scale(.992); }`（已并入早段 :active）。
 5. **删除** 宽屏 `.bean-card { min-height:104px; }`（同 `@media (min-width:1100px)` 下后写 118px）。
 6. **删除** `body.has-context-detail .bean-card { min-height:86px; border-radius… }`（同宽屏 media 下后写 66px）。
-7. **删除** 晚段 `.bean-card,.bean-card.has-thumb { 102px / 131px / vault / shadow:none }`（已写入 base）。
+7. **删除** 晚段 `.bean-card,.bean-card.has-thumb { 102px / 131px / vault / shadow:none }` 中的 **grid / min-height / border-radius**（已写入 base）。
+8. **保留 / 恢复（cascade）**：晚段 `.bean-card.has-thumb { border-color:var(--vault-line); background:var(--vault-paper); box-shadow:none; }` 必须留在 `.bean-card.is-selected` **之后**（同特异性 0,2,0，靠源序胜出），否则 context-detail 已选中的 has-thumb 中列卡会露出 is-selected 铬层（accent 边 / vault-active-soft / inset 左轨），与 A 像素不一致。详见 §2.1。
 
 **未删（不确定或不同条件）**
 
+- **晚段 `.bean-card.has-thumb` 铬层复位**（background / border-color / box-shadow）——**keep-for-cascade**，见 §2.1；勿再并入 base 或挪到 `is-selected` 之前。
 - `.bean-thumb*` / `.card-body` / `.bean-list` gap 等相邻规则（本批只收豆卡选择器铬层；thumb 尺寸链仍多段覆盖，留给后续若有明确证据再收）。
 - `.bean-card.is-archived`、status/tag、`.bean-card-actions`。
 - 宽屏 `.bean-card.is-selected`（与 drink/plan 共享，且为本批禁改饮用/方案相邻语义）。
 - `--list-card-min` / `--list-gap` / auto-fill rails / `minmax(280px)` 列表轨。
 - `status-rail` 样式（HTML 未见节点，但非本批「同条件死覆盖」证据链，**保留**）。
+
+## 2.1 级联保留说明（QA FAIL 修复）
+
+宽屏 `@media (min-width:1100px)` 内 `.bean-card.is-selected` 与全局晚段 `.bean-card.has-thumb` 同为 (0,2,0)。A 中晚段 has-thumb 在 `is-selected` **之后**，因此 **selected + has-thumb** 卡（context-detail 中列常见）被复位为 vault-paper / vault-line / `box-shadow:none`，选中铬层被压制。
+
+B 初版把晚段整块并入 base 后删掉晚段 → `is-selected` 胜出 → detail-bean 已选中卡与 A 像素不一致（list 各断点仍 PASS）。
+
+修复：在 `.bean-list { gap:10px; }` 之后恢复晚段 chrome-only 规则（不恢复已并入 base 的 102px/131px 轨），**不加 `!important`**，仅靠源序复现 A 级联。
 
 ## 3. Hard ban 核对
 
@@ -77,7 +87,7 @@
 | 项 | 值 |
 |---|---|
 | `www/styles.css` before | 287165 bytes（A 基线） |
-| `www/styles.css` after | 286468 bytes（Δ −697 vs A 基线 287165） |
+| `www/styles.css` after | 见本分支 tip（初版 286468 / Δ −697；cascade 修复后再增晚段 has-thumb chrome） |
 | 预期视觉 | 与 A 截图同数据对比：窄屏豆卡 131px / 102px 轨；≤420→92px；≥1100→88px/118px；context-detail→54px/66px；无阴影默认卡 |
 
 测试 / lint：见 PR 说明与本提交验证记录（预存 `assist-ring` 失败不得删测试修绿）。

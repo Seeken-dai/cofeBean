@@ -2732,6 +2732,13 @@ body[data-shell-view="personal"] .profile-button { border-color:var(--accent); b
 .bean-filter-toolbar .filter-row { width:100%; margin:0; }
 
 .bean-list { gap:10px; }
+/* Keep-for-cascade (struct-B): ties .bean-card.is-selected (0,2,0) and must stay AFTER it
+   so selected+has-thumb cards keep A flat chrome (no accent border / vault-active-soft / inset rail). */
+.bean-card.has-thumb {
+  border-color:var(--vault-line);
+  background:var(--vault-paper);
+  box-shadow:none;
+}
 .bean-thumb-wrap { display:grid; place-items:center; padding:12px; }
 .bean-thumb { width:76px; height:92px; border-radius:var(--radius-control); }
 .bean-thumb.has-photo img { object-fit:cover; }
