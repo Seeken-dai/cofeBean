@@ -2211,7 +2211,8 @@
   function updateDrinkAssistEntry() {
     const button = $('#drinkStartAssist');
     if (!button) return;
-    const available = brewPlansEnabled() && !$('#saveDrink').hidden && currentDrinkMethod() === '手冲'
+    const available = brewPlansEnabled() && $('#drink-source').value === 'bean' && state.drinkMode !== 'tasting'
+      && !$('#saveDrink').hidden && currentDrinkMethod() === '手冲'
       && BeanCore.prepareBrewAssistSteps(readDrinkSteps()).length > 0;
     button.hidden = !available;
   }
@@ -2298,10 +2299,10 @@
     if (quick) {
       $('#drinkTitle').textContent = '喝一杯';
       $('#deleteDrink').hidden = true;
-      $('#drinkStartAssist').hidden = true;
       $('#saveDrink').hidden = false;
       $('#saveDrink').textContent = '记下';
       renderQuickDrinkPanel();
+      updateDrinkAssistEntry();
       return;
     }
     if (!tasting) {
@@ -2310,6 +2311,7 @@
         $('#deleteDrink').hidden = false;
         $('#saveDrink').textContent = '保存';
       }
+      updateDrinkAssistEntry();
       return;
     }
     $('#drinkTitle').textContent = '留下这一杯的感受';

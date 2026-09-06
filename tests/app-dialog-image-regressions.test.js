@@ -61,6 +61,21 @@ test('编辑页的删除收在标题栏图标里，底栏只留正向操作且�
   assert.match(stylesSource, /\.icon-button\.is-danger \{ color:var\(--danger\); \}/);
 });
 
+test('豆仓快速冲一杯首次打开时会按已载入分段刷新冲煮辅助入口', () => {
+  const configureStart = appSource.indexOf('function configureDrinkMode');
+  const configureEnd = appSource.indexOf('function renderQuickDrinkPanel', configureStart);
+  const configureSource = appSource.slice(configureStart, configureEnd);
+  const quickStart = configureSource.indexOf('if (quick) {');
+  const fullStart = configureSource.indexOf('if (!tasting) {', quickStart);
+  const quickSource = configureSource.slice(quickStart, fullStart);
+
+  assert.ok(configureStart > -1 && configureEnd > configureStart, '应能定位喝一杯模式初始化逻辑');
+  assert.ok(quickStart > -1 && fullStart > quickStart, '应能定位快速记录分支');
+  assert.match(quickSource, /renderQuickDrinkPanel\(\);\s*updateDrinkAssistEntry\(\);\s*return;/);
+  assert.doesNotMatch(quickSource, /drinkStartAssist[^\n]*hidden\s*=\s*true/);
+  assert.match(appSource, /brewPlansEnabled\(\) && \$\('#drink-source'\)\.value === 'bean' && state\.drinkMode !== 'tasting'/);
+});
+
 test('自动同步的 reload 带 keepForm，不覆盖正在编辑的表单', () => {
   // reload() 默认会在编辑页开着且 editingId 非空时 fillForm(bean)，
   // 用库里的旧值覆盖用户尚未保存的输入（含刚添加的咖啡袋图片）。

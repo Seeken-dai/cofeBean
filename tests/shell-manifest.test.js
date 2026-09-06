@@ -65,6 +65,14 @@ test('styles.css 的 ?v= 与 sw.js CACHE 都跟随 package.json 版本', () => {
   assert.equal(cache[1], version, `sw.js CACHE 应为 coffee-vault-shell-${version}`);
 });
 
+test('关于页只展示当前版本的一组最新功能', () => {
+  const version = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8')).version;
+  const aboutCopy = html.match(/<section class="about-copy">([\s\S]*?)<\/section>/);
+  assert.ok(aboutCopy, 'index.html 应包含关于页说明');
+  const versionHeadings = [...aboutCopy[1].matchAll(/<h4>([^<]+)<\/h4>/g)].map((match) => match[1]);
+  assert.deepEqual(versionHeadings, [`${version} 最新功能`], '关于页不应堆叠历史版本更新记录');
+});
+
 test('本地 Mock 数据绕过 Service Worker 缓存并在安装时清理旧副本', () => {
   assert.match(sw, /requestUrl\.pathname\.startsWith\(MOCK_PATH\)/);
   assert.match(sw, /cachedRequests\.filter\(\(request\) => new URL\(request\.url\)\.pathname\.startsWith\(MOCK_PATH\)\)/);

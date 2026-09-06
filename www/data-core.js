@@ -1016,7 +1016,7 @@
       exportScope,
       exportedAt: exportedAt || new Date().toISOString(),
       app: '豆仓',
-      appVersion: '3.0.10'
+      appVersion: '3.0.11'
     };
     if (exportScope === 'all' || exportScope === 'library') {
       payload.beans = (beans || []).map((bean) => normalizeBean(bean, bean.updatedAt));
