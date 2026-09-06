@@ -1712,7 +1712,8 @@
   function fillPlanMethodOptions() { $('#plan-method').innerHTML = BREW_METHODS.map((method) => `<option>${esc(method)}</option>`).join(''); }
   function renderPlanBeanBind(selected) {
     const ids = new Set(selected || []);
-    $('#planBeanBind').innerHTML = `<div class="section-heading"><div><span>绑定咖啡豆</span><small>新增饮用记录时优先推荐绑定方案</small></div></div><div class="bean-bind-grid">${state.beans.length ? state.beans.map((bean) => `<label><input type="checkbox" value="${esc(bean.id)}" ${ids.has(bean.id) ? 'checked' : ''}><span>${esc(bean.name)}</span></label>`).join('') : '<p class="manager-empty">豆仓暂无咖啡豆，可先保存方案。</p>'}</div>`;
+    const beans = activeVaultBeans();
+    $('#planBeanBind').innerHTML = `<div class="section-heading"><div><span>绑定咖啡豆</span><small>新增饮用记录时优先推荐绑定方案</small></div></div><div class="bean-bind-grid">${beans.length ? beans.map((bean) => `<label><input type="checkbox" value="${esc(bean.id)}" ${ids.has(bean.id) ? 'checked' : ''}><span>${esc(bean.name)}</span></label>`).join('') : '<p class="manager-empty">暂无在饮咖啡豆，可先保存方案。</p>'}</div>`;
   }
   function planToForm(plan) {
     els.planForm.reset(); fillPlanMethodOptions();
@@ -2232,6 +2233,10 @@
     }
     renderDrinkPlanPicker(bean, null);
   }
+  // 与豆仓列表「在饮」一致：BeanCore.filterAndSort status=在饮（排除已喝完，含未开封+饮用中）。勿与 drinkableBeans（记一杯：仅饮用中且有余量）混用。
+  function activeVaultBeans() {
+    return BeanCore.filterAndSort(state.beans.filter((bean) => !bean.deletedAt), { status: '在饮', sort: 'name', direction: 'asc' });
+  }
   function drinkableBeans() {
     return state.beans.filter((bean) => bean.status === '饮用中' && Number(bean.remainingWeight) > 0)
       .sort((a, b) => Number(b.favorite) - Number(a.favorite) || String(a.name || '').localeCompare(String(b.name || ''), 'zh-CN'));
@@ -2563,7 +2568,7 @@
   function clearImportSummary() { state.importPlanDraft = null; $('#planImportSummary').hidden = true; $('#planImportConfirm').disabled = true; const host = $('#planImportStepEditor'); if (host) { host.innerHTML = ''; host.hidden = true; } }
   function fillPlanImportBeans() {
     const select = $('#planImportBean'); if (!select) return;
-    const beans = state.beans.filter((bean) => !bean.deletedAt);
+    const beans = activeVaultBeans();
     const options = ['<option value="">不指定豆子（拍照或口述给 AI）</option>']
       .concat(beans.map((bean) => `<option value="${esc(bean.id)}">${esc(bean.name || '未命名豆子')}</option>`));
     select.innerHTML = options.join('');

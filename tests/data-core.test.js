@@ -102,6 +102,19 @@ test('filterAndSort searches multiple fields and sorts remaining weight or unit 
   assert.deepEqual(core.filterAndSort([...beans, archived], { status: '已归档' }).map((bean) => bean.name), ['D']);
 });
 
+test('filterAndSort 在饮 matches vault list semantics (exclude 已喝完, keep 未开封+饮用中)', () => {
+  const beans = [
+    core.normalizeBean({ name: 'open', status: '未开封', remainingWeight: 200 }),
+    core.normalizeBean({ name: 'drinking', status: '饮用中', remainingWeight: 50 }),
+    core.normalizeBean({ name: 'done', status: '已喝完', remainingWeight: 0 }),
+    core.normalizeBean({ name: 'weird', status: '已归档', remainingWeight: 10 }) // normalize falls back to 未开封
+  ];
+  const active = core.filterAndSort(beans, { status: '在饮', sort: 'name', direction: 'asc' }).map((b) => b.name);
+  assert.deepEqual(active, ['drinking', 'open', 'weird']);
+  assert.equal(beans.find((b) => b.name === 'weird').status, '未开封');
+  assert.deepEqual(core.filterAndSort(beans, { status: '已归档' }).map((b) => b.name), ['done']);
+});
+
 test('backup round trip validates schema and duplicate ids', () => {
   const beans = [core.normalizeBean({ id: 'one', name: '豆一', labelImagePath: 'file:///label.jpg', purchaseUrl: 'https://shop.example.com/beans/one' })];
   const logs = [core.normalizeDrinkLog({ id: 'cup-one', beanId: 'one', beanName: '豆一', grams: 15, brewMethod: '手冲', tastingStatus: 'pending' })];
