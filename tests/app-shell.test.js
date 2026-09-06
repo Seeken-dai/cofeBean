@@ -162,7 +162,7 @@ test('3.0.1 宽屏把我的、搜索、轻量筛选和新增操作放到主工�
   assert.doesNotMatch(sidebar, /data-shell-action="calendar"|data-shell-action="insights"/);
   assert.match(html, /id="widePrimaryAction"/);
   assert.match(css, /\.topbar-search\s*\{\s*z-index:30;\s*right:170px;/);
-  assert.match(css, /body\[data-shell-view="personal"\] \.topbar-search\s*\{\s*right:24px;/);
+  assert.match(css, /body\[data-shell-view="personal"\] \.topbar-search,\s*body\[data-shell-view="drinks"\] \.topbar-search\s*\{\s*right:24px;/);
   assert.match(css, /\.wide-bean-filters\s*\{\s*display:none!important;/);
   assert.match(css, /body\[data-shell-view="beans"\] \.topbar-filter-button\s*\{[\s\S]*?display:none!important;/);
   assert.match(css, /body\.has-context-detail \.topbar-filter-button\s*\{\s*display:none!important;/);
@@ -235,7 +235,7 @@ test('真机验收修正保持底部面板、精简我的并吸顶豆子详情',
   assert.match(css, /\.profile-hero\.has-photo \.profile-hero-thumb\s*\{[^}]*top:calc\(78px \+ var\(--native-safe-top/);
   assert.match(css, /\.profile-hero\.has-cutout \.profile-hero-thumb\s*\{[^}]*top:calc\(78px \+ var\(--native-safe-top[^}]*bottom:auto;/);
   assert.match(css, /\.drink-entry \.drink-meta > span,\.drink-entry \.dimension-summary span \{ background:transparent; \}/);
-  assert.match(css, /\.assist-ring strong \{ line-height:1\.14; padding-bottom:\.08em; \}/);
+  assert.match(css, /\.assist-ring strong,#brewAssistWater \{ line-height:1\.22; padding-bottom:\.16em; overflow:visible; \}/);
   assert.match(app, /els\.detail\.addEventListener\('scroll', syncBeanDetailHeader/);
   assert.match(app, /detailDrink\.hidden = !canDrink/);
 });
@@ -288,7 +288,7 @@ test('3.0.9 宽屏列表多列：DROP 窄轨 / auto-fill max-4 / plan facts 2x2 
   assert.match(css, /body:not\(\.has-context-detail\) \.plan-card-facts[\s\S]*?grid-template-columns:\s*1fr 1fr/);
   assert.match(css, /#drinksView \.drink-trend-wrap,[\s\S]*?#drinksView \.timeline,[\s\S]*?#plansView \.plan-list[\s\S]*?max-width:\s*none/);
   assert.match(css, /body\.has-context-detail \.plan-group \{ grid-template-columns:1fr; \}/);
-  assert.match(css, /body\[data-shell-view="plans"\]:not\(\.has-context-detail\) \.topbar[\s\S]*?grid-template-columns:\s*auto\s+minmax\(180px,1fr\)\s+auto/);
+  assert.match(css, /body\[data-shell-view="plans"\]:not\(\.has-context-detail\) \.topbar[\s\S]*?grid-template-columns:\s*minmax\(0,1fr\)\s+auto\s+auto/);
   assert.match(css, /body\[data-shell-view="plans"\]:not\(\.has-context-detail\) \.topbar-search[\s\S]*?position:\s*static/);
   assert.match(css, /body\[data-shell-view="plans"\]:not\(\.has-context-detail\) \.wide-primary-action[\s\S]*?position:\s*static/);
   assert.match(css, /body\.has-context-detail \.brand-copy h1[\s\S]*?white-space:\s*nowrap/);
