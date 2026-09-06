@@ -49,6 +49,27 @@
     return Number(width) >= WIDE_BREAKPOINT ? 'wide' : 'mobile';
   }
 
+  // Viewport ≥ WIDE_BREAKPOINT is NOT the same as enabling the Web workbench.
+  // CSS / shell layout may go "wide" on a large viewport; Android native must still
+  // keep the native shell (see shouldEnableWebWorkbench + app.js isWideWorkspace).
+  function isWideViewport(width) {
+    return layoutForWidth(width) === 'wide';
+  }
+
+  function wideMediaQuery() {
+    return '(min-width: ' + WIDE_BREAKPOINT + 'px)';
+  }
+
+  // Web workbench only: non-native AND viewport at/above the breakpoint.
+  // Pass matchesWide (e.g. matchMedia) or width; native always false.
+  function shouldEnableWebWorkbench(options) {
+    const opts = options || {};
+    if (opts.isNative) return false;
+    if (typeof opts.matchesWide === 'boolean') return opts.matchesWide;
+    if (opts.width != null) return isWideViewport(opts.width);
+    return false;
+  }
+
   function navigationItems(plansEnabled) {
     return ['beans', 'drinks', ...(plansEnabled ? ['plans'] : []), 'personal'];
   }
@@ -372,6 +393,9 @@
     TAB_SWIPE,
     BACK_PRIORITY,
     layoutForWidth,
+    isWideViewport,
+    wideMediaQuery,
+    shouldEnableWebWorkbench,
     navigationItems,
     adjacentNavigationView,
     tabSwipeBlockedByLayers,

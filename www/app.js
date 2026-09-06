@@ -74,7 +74,24 @@
   function capPlugin(name) { return window.Capacitor && window.Capacitor.Plugins ? window.Capacitor.Plugins[name] : null; }
   if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) document.body.classList.add('cap-native');
   function isNativeApp() { return document.body.classList.contains('cap-native') || (typeof BeanRepository !== 'undefined' && BeanRepository.isNative && BeanRepository.isNative()); }
-  function isWideWorkspace() { return !isNativeApp() && typeof window !== 'undefined' && Boolean(window.matchMedia) && window.matchMedia('(min-width: 1100px)').matches; }
+  // Viewport ≥ AppShell.WIDE_BREAKPOINT ≠ enable Web workbench.
+  // isWideViewportNow: CSS/shell-width only. isWideWorkspace: Web workbench (requires !isNativeApp).
+  function isWideViewportNow() {
+    if (typeof window === 'undefined') return false;
+    if (typeof AppShell !== 'undefined' && AppShell.wideMediaQuery && window.matchMedia) {
+      return window.matchMedia(AppShell.wideMediaQuery()).matches;
+    }
+    if (typeof AppShell !== 'undefined' && AppShell.isWideViewport) {
+      return AppShell.isWideViewport(window.innerWidth);
+    }
+    return Boolean(window.matchMedia) && window.matchMedia('(min-width: 1100px)').matches;
+  }
+  function isWideWorkspace() {
+    if (typeof AppShell !== 'undefined' && AppShell.shouldEnableWebWorkbench) {
+      return AppShell.shouldEnableWebWorkbench({ isNative: isNativeApp(), matchesWide: isWideViewportNow() });
+    }
+    return !isNativeApp() && isWideViewportNow();
+  }
   function syncPlanImportFabLabel() {
     const fab = $('#planImportFab');
     if (!fab) return;
@@ -348,7 +365,7 @@
       setTimeout(() => dialog.classList.remove('sheet-settling'), 220);
     };
     dialog.addEventListener('pointerdown', (event) => {
-      if (window.innerWidth >= 1100 || dialog.dataset.layerKind !== 'quick' || !event.target.closest('.sheet-header') || event.target.closest('button,input,a')) return;
+      if ((typeof AppShell !== 'undefined' && AppShell.isWideViewport ? AppShell.isWideViewport(window.innerWidth) : window.innerWidth >= 1100) || dialog.dataset.layerKind !== 'quick' || !event.target.closest('.sheet-header') || event.target.closest('button,input,a')) return;
       startY = event.clientY; startedAt = performance.now(); dragging = true;
       dialog.classList.remove('sheet-settling'); dialog.classList.add('sheet-dragging');
       if (dialog.setPointerCapture) dialog.setPointerCapture(event.pointerId);
@@ -2949,7 +2966,7 @@
     if (window.visualViewport) window.visualViewport.addEventListener('resize', updateFabInset);
     setInterval(updateFabInset, 300);
     if (window.matchMedia) {
-      window.matchMedia('(min-width: 1100px)').addEventListener('change', () => {
+      window.matchMedia((typeof AppShell !== 'undefined' && AppShell.wideMediaQuery) ? AppShell.wideMediaQuery() : '(min-width: 1100px)').addEventListener('change', () => {
         syncPlanImportFabLabel();
         if (state.view === 'personal') renderPersonal();
       });

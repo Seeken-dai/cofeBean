@@ -6,12 +6,47 @@ const fs = require('node:fs');
 const path = require('node:path');
 const AppShell = require('../www/app-shell.js');
 
-test('1100px 是移动外壳与宽屏工作台的唯一断点', () => {
+test('1100px 是移动外壳与宽屏视口的唯一断点', () => {
+  assert.equal(AppShell.WIDE_BREAKPOINT, 1100);
   assert.equal(AppShell.layoutForWidth(360), 'mobile');
   assert.equal(AppShell.layoutForWidth(1099), 'mobile');
   assert.equal(AppShell.layoutForWidth(1100), 'wide');
   assert.equal(AppShell.layoutForWidth(1440), 'wide');
+  assert.equal(AppShell.isWideViewport(1099), false);
+  assert.equal(AppShell.isWideViewport(1100), true);
+  assert.equal(AppShell.wideMediaQuery(), '(min-width: 1100px)');
 });
+
+test('视口≥1100 ≠ 启用 Web 工作台：原生大屏保持原生壳', () => {
+  assert.equal(AppShell.shouldEnableWebWorkbench({ isNative: false, width: 1099 }), false);
+  assert.equal(AppShell.shouldEnableWebWorkbench({ isNative: false, width: 1100 }), true);
+  assert.equal(AppShell.shouldEnableWebWorkbench({ isNative: false, matchesWide: false }), false);
+  assert.equal(AppShell.shouldEnableWebWorkbench({ isNative: false, matchesWide: true }), true);
+  assert.equal(AppShell.shouldEnableWebWorkbench({ isNative: true, width: 1100 }), false);
+  assert.equal(AppShell.shouldEnableWebWorkbench({ isNative: true, width: 1440 }), false);
+  assert.equal(AppShell.shouldEnableWebWorkbench({ isNative: true, matchesWide: true }), false);
+});
+
+test('CSS 静态媒体查询与 AppShell.WIDE_BREAKPOINT 契约一致', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../www/styles.css'), 'utf8');
+  const bp = AppShell.WIDE_BREAKPOINT;
+  const maxNarrow = bp - 1;
+  assert.match(css, new RegExp('@media \\(min-width:\\s*' + bp + 'px\\)'));
+  assert.match(css, new RegExp('@media \\(max-width:\\s*' + maxNarrow + 'px\\)'));
+  assert.doesNotMatch(css, /--wide-breakpoint/);
+});
+
+test('app.js 宽屏工作台走 AppShell 断点且保留 !isNativeApp', () => {
+  const app = fs.readFileSync(path.join(__dirname, '../www/app.js'), 'utf8');
+  assert.match(app, /function isWideViewportNow\(/);
+  assert.match(app, /function isWideWorkspace\(/);
+  assert.match(app, /shouldEnableWebWorkbench/);
+  assert.match(app, /isNativeApp\(\)/);
+  assert.match(app, /wideMediaQuery\(\)/);
+  assert.match(app, /isWideViewport\(window\.innerWidth\)/);
+  assert.match(app, /shouldEnableWebWorkbench\(\{ isNative: isNativeApp\(\)/);
+});
+
 
 test('计划入口随功能开关显隐且我的始终保留', () => {
   assert.deepEqual(AppShell.navigationItems(false), ['beans', 'drinks', 'personal']);
