@@ -1960,7 +1960,7 @@
     if (!String(fields.name || '').trim()) return toast('请填写方案名称');
     const cleaned = cleanPlanFieldsForMethod({ ...fields, useHotWater: $('#plan-useHotWater').checked, waterTemp: fields.waterTemp ? `${fields.waterTemp}°C` : '' });
     const steps = $('#plan-method').value === '手冲' ? readPourSteps() : parsePlanSteps($('#plan-steps').value);
-    const payload = BeanCore.normalizeBrewPlan({ ...(old || {}), ...cleaned, id: state.editingPlanId || fields.id || undefined, source: old ? old.source : ($('#plan-source').value || 'user'), beanIds: selectedBeans, steps });
+    const payload = BeanCore.normalizeBrewPlan(BeanCore.mergeBrewPlanOverlay(old || {}, { ...cleaned, id: state.editingPlanId || fields.id || undefined, source: old ? old.source : ($('#plan-source').value || 'user'), beanIds: selectedBeans, steps }));
     try { await BeanRepository.saveBrewPlan(payload); setDialog(els.planEditor, false); state.editingPlanId = null; await reload(); toast(old ? '方案已更新' : '这段风味已保存'); } catch (error) { console.error(error); toast(error.message || '方案保存失败'); }
   }
   async function duplicateCurrentPlan() {

@@ -671,3 +671,70 @@ test('normalizeBrewPlan tolerates malformed step water payloads', () => {
   assert.ok(Array.isArray(plan.steps));
   assert.doesNotThrow(() => core.normalizeStepsWaterToSegments(plan.steps, plan.totalWater));
 });
+
+
+test('mergeBrewPlanOverlay preserves grind when blank overlay', () => {
+  const base = core.normalizeBrewPlan({
+    name: '保留研磨',
+    brewMethod: '手冲',
+    grinder: '巫师2.0',
+    grindSetting: '中偏粗，接近粗砂糖颗粒；巫师2.0建议比你常用手冲刻度略粗1-2格',
+    coffeeMachine: '家用半自动'
+  });
+  const blankOverlay = {
+    name: base.name,
+    brewMethod: '手冲',
+    dose: 20,
+    grinder: '',
+    grindSetting: '',
+    coffeeMachine: '',
+    waterTemp: '88°C'
+  };
+  const merged = core.mergeBrewPlanOverlay(base, blankOverlay);
+  assert.equal(merged.grinder, '巫师2.0');
+  assert.equal(merged.grindSetting, base.grindSetting);
+  assert.equal(merged.coffeeMachine, '家用半自动');
+  assert.equal(merged.dose, 20);
+  assert.equal(merged.waterTemp, '88°C');
+
+  const normalized = core.normalizeBrewPlan(merged);
+  assert.equal(normalized.grindSetting, base.grindSetting);
+  assert.equal(normalized.grinder, '巫师2.0');
+});
+
+test('AI import grindSetting survives blank FormData-style save overlay', () => {
+  const fixture = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'ai-import-grind-repro.json'), 'utf8'));
+  const { plan } = core.parseAiPlanJson(JSON.stringify(fixture));
+  assert.ok(plan.grindSetting && plan.grindSetting.includes('中偏粗'));
+
+  // 模拟 savePlan：FormData 对 name=grindSetting 的空 input 会交出 ''，再 ...cleaned 盖住旧值。
+  const formOverlay = {
+    name: plan.name,
+    brewMethod: plan.brewMethod,
+    dose: plan.dose,
+    totalWater: plan.totalWater,
+    ratio: plan.ratio,
+    waterTemp: '88',
+    grinder: '',
+    grindSetting: '',
+    targetDuration: plan.targetDuration,
+    notes: plan.notes
+  };
+  const wiped = core.normalizeBrewPlan({ ...plan, ...formOverlay });
+  assert.equal(wiped.grindSetting, '', 'without merge, blank FormData clears grind');
+
+  const preserved = core.normalizeBrewPlan(core.mergeBrewPlanOverlay(plan, formOverlay));
+  assert.equal(preserved.grindSetting, plan.grindSetting);
+  assert.ok(preserved.grindSetting.includes('巫师2.0'));
+});
+
+test('normalizeBrewPlan maps grind/equipment aliases into grindSetting/grinder', () => {
+  const plan = core.normalizeBrewPlan({
+    name: '别名',
+    brewMethod: '手冲',
+    grind: '22 clicks',
+    equipment: 'C40'
+  });
+  assert.equal(plan.grindSetting, '22 clicks');
+  assert.equal(plan.grinder, 'C40');
+});

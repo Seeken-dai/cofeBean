@@ -329,7 +329,7 @@
       const index = state.brewPlans.findIndex((item) => item.id === normalized.id);
       const old = index >= 0 ? state.brewPlans[index] : null;
       if (old && old.source === 'preset') throw new Error('预置方案请先复制再编辑');
-      if (old) normalized = root.BeanCore.normalizeBrewPlan({ ...old, ...normalized, version: old.version + 1, createdAt: old.createdAt }, stamp);
+      if (old) normalized = root.BeanCore.normalizeBrewPlan(root.BeanCore.mergeBrewPlanOverlay(old, { ...normalized, version: old.version + 1, createdAt: old.createdAt }), stamp);
       normalized = root.BeanCore.normalizeBrewPlan(markLocal(normalized, old, stamp), stamp);
       if (index >= 0) state.brewPlans[index] = normalized; else state.brewPlans.unshift(normalized);
       await web().saveState(state); return normalized;
@@ -337,7 +337,7 @@
     const oldResult = await nativeDb().query({ database: DB_NAME, statement: 'SELECT * FROM brew_plans WHERE id = ?', values: [normalized.id], readonly: false });
     const old = (oldResult.values || []).length ? fromPlanRow(oldResult.values[0]) : null;
     if (old && old.source === 'preset') throw new Error('预置方案请先复制再编辑');
-    if (old) normalized = root.BeanCore.normalizeBrewPlan({ ...old, ...normalized, version: old.version + 1, createdAt: old.createdAt }, stamp);
+    if (old) normalized = root.BeanCore.normalizeBrewPlan(root.BeanCore.mergeBrewPlanOverlay(old, { ...normalized, version: old.version + 1, createdAt: old.createdAt }), stamp);
     normalized = root.BeanCore.normalizeBrewPlan(markLocal(normalized, old, stamp), stamp);
     const columns = PLAN_COLUMNS.map((key) => PLAN_NATIVE[key] || key).join(',');
     const placeholders = PLAN_COLUMNS.map(() => '?').join(',');

@@ -547,8 +547,34 @@
     };
   }
 
+  // 方案保存合并：空字符串 / null / undefined 的研磨与设备字段不覆盖已有值。
+  // 防御 FormData / 局部 overlay 把 grinder、grindSetting 等写成空白，导致写库后研磨丢失。
+  const PLAN_PRESERVE_IF_BLANK = Object.freeze(['grinder', 'grindSetting', 'coffeeMachine']);
+
+  function isBlankPlanField(value) {
+    return value == null || value === '';
+  }
+
+  function mergeBrewPlanOverlay(base, overlay) {
+    const prior = base && typeof base === 'object' ? base : {};
+    const next = overlay && typeof overlay === 'object' ? overlay : {};
+    const merged = { ...prior, ...next };
+    PLAN_PRESERVE_IF_BLANK.forEach((key) => {
+      if (isBlankPlanField(next[key]) && !isBlankPlanField(prior[key])) merged[key] = prior[key];
+    });
+    return merged;
+  }
+
+  function applyBrewPlanFieldAliases(source) {
+    const data = source && typeof source === 'object' ? { ...source } : {};
+    // AI / 外部 JSON 常见别名：grind → grindSetting，equipment → grinder
+    if (isBlankPlanField(data.grindSetting) && !isBlankPlanField(data.grind)) data.grindSetting = data.grind;
+    if (isBlankPlanField(data.grinder) && !isBlankPlanField(data.equipment)) data.grinder = data.equipment;
+    return data;
+  }
+
   function normalizeBrewPlan(input, now) {
-    const source = input && typeof input === 'object' ? input : {};
+    const source = applyBrewPlanFieldAliases(input && typeof input === 'object' ? input : {});
     const stamp = now || new Date().toISOString();
     const plan = {
       id: cleanText(source.id, 100) || makeId('plan'),
@@ -1589,5 +1615,5 @@
     }).sort((a, b) => compareDrinkChronology(b, a))[0] || null;
   }
 
-  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, COFFEE_TYPES, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, normalizeSettings, hasTastingContent, resolveTastingStatus, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, selectHomeReminder, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, buildAiPlanPrompt, parseAiPlanJson, looksLikeCumulativeStepWaters, splitCumulativeWatersToSegments, cumulativeWatersFromSegments, normalizeStepsWaterToSegments, prepareBrewAssistSteps, brewAssistStatus, resolveOpenedDate, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareAppVersions, isAppVersionNewer, selectReleaseApkAsset, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, FLAVOR_LEXICON, flavorTags, recentFlavorTags, beanFreshness, recentDrinkSeries, compareDrinkChronology, recentCafeNames, recentExternalDrinkNames, previousComparableDrink, beanProcessKind, recentDrinkLocations };
+  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, COFFEE_TYPES, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, mergeBrewPlanOverlay, normalizeSettings, hasTastingContent, resolveTastingStatus, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, selectHomeReminder, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, buildAiPlanPrompt, parseAiPlanJson, looksLikeCumulativeStepWaters, splitCumulativeWatersToSegments, cumulativeWatersFromSegments, normalizeStepsWaterToSegments, prepareBrewAssistSteps, brewAssistStatus, resolveOpenedDate, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareAppVersions, isAppVersionNewer, selectReleaseApkAsset, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, FLAVOR_LEXICON, flavorTags, recentFlavorTags, beanFreshness, recentDrinkSeries, compareDrinkChronology, recentCafeNames, recentExternalDrinkNames, previousComparableDrink, beanProcessKind, recentDrinkLocations };
 });
