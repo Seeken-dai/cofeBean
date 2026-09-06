@@ -3097,6 +3097,9 @@ body[data-shell-view="personal"] .profile-button { border-color:var(--accent); b
 }
 
 @media (min-width:1100px) {
+  /* 3.0.10 Web list shell — topbar unify (≥1100 only) */
+  .topbar { align-items:center; }
+  .topbar-actions { margin-top:0; }
   .topbar-filter-button { display:none!important; }
   .profile-button { display:none!important; }
   .wide-primary-action {
@@ -3125,12 +3128,24 @@ body[data-shell-view="personal"] .profile-button { border-color:var(--accent); b
     display:block!important;
     width:min(340px,32vw);
   }
-  body[data-shell-view="personal"] .topbar-search { right:24px; }
+  /* no wide-primary pages: search hugs right edge */
+  body[data-shell-view="personal"] .topbar-search,
+  body[data-shell-view="drinks"] .topbar-search { right:24px; }
 
-  /* Plans list topbar: kill absolute → in-flow grid end-cluster */
+  /* List-state end-cluster grid — beans/drinks/plans/personal */
+  body[data-shell-view="beans"]:not(.has-context-detail) .topbar,
+  body[data-shell-view="drinks"]:not(.has-context-detail) .topbar,
+  body[data-shell-view="personal"]:not(.has-context-detail) .topbar {
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
+    align-items:center;
+    column-gap:16px;
+  }
+
+  /* Plans list topbar: in-flow right cluster (no middle 1fr stretch) */
   body[data-shell-view="plans"]:not(.has-context-detail) .topbar {
     display:grid;
-    grid-template-columns:auto minmax(180px,1fr) auto;
+    grid-template-columns:minmax(0,1fr) auto auto;
     align-items:center;
     column-gap:16px;
   }
@@ -3139,9 +3154,9 @@ body[data-shell-view="personal"] .profile-button { border-color:var(--accent); b
     right:auto;
     top:auto;
     z-index:auto;
-    width:100%;
-    max-width:360px;
-    justify-self:stretch;
+    width:min(340px,32vw);
+    max-width:none;
+    justify-self:end;
   }
   body[data-shell-view="plans"]:not(.has-context-detail) .wide-primary-action {
     position:static;
@@ -3184,7 +3199,7 @@ body[data-shell-view="personal"] .profile-button { border-color:var(--accent); b
     font:inherit;
     color:inherit;
   }
-  body[data-shell-view="beans"] .topbar { grid-template-columns:minmax(0,1fr); column-gap:0; }
+  /* beans list grid set above (end-cluster); keep absolute search/primary */
   /* 宽屏默认保持列表清爽：状态与排序留在内容区，更多条件通过顶部筛选按钮打开。
      常驻整块筛选栏会把只有一张卡的豆仓压成窄列，并制造大面积无意义留白。 */
   body[data-shell-view="beans"] .topbar-filter-button {
