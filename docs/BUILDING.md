@@ -59,6 +59,8 @@ Set-Location android
 
 数据库当前 `PRAGMA user_version = 12`。以后改变表结构时，在 `www/repository.js` 中增加顺序迁移，禁止删除数据库或清空旧表。（本地 SQLite 迁移与云端 D1 迁移是两回事，后者见 `RELEASING.md`。）
 
+3.0.11 正式包从 `main` 的发布提交 `fa8f298` 干净构建（Eclipse Temurin JDK 21.0.12 + `cap sync` + `clean assembleRelease`）；`versionName=3.0.11`、`versionCode=87`、`minSdk 24`、`targetSdk 36`。本轮修复豆仓快速冲煮首次进入时冲煮辅助入口偶尔不显示，并让关于页只展示当前版本更新；**不修改 SQLite、备份、同步协议、Worker 或 Android 权限**，权限仍为 `CAMERA`、`INTERNET`、`VIBRATE` 及 Android 自动生成的应用内接收器权限。发布前 338 项 Node 测试、ESLint、`app.js` / `repository.js` 语法检查、Capacitor 同步和 Release 构建全部通过；APK 内 `app.js`、`index.html`、`styles.css` 与源码逐项一致，签名证书 SHA-256 仍为 `aab5e3d3bd224b98f885945ecd868d54a99e2c96bf099a0c9e6ee59ca02151ae`。本机未连接 ADB 真机，未执行覆盖安装与可视点击冒烟。正式产物为 `dist/coffee-vault-3.0.11-release.apk`（84,778,801 bytes），APK SHA-256 为 `ABE7F3CA6F4DA2FB0CC24168144FED1119282EBE92CC123DC262B94E2D4649D9`；GitHub Release `v3.0.11` 的远端资产摘要与本地一致，线上 Web 已返回 `版本 3.0.11`，且关于页仅有一组最新版本说明。
+
 3.0.10 正式包从 `release/3.0.10` ff 合入 `main` 后干净构建（Microsoft JDK 21.0.11 + `cap sync` + `assembleRelease`）；`versionName=3.0.10`、`versionCode=86`。本轮：宽屏≥1100 顶栏统一（方案搜索右簇、饮用搜索 right:24px）；AI 导入/绑豆选择器仅「在饮」；空白 FormData overlay 不再清 grindSetting/grinder。正式产物为 `dist/coffee-vault-3.0.10-release.apk`，APK SHA-256 为 `DF0FEEA40A6B29BC5BCA6A00FFA1017776A07482554C752FAD476110CEB6B8F7`。
 
 3.0.9 Web（2026-09-06）：从 `release/3.0.9` ff 合入 `main`；`versionName=3.0.9`、`versionCode=85`。宽屏列表多列 / 窄轨 DROP / 顶栏统计与趋势满宽 / 方案卡 facts 2×2 见 `docs/CHANGELOG.md`。**本轮仅发 Web**（Cloudflare 跟 main），未 assembleRelease、未打 `v3.0.9` tag、未建 GitHub Release。
