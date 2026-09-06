@@ -59,7 +59,7 @@ Set-Location android
 
 数据库当前 `PRAGMA user_version = 12`。以后改变表结构时，在 `www/repository.js` 中增加顺序迁移，禁止删除数据库或清空旧表。（本地 SQLite 迁移与云端 D1 迁移是两回事，后者见 `RELEASING.md`。）
 
-3.0.10 正式包从 `release/3.0.10` ff 合入 `main` 后干净构建（Microsoft JDK 21.0.11 + `cap sync` + `assembleRelease`）；`versionName=3.0.10`、`versionCode=86`。本轮：宽屏≥1100 顶栏统一（方案搜索右簇、饮用搜索 right:24px）；AI 导入/绑豆选择器仅「在饮」；空白 FormData overlay 不再清 grindSetting/grinder。正式产物为 `dist/coffee-vault-3.0.10-release.apk`，APK SHA-256 待构建后补记。
+3.0.10 正式包从 `release/3.0.10` ff 合入 `main` 后干净构建（Microsoft JDK 21.0.11 + `cap sync` + `assembleRelease`）；`versionName=3.0.10`、`versionCode=86`。本轮：宽屏≥1100 顶栏统一（方案搜索右簇、饮用搜索 right:24px）；AI 导入/绑豆选择器仅「在饮」；空白 FormData overlay 不再清 grindSetting/grinder。正式产物为 `dist/coffee-vault-3.0.10-release.apk`，APK SHA-256 为 `DF0FEEA40A6B29BC5BCA6A00FFA1017776A07482554C752FAD476110CEB6B8F7`。
 
 3.0.9 Web（2026-09-06）：从 `release/3.0.9` ff 合入 `main`；`versionName=3.0.9`、`versionCode=85`。宽屏列表多列 / 窄轨 DROP / 顶栏统计与趋势满宽 / 方案卡 facts 2×2 见 `docs/CHANGELOG.md`。**本轮仅发 Web**（Cloudflare 跟 main），未 assembleRelease、未打 `v3.0.9` tag、未建 GitHub Release。
 
