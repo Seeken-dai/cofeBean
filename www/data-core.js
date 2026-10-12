@@ -1615,5 +1615,17 @@
     }).sort((a, b) => compareDrinkChronology(b, a))[0] || null;
   }
 
-  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, COFFEE_TYPES, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, mergeBrewPlanOverlay, normalizeSettings, hasTastingContent, resolveTastingStatus, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, selectHomeReminder, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, buildAiPlanPrompt, parseAiPlanJson, looksLikeCumulativeStepWaters, splitCumulativeWatersToSegments, cumulativeWatersFromSegments, normalizeStepsWaterToSegments, prepareBrewAssistSteps, brewAssistStatus, resolveOpenedDate, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareAppVersions, isAppVersionNewer, selectReleaseApkAsset, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, FLAVOR_LEXICON, flavorTags, recentFlavorTags, beanFreshness, recentDrinkSeries, compareDrinkChronology, recentCafeNames, recentExternalDrinkNames, previousComparableDrink, beanProcessKind, recentDrinkLocations };
+  // 3.0.12 单豆杯数口径：cups = 全部未删除记录；average 只计 overallRating > 0 的杯，保留 1 位小数。
+  function beanRatingSummary(logs, beanId) {
+    const rows = (Array.isArray(logs) ? logs : []).filter((log) => log && !log.deletedAt && (beanId == null || log.beanId === beanId));
+    const rated = rows.filter((log) => Number(log.overallRating) > 0);
+    const latest = rows.slice().sort((a, b) => String(b.consumedAt || '').localeCompare(String(a.consumedAt || '')))[0] || null;
+    const average = rated.length ? Math.round(rated.reduce((sum, log) => sum + Number(log.overallRating), 0) / rated.length * 10) / 10 : null;
+    return { cups: rows.length, ratedCount: rated.length, average, latestAt: latest ? latest.consumedAt || null : null };
+  }
+  function ratedCupsNote(summary) {
+    const cups = Number(summary && summary.cups) || 0; const ratedCount = Number(summary && summary.ratedCount) || 0;
+    return ratedCount > 0 && ratedCount < cups ? `其中 ${ratedCount} 杯已评` : '';
+  }
+  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, COFFEE_TYPES, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, mergeBrewPlanOverlay, normalizeSettings, hasTastingContent, resolveTastingStatus, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, selectHomeReminder, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, buildAiPlanPrompt, parseAiPlanJson, looksLikeCumulativeStepWaters, splitCumulativeWatersToSegments, cumulativeWatersFromSegments, normalizeStepsWaterToSegments, prepareBrewAssistSteps, brewAssistStatus, resolveOpenedDate, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareAppVersions, isAppVersionNewer, selectReleaseApkAsset, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, FLAVOR_LEXICON, flavorTags, recentFlavorTags, beanFreshness, recentDrinkSeries, compareDrinkChronology, recentCafeNames, recentExternalDrinkNames, previousComparableDrink, beanProcessKind, recentDrinkLocations, beanRatingSummary, ratedCupsNote };
 });

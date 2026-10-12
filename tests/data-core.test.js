@@ -738,3 +738,28 @@ test('normalizeBrewPlan maps grind/equipment aliases into grindSetting/grinder',
   assert.equal(plan.grindSetting, '22 clicks');
   assert.equal(plan.grinder, 'C40');
 });
+
+test('beanRatingSummary: cups counts all non-deleted logs of the bean, average only rated cups', () => {
+  const logs = [
+    { id: 'a', beanId: 'b1', overallRating: 5, consumedAt: '2026-09-01T08:00:00.000Z' },
+    { id: 'b', beanId: 'b1', overallRating: 4, consumedAt: '2026-09-03T08:00:00.000Z' },
+    { id: 'c', beanId: 'b1', overallRating: null, consumedAt: '2026-09-05T08:00:00.000Z' },
+    { id: 'd', beanId: 'b1', overallRating: 0, consumedAt: '2026-09-04T08:00:00.000Z' },
+    { id: 'e', beanId: 'b1', overallRating: 1, consumedAt: '2026-09-09T08:00:00.000Z', deletedAt: '2026-09-10T00:00:00.000Z' },
+    { id: 'f', beanId: 'b2', overallRating: 1, consumedAt: '2026-09-02T08:00:00.000Z' }
+  ];
+  const summary = core.beanRatingSummary(logs, 'b1');
+  assert.deepEqual(summary, { cups: 4, ratedCount: 2, average: 4.5, latestAt: '2026-09-05T08:00:00.000Z' });
+  assert.equal(core.ratedCupsNote(summary), '\u5176\u4e2d 2 \u676f\u5df2\u8bc4');
+});
+
+test('beanRatingSummary: rounding, empty and fully-rated cases', () => {
+  const rated = core.beanRatingSummary([{ beanId: 'x', overallRating: 4 }, { beanId: 'x', overallRating: 4 }, { beanId: 'x', overallRating: 5 }], 'x');
+  assert.equal(rated.average, 4.3);
+  assert.equal(rated.cups, 3);
+  assert.equal(core.ratedCupsNote(rated), '');
+  const empty = core.beanRatingSummary([], 'x');
+  assert.deepEqual(empty, { cups: 0, ratedCount: 0, average: null, latestAt: null });
+  assert.equal(core.ratedCupsNote(empty), '');
+  assert.equal(core.ratedCupsNote({ cups: 3, ratedCount: 0 }), '');
+});
