@@ -1615,13 +1615,35 @@
     }).sort((a, b) => compareDrinkChronology(b, a))[0] || null;
   }
 
-  // 3.0.12 单豆杯数口径：cups = 全部未删除记录；average 只计 overallRating > 0 的杯，保留 1 位小数。
+  // 3.0.12 单豆评分汇总（单豆评分子页 + 豆卡/详情共用，纯函数）：
+  // - cups = 该豆全部未删除记录（含未评分）；评分统计只计 overallRating > 0 的杯。
+  // - average 1 位小数；max/min 只看已评分杯。
+  // - overallRating 由 normalizeDrinkLog/cleanRating 存为 1–5 整数星（无半星）；distribution 对原值四舍五入并夹到 1–5，兼容未归一化的旧数据。
+  // - logs / ratedLogs 按 compareDrinkChronology 新到旧；latestAt = 最近一杯（不论是否评分），latestRating = 最近一杯已评分的分数与日期，latestUnrated = 最近一杯是否未评分。
   function beanRatingSummary(logs, beanId) {
-    const rows = (Array.isArray(logs) ? logs : []).filter((log) => log && !log.deletedAt && (beanId == null || log.beanId === beanId));
-    const rated = rows.filter((log) => Number(log.overallRating) > 0);
-    const latest = rows.slice().sort((a, b) => String(b.consumedAt || '').localeCompare(String(a.consumedAt || '')))[0] || null;
-    const average = rated.length ? Math.round(rated.reduce((sum, log) => sum + Number(log.overallRating), 0) / rated.length * 10) / 10 : null;
-    return { cups: rows.length, ratedCount: rated.length, average, latestAt: latest ? latest.consumedAt || null : null };
+    const rows = (Array.isArray(logs) ? logs : []).filter((log) => log && !log.deletedAt && (beanId == null || log.beanId === beanId))
+      .sort((a, b) => compareDrinkChronology(b, a));
+    const ratingOf = (log) => { const n = Number(log && log.overallRating); return Number.isFinite(n) && n > 0 ? n : 0; };
+    const rated = rows.filter((log) => ratingOf(log) > 0);
+    const scores = rated.map(ratingOf);
+    const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    scores.forEach((score) => { distribution[Math.min(5, Math.max(1, Math.round(score)))] += 1; });
+    const average = scores.length ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length * 10) / 10 : null;
+    const latest = rows[0] || null;
+    const latestRated = rated[0] || null;
+    return {
+      cups: rows.length,
+      ratedCount: rated.length,
+      average,
+      max: scores.length ? Math.max(...scores) : null,
+      min: scores.length ? Math.min(...scores) : null,
+      latestAt: latest ? latest.consumedAt || null : null,
+      latestRating: latestRated ? { rating: ratingOf(latestRated), consumedAt: latestRated.consumedAt || null, logId: latestRated.id || null } : null,
+      latestUnrated: Boolean(latest && !ratingOf(latest)),
+      distribution,
+      logs: rows,
+      ratedLogs: rated
+    };
   }
   function ratedCupsNote(summary) {
     const cups = Number(summary && summary.cups) || 0; const ratedCount = Number(summary && summary.ratedCount) || 0;

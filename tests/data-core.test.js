@@ -749,7 +749,10 @@ test('beanRatingSummary: cups counts all non-deleted logs of the bean, average o
     { id: 'f', beanId: 'b2', overallRating: 1, consumedAt: '2026-09-02T08:00:00.000Z' }
   ];
   const summary = core.beanRatingSummary(logs, 'b1');
-  assert.deepEqual(summary, { cups: 4, ratedCount: 2, average: 4.5, latestAt: '2026-09-05T08:00:00.000Z' });
+  assert.equal(summary.cups, 4);
+  assert.equal(summary.ratedCount, 2);
+  assert.equal(summary.average, 4.5);
+  assert.equal(summary.latestAt, '2026-09-05T08:00:00.000Z');
   assert.equal(core.ratedCupsNote(summary), '\u5176\u4e2d 2 \u676f\u5df2\u8bc4');
 });
 
@@ -759,7 +762,50 @@ test('beanRatingSummary: rounding, empty and fully-rated cases', () => {
   assert.equal(rated.cups, 3);
   assert.equal(core.ratedCupsNote(rated), '');
   const empty = core.beanRatingSummary([], 'x');
-  assert.deepEqual(empty, { cups: 0, ratedCount: 0, average: null, latestAt: null });
+  assert.deepEqual({ cups: empty.cups, ratedCount: empty.ratedCount, average: empty.average, latestAt: empty.latestAt, max: empty.max, min: empty.min, latestRating: empty.latestRating, latestUnrated: empty.latestUnrated }, { cups: 0, ratedCount: 0, average: null, latestAt: null, max: null, min: null, latestRating: null, latestUnrated: false });
+  assert.deepEqual(empty.distribution, { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 });
+  assert.deepEqual(empty.logs, []);
+  assert.deepEqual(empty.ratedLogs, []);
   assert.equal(core.ratedCupsNote(empty), '');
   assert.equal(core.ratedCupsNote({ cups: 3, ratedCount: 0 }), '');
+});
+
+test('beanRatingSummary: max/min, distribution, latest rated vs latest cup, newest-first ordering', () => {
+  const logs = [
+    { id: 'r1', beanId: 'b1', overallRating: 2, consumedAt: '2026-09-01T08:00:00.000Z' },
+    { id: 'r2', beanId: 'b1', overallRating: 5, consumedAt: '2026-09-02T08:00:00.000Z' },
+    { id: 'r3', beanId: 'b1', overallRating: 4, consumedAt: '2026-09-03T08:00:00.000Z' },
+    { id: 'r4', beanId: 'b1', overallRating: 4, consumedAt: '2026-09-04T08:00:00.000Z' },
+    { id: 'u1', beanId: 'b1', overallRating: null, consumedAt: '2026-09-06T08:00:00.000Z' },
+    { id: 'z1', beanId: 'b1', overallRating: 0, consumedAt: '2026-09-05T08:00:00.000Z' },
+    { id: 'del', beanId: 'b1', overallRating: 1, consumedAt: '2026-09-07T08:00:00.000Z', deletedAt: '2026-09-08T00:00:00.000Z' },
+    { id: 'other', beanId: 'b2', overallRating: 1, consumedAt: '2026-09-09T08:00:00.000Z' }
+  ];
+  const s = core.beanRatingSummary(logs, 'b1');
+  assert.equal(s.cups, 6);
+  assert.equal(s.ratedCount, 4);
+  assert.equal(s.average, 3.8);
+  assert.equal(s.max, 5);
+  assert.equal(s.min, 2);
+  assert.deepEqual(s.distribution, { 1: 0, 2: 1, 3: 0, 4: 2, 5: 1 });
+  assert.equal(Object.values(s.distribution).reduce((a, b) => a + b, 0), s.ratedCount);
+  assert.equal(s.latestAt, '2026-09-06T08:00:00.000Z');
+  assert.equal(s.latestUnrated, true);
+  assert.deepEqual(s.latestRating, { rating: 4, consumedAt: '2026-09-04T08:00:00.000Z', logId: 'r4' });
+  assert.deepEqual(s.logs.map((log) => log.id), ['u1', 'z1', 'r4', 'r3', 'r2', 'r1']);
+  assert.deepEqual(s.ratedLogs.map((log) => log.id), ['r4', 'r3', 'r2', 'r1']);
+  assert.equal(core.ratedCupsNote(s), '其中 4 杯已评');
+});
+
+test('beanRatingSummary: latest cup rated, legacy non-integer ratings round into distribution, input not mutated', () => {
+  const logs = [
+    { id: 'a', beanId: 'b1', overallRating: '4.6', consumedAt: '2026-09-01T08:00:00.000Z' },
+    { id: 'b', beanId: 'b1', overallRating: 3, consumedAt: '2026-09-02T08:00:00.000Z' }
+  ];
+  const s = core.beanRatingSummary(logs, 'b1');
+  assert.equal(s.latestUnrated, false);
+  assert.deepEqual(s.latestRating, { rating: 3, consumedAt: '2026-09-02T08:00:00.000Z', logId: 'b' });
+  assert.deepEqual(s.distribution, { 1: 0, 2: 0, 3: 1, 4: 0, 5: 1 });
+  assert.equal(s.max, 4.6);
+  assert.deepEqual(logs.map((log) => log.id), ['a', 'b']);
 });
