@@ -3529,3 +3529,16 @@ body[data-shell-view="personal"] .profile-button { border-color:var(--accent); b
   .drink-dialog.quick-mode .sheet-footer > div.has-assist > #drinkStartAssist { grid-row:1; grid-column:3; }
   .drink-dialog.quick-mode .sheet-footer > div > #saveDrink { grid-row:1; grid-column:-2 / -1; min-width:140px; }
 }
+
+/* 3.0.12: content-width card bottom (container query on the card body, not a viewport breakpoint).
+   - tag chips never ellipsize: whole extra tags wrap onto a clipped second line (one visible line).
+   - narrow card body (content box < 230px): tags take the full row, compact-meta (freshness + weight) drops to its own right-aligned row.
+   Cards with room (phone ~390 single column, 768 two-col, 1100) keep the original side-by-side layout. */
+.bean-card .tag-row { flex-wrap:wrap; max-height:22px; overflow:hidden; }
+.bean-card .tag-row .tag { flex:none; }
+.bean-card .card-body { container:bean-card-body / inline-size; }
+@container bean-card-body (max-width:229px) {
+  .bean-card .card-bottom { grid-template-columns:minmax(0,1fr); gap:6px; }
+  .bean-card .card-bottom > .tag-row { grid-column:1 / -1; }
+  .bean-card .card-bottom > .compact-meta { display:flex; justify-self:end; align-items:baseline; gap:8px; }
+}
