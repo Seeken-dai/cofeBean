@@ -3505,6 +3505,10 @@ body[data-shell-view="personal"] .profile-button { border-color:var(--accent); b
 
 /* 3.0.12: archived bean card - tags row and archive meta stack (all breakpoints; active cards untouched) */
 .bean-card.is-archived .card-bottom { grid-template-columns:minmax(0,1fr); gap:6px; }
+/* 3.0.12: archive meta single nowrap row - date segment truncates first, cup/rating segment never truncates */
+.bean-archive-meta { flex-wrap:nowrap; min-width:0; }
+.bean-archive-meta > span:first-child { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.bean-archive-meta > span:last-child { flex:none; white-space:nowrap; }
 
 /* 3.0.12: quick drink footer (quick-mode only; full-record dialog untouched).
    <1100: row 1 = assist + edit-full (1fr each; edit-full spans when assist hidden), row 2 = save full width.
@@ -3514,8 +3518,10 @@ body[data-shell-view="personal"] .profile-button { border-color:var(--accent); b
 .drink-dialog.quick-mode .sheet-footer > div > #drinkEditFull { order:2; grid-column:1 / -1; }
 .drink-dialog.quick-mode .sheet-footer > div.has-assist > #drinkEditFull { grid-column:auto; }
 .drink-dialog.quick-mode .sheet-footer > div > #saveDrink { order:3; grid-column:1 / -1; height:48px; min-height:48px; }
-.drink-dialog.quick-mode .assist-footer-button { border-color:var(--border); background:var(--surface-2); color:var(--muted); font-weight:inherit; }
+.drink-dialog.quick-mode .assist-footer-button { border-color:color-mix(in srgb,var(--accent) 48%,var(--vault-line)); background:transparent; color:var(--accent); font-weight:inherit; }
 @media (min-width:1100px) {
+  /* modal dialog has inset-block:0, so height:auto stretches to max-height; fit-content follows content (max-height + internal scroll kept) */
+  .drink-dialog.quick-mode { height:fit-content; min-height:0; }
   .drink-dialog.quick-mode .sheet-footer > div { grid-template-columns:auto 1fr auto; }
   .drink-dialog.quick-mode .sheet-footer > div.has-assist { grid-template-columns:auto 1fr auto auto; }
   .drink-dialog.quick-mode .sheet-footer > div > #drinkEditFull,
