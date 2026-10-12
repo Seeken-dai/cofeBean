@@ -807,6 +807,11 @@
       startCatalogRotator();
     }
 
+    // 从单豆「评分与记录」进来的手冲回顾用临时范围（全部），不写回 state.insightsRange。
+    function brewRange() {
+      return state.insightsPage === 'brew' && state.insightsRangeOverride && RANGE_LABELS[state.insightsRangeOverride] ? state.insightsRangeOverride : state.insightsRange;
+    }
+
     function updatePageFrame() {
       const isBrewReview = state.insightsPage === 'brew';
       const isBeanReview = isBrewReview && Boolean(state.insightsBeanId);
@@ -821,13 +826,13 @@
       dialog.classList.toggle('is-report-list', state.insightsPage === 'reports');
       const isExternalCatalog = isCatalogPage && catalogTab() === 'external';
       if (title) title.textContent = isCatalogPage ? '咖啡图鉴' : isBrewReview ? '手冲回顾' : isReportDetail ? (state.insightsReportType === 'year' ? '咖啡年报' : '咖啡月报') : isReportPage ? '咖啡报告' : '回顾';
-      if (subtitle) subtitle.textContent = isCatalogPage ? (isExternalCatalog ? '走过的咖啡馆，一格一格亮起来' : '喝过的豆子，一格一格亮起来') : isBrewReview ? `${insightsRangeLabel(state.insightsRange)} · 页内回看你的冲煮习惯` : isReportPage ? '只看已经走完的自然月与自然年' : '从每一杯里，慢慢看见自己的口味';
+      if (subtitle) subtitle.textContent = isCatalogPage ? (isExternalCatalog ? '走过的咖啡馆，一格一格亮起来' : '喝过的豆子，一格一格亮起来') : isBrewReview ? `${insightsRangeLabel(brewRange())} · 页内回看你的冲煮习惯` : isReportPage ? '只看已经走完的自然月与自然年' : '从每一杯里，慢慢看见自己的口味';
       if (eyebrow) eyebrow.textContent = isCatalogPage ? (isExternalCatalog ? 'CAFE ATLAS' : 'COFFEE ATLAS') : isBrewReview ? 'POUR-OVER NOTES' : isReportPage ? 'COFFEE REPORT' : 'YOUR COFFEE';
       // 返回箭头已移除：✕ 接管分层返回，所以它的 aria-label 要跟着当前页说清楚会退到哪。
       if (closeButton) {
         const reportDetailFromList = isReportDetail;
         const backToPersonal = (isCatalogPage || state.insightsPage === 'reports' || state.insightsPage === 'home') && state.insightsExitTo === 'personal';
-        closeButton.setAttribute('aria-label', isBeanReview ? '返回手冲回顾' : reportDetailFromList ? '返回咖啡月报与年报' : backToPersonal ? '返回个人中心' : isBrewReview ? '返回回顾首页' : '关闭');
+        closeButton.setAttribute('aria-label', isBeanReview && state.insightsExitTo === 'beanRating' ? '返回评分与记录' : isBeanReview ? '返回手冲回顾' : reportDetailFromList ? '返回咖啡月报与年报' : backToPersonal ? '返回个人中心' : isBrewReview ? '返回回顾首页' : '关闭');
       }
     }
 
@@ -856,8 +861,9 @@
     function renderBrewReview() {
       const settings = state.settings || {};
       const now = new Date();
-      const rangeLabel = insightsRangeLabel(state.insightsRange);
-      const logs = core.filterLogsByRange(state.drinkLogs, state.insightsRange, now);
+      const range = brewRange();
+      const rangeLabel = insightsRangeLabel(range);
+      const logs = core.filterLogsByRange(state.drinkLogs, range, now);
       const options = { advancedRatings: Boolean(settings.advancedRatings), enabledDimensions: settings.enabledDimensions, now };
       if (state.insightsBeanId) {
         const bean = state.beans.find((item) => item && item.id === state.insightsBeanId && !item.deletedAt);
@@ -919,6 +925,7 @@
     // insightsExitTo 必须在这里清掉：否则从个人中心进来后直接关闭，残值会让下一次会话误以为还要回个人中心。
     function close() {
       state.insightsExitTo = null;
+      state.insightsRangeOverride = null;
       state.insightsPage = 'home';
       state.insightsReportType = null;
       state.insightsReportKey = null;
@@ -929,10 +936,14 @@
       setDialog(dialog, false);
     }
 
-    function openBrewReview(beanId) {
+    // options.range：只对这次手冲回顾生效的临时范围；options.exitTo='beanRating'：返回时关掉回顾、露出下面的单豆评分页。
+    function openBrewReview(beanId, options) {
+      const opts = options || {};
       hideHelp();
       state.insightsPage = 'brew';
       state.insightsBeanId = beanId || null;
+      state.insightsRangeOverride = opts.range && RANGE_LABELS[opts.range] ? opts.range : null;
+      if (opts.exitTo) state.insightsExitTo = opts.exitTo;
       render();
       setDialog(dialog, true);
     }
@@ -1002,6 +1013,10 @@
         // 回顾首页：从个人中心进来的退回个人中心，其它入口(主列表)照旧直接关闭。
         if (state.insightsPage === 'home' && state.insightsExitTo === 'personal') { exitInsights(); return true; }
         return false;
+      }
+      if (state.insightsBeanId && state.insightsExitTo === 'beanRating') {
+        close();
+        return true;
       }
       if (state.insightsBeanId) {
         state.insightsBeanId = null;

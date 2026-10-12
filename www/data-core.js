@@ -1626,17 +1626,35 @@
     const ratingOf = (log) => { const n = Number(log && log.overallRating); return Number.isFinite(n) && n > 0 ? n : 0; };
     const rated = rows.filter((log) => ratingOf(log) > 0);
     const scores = rated.map(ratingOf);
-    const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    scores.forEach((score) => { distribution[Math.min(5, Math.max(1, Math.round(score)))] += 1; });
+    // distribution[0] = 1★ … distribution[4] = 5★。overallRating 经 cleanRating 后只会是 1–5 整数；
+    // 直接传进来的原始对象若带小数，四舍五入并夹到 1–5，保证正好 5 档、没有半星。
+    const starOf = (score) => Math.min(5, Math.max(1, Math.round(score)));
+    const distribution = [0, 0, 0, 0, 0];
+    scores.forEach((score) => { distribution[starOf(score) - 1] += 1; });
     const average = scores.length ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length * 10) / 10 : null;
     const latest = rows[0] || null;
     const latestRated = rated[0] || null;
+    // 最高/最低的「次数 + 最近一次」：同分多杯时卡片显示 × n，并指向最近那杯。
+    const extremeInfo = (score) => {
+      if (score == null) return null;
+      const hits = rated.filter((log) => starOf(ratingOf(log)) === score);
+      return { rating: score, count: hits.length, latestLogId: hits[0] ? hits[0].id || null : null, latestAt: hits[0] ? hits[0].consumedAt || null : null };
+    };
+    // 众数取次数最多的星级；并列时取更高的星级（与分布图高亮一致）。
+    let modeRating = null;
+    [5, 4, 3, 2, 1].forEach((star) => { if (distribution[star - 1] && (modeRating == null || distribution[star - 1] > distribution[modeRating - 1])) modeRating = star; });
+    const maxScore = scores.length ? starOf(Math.max(...scores)) : null;
+    const minScore = scores.length ? starOf(Math.min(...scores)) : null;
     return {
       cups: rows.length,
       ratedCount: rated.length,
+      unratedCount: rows.length - rated.length,
+      pendingCount: rows.filter((log) => !ratingOf(log) && log.tastingStatus === 'pending').length,
       average,
-      max: scores.length ? Math.max(...scores) : null,
-      min: scores.length ? Math.min(...scores) : null,
+      max: extremeInfo(maxScore),
+      min: extremeInfo(minScore),
+      modeRating,
+      latest: latest ? { id: latest.id || null, consumedAt: latest.consumedAt || null, overallRating: ratingOf(latest) || null, tastingStatus: latest.tastingStatus || null, brewMethod: latest.brewMethod || '', brewPlanName: latest.brewPlanName || '', source: latest.source || 'home' } : null,
       latestAt: latest ? latest.consumedAt || null : null,
       latestRating: latestRated ? { rating: ratingOf(latestRated), consumedAt: latestRated.consumedAt || null, logId: latestRated.id || null } : null,
       latestUnrated: Boolean(latest && !ratingOf(latest)),
@@ -1645,9 +1663,37 @@
       ratedLogs: rated
     };
   }
+  // 单豆评分子页的两种排序：time = 新→旧；score = 评分高→低，同分新→旧，未评分沉底（内部新→旧）。
+  function sortBeanRatingLogs(logs, mode) {
+    const rows = (Array.isArray(logs) ? logs : []).filter((log) => log && !log.deletedAt).slice().sort((a, b) => compareDrinkChronology(b, a));
+    if (mode !== 'score') return rows;
+    const ratingOf = (log) => { const n = Number(log && log.overallRating); return Number.isFinite(n) && n > 0 ? n : 0; };
+    return rows.map((log, index) => ({ log, index, score: ratingOf(log) }))
+      .sort((a, b) => (b.score - a.score) || (a.index - b.index))
+      .map((row) => row.log);
+  }
+  function ratingMonthKey(log) {
+    const date = new Date(log && log.consumedAt);
+    return Number.isNaN(date.getTime()) ? '' : `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+  }
+  // 分页：先给 target 杯；按时间排时，若第 target 杯与下一杯同月，把这个月补齐，
+  // 但补齐后不超过 target + slack（默认 10，即首屏最多 40 杯），超出则照常在第 target 杯截断。
+  function beanRatingVisibleCount(sortedLogs, target, mode, options) {
+    const rows = Array.isArray(sortedLogs) ? sortedLogs : [];
+    const want = Math.max(0, Math.floor(Number(target) || 0));
+    const n = Math.min(want, rows.length);
+    if (mode === 'score' || n === 0 || n >= rows.length) return n;
+    const slack = options && Number.isFinite(Number(options.slack)) ? Number(options.slack) : 10;
+    const keyOf = options && typeof options.monthKey === 'function' ? options.monthKey : ratingMonthKey;
+    const key = keyOf(rows[n - 1]);
+    if (!key || keyOf(rows[n]) !== key) return n;
+    let end = n;
+    while (end < rows.length && keyOf(rows[end]) === key) end += 1;
+    return end <= want + slack ? end : n;
+  }
   function ratedCupsNote(summary) {
     const cups = Number(summary && summary.cups) || 0; const ratedCount = Number(summary && summary.ratedCount) || 0;
     return ratedCount > 0 && ratedCount < cups ? `其中 ${ratedCount} 杯已评` : '';
   }
-  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, COFFEE_TYPES, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, mergeBrewPlanOverlay, normalizeSettings, hasTastingContent, resolveTastingStatus, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, selectHomeReminder, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, buildAiPlanPrompt, parseAiPlanJson, looksLikeCumulativeStepWaters, splitCumulativeWatersToSegments, cumulativeWatersFromSegments, normalizeStepsWaterToSegments, prepareBrewAssistSteps, brewAssistStatus, resolveOpenedDate, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareAppVersions, isAppVersionNewer, selectReleaseApkAsset, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, FLAVOR_LEXICON, flavorTags, recentFlavorTags, beanFreshness, recentDrinkSeries, compareDrinkChronology, recentCafeNames, recentExternalDrinkNames, previousComparableDrink, beanProcessKind, recentDrinkLocations, beanRatingSummary, ratedCupsNote };
+  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, COFFEE_TYPES, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, mergeBrewPlanOverlay, normalizeSettings, hasTastingContent, resolveTastingStatus, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, selectHomeReminder, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, buildAiPlanPrompt, parseAiPlanJson, looksLikeCumulativeStepWaters, splitCumulativeWatersToSegments, cumulativeWatersFromSegments, normalizeStepsWaterToSegments, prepareBrewAssistSteps, brewAssistStatus, resolveOpenedDate, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareAppVersions, isAppVersionNewer, selectReleaseApkAsset, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, FLAVOR_LEXICON, flavorTags, recentFlavorTags, beanFreshness, recentDrinkSeries, compareDrinkChronology, recentCafeNames, recentExternalDrinkNames, previousComparableDrink, beanProcessKind, recentDrinkLocations, beanRatingSummary, ratedCupsNote, sortBeanRatingLogs, beanRatingVisibleCount, ratingMonthKey };
 });

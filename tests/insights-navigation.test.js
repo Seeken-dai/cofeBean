@@ -99,3 +99,52 @@ test('insights navigation: direct report open from personal card returns to repo
   ui.handleBack();
   assert.equal(getPersonalReopened(), true);
 });
+
+// --- 3.0.12：单豆评分页进入手冲回顾（临时范围「全部」，返回关掉回顾） ---
+function createBrewReviewUi(stateOverrides) {
+  const nodes = new Map();
+  const dialog = fakeElement();
+  dialog.querySelector = (selector) => { if (!nodes.has(selector)) nodes.set(selector, fakeElement()); return nodes.get(selector); };
+  const harness = createInsightsUi({ dialog });
+  Object.assign(harness.state, stateOverrides || {});
+  return { ...harness, node: (selector) => dialog.querySelector(selector) };
+}
+
+function oldHandBrewLogs(beanId) {
+  const daysAgo = (n) => new Date(Date.now() - n * 24 * 60 * 60 * 1000).toISOString();
+  return [40, 42, 45].map((n, i) => ({ id: `hb${i}`, beanId, source: 'home', brewMethod: '手冲', grams: 15, overallRating: 4 + (i % 2), consumedAt: daysAgo(n) }));
+}
+
+test('insights navigation: bean brew review opened with range all renders unlocked content, back closes without touching saved range', () => {
+  const bean = { id: 'bean-old', name: 'Old Bean' };
+  const { ui, state, node } = createBrewReviewUi({ beans: [bean], drinkLogs: oldHandBrewLogs('bean-old'), insightsRange: '30d' });
+  // 默认 30 天范围：40 天前的记录不在范围里，应显示「还在积累」。
+  ui.openBrewReview('bean-old');
+  assert.match(node('#brewReviewContent').innerHTML, /insight-unlock/);
+  ui.close();
+  // 从评分页进入：临时范围 all → 已解锁。
+  ui.openBeanReview('bean-old', { range: 'all', exitTo: 'beanRating' });
+  assert.equal(state.insightsPage, 'brew');
+  assert.equal(state.insightsRangeOverride, 'all');
+  assert.doesNotMatch(node('#brewReviewContent').innerHTML, /insight-unlock/);
+  assert.match(node('#brewReviewContent').innerHTML, /Old Bean/);
+  assert.equal(ui.handleBack(), true);
+  assert.equal(state.insightsPage, 'home');
+  assert.equal(state.insightsExitTo, null);
+  assert.equal(state.insightsRangeOverride, null);
+  assert.equal(state.insightsRange, '30d');
+});
+
+test('insights navigation: bean brew review entered from the global page still steps back to the global page', () => {
+  const bean = { id: 'bean-a', name: 'Bean A' };
+  const { ui, state } = createBrewReviewUi({ beans: [bean], drinkLogs: oldHandBrewLogs('bean-a'), insightsRange: 'all' });
+  ui.openBrewReview();
+  ui.handleClick({ target: { closest: (selector) => (selector === '[data-insights-brew-bean]' ? { dataset: { insightsBrewBean: 'bean-a' } } : null) } });
+  assert.equal(state.insightsBeanId, 'bean-a');
+  assert.equal(state.insightsRangeOverride, null);
+  assert.equal(ui.handleBack(), true);
+  assert.equal(state.insightsPage, 'brew');
+  assert.equal(state.insightsBeanId, null);
+  assert.equal(ui.handleBack(), true);
+  assert.equal(state.insightsPage, 'home');
+});

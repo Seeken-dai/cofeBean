@@ -269,7 +269,7 @@
     </section>
   </dialog>
 
-  <dialog class="sheet detail-sheet" id="detailDialog">
+  <dialog class="sheet detail-sheet" id="detailDialog" data-detail-view="profile">
     <header class="sheet-header detail-header">
       <div><p class="eyebrow">BEAN PROFILE</p><h2 id="detailTitle">咖啡豆详情</h2></div>
       <div class="header-actions"><button class="icon-button" id="detailClose" type="button" aria-label="返回"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg></button><button class="icon-button" id="detailShare" type="button" aria-label="分享咖啡豆"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14V4"/><path d="m8 8 4-4 4 4"/><path d="M5 12v5.5A1.5 1.5 0 0 0 6.5 19h11a1.5 1.5 0 0 0 1.5-1.5V12"/></svg></button><button class="icon-button" id="detailEdit" type="button" aria-label="编辑咖啡豆"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 16.5-.8 4.3 4.3-.8L18.8 8.7l-3.5-3.5L4 16.5Z"/><path d="m13.8 6.7 3.5 3.5"/></svg></button></div>
@@ -292,8 +292,20 @@
       </div>
       <section class="profile-images" id="detailImages" hidden></section>
       <section class="profile-notes detail-section-card" id="detailNotesSection" hidden><span>风味笔记</span></section>
-      <section class="detail-brew-review-entry" id="detailBrewReviewEntry" hidden><button type="button" id="detailBrewReview"><span>查看手冲回顾</span><small id="detailBrewReviewSummary"></small><strong aria-hidden="true">›</strong></button></section>
     </div>
+    <section class="bean-rating-view" id="detailRatingView" role="region" aria-labelledby="detailRatingName" hidden>
+      <div class="bean-rating-intro handbrew-page-intro"><p class="eyebrow">BEAN RATINGS</p><h3 id="detailRatingName"></h3><p class="bean-rating-scope" id="detailRatingScope"></p></div>
+      <div class="bean-rating-top" id="detailRatingTop"><article class="insight-card bean-rating-summary" id="detailRatingSummary"></article><article class="insight-card bean-rating-dist" id="detailRatingDist" role="img"></article></div>
+      <p class="bean-rating-hint" id="detailRatingHint" hidden></p>
+      <section class="bean-rating-empty" id="detailRatingEmpty" hidden></section>
+      <section class="detail-brew-review-entry bean-rating-brew-link" id="detailRatingBrewLink" hidden><button type="button" id="detailRatingBrewReview" aria-label="打开这支豆的手冲回顾"><span>手冲回顾 · 这支豆<small>只看手冲：评分较高的 3 杯与参数范围</small></span><small id="detailRatingBrewSummary"></small><strong aria-hidden="true">›</strong></button></section>
+      <section class="bean-rating-records" id="detailRatingRecords">
+        <div class="section-heading"><div><span>全部记录</span><small id="detailRatingRecordsSummary"></small></div></div>
+        <nav class="insights-range bean-rating-sort" id="detailRatingSort" role="group" aria-label="记录排序"><button type="button" data-rating-sort="time" aria-pressed="true" class="active">按时间</button><button type="button" data-rating-sort="score" aria-pressed="false">按评分</button></nav>
+        <div class="timeline compact-timeline bean-rating-list" id="detailRatingList"></div>
+        <button type="button" class="bean-rating-more" id="detailRatingMore" hidden></button>
+      </section>
+    </section>
   </dialog>
 
   <dialog class="sheet detail-sheet" id="drinkDetailDialog">

@@ -763,7 +763,10 @@ test('beanRatingSummary: rounding, empty and fully-rated cases', () => {
   assert.equal(core.ratedCupsNote(rated), '');
   const empty = core.beanRatingSummary([], 'x');
   assert.deepEqual({ cups: empty.cups, ratedCount: empty.ratedCount, average: empty.average, latestAt: empty.latestAt, max: empty.max, min: empty.min, latestRating: empty.latestRating, latestUnrated: empty.latestUnrated }, { cups: 0, ratedCount: 0, average: null, latestAt: null, max: null, min: null, latestRating: null, latestUnrated: false });
-  assert.deepEqual(empty.distribution, { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 });
+  assert.deepEqual(empty.distribution, [0, 0, 0, 0, 0]);
+  assert.equal(empty.modeRating, null);
+  assert.equal(empty.latest, null);
+  assert.equal(empty.unratedCount, 0);
   assert.deepEqual(empty.logs, []);
   assert.deepEqual(empty.ratedLogs, []);
   assert.equal(core.ratedCupsNote(empty), '');
@@ -785,9 +788,12 @@ test('beanRatingSummary: max/min, distribution, latest rated vs latest cup, newe
   assert.equal(s.cups, 6);
   assert.equal(s.ratedCount, 4);
   assert.equal(s.average, 3.8);
-  assert.equal(s.max, 5);
-  assert.equal(s.min, 2);
-  assert.deepEqual(s.distribution, { 1: 0, 2: 1, 3: 0, 4: 2, 5: 1 });
+  assert.deepEqual(s.max, { rating: 5, count: 1, latestLogId: 'r2', latestAt: '2026-09-02T08:00:00.000Z' });
+  assert.deepEqual(s.min, { rating: 2, count: 1, latestLogId: 'r1', latestAt: '2026-09-01T08:00:00.000Z' });
+  assert.deepEqual(s.distribution, [0, 1, 0, 2, 1]);
+  assert.equal(s.modeRating, 4);
+  assert.equal(s.unratedCount, 2);
+  assert.equal(s.latest.id, 'u1');
   assert.equal(Object.values(s.distribution).reduce((a, b) => a + b, 0), s.ratedCount);
   assert.equal(s.latestAt, '2026-09-06T08:00:00.000Z');
   assert.equal(s.latestUnrated, true);
@@ -805,7 +811,97 @@ test('beanRatingSummary: latest cup rated, legacy non-integer ratings round into
   const s = core.beanRatingSummary(logs, 'b1');
   assert.equal(s.latestUnrated, false);
   assert.deepEqual(s.latestRating, { rating: 3, consumedAt: '2026-09-02T08:00:00.000Z', logId: 'b' });
-  assert.deepEqual(s.distribution, { 1: 0, 2: 0, 3: 1, 4: 0, 5: 1 });
-  assert.equal(s.max, 4.6);
+  assert.deepEqual(s.distribution, [0, 0, 1, 0, 1]);
+  assert.equal(s.max.rating, 5);
+  assert.equal(s.min.rating, 3);
   assert.deepEqual(logs.map((log) => log.id), ['a', 'b']);
+});
+
+// --- 3.0.12 单豆评分子页（DEV_NOTES_FINE §4.2）---
+function ratingLog(id, rating, day, extra) {
+  return Object.assign({ id, beanId: 'rb', overallRating: rating, consumedAt: `2026-08-${String(day).padStart(2, '0')}T08:00:00.000Z` }, extra || {});
+}
+
+test('beanRatingSummary: 12 cups / 9 rated / 1 pending mix', () => {
+  const ratings = [5, 4, 4, 5, 3, 4, 2, 5, 4];
+  const logs = ratings.map((r, i) => ratingLog(`r${i}`, r, i + 1));
+  logs.push(ratingLog('u1', null, 20), ratingLog('u2', null, 21), ratingLog('p1', null, 22, { tastingStatus: 'pending' }));
+  const s = core.beanRatingSummary(logs, 'rb');
+  assert.equal(s.cups, 12);
+  assert.equal(s.ratedCount, 9);
+  assert.deepEqual(s.distribution, [0, 1, 1, 4, 3]);
+  assert.equal(s.modeRating, 4);
+  assert.equal(s.average, 4);
+  assert.equal(Number(s.average).toFixed(1), '4.0');
+  assert.equal(s.unratedCount, 3);
+  assert.equal(s.pendingCount, 1);
+  assert.equal(s.latest.id, 'p1');
+  assert.equal(s.latest.tastingStatus, 'pending');
+  assert.equal(s.latest.overallRating, null);
+});
+
+test('beanRatingSummary: deleted logs excluded from every field', () => {
+  const logs = [ratingLog('a', 3, 1), ratingLog('d', 5, 9, { deletedAt: '2026-08-10T00:00:00.000Z' })];
+  const s = core.beanRatingSummary(logs, 'rb');
+  assert.equal(s.cups, 1);
+  assert.deepEqual(s.distribution, [0, 0, 1, 0, 0]);
+  assert.equal(s.max.rating, 3);
+  assert.equal(s.latest.id, 'a');
+});
+
+test('beanRatingSummary: max/min pick newest among ties; all-equal ratings share counts', () => {
+  const s = core.beanRatingSummary([ratingLog('a', 4, 1), ratingLog('b', 4, 5), ratingLog('c', 4, 3)], 'rb');
+  assert.equal(s.max.rating, s.min.rating);
+  assert.equal(s.max.count, 3);
+  assert.equal(s.min.count, 3);
+  assert.equal(s.max.latestLogId, 'b');
+  assert.equal(s.min.latestLogId, 'b');
+});
+
+test('beanRatingSummary: logs but no ratings; mode tie picks the higher star', () => {
+  const none = core.beanRatingSummary([ratingLog('a', null, 1), ratingLog('b', null, 2)], 'rb');
+  assert.equal(none.ratedCount, 0);
+  assert.equal(none.max, null);
+  assert.equal(none.min, null);
+  assert.equal(none.average, null);
+  assert.notEqual(none.latest, null);
+  const tie = core.beanRatingSummary([4, 4, 4, 5, 5, 5].map((r, i) => ratingLog(`t${i}`, r, i + 1)), 'rb');
+  assert.equal(tie.modeRating, 5);
+});
+
+test('beanRatingSummary: invalid ratings normalize to null; source is not filtered', () => {
+  const bad = [0, 6, 'abc'].map((r, i) => core.normalizeDrinkLog({ id: `x${i}`, beanId: 'rb', overallRating: r, consumedAt: '2026-08-01T08:00:00.000Z', grams: 15 }));
+  bad.forEach((log) => assert.equal(log.overallRating, null));
+  assert.deepEqual(core.beanRatingSummary(bad, 'rb').distribution, [0, 0, 0, 0, 0]);
+  // 不经过 normalize 的外饮原始对象（beanId 指向这支豆）也要计入：锁住「不按 source 过滤」。
+  const s = core.beanRatingSummary([ratingLog('h', 3, 1), ratingLog('e', 5, 2, { source: 'external' })], 'rb');
+  assert.equal(s.cups, 2);
+  assert.equal(s.ratedCount, 2);
+});
+
+test('sortBeanRatingLogs: time newest first; score high to low, ties newest first, unrated last', () => {
+  const logs = [ratingLog('a', 4, 1), ratingLog('b', null, 2), ratingLog('c', 5, 3), ratingLog('d', 4, 4), ratingLog('e', null, 5), ratingLog('gone', 5, 6, { deletedAt: '2026-08-07T00:00:00.000Z' })];
+  assert.deepEqual(core.sortBeanRatingLogs(logs, 'time').map((l) => l.id), ['e', 'd', 'c', 'b', 'a']);
+  assert.deepEqual(core.sortBeanRatingLogs(logs, 'score').map((l) => l.id), ['c', 'd', 'a', 'e', 'b']);
+  assert.deepEqual(logs.map((l) => l.id), ['a', 'b', 'c', 'd', 'e', 'gone']);
+});
+
+test('beanRatingVisibleCount: month fill up to +10, otherwise cut at target', () => {
+  const monthLogs = (counts) => {
+    const out = []; let id = 0;
+    counts.forEach(([month, n]) => { for (let i = 0; i < n; i += 1) out.push({ id: `m${id += 1}`, consumedAt: `2026-${String(month).padStart(2, '0')}-${String(28 - (i % 27)).padStart(2, '0')}T08:00:00.000Z` }); });
+    return out;
+  };
+  const a = monthLogs([[9, 22], [8, 15], [7, 20]]);
+  assert.equal(core.beanRatingVisibleCount(a, 30, 'time'), 37);
+  const b = monthLogs([[9, 22], [8, 26], [7, 5]]);
+  assert.equal(core.beanRatingVisibleCount(b, 30, 'time'), 30);
+  assert.equal(core.beanRatingVisibleCount(a, 30, 'score'), 30);
+  assert.equal(core.beanRatingVisibleCount(a.slice(0, 25), 30, 'time'), 25);
+  // 下一批 target = 当前 visible + 30 = 67：第 67 杯与第 68 杯不同月时直接截断，同月则补齐。
+  const c = monthLogs([[9, 22], [8, 15], [7, 30], [6, 8]]);
+  assert.equal(core.beanRatingVisibleCount(c, 30, 'time'), 37);
+  assert.equal(core.beanRatingVisibleCount(c, 67, 'time'), 67);
+  const d = monthLogs([[9, 22], [8, 15], [7, 35], [6, 8]]);
+  assert.equal(core.beanRatingVisibleCount(d, 67, 'time'), 72);
 });
