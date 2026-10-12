@@ -323,6 +323,10 @@
       if (isContextDetail(dialog) && appShell && appShell.isWide()) dialog.dataset.contextPresentation = 'split';
       else if (isWideSidePage(dialog) && appShell && appShell.isWide()) dialog.dataset.contextPresentation = 'page';
       else delete dialog.dataset.contextPresentation;
+      // 宽屏侧页与右栏详情同为非模态、同一 z-index，DOM 靠后的详情会盖住侧页。侧页在详情打开期间
+      // 被打开（如评分页 → 手冲回顾）时，它是最新的一层，必须画在详情之上。
+      if (dialog.dataset.contextPresentation === 'page' && [els.detail, els.drinkDetail, els.planDetail].some((item) => item && item !== dialog && item.open)) dialog.dataset.layerOverDetail = '';
+      else delete dialog.dataset.layerOverDetail;
       if (appShell) appShell.layerOpened(dialog);
       syncDialogScrim();
       return;
@@ -1240,7 +1244,13 @@
     const target = returnFocus ? $(returnFocus) : null; if (target && !target.hidden) target.focus({ preventScroll: true });
     return true;
   }
-  function detailBack() { if (!closeBeanRating()) setDialog(els.detail, false); }
+  // 从评分页打开的手冲回顾是更上面的一层：返回先关它（与 Android 返回的 BACK_PRIORITY 一致）。
+  function closeBeanReviewLayer() {
+    if (!els.insights.open || state.insightsExitTo !== 'beanRating') return false;
+    insightsUi.handleBack();
+    return true;
+  }
+  function detailBack() { if (closeBeanReviewLayer()) return; if (!closeBeanRating()) setDialog(els.detail, false); }
   function beanRatingLogs(beanId) { return state.drinkLogs.filter((log) => log.beanId === beanId && !log.deletedAt); }
   function ratingLogLabel(log) { return log ? (log.brewPlanName || log.brewMethod || (log.source === 'external' ? '外饮' : '自家冲煮')) : ''; }
   function ratingFact(label, value, caption) { return `<div class="bean-rating-fact"><span>${esc(label)}</span><strong>${value}</strong><small>${esc(caption)}</small></div>`; }
@@ -1314,8 +1324,8 @@
     const remaining = sorted.length - shown;
     const more = $('#detailRatingMore');
     more.hidden = remaining <= 0;
-    // R < 30 时直接说「再看剩下 R 杯」（PM 定稿）；R = 0 隐藏。
-    more.textContent = remaining <= 0 ? '' : remaining < BEAN_RATING_STEP ? `再看剩下 ${remaining} 杯` : `再看 ${BEAN_RATING_STEP} 杯 · 还剩 ${remaining} 杯`;
+    // R ≤ 30 时直接说「再看剩下 R 杯」（PM 定稿）；R = 0 隐藏。
+    more.textContent = BeanCore.beanRatingMoreLabel(remaining, BEAN_RATING_STEP);
     if (remaining > 0) more.setAttribute('aria-label', more.textContent); else more.removeAttribute('aria-label');
   }
   function setBeanRatingSort(sort) {
@@ -1337,7 +1347,7 @@
     const sortButton = event.target.closest('[data-rating-sort]');
     if (sortButton) { if (sortButton.getAttribute('aria-disabled') !== 'true') setBeanRatingSort(sortButton.dataset.ratingSort); return; }
     if (event.target.closest('#detailRatingMore')) { state.beanRating.visible = state.beanRating.shown + BEAN_RATING_STEP; renderBeanRatingList(); return; }
-    if (event.target.closest('#detailRatingBrewReview')) { const beanId = state.beanRating.beanId; if (state.beans.some((bean) => bean.id === beanId && !bean.deletedAt)) insightsUi.openBeanReview(beanId, { range: 'all', exitTo: 'beanRating' }); return; }
+    if (event.target.closest('#detailRatingBrewReview')) { const beanId = state.beanRating.beanId; if (state.beans.some((bean) => bean.id === beanId && !bean.deletedAt)) { insightsUi.openBeanReview(beanId, { range: 'all', exitTo: 'beanRating' }); const close = $('#insightsClose'); if (close) close.focus({ preventScroll: true }); } return; }
     const emptyAction = event.target.closest('[data-rating-empty]');
     if (emptyAction) { const bean = state.beans.find((item) => item.id === state.beanRating.beanId); if (bean) openDrinkDialog(bean, null, emptyAction.dataset.ratingEmpty === 'quick' ? 'quick' : 'full'); return; }
     if (event.target.closest('#detailRatingList')) openRatingListLog(event);
@@ -3022,6 +3032,9 @@
     // 宽屏右栏是非模态 show()，Esc 不会触发 cancel；子页开着时 Esc 先退回 profile。手机模态走 cancel。
     els.detail.addEventListener('keydown', (event) => { if (event.key !== 'Escape' || !isBeanRatingOpen()) return; let modal = false; try { modal = els.detail.matches(':modal'); } catch (error) { modal = false; } if (!modal && closeBeanRating()) event.preventDefault(); });
     els.detail.addEventListener('cancel', (event) => { if (closeBeanRating()) event.preventDefault(); });
+    // 宽屏非模态的手冲回顾（从评分页进入）同样没有原生 cancel：Esc 关掉回顾、回到评分页。其它入口的宽屏 Esc 行为不变。
+    els.insights.addEventListener('keydown', (event) => { if (event.key !== 'Escape' || state.insightsExitTo !== 'beanRating') return; let modal = false; try { modal = els.insights.matches(':modal'); } catch (error) { modal = false; } if (modal) return; event.preventDefault(); insightsUi.handleBack(); });
+    els.insights.addEventListener('close', () => { if (isBeanRatingOpen() && els.detail.open) { const link = $('#detailRatingBrewReview'); if (link && !$('#detailRatingBrewLink').hidden) link.focus({ preventScroll: true }); } });
     attachLongPress(els.calendar, '[data-log-id]', longPressDeleteDrink);
     els.drinkDetail.addEventListener('close', () => markListSelection($('#globalDrinkList'), '.drink-entry', 'data-log-id', null));
     $('#brewPlanList').addEventListener('click', (event) => { if (cardPressFired) { cardPressFired = false; return; } const start = event.target.closest('[data-plan-start-id]'); if (start) { event.stopPropagation(); state.viewingPlanId = start.dataset.planStartId; return openPlanBrewAssist(); } const card = event.target.closest('[data-plan-id]'); if (card) openPlanDetail(state.brewPlans.find((plan) => plan.id === card.dataset.planId)); });

@@ -905,3 +905,11 @@ test('beanRatingVisibleCount: month fill up to +10, otherwise cut at target', ()
   const d = monthLogs([[9, 22], [8, 15], [7, 35], [6, 8]]);
   assert.equal(core.beanRatingVisibleCount(d, 67, 'time'), 72);
 });
+
+test('beanRatingMoreLabel: R <= 30 reads remaining, R > 30 reads next batch, 0 hides', () => {
+  assert.equal(core.beanRatingMoreLabel(0, 30), '');
+  assert.equal(core.beanRatingMoreLabel(17, 30), '再看剩下 17 杯');
+  assert.equal(core.beanRatingMoreLabel(30, 30), '再看剩下 30 杯');
+  assert.equal(core.beanRatingMoreLabel(31, 30), '再看 30 杯 · 还剩 31 杯');
+  assert.equal(core.beanRatingMoreLabel(91, 30), '再看 30 杯 · 还剩 91 杯');
+});

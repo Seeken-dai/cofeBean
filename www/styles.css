@@ -3552,6 +3552,8 @@ body[data-shell-view="personal"] .profile-button { border-color:var(--accent); b
 .bean-rating-corner { position:absolute; top:7px; right:8px; color:var(--accent); font-size:11px; font-style:normal; line-height:1; }
 
 #detailDialog[data-detail-view="ratings"] .bean-profile { display:none; }
+/* 宽屏：在右栏详情打开期间打开的侧页（评分页 → 手冲回顾）是最新一层，画在详情之上。 */
+dialog[data-context-presentation="page"][data-layer-over-detail] { z-index:81; }
 .bean-rating-view { container:bean-rating / inline-size; padding:calc(84px + var(--native-safe-top, env(safe-area-inset-top,0px))) 18px calc(28px + env(safe-area-inset-bottom,0px)); animation:bean-rating-in var(--motion-page) var(--ease-enter) both; }
 .bean-rating-view[hidden] { display:none; }
 @keyframes bean-rating-in { from { opacity:0; transform:translateX(8px); } }
