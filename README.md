@@ -11,7 +11,7 @@
   <p>
     <a href="https://cofevault.top/"><img src="https://img.shields.io/badge/官网-cofevault.top-8B5A2B?style=flat-square&logo=safari&logoColor=white" alt="Official Website" /></a>
     <a href="https://app.cofevault.top/"><img src="https://img.shields.io/badge/Web_App-app.cofevault.top-6F4E37?style=flat-square&logo=pwa&logoColor=white" alt="Web PWA" /></a>
-    <a href="https://github.com/Seeken-dai/cofeBean/releases/latest"><img src="https://img.shields.io/badge/Release-v3.0.12-2D6A4F?style=flat-square&logo=android&logoColor=white" alt="Latest Release" /></a>
+    <a href="https://github.com/Seeken-dai/cofeBean/releases/latest"><img src="https://img.shields.io/badge/Release-v3.0.13-2D6A4F?style=flat-square&logo=android&logoColor=white" alt="Latest Release" /></a>
     <img src="https://img.shields.io/badge/Platform-Android_%7C_Web_PWA-3D405B?style=flat-square" alt="Platform" />
     <img src="https://img.shields.io/badge/Privacy-本地优先_%7C_零广告-D4A373?style=flat-square" alt="Privacy First" />
   </p>
@@ -87,6 +87,7 @@
 - **外饮探索**：记录咖啡馆、饮品名、消费价格、打卡地点，不关联豆仓库存，自动合并入日历开销。
 - **风味手账**：支持上传多张照片，提供多维风味评分雷达图、总评与口感笔记。
 - **单豆评分与记录**：在豆子详情点「平均评分」，查看这支豆的均分、最高 / 最低 / 最近一杯、1–5★ 分布，以及按时间或评分排序的全部记录（分批加载，宽屏在右栏原地打开）。杯数统一按全部未删除记录计算，均分只算已评分的杯并保留一位小数。
+- **快速冲一杯换方案**：快速「喝一杯」的冲煮辅助显示当前方案，点「更换」即可切换；默认与回退只用手冲方案，方案名完全按输入保留。
 
 ### 03 ⏱️ 冲煮方案与分段辅助计时
 - **冲煮方案库**：按手冲、意式、冷萃、法压、爱乐压等方式管理参数（粉水比、研磨度、水温、器具设备）。
