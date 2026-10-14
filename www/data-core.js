@@ -879,27 +879,9 @@
     return { total: list.length, boundBeans: beanIds.size, recent };
   }
 
-  // 展示用短名：方案绑定/用于某豆时，若 name 以豆名开头则剥掉前缀与分隔符（·/•/-/—/空格）。
-  // 不改库存 name；详情页全名、编辑器仍用 plan.name。
-  function planDisplayName(plan, beanOrName, options) {
-    const opts = options || {};
-    const raw = cleanText(plan && plan.name, 120) || '未命名方案';
-    const bean = beanOrName && typeof beanOrName === 'object' ? beanOrName : null;
-    const beanName = cleanText(bean ? bean.name : beanOrName, 120);
-    if (!beanName) return raw;
-    const bound = Array.isArray(plan && plan.beanIds) && bean && bean.id
-      ? plan.beanIds.includes(bean.id)
-      : Boolean(opts.bound);
-    // 用于某豆（喝一杯 / 统计上下文）或已绑定该豆时才剥前缀，避免误伤同名无关方案。
-    if (!bound && !opts.forBean) return raw;
-    const compact = (s) => String(s || '').replace(/\s+/g, '');
-    const full = compact(raw);
-    const prefix = compact(beanName);
-    if (!prefix || prefix.length < 2 || !full.startsWith(prefix)) return raw;
-    let rest = full.slice(prefix.length).replace(/^[·•\-—_/|]+/, '');
-    // 剥完后太短或与豆名几乎一样 → 保留全名，避免只剩「手冲」之类无辨识度的尾巴时误伤。
-    if (!rest || rest.length < 2) return raw;
-    return rest;
+  // 展示名 = 用户输入的原名，不做任何清洗/剥前缀（产品决定：方案名保持原样）。
+  function planDisplayName(plan) {
+    return (plan && typeof plan.name === 'string' && plan.name.trim()) ? plan.name : '未命名方案';
   }
 
   function recommendBrewPlans(plans, beanId, method) {

@@ -2403,7 +2403,9 @@
     }
     if (last && last.brewPlanId) {
       const plan = state.brewPlans.find((item) => item.id === last.brewPlanId && !item.deletedAt);
-      if (plan) return { planId: plan.id, source: last.brewPlanSnapshot || plan, kind: 'last-plan' };
+      // 快捷模式：上次方案必须仍是可辅助的手冲方案，否则不作为默认。
+      const usable = plan && (!opts.preferBound || (plan.brewMethod === '手冲' && BeanCore.prepareBrewAssistSteps(plan.steps).length > 0));
+      if (usable) return { planId: plan.id, source: last.brewPlanSnapshot || plan, kind: 'last-plan' };
     }
     if (last && last.brewPlanSnapshot && BeanCore.prepareBrewAssistSteps(last.brewPlanSnapshot.steps || []).length > 0) {
       return { planId: '', source: last.brewPlanSnapshot, kind: 'last-snap' };

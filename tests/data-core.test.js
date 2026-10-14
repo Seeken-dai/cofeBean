@@ -915,22 +915,11 @@ test('beanRatingMoreLabel: R <= 30 reads remaining, R > 30 reads next batch, 0 h
 });
 
 
-test('planDisplayName: strips leading bean prefix when bound / forBean', () => {
+test('planDisplayName: returns the name exactly as entered (no prefix strip, no space removal)', () => {
   const bean = { id: 'b1', name: '凤来仪·茉莉' };
-  const plan = { name: '凤来仪·茉莉清爽手冲', beanIds: ['b1'] };
-  assert.equal(core.planDisplayName(plan, bean, { bound: true }), '清爽手冲');
-  assert.equal(core.planDisplayName({ name: '云南红酒日晒·清爽果香手冲', beanIds: ['b1'] }, { id: 'b1', name: '云南红酒日晒' }, { bound: true }), '清爽果香手冲');
-  assert.equal(core.planDisplayName({ name: '罕贝拉水洗中烘V60·平衡甜感', beanIds: ['b1'] }, { id: 'b1', name: '罕贝拉水洗中烘' }, { forBean: true }), 'V60·平衡甜感');
-  // separators and spaces
-  assert.equal(core.planDisplayName({ name: '金菠萝 - 明亮花果', beanIds: ['b1'] }, { id: 'b1', name: '金菠萝' }, { bound: true }), '明亮花果');
-  assert.equal(core.planDisplayName({ name: '金菠萝  V60清甜', beanIds: ['b1'] }, { id: 'b1', name: '金菠萝' }, { bound: true }), 'V60清甜');
-});
-
-test('planDisplayName: keeps full name when not bound, short rest, or no match', () => {
-  const bean = { id: 'b1', name: '花魁 7.0' };
-  assert.equal(core.planDisplayName({ name: '花魁 7.0·日常', beanIds: [] }, bean), '花魁 7.0·日常');
-  assert.equal(core.planDisplayName({ name: '花魁 7.0·日常', beanIds: ['b2'] }, bean, { bound: true }), '花魁 7.0·日常');
-  assert.equal(core.planDisplayName({ name: '花魁 7.0', beanIds: ['b1'] }, bean, { bound: true }), '花魁 7.0');
-  assert.equal(core.planDisplayName({ name: 'V60·明亮花果', beanIds: ['b1'] }, bean, { bound: true }), 'V60·明亮花果');
-  assert.equal(core.planDisplayName({ name: '未命名方案' }, null), '未命名方案');
+  assert.equal(core.planDisplayName({ name: '凤来仪·茉莉清爽手冲', beanIds: ['b1'] }, bean, { bound: true }), '凤来仪·茉莉清爽手冲');
+  assert.equal(core.planDisplayName({ name: 'V60 甜感优先', beanIds: ['b1'] }, bean, { forBean: true }), 'V60 甜感优先');
+  assert.equal(core.planDisplayName({ name: '金菠萝  V60清甜' }, null), '金菠萝  V60清甜');
+  assert.equal(core.planDisplayName({ name: '' }, null), '未命名方案');
+  assert.equal(core.planDisplayName(null), '未命名方案');
 });
