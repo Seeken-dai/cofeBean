@@ -3543,6 +3543,8 @@ body[data-shell-view="personal"] .profile-button { border-color:var(--accent); b
 .drink-dialog:not(.quick-mode) .assist-footer-sub,
 .drink-dialog:not(.quick-mode) #drinkAssistChange { display:none; }
 .drink-dialog:not(.quick-mode) #drinkAssistCluster { display:contents; }
+.drink-dialog:not(.quick-mode) .assist-footer-copy,
+.drink-dialog:not(.quick-mode) .assist-footer-main { display:contents; font-weight:inherit; line-height:inherit; }
 .drink-plan-switch-list { display:grid; grid-template-columns:minmax(0,1fr); gap:8px; min-width:0; padding:4px 12px 12px; }
 .drink-plan-switch-list button {
   position:relative; display:flex; flex-direction:column; align-items:stretch; justify-content:center; gap:2px;
