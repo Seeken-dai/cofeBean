@@ -1157,7 +1157,7 @@ html.number-picker-open { overflow:hidden; }
 .drink-plan-options .drink-plan-secondary { display:block; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--faint); font-size:9px; font-weight:500; line-height:1.3; }
 .drink-plan-options .drink-plan-badges { position:absolute; top:6px; right:6px; display:inline-flex; flex-wrap:wrap; justify-content:flex-end; gap:3px; max-width:46%; pointer-events:none; }
 .drink-plan-options .drink-plan-badges i { padding:2px 5px; border:1px solid color-mix(in srgb,var(--accent) 45%,var(--border)); border-radius:999px; color:var(--accent); font-size:8px; font-style:normal; font-weight:700; background:color-mix(in srgb,var(--surface) 88%,transparent); }
-.drink-plan-options button.has-badges .drink-plan-primary { padding-right:4px; }
+.drink-plan-options button.has-badges .drink-plan-primary { padding-right:68px; }
 .drink-plan-options em { display:inline-flex; gap:4px; margin-left:6px; vertical-align:middle; font-style:normal; }
 .drink-plan-options i { padding:2px 5px; border:1px solid color-mix(in srgb,var(--accent) 45%,var(--border)); border-radius:999px; color:var(--accent); font-size:8px; font-style:normal; font-weight:700; }
 .assist-entry { display:grid; grid-template-columns:1fr auto; align-items:center; gap:10px; min-height:48px; margin-top:8px; padding:10px 12px; border:1px solid color-mix(in srgb,var(--accent) 58%,var(--border)); border-radius:var(--radius-control); background:color-mix(in srgb,var(--accent) 10%,var(--surface)); color:var(--accent); text-align:left; }
@@ -3550,7 +3550,7 @@ body[data-shell-view="personal"] .profile-button { border-color:var(--accent); b
 .drink-plan-switch-list .drink-plan-secondary { display:block; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--vault-ink-tertiary); font-size:10px; }
 .drink-plan-switch-list .drink-plan-badges { position:absolute; top:8px; right:8px; display:inline-flex; flex-wrap:wrap; justify-content:flex-end; gap:3px; max-width:46%; pointer-events:none; }
 .drink-plan-switch-list .drink-plan-badges i { padding:2px 5px; border:1px solid color-mix(in srgb,var(--accent) 45%,var(--border)); border-radius:999px; color:var(--accent); font-size:8px; font-style:normal; font-weight:700; background:color-mix(in srgb,var(--surface) 88%,transparent); }
-.drink-plan-switch-list button.has-badges .drink-plan-primary { padding-right:4px; }
+.drink-plan-switch-list button.has-badges .drink-plan-primary { padding-right:68px; }
 
 /* 3.0.12: quick drink footer (quick-mode only; full-record dialog untouched).
    <1100: row 1 = assist + edit-full (1fr each; edit-full spans when assist hidden), row 2 = save full width.

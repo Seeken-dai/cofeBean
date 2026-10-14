@@ -2488,7 +2488,7 @@
       if (bean && plan.beanIds.includes(bean.id)) badges.push('已绑定');
       if (plan.source === 'preset') badges.push('预置');
       const badgeHtml = badges.length ? `<span class="drink-plan-badges">${badges.map((tag) => `<i>${esc(tag)}</i>`).join('')}</span>` : '';
-      const title = (plan.name && String(plan.name).trim()) ? plan.name : '未命名方案';
+      const title = BeanCore.planDisplayName(plan, bean, { forBean: true, bound: Boolean(bean && plan.beanIds.includes(bean.id)) });
       return `<button type="button" data-drink-plan="${esc(plan.id)}" class="${plan.id === currentId ? 'active' : ''}${badges.length ? ' has-badges' : ''}" title="${esc(plan.name)}"><span class="drink-plan-primary">${esc(title)}</span><small class="drink-plan-secondary">${esc(planBindSecondary(plan, bean && bean.id))}</small>${badgeHtml}</button>`;
     }).join('');
     const lastManualButton = lastManual ? `<button type="button" class="drink-plan-action has-badges" data-use-last-brew="${esc(last.id)}"><span class="drink-plan-primary">上次手填参数</span><small class="drink-plan-secondary">${esc(formatDateTime(last.consumedAt))}</small><span class="drink-plan-badges"><i>上次</i></span></button>` : '';
