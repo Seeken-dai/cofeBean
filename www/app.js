@@ -43,7 +43,7 @@
   let subjectCropJob = 0;
   let beanImagesToDelete = [];
   const previousStats = new Map();
-  const els = { list: $('#beanList'), empty: $('#emptyState'), count: $('#recordCount'), searchPanel: $('#searchPanel'), search: $('#searchInput'), beanFilter: $('#beanFilterDialog'), personal: $('#personalView'), backup: $('#dataBackupDialog'), calendar: $('#coffeeCalendarDialog'), insights: $('#insightsDialog'), detail: $('#detailDialog'), drinkDetail: $('#drinkDetailDialog'), planDetail: $('#planDetailDialog'), planEditor: $('#planEditorDialog'), editor: $('#editorDialog'), form: $('#beanForm'), planForm: $('#planForm'), drink: $('#drinkDialog'), drinkForm: $('#drinkForm'), brewAssist: $('#brewAssistDialog'), choice: $('#choiceDialog'), datePicker: $('#datePickerDialog'), photoSource: $('#photoSourceDialog'), scanImage: $('#scanImageDialog'), imagePreview: $('#imagePreviewDialog'), shareChoice: $('#shareImageChoiceDialog'), drinkShareChoice: $('#drinkShareChoiceDialog'), planShareChoice: $('#planShareChoiceDialog'), planImport: $('#planImportDialog'), manager: $('#smartManagerDialog'), settings: $('#settingsDialog'), sync: $('#syncDialog'), syncAuth: $('#syncAuthDialog'), about: $('#aboutDialog'), migration: $('#migrationDialog'), confirm: $('#confirmDialog'), sharePreview: $('#sharePreviewDialog'), toast: $('#toast'), scanResult: $('#scanResult') };
+  const els = { list: $('#beanList'), empty: $('#emptyState'), count: $('#recordCount'), searchPanel: $('#searchPanel'), search: $('#searchInput'), beanFilter: $('#beanFilterDialog'), personal: $('#personalView'), backup: $('#dataBackupDialog'), calendar: $('#coffeeCalendarDialog'), insights: $('#insightsDialog'), detail: $('#detailDialog'), drinkDetail: $('#drinkDetailDialog'), planDetail: $('#planDetailDialog'), planEditor: $('#planEditorDialog'), editor: $('#editorDialog'), form: $('#beanForm'), planForm: $('#planForm'), drink: $('#drinkDialog'), drinkForm: $('#drinkForm'), brewAssist: $('#brewAssistDialog'), choice: $('#choiceDialog'), drinkAssistPlan: $('#drinkAssistPlanSheet'), datePicker: $('#datePickerDialog'), photoSource: $('#photoSourceDialog'), scanImage: $('#scanImageDialog'), imagePreview: $('#imagePreviewDialog'), shareChoice: $('#shareImageChoiceDialog'), drinkShareChoice: $('#drinkShareChoiceDialog'), planShareChoice: $('#planShareChoiceDialog'), planImport: $('#planImportDialog'), manager: $('#smartManagerDialog'), settings: $('#settingsDialog'), sync: $('#syncDialog'), syncAuth: $('#syncAuthDialog'), about: $('#aboutDialog'), migration: $('#migrationDialog'), confirm: $('#confirmDialog'), sharePreview: $('#sharePreviewDialog'), toast: $('#toast'), scanResult: $('#scanResult') };
   const appShell = window.AppShell.create({
     document,
     window,
@@ -630,7 +630,11 @@
     const plans = brewPlansEnabled() ? state.brewPlans.filter((plan) => !plan.deletedAt && searchIncludes([plan.name, plan.brewMethod, plan.notes, plan.grinder], query)) : [];
     const beanRows = beans.slice(0, 5).map((bean) => `<button class="search-result-row" type="button" data-search-bean="${esc(bean.id)}"><i class="search-result-mark">${esc((bean.name || '豆').slice(0, 1))}</i><span><b>${esc(bean.name || '未命名咖啡豆')}</b><small>${esc([bean.origin, bean.process, bean.remainingWeight != null ? formatWeight(bean.remainingWeight) : ''].filter(Boolean).join(' · '))}</small></span><strong aria-hidden="true">›</strong></button>`).join('');
     const logRows = logs.slice(0, 5).map((log) => `<button class="search-result-row" type="button" data-search-log="${esc(log.id)}"><i class="search-result-mark is-drink">杯</i><span><b>${esc(log.source === 'external' ? (log.drinkName || log.cafeName || log.beanName) : log.beanName)}</b><small>${esc([formatDateTime(log.consumedAt), log.source === 'external' ? '外饮' : log.brewMethod, log.overallRating ? `${log.overallRating}★` : ''].filter(Boolean).join(' · '))}</small></span><strong aria-hidden="true">›</strong></button>`).join('');
-    const planRows = plans.slice(0, 5).map((plan) => `<button class="search-result-row" type="button" data-search-plan="${esc(plan.id)}"><i class="search-result-mark is-plan">方</i><span><b>${esc(plan.name)}</b><small>${esc([plan.brewMethod, plan.ratio, plan.waterTemp ? String(plan.waterTemp).includes('°') ? plan.waterTemp : `${plan.waterTemp}°C` : ''].filter(Boolean).join(' · '))}</small></span><strong aria-hidden="true">›</strong></button>`).join('');
+    const planRows = plans.slice(0, 5).map((plan) => {
+      const onlyBean = plan.beanIds.length === 1 ? state.beans.find((bean) => bean.id === plan.beanIds[0]) : null;
+      const label = BeanCore.planDisplayName(plan, onlyBean, { bound: Boolean(onlyBean) });
+      return `<button class="search-result-row" type="button" data-search-plan="${esc(plan.id)}" title="${esc(plan.name)}"><i class="search-result-mark is-plan">方</i><span><b>${esc(label)}</b><small>${esc([plan.brewMethod, plan.ratio, plan.waterTemp ? String(plan.waterTemp).includes('°') ? plan.waterTemp : `${plan.waterTemp}°C` : ''].filter(Boolean).join(' · '))}</small></span><strong aria-hidden="true">›</strong></button>`;
+    }).join('');
     const total = beans.length + logs.length + plans.length;
     host.innerHTML = total ? searchResultGroup('豆子', beans.length, beanRows) + searchResultGroup('饮用记录', logs.length, logRows) + searchResultGroup('冲煮方案', plans.length, planRows) : '<div class="search-no-result"><i aria-hidden="true">⌕</i><h2>没有找到结果</h2><p>换个豆名、产地、店铺或冲煮方式试试。</p></div>';
   }
@@ -918,7 +922,15 @@
     const popular = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
     $('#planTotal').textContent = state.brewPlans.length;
     $('#planMethods').textContent = methods.size;
-    $('#planPopular').textContent = popular ? popular[0].slice(0, 6) : '—';
+    // 3.0.13：不再 slice(0,6)；完整方案名交给 CSS ellipsis，绑定单豆时用短名。
+    let popularLabel = '';
+    if (popular) {
+      const hit = state.brewPlans.find((plan) => !plan.deletedAt && plan.name === popular[0]);
+      const onlyBean = hit && hit.beanIds.length === 1 ? state.beans.find((bean) => bean.id === hit.beanIds[0]) : null;
+      popularLabel = onlyBean ? BeanCore.planDisplayName(hit, onlyBean, { bound: true }) : popular[0];
+    }
+    $('#planPopular').textContent = popularLabel || '—';
+    $('#planPopular').title = popular ? popular[0] : '';
     renderPlanMethodFilters([...methods]);
     const q = String(state.query || '').trim().toLocaleLowerCase('zh-CN');
     const methodFiltered = state.brewPlans.filter(planMatchesMethod);
@@ -941,13 +953,15 @@
     return state.planMethod === '全部' || plan.brewMethod === state.planMethod;
   }
   function planCardTemplate(plan, recentUses) {
-    const bound = plan.beanIds.length ? `${plan.beanIds.length} 款豆` : '未绑定豆子';
+    const onlyBean = plan.beanIds.length === 1 ? state.beans.find((bean) => bean.id === plan.beanIds[0]) : null;
+    const displayName = BeanCore.planDisplayName(plan, onlyBean, { bound: Boolean(onlyBean) });
+    const bindLine = planListBindSecondary(plan);
     const facts = planFactList(plan).slice(0, 4).map((item) => `<span><b>${esc(item.value)}</b><small>${esc(item.label)}</small></span>`).join('');
     const steps = BeanCore.prepareBrewAssistSteps(plan.steps);
     const total = steps.length ? Math.max(1, steps[steps.length - 1].end) : 0;
     const stageBar = steps.length ? `<div class="plan-stage-bar" aria-label="${steps.length} 个冲煮阶段">${steps.map((step) => `<i style="--stage-width:${Math.max(8, Math.round(step.duration / total * 100))}" title="${esc(step.label)}"></i>`).join('')}</div>` : '';
     const direct = plan.brewMethod === '手冲' && steps.length ? `<button class="plan-card-start" data-plan-start-id="${esc(plan.id)}" type="button">冲这个 <span aria-hidden="true">→</span></button>` : '<span class="plan-card-open">查看方案 <span aria-hidden="true">›</span></span>';
-    return `<article class="plan-card" data-plan-id="${esc(plan.id)}" tabindex="0" role="button" aria-label="查看 ${esc(plan.name)}"><div class="plan-card-head"><div><h3>${esc(plan.name)}</h3><p class="plan-card-meta"><span class="method-label">${brewIcon(plan.brewMethod)}${esc(plan.brewMethod)}</span><span>v${esc(plan.version)}</span><span>${esc(bound)}</span></p></div>${plan.source === 'preset' ? '<span class="tag status">预置</span>' : ''}</div><div class="plan-card-facts">${facts || '<span><b>—</b><small>等待补充参数</small></span>'}</div>${stageBar}<footer class="plan-card-footer"><small>${recentUses ? `近 30 天用过 ${recentUses} 次` : '还没有近期使用记录'}</small>${direct}</footer></article>`;
+    return `<article class="plan-card" data-plan-id="${esc(plan.id)}" tabindex="0" role="button" aria-label="查看 ${esc(plan.name)}"><div class="plan-card-head"><div><h3 title="${esc(plan.name)}">${esc(displayName)}</h3><p class="plan-card-bind">${esc(bindLine)}</p><p class="plan-card-meta"><span class="method-label">${brewIcon(plan.brewMethod)}${esc(plan.brewMethod)}</span><span>v${esc(plan.version)}</span></p></div>${plan.source === 'preset' ? '<span class="tag status">预置</span>' : ''}</div><div class="plan-card-facts">${facts || '<span><b>—</b><small>等待补充参数</small></span>'}</div>${stageBar}<footer class="plan-card-footer"><small>${recentUses ? `近 30 天用过 ${recentUses} 次` : '还没有近期使用记录'}</small>${direct}</footer></article>`;
   }
   function planFactList(plan, methodOverride) {
     const method = methodOverride || plan.brewMethod;
@@ -969,6 +983,21 @@
       ].filter(Boolean).join(' · ') || '未记录'
     }));
   }
+  function planListBindSecondary(plan) {
+    const names = beanNames(plan.beanIds);
+    if (!plan.beanIds.length) return '未绑定豆子';
+    if (!names.length) return plan.beanIds.length === 1 ? '绑定 · 已删除的豆子' : `绑定 · 已删除等 ${plan.beanIds.length} 款`;
+    if (names.length === 1) return `绑定 · ${names[0]}`;
+    return `绑定 · ${names[0]} 等 ${names.length} 款`;
+  }
+  function planBindSecondary(plan, beanId) {
+    const ids = plan.beanIds || [];
+    const n = ids.length;
+    if (beanId && n === 1 && ids[0] === beanId) return '专属这支豆';
+    if (beanId && ids.includes(beanId) && n > 1) return `已绑这支 · 另 ${n - 1} 款`;
+    return `${plan.brewMethod || '方案'} · v${plan.version || 1}`;
+  }
+
   function drinkParamSummary(snapshot, method) {
     const facts = planFactList(snapshot, method);
     const main = facts.slice(0, 4);
@@ -1189,7 +1218,7 @@
   function renderDetailPlans(bean) {
     const plans = state.brewPlans.filter((plan) => !plan.deletedAt && Array.isArray(plan.beanIds) && plan.beanIds.includes(bean.id));
     $('#detailPlanLinks').hidden = !plans.length;
-    $('#detailPlanLinkList').innerHTML = plans.map((plan) => `<button type="button" data-detail-plan="${esc(plan.id)}"><span><b>${esc(plan.name)}</b><small>${esc([plan.brewMethod, plan.dose ? formatWeight(plan.dose) : '', plan.ratio].filter(Boolean).join(' · '))}</small></span><strong>冲这个 ›</strong></button>`).join('');
+    $('#detailPlanLinkList').innerHTML = plans.map((plan) => `<button type="button" data-detail-plan="${esc(plan.id)}" title="${esc(plan.name)}"><span><b>${esc(BeanCore.planDisplayName(plan, bean, { bound: true }))}</b><small>${esc([plan.brewMethod, plan.dose ? formatWeight(plan.dose) : '', plan.ratio].filter(Boolean).join(' · '))}</small></span><strong>冲这个 ›</strong></button>`).join('');
   }
   function markListSelection(container, selector, attribute, id) {
     if (!container) return;
@@ -2350,6 +2379,100 @@
       steps: currentDrinkMethod() === '手冲' ? readDrinkSteps() : []
     });
   }
+  // 3.0.13：快速/新建喝一杯的方案默认优先级（覆盖「仅用上次 planId」）。
+  // 唯一绑定手冲（有可计时分段）> 上次该豆方案 > 上次快照分段 > 手填。
+  // 编辑已有记录仍跟 log，不走此优先级。
+  function boundHandBrewPlans(beanId) {
+    return state.brewPlans.filter((plan) => !plan.deletedAt && plan.brewMethod === '手冲'
+      && Array.isArray(plan.beanIds) && plan.beanIds.includes(beanId)
+      && BeanCore.prepareBrewAssistSteps(plan.steps).length > 0);
+  }
+  // 3.0.13: 默认方案优先级。preferBound（唯一绑定手冲）仅用于快捷「新建」打开，完整记录新建仍走上次方案/快照。
+  function resolveBeanDrinkPlanSeed(bean, log, options) {
+    const opts = options || {};
+    if (log) {
+      return { planId: log.brewPlanId || '', source: log.brewPlanSnapshot || null, kind: 'log' };
+    }
+    if (!bean || !brewPlansEnabled()) return { planId: '', source: null, kind: 'none' };
+    const last = lastBeanLog(bean.id);
+    if (opts.preferBound) {
+      const bound = boundHandBrewPlans(bean.id);
+      if (bound.length === 1) {
+        return { planId: bound[0].id, source: bound[0], kind: 'bound' };
+      }
+    }
+    if (last && last.brewPlanId) {
+      const plan = state.brewPlans.find((item) => item.id === last.brewPlanId && !item.deletedAt);
+      if (plan) return { planId: plan.id, source: last.brewPlanSnapshot || plan, kind: 'last-plan' };
+    }
+    if (last && last.brewPlanSnapshot && BeanCore.prepareBrewAssistSteps(last.brewPlanSnapshot.steps || []).length > 0) {
+      return { planId: '', source: last.brewPlanSnapshot, kind: 'last-snap' };
+    }
+    return { planId: '', source: null, kind: 'none' };
+  }
+  function drinkAssistPlanLabel() {
+    const plan = selectedDrinkPlan();
+    const bean = state.beans.find((item) => item.id === $('#drink-beanId').value);
+    if (plan) {
+      return BeanCore.planDisplayName(plan, bean, { forBean: Boolean(bean), bound: Boolean(bean && plan.beanIds.includes(bean.id)) });
+    }
+    const beanId = $('#drink-beanId').value;
+    const last = beanId ? lastBeanLog(beanId, state.editingDrinkId) : null;
+    if (last && !last.brewPlanId && last.brewPlanSnapshot) return '上次手填参数';
+    return '本次手填参数';
+  }
+  function syncDrinkAssistPlanLabel() {
+    const label = $('#drinkAssistPlanLabel');
+    if (!label) return;
+    label.textContent = drinkAssistPlanLabel();
+    label.title = label.textContent;
+  }
+  function openDrinkAssistPlanSheet() {
+    const bean = state.beans.find((item) => item.id === $('#drink-beanId').value);
+    if (!bean || !els.drinkAssistPlan) return;
+    const currentId = $('#drink-plan-id').value || '';
+    const last = lastBeanLog(bean.id);
+    const lastManual = last && !last.brewPlanId && BeanCore.prepareBrewAssistSteps((last.brewPlanSnapshot && last.brewPlanSnapshot.steps) || []).length > 0;
+    const plans = BeanCore.recommendBrewPlans(state.brewPlans, bean.id, '手冲')
+      .filter((plan) => BeanCore.prepareBrewAssistSteps(plan.steps).length > 0)
+      .slice(0, 8);
+    const items = [];
+    items.push(`<button type="button" data-assist-plan="" class="${!currentId && !lastManual ? 'active' : ''}"><span class="drink-plan-primary">不使用方案</span><small class="drink-plan-secondary">手填本次参数</small></button>`);
+    if (lastManual) {
+      items.push(`<button type="button" data-assist-last-brew="${esc(last.id)}" class="has-badges ${!currentId ? 'active' : ''}"><span class="drink-plan-primary">上次手填参数</span><small class="drink-plan-secondary">${esc(formatDateTime(last.consumedAt))}</small><span class="drink-plan-badges"><i>上次</i></span></button>`);
+    }
+    plans.forEach((plan) => {
+      const badges = [];
+      if (last && last.brewPlanId === plan.id) badges.push('上次');
+      if (plan.beanIds.includes(bean.id)) badges.push('已绑定');
+      if (plan.source === 'preset') badges.push('预置');
+      const badgeHtml = badges.length ? `<span class="drink-plan-badges">${badges.map((t) => `<i>${esc(t)}</i>`).join('')}</span>` : '';
+      const title = BeanCore.planDisplayName(plan, bean, { forBean: true, bound: plan.beanIds.includes(bean.id) });
+      items.push(`<button type="button" data-assist-plan="${esc(plan.id)}" class="${plan.id === currentId ? 'active' : ''}${badges.length ? ' has-badges' : ''}" title="${esc(plan.name)}"><span class="drink-plan-primary">${esc(title)}</span><small class="drink-plan-secondary">${esc(planBindSecondary(plan, bean.id))}</small>${badgeHtml}</button>`);
+    });
+    $('#drinkAssistPlanTitle').textContent = '选用冲煮方案';
+    $('#drinkAssistPlanList').innerHTML = items.join('') || '<p class="manager-empty">暂无可用手冲方案</p>';
+    setDialog(els.drinkAssistPlan, true);
+  }
+  function applyAssistPlanChoice(value) {
+    const bean = state.beans.find((item) => item.id === $('#drink-beanId').value);
+    if (!bean) return;
+    if (value === '' || value == null) {
+      $('#drink-plan-id').value = '';
+      fillDrinkParams({ brewMethod: currentDrinkMethod() || '手冲', dose: $('#drink-grams').value });
+      renderDrinkPlanPicker(bean, null);
+    } else {
+      chooseDrinkPlan(value, bean);
+    }
+    updateDrinkAssistEntry();
+  }
+  function applyAssistLastBrew(logId) {
+    const bean = state.beans.find((item) => item.id === $('#drink-beanId').value);
+    const log = state.drinkLogs.find((item) => item.id === logId);
+    applyLastBrew(log, bean);
+    updateDrinkAssistEntry();
+  }
+
   function renderDrinkPlanPicker(bean, log) {
     if (!brewPlansEnabled()) { $('#drinkPlanPicker').hidden = true; return; }
     $('#drinkPlanPicker').hidden = false;
@@ -2360,35 +2483,39 @@
     if (currentId && !plans.some((plan) => plan.id === currentId)) { currentId = ''; $('#drink-plan-id').value = ''; }
     const lastManual = last && !last.brewPlanId && last.brewMethod === currentMethod;
     const planButtons = plans.map((plan) => {
-      const tags = [];
-      if (last && last.brewPlanId === plan.id) tags.push('上次');
-      if (bean && plan.beanIds.includes(bean.id)) tags.push('已绑定');
-      if (plan.source === 'preset') tags.push('预置');
-      const tagHtml = tags.map((tag) => `<i>${esc(tag)}</i>`).join('');
-      return `<button type="button" data-drink-plan="${esc(plan.id)}" class="${plan.id === currentId ? 'active' : ''}"><span>${esc(plan.name)}${tagHtml ? `<em>${tagHtml}</em>` : ''}</span></button>`;
+      const badges = [];
+      if (last && last.brewPlanId === plan.id) badges.push('上次');
+      if (bean && plan.beanIds.includes(bean.id)) badges.push('已绑定');
+      if (plan.source === 'preset') badges.push('预置');
+      const badgeHtml = badges.length ? `<span class="drink-plan-badges">${badges.map((tag) => `<i>${esc(tag)}</i>`).join('')}</span>` : '';
+      const title = (plan.name && String(plan.name).trim()) ? plan.name : '未命名方案';
+      return `<button type="button" data-drink-plan="${esc(plan.id)}" class="${plan.id === currentId ? 'active' : ''}${badges.length ? ' has-badges' : ''}" title="${esc(plan.name)}"><span class="drink-plan-primary">${esc(title)}</span><small class="drink-plan-secondary">${esc(planBindSecondary(plan, bean && bean.id))}</small>${badgeHtml}</button>`;
     }).join('');
-    const lastManualButton = lastManual ? `<button type="button" class="drink-plan-action" data-use-last-brew="${esc(last.id)}"><span>上次手填参数<em><i>上次</i></em></span><small>${esc(formatDateTime(last.consumedAt))}</small></button>` : '';
+    const lastManualButton = lastManual ? `<button type="button" class="drink-plan-action has-badges" data-use-last-brew="${esc(last.id)}"><span class="drink-plan-primary">上次手填参数</span><small class="drink-plan-secondary">${esc(formatDateTime(last.consumedAt))}</small><span class="drink-plan-badges"><i>上次</i></span></button>` : '';
     const hints = [currentMethod || '当前方式'];
     if (last) hints.push('当前豆子的上次使用');
     hints.push('已绑定方案优先');
-    $('#drinkPlanPicker').innerHTML = `<div class="section-heading"><div><span>方案选择</span><small>${esc(hints.join(' · '))}</small></div></div><div class="drink-plan-options"><button type="button" data-drink-plan="" class="drink-plan-action ${!currentId ? 'active' : ''}"><span>不使用方案</span><small>手填本次参数</small></button>${lastManualButton}${planButtons}${plans.length || lastManual ? '' : '<p class="manager-empty compact-empty">当前冲煮方式暂无方案。</p>'}</div>`;
+    $('#drinkPlanPicker').innerHTML = `<div class="section-heading"><div><span>方案选择</span><small>${esc(hints.join(' · '))}</small></div></div><div class="drink-plan-options"><button type="button" data-drink-plan="" class="drink-plan-action ${!currentId ? 'active' : ''}"><span class="drink-plan-primary">不使用方案</span><small class="drink-plan-secondary">手填本次参数</small></button>${lastManualButton}${planButtons}${plans.length || lastManual ? '' : '<p class="manager-empty compact-empty">当前冲煮方式暂无方案。</p>'}</div>`;
     updateDrinkAssistEntry();
   }
   // 冲煮辅助入口移动到底部工具栏：手冲方式且本次有可计时的分段步骤时显示。
   function updateDrinkAssistEntry() {
+    const cluster = $('#drinkAssistCluster');
     const button = $('#drinkStartAssist');
-    if (!button) return;
+    if (!button || !cluster) return;
     const available = brewPlansEnabled() && $('#drink-source').value === 'bean' && state.drinkMode !== 'tasting'
       && !$('#saveDrink').hidden && currentDrinkMethod() === '手冲'
       && BeanCore.prepareBrewAssistSteps(readDrinkSteps()).length > 0;
-    button.hidden = !available;
+    cluster.hidden = !available;
+    button.hidden = false;
+    if (available) syncDrinkAssistPlanLabel();
     syncDrinkAssistFooter();
   }
-  // 3.0.12：快速冲一杯底栏按「冲煮辅助是否可见」切换布局（CSS 不用 :has，兼容旧 WebView）。
+  // 3.0.12/3.0.13：快速冲一杯底栏按「冲煮辅助是否可见」切换布局（CSS 不用 :has；可见性挂在 #drinkAssistCluster）。
   function syncDrinkAssistFooter() {
-    const button = $('#drinkStartAssist');
-    const footer = button && button.parentElement;
-    if (footer) footer.classList.toggle('has-assist', !button.hidden);
+    const cluster = $('#drinkAssistCluster');
+    const footer = cluster && cluster.parentElement;
+    if (footer) footer.classList.toggle('has-assist', Boolean(cluster && !cluster.hidden));
   }
   function applyLastBrew(log, bean) {
     if (!log) return;
@@ -2407,6 +2534,7 @@
       fillDrinkParams({ brewMethod: currentDrinkMethod(), dose: $('#drink-grams').value });
     }
     renderDrinkPlanPicker(bean, null);
+    updateDrinkAssistEntry();
   }
   // 与豆仓列表「在饮」一致：BeanCore.filterAndSort status=在饮（排除已喝完，含未开封+饮用中）。勿与 drinkableBeans（记一杯：仅饮用中且有余量）混用。
   function activeVaultBeans() {
@@ -2456,7 +2584,7 @@
     if (external) { grams.required = false; grams.removeAttribute('min'); grams.removeAttribute('max'); }
     else { grams.required = true; grams.min = '0.1'; }
     $('#saveDrink').textContent = '保存';
-    $('#drinkStartAssist').hidden = external || $('#drinkStartAssist').hidden; syncDrinkAssistFooter();
+    if (external) { const c = $('#drinkAssistCluster'); if (c) c.hidden = true; $('#drinkStartAssist').hidden = true; } syncDrinkAssistFooter();
     $$('#drinkForm input, #drinkForm select, #drinkForm textarea, #drinkForm [data-rate], #drinkForm .select-trigger, #drinkForm [data-drink-plan], #drinkForm [data-use-last-brew], #drinkForm [data-drink-step-open], #drinkForm [data-remove-drink-step], #addDrinkStep, [data-add-drink-photo], [data-remove-drink-photo]').forEach((control) => { if (control.id !== 'deleteDrink') control.disabled = orphaned; });
   }
   function configureDrinkMode(log, mode) {
@@ -2493,7 +2621,7 @@
     const facts = planFactList(log.brewPlanSnapshot || {}, log.brewMethod);
     $('#drinkTastingSummary').innerHTML = `<div><span>本次冲煮</span><strong>${esc(log.brewPlanName || log.brewMethod)}</strong><small>${esc([formatWeight(log.grams), formatDateTime(log.consumedAt)].join(' · '))}</small></div><button type="button" id="drinkTastingSummaryToggle">查看冲煮参数</button><div class="tasting-summary-detail" id="drinkTastingSummaryDetail" hidden>${facts.map((item) => `<p><span>${esc(item.label)}</span><strong>${esc(item.value)}</strong></p>`).join('') || '<p>本次没有记录详细参数</p>'}</div>`;
     $('#deleteDrink').hidden = true;
-    $('#drinkStartAssist').hidden = true; syncDrinkAssistFooter();
+    { const c = $('#drinkAssistCluster'); if (c) c.hidden = true; $('#drinkStartAssist').hidden = true; syncDrinkAssistFooter(); }
     $('#saveDrink').hidden = false;
     $('#saveDrink').textContent = '完成记录';
   }
@@ -2581,7 +2709,7 @@
     input.placeholder = recent ? `最近：${recent}` : '例如：Dirty';
     host.innerHTML = names.length ? `<span>${query ? '匹配饮品' : '同店最近'}</span>${names.map((name) => `<button data-drink-name="${esc(name)}" type="button">${esc(name)}</button>`).join('')}` : (query && cafeInput.value.trim() ? '<span>没有匹配，可直接保存新饮品</span>' : '');
   }
-  function openDrinkDialog(bean, log, mode) { if (!bean && log && log.beanId) bean = state.beans.find((item) => item.id === log.beanId); const sourceKind = log && log.source === 'external' ? 'external' : 'bean'; const orphaned = sourceKind === 'bean' && !bean && Boolean(log); if (sourceKind === 'bean' && !bean && !log) return; state.editingDrinkId = log ? log.id : null; els.drinkForm.reset(); state.pendingDrinkPhotos = []; state.drinkPhotosToDelete = []; state.drinkPhotoDraft = (log && log.photos || []).slice(0, 3); const remaining = bean ? Number(bean.remainingWeight) || 0 : 0; const grams = log ? log.grams : Math.min(state.settings.quickGrams, remaining); const last = bean && !log ? lastBeanLog(bean.id) : null; const lastPlanEnabled = brewPlansEnabled() && last; const lastMethod = !log && last ? last.brewMethod : '手冲'; $('#drink-id').value = log ? log.id : ''; $('#drink-beanId').value = bean ? bean.id : ''; $('#drink-plan-id').value = log && log.brewPlanId || lastPlanEnabled && last.brewPlanId || ''; $('#drink-grams').value = grams; $('#drink-grams').max = remaining + (log ? Number(log.grams) : 0); $('#drink-time').value = localDateTime(log && log.consumedAt); $('#drink-notes').value = log ? log.notes : ''; $('#drink-cafeName').value = log ? log.cafeName || '' : ''; $('#drink-drinkName').value = log ? log.drinkName || '' : ''; renderCafeSuggestions(true); renderDrinkNameSuggestions(); $('#drink-price').value = log && log.price != null ? log.price : ''; $('#drink-location').value = log ? log.location || '' : ''; renderLocationSuggestions(true); $('#drinkTitle').textContent = sourceKind === 'external' ? (log ? '编辑外饮记录' : '外饮记录') : orphaned ? '历史饮用记录' : log ? '编辑饮用记录' : '喝一杯'; $('#drinkBeanMeta').textContent = sourceKind === 'external' ? '咖啡馆 / 外卖，不扣库存' : orphaned ? `${log.beanName} · 原豆子已删除` : `${bean.name} · 当前剩余 ${formatWeight(remaining)}`; $('#deleteDrink').hidden = !log; $('#saveDrink').hidden = orphaned; methodOptions(log && log.brewMethod || lastMethod); if (sourceKind === 'bean') renderDrinkPlanPicker(bean, log); const source = log && log.brewPlanSnapshot || lastPlanEnabled && last.brewPlanSnapshot || selectedDrinkPlan() || { brewMethod: currentDrinkMethod(), dose: grams }; fillDrinkParams(source); $('#drinkParamPanel').hidden = sourceKind === 'external' || !brewPlansEnabled(); setCoffeeType(log ? log.coffeeType : state.settings.lastCoffeeType); renderRating($('#overallRating'), 'overallRating', log && log.overallRating, false); renderDimensionRatings(log); renderDrinkFeatureHint(log); renderDrinkFlavorSuggestions(); renderDrinkPhotoVault(); configureDrinkSource(sourceKind, orphaned); configureDrinkMode(log || {}, mode); setDialog(els.drink, true); }
+  function openDrinkDialog(bean, log, mode) { if (!bean && log && log.beanId) bean = state.beans.find((item) => item.id === log.beanId); const sourceKind = log && log.source === 'external' ? 'external' : 'bean'; const orphaned = sourceKind === 'bean' && !bean && Boolean(log); if (sourceKind === 'bean' && !bean && !log) return; state.editingDrinkId = log ? log.id : null; els.drinkForm.reset(); state.pendingDrinkPhotos = []; state.drinkPhotosToDelete = []; state.drinkPhotoDraft = (log && log.photos || []).slice(0, 3); const remaining = bean ? Number(bean.remainingWeight) || 0 : 0; const grams = log ? log.grams : Math.min(state.settings.quickGrams, remaining); const last = bean && !log ? lastBeanLog(bean.id) : null; const seed = (sourceKind === 'bean' && bean) ? resolveBeanDrinkPlanSeed(bean, log, { preferBound: mode === 'quick' && !log }) : { planId: '', source: null, kind: 'none' }; const lastMethod = (!log && last && last.brewMethod) || (seed.source && seed.source.brewMethod) || '手冲'; $('#drink-id').value = log ? log.id : ''; $('#drink-beanId').value = bean ? bean.id : ''; $('#drink-plan-id').value = seed.planId || ''; $('#drink-grams').value = grams; $('#drink-grams').max = remaining + (log ? Number(log.grams) : 0); $('#drink-time').value = localDateTime(log && log.consumedAt); $('#drink-notes').value = log ? log.notes : ''; $('#drink-cafeName').value = log ? log.cafeName || '' : ''; $('#drink-drinkName').value = log ? log.drinkName || '' : ''; renderCafeSuggestions(true); renderDrinkNameSuggestions(); $('#drink-price').value = log && log.price != null ? log.price : ''; $('#drink-location').value = log ? log.location || '' : ''; renderLocationSuggestions(true); $('#drinkTitle').textContent = sourceKind === 'external' ? (log ? '编辑外饮记录' : '外饮记录') : orphaned ? '历史饮用记录' : log ? '编辑饮用记录' : '喝一杯'; $('#drinkBeanMeta').textContent = sourceKind === 'external' ? '咖啡馆 / 外卖，不扣库存' : orphaned ? `${log.beanName} · 原豆子已删除` : `${bean.name} · 当前剩余 ${formatWeight(remaining)}`; $('#deleteDrink').hidden = !log; $('#saveDrink').hidden = orphaned; methodOptions(log && log.brewMethod || lastMethod); if (sourceKind === 'bean') renderDrinkPlanPicker(bean, log); const source = seed.source || selectedDrinkPlan() || { brewMethod: currentDrinkMethod() || lastMethod, dose: grams }; fillDrinkParams(source); $('#drinkParamPanel').hidden = sourceKind === 'external' || !brewPlansEnabled(); setCoffeeType(log ? log.coffeeType : state.settings.lastCoffeeType); renderRating($('#overallRating'), 'overallRating', log && log.overallRating, false); renderDimensionRatings(log); renderDrinkFeatureHint(log); renderDrinkFlavorSuggestions(); renderDrinkPhotoVault(); configureDrinkSource(sourceKind, orphaned); configureDrinkMode(log || {}, mode); setDialog(els.drink, true); }
   // 只有新建外饮才自动带上最近一次的地点（地点通常不变）；编辑已有记录必须原样显示它自己的地点。
   function openExternalDrinkDialog(log) { openDrinkDialog(null, log ? { ...log, source: 'external' } : BeanCore.normalizeDrinkLog({ source: 'external' })); state.editingDrinkId = log ? log.id : null; if (!log) { $('#drink-id').value = ''; $('#deleteDrink').hidden = true; $('#drinkTitle').textContent = '外饮记录'; setCoffeeType(state.settings.lastCoffeeType); const lastLocation = BeanCore.recentDrinkLocations(state.drinkLogs, '', 1)[0]; if (lastLocation) $('#drink-location').value = lastLocation; renderLocationSuggestions(true); } }
   function setCoffeeType(value) { const type = BeanCore.COFFEE_TYPES.includes(value) ? value : BeanCore.COFFEE_TYPES[0]; $('#drink-coffeeType').value = type; $$('[data-coffee-type]', els.drinkForm).forEach((chip) => { const active = chip.dataset.coffeeType === type; chip.classList.toggle('active', active); chip.setAttribute('aria-checked', String(active)); }); }
@@ -2912,6 +3040,7 @@
       shareImageChoiceDialog: () => els.shareChoice.close(),
       planImportDialog: () => els.planImport.close(),
       choiceDialog: () => els.choice.close(),
+      drinkAssistPlanSheet: () => els.drinkAssistPlan && els.drinkAssistPlan.close(),
       datePickerDialog: () => els.datePicker.close(),
       photoSourceDialog: () => els.photoSource.close(),
       scanImageDialog: () => els.scanImage.close(),
@@ -3060,7 +3189,7 @@
     $$('[data-view]').forEach((button) => button.addEventListener('click', () => { closeContextDetailsForNavigation(); state.view = button.dataset.view; if (state.view === 'personal') state.personalSection = 'overview'; if (state.view === 'drinks') state.drinkVisibleLimit = DRINK_PAGE_SIZE; render(); }));
     $('#planDetailClose').addEventListener('click', () => setDialog(els.planDetail, false)); $('#planShare').addEventListener('click', sharePlanCard); $('#planShareCopyCode').addEventListener('click', copyCurrentPlanShareCode); $('#planAssistStart').addEventListener('click', openPlanBrewAssist);
     $('#planDetailEdit').addEventListener('click', () => { const plan = state.brewPlans.find((item) => item.id === state.viewingPlanId); setDialog(els.planDetail, false); openPlanEditor(plan); }); $('#planDuplicate').addEventListener('click', duplicateCurrentPlan); $('#planEditorDelete').addEventListener('click', deleteCurrentPlan); $('#planEditorClose').addEventListener('click', () => setDialog(els.planEditor, false)); els.planForm.addEventListener('submit', savePlan); $('#plan-method').addEventListener('change', () => { syncPlanMethodFields(); syncPlanTotalWater(); fillTemplateOptions($('#plan-method').value); syncChoiceTrigger($('#plan-method')); }); $('#plan-dose').addEventListener('input', syncPlanTotalWater); $('#plan-totalWater').addEventListener('input', syncPlanRatioFromWater); ['plan-ratio-left', 'plan-ratio-right'].forEach((id) => $(`#${id}`).addEventListener('input', () => { syncRatioValue('plan'); syncPlanTotalWater(); })); $$('.duration-field', els.planForm).forEach((field) => field.addEventListener('input', () => { if (field.dataset.autoTarget === '1') field.dataset.autoTarget = ''; syncDurationField(field); })); $('#addPourStep').addEventListener('click', addPourStepFromLast); $('#pourStepList').addEventListener('click', (event) => { const remove = event.target.closest('[data-remove-pour-step]'); if (remove) { const rows = readPourSteps(); rows.splice(Number(remove.dataset.removePourStep), 1); state.activePourStepIndex = Math.min(state.activePourStepIndex, rows.length - 1); renderPourSteps(rows); return; } const open = event.target.closest('[data-pour-step-open]'); if (open) { state.activePourStepIndex = Number(open.dataset.pourStepOpen); renderPourSteps(readPourSteps()); } }); $('#pourStepList').addEventListener('input', (event) => { if (event.target.closest('[data-pour-water], [data-pour-cumulative]')) syncPourStepWaterInputs(event.target); updatePourAllocation(); syncPlanTargetDuration(); }); $('#pourTemplateRow').addEventListener('click', (event) => { const chip = event.target.closest('[data-pour-template]'); if (chip) applyPourTemplate(chip.dataset.pourTemplate); }); $('#pourFillRemainder').addEventListener('click', fillPourRemainder); $('#plan-template').addEventListener('change', applySelectedTemplate);
-    $('#drinkClose').addEventListener('click', () => { discardDrinkPhotoDraft(); setDialog(els.drink, false); }); $('#drinkEditFull').addEventListener('click', () => { const log = state.drinkLogs.find((item) => item.id === state.editingDrinkId); configureDrinkMode(log || {}, 'full'); }); $('#drinkStartAssist').addEventListener('click', openDrinkBrewAssist); $('#deleteDrink').addEventListener('click', removeDrink); els.drinkForm.addEventListener('submit', saveDrink); $('#drinkPhotoVault').addEventListener('click', (event) => { const add = event.target.closest('[data-add-drink-photo]'); if (add) return addDrinkPhoto(); const remove = event.target.closest('[data-remove-drink-photo]'); if (remove) return removeDrinkPhoto(Number(remove.dataset.removeDrinkPhoto)); const card = event.target.closest('[data-preview-image]'); if (card) return openImagePreview(card.dataset.previewImage, card.dataset.previewLabel); }); $('#drink-notes').addEventListener('input', syncDrinkFlavorChips); $('#drinkFlavorSuggest').addEventListener('click', (event) => { const chip = event.target.closest('[data-flavor-tag]'); if (chip) toggleDrinkFlavorTag(chip.dataset.flavorTag); }); els.drinkForm.addEventListener('click', (event) => { const quickAmount = event.target.closest('[data-quick-grams]'); if (quickAmount) { $('#drink-grams').value = quickAmount.dataset.quickGrams; $('#drink-param-dose').value = quickAmount.dataset.quickGrams; syncDrinkTotalWater(); return renderQuickDrinkPanel(); } const quickCustom = event.target.closest('[data-quick-custom]'); if (quickCustom) { configureDrinkMode({}, 'full'); $('#drink-grams').focus(); return; } const summaryToggle = event.target.closest('#drinkTastingSummaryToggle'); if (summaryToggle) { const detail = $('#drinkTastingSummaryDetail'); detail.hidden = !detail.hidden; summaryToggle.textContent = detail.hidden ? '查看冲煮参数' : '收起冲煮参数'; return; } const dimInfo = event.target.closest('[data-dim-info]'); if (dimInfo) { event.preventDefault(); return showDimInfo(dimInfo.dataset.dimInfo, dimInfo); } if (event.target.closest('[data-drink-feature-dismiss]')) { writeLocalFlag('coffee-vault-hint-drink-features'); return renderDrinkFeatureHint(state.editingDrinkId ? state.drinkLogs.find((item) => item.id === state.editingDrinkId) : null); } const assistButton = event.target.closest('[data-start-brew-assist]'); if (assistButton) return openDrinkBrewAssist(); const lastButton = event.target.closest('[data-use-last-brew]'); if (lastButton) { const bean = state.beans.find((item) => item.id === $('#drink-beanId').value); return applyLastBrew(state.drinkLogs.find((log) => log.id === lastButton.dataset.useLastBrew), bean); } const planButton = event.target.closest('[data-drink-plan]'); if (planButton) { const bean = state.beans.find((item) => item.id === $('#drink-beanId').value); return chooseDrinkPlan(planButton.dataset.drinkPlan, bean); } const openStep = event.target.closest('[data-drink-step-open]'); if (openStep) { state.activeDrinkStepIndex = Number(openStep.dataset.drinkStepOpen); return renderDrinkSteps(readDrinkSteps()); } const removeStep = event.target.closest('[data-remove-drink-step]'); if (removeStep) { const rows = readDrinkSteps(); rows.splice(Number(removeStep.dataset.removeDrinkStep), 1); state.activeDrinkStepIndex = Math.max(0, Math.min(state.activeDrinkStepIndex, rows.length - 1)); return renderDrinkSteps(rows); } const button = event.target.closest('[data-rate]'); if (!button) return; const row = button.parentElement; const clicked = Number(button.dataset.rate); const next = Number(row.dataset.value) === clicked ? null : clicked; renderRating(row, row.dataset.ratingName, next, row.dataset.ratingName === 'bitterness'); }); $('#addDrinkStep').addEventListener('click', addDrinkStep); $('#drinkStepList').addEventListener('input', (event) => { if (event.target.closest('[data-drink-step-water], [data-drink-step-cumulative]')) syncDrinkStepWaterInputs(event.target); }); $('#drink-grams').addEventListener('change', scaleDrinkStepsToDose); $('#drink-param-dose').addEventListener('change', scaleDrinkStepsToDose); $('#drink-grams').addEventListener('input', () => { $('#drink-param-dose').value = $('#drink-grams').value; syncDrinkTotalWater(); if (state.drinkMode === 'quick') renderQuickDrinkPanel(); }); $('#drink-param-dose').addEventListener('input', syncDrinkTotalWater); $('#drink-param-totalWater').addEventListener('input', syncDrinkRatioFromWater); ['drink-ratio-left', 'drink-ratio-right'].forEach((id) => $(`#${id}`).addEventListener('input', () => { syncRatioValue('drink'); syncDrinkTotalWater(); })); $$('.duration-field', els.drinkForm).forEach((field) => field.addEventListener('input', () => syncDurationField(field))); $('#drink-method').addEventListener('change', () => { const custom = $('#drink-method-custom'); custom.hidden = $('#drink-method').value !== '__custom__'; if (!custom.hidden) custom.focus(); syncChoiceTrigger($('#drink-method')); $('#drink-plan-id').value = ''; syncDrinkParamFields(); syncDrinkTotalWater(); const bean = state.beans.find((item) => item.id === $('#drink-beanId').value); if (bean) renderDrinkPlanPicker(bean, null); });
+    $('#drinkClose').addEventListener('click', () => { discardDrinkPhotoDraft(); setDialog(els.drink, false); }); $('#drinkEditFull').addEventListener('click', () => { const log = state.drinkLogs.find((item) => item.id === state.editingDrinkId); configureDrinkMode(log || {}, 'full'); }); $('#drinkStartAssist').addEventListener('click', openDrinkBrewAssist); $('#drinkAssistChange').addEventListener('click', (event) => { event.stopPropagation(); openDrinkAssistPlanSheet(); }); $('#drinkAssistPlanClose').addEventListener('click', () => setDialog(els.drinkAssistPlan, false)); $('#drinkAssistPlanList').addEventListener('click', (event) => { const lastBrew = event.target.closest('[data-assist-last-brew]'); if (lastBrew) { setDialog(els.drinkAssistPlan, false); return applyAssistLastBrew(lastBrew.dataset.assistLastBrew); } const planBtn = event.target.closest('[data-assist-plan]'); if (planBtn) { setDialog(els.drinkAssistPlan, false); return applyAssistPlanChoice(planBtn.dataset.assistPlan); } }); $('#deleteDrink').addEventListener('click', removeDrink); els.drinkForm.addEventListener('submit', saveDrink); $('#drinkPhotoVault').addEventListener('click', (event) => { const add = event.target.closest('[data-add-drink-photo]'); if (add) return addDrinkPhoto(); const remove = event.target.closest('[data-remove-drink-photo]'); if (remove) return removeDrinkPhoto(Number(remove.dataset.removeDrinkPhoto)); const card = event.target.closest('[data-preview-image]'); if (card) return openImagePreview(card.dataset.previewImage, card.dataset.previewLabel); }); $('#drink-notes').addEventListener('input', syncDrinkFlavorChips); $('#drinkFlavorSuggest').addEventListener('click', (event) => { const chip = event.target.closest('[data-flavor-tag]'); if (chip) toggleDrinkFlavorTag(chip.dataset.flavorTag); }); els.drinkForm.addEventListener('click', (event) => { const quickAmount = event.target.closest('[data-quick-grams]'); if (quickAmount) { $('#drink-grams').value = quickAmount.dataset.quickGrams; $('#drink-param-dose').value = quickAmount.dataset.quickGrams; syncDrinkTotalWater(); return renderQuickDrinkPanel(); } const quickCustom = event.target.closest('[data-quick-custom]'); if (quickCustom) { configureDrinkMode({}, 'full'); $('#drink-grams').focus(); return; } const summaryToggle = event.target.closest('#drinkTastingSummaryToggle'); if (summaryToggle) { const detail = $('#drinkTastingSummaryDetail'); detail.hidden = !detail.hidden; summaryToggle.textContent = detail.hidden ? '查看冲煮参数' : '收起冲煮参数'; return; } const dimInfo = event.target.closest('[data-dim-info]'); if (dimInfo) { event.preventDefault(); return showDimInfo(dimInfo.dataset.dimInfo, dimInfo); } if (event.target.closest('[data-drink-feature-dismiss]')) { writeLocalFlag('coffee-vault-hint-drink-features'); return renderDrinkFeatureHint(state.editingDrinkId ? state.drinkLogs.find((item) => item.id === state.editingDrinkId) : null); } const assistButton = event.target.closest('[data-start-brew-assist]'); if (assistButton) return openDrinkBrewAssist(); const lastButton = event.target.closest('[data-use-last-brew]'); if (lastButton) { const bean = state.beans.find((item) => item.id === $('#drink-beanId').value); return applyLastBrew(state.drinkLogs.find((log) => log.id === lastButton.dataset.useLastBrew), bean); } const planButton = event.target.closest('[data-drink-plan]'); if (planButton) { const bean = state.beans.find((item) => item.id === $('#drink-beanId').value); return chooseDrinkPlan(planButton.dataset.drinkPlan, bean); } const openStep = event.target.closest('[data-drink-step-open]'); if (openStep) { state.activeDrinkStepIndex = Number(openStep.dataset.drinkStepOpen); return renderDrinkSteps(readDrinkSteps()); } const removeStep = event.target.closest('[data-remove-drink-step]'); if (removeStep) { const rows = readDrinkSteps(); rows.splice(Number(removeStep.dataset.removeDrinkStep), 1); state.activeDrinkStepIndex = Math.max(0, Math.min(state.activeDrinkStepIndex, rows.length - 1)); return renderDrinkSteps(rows); } const button = event.target.closest('[data-rate]'); if (!button) return; const row = button.parentElement; const clicked = Number(button.dataset.rate); const next = Number(row.dataset.value) === clicked ? null : clicked; renderRating(row, row.dataset.ratingName, next, row.dataset.ratingName === 'bitterness'); }); $('#addDrinkStep').addEventListener('click', addDrinkStep); $('#drinkStepList').addEventListener('input', (event) => { if (event.target.closest('[data-drink-step-water], [data-drink-step-cumulative]')) syncDrinkStepWaterInputs(event.target); }); $('#drink-grams').addEventListener('change', scaleDrinkStepsToDose); $('#drink-param-dose').addEventListener('change', scaleDrinkStepsToDose); $('#drink-grams').addEventListener('input', () => { $('#drink-param-dose').value = $('#drink-grams').value; syncDrinkTotalWater(); if (state.drinkMode === 'quick') renderQuickDrinkPanel(); }); $('#drink-param-dose').addEventListener('input', syncDrinkTotalWater); $('#drink-param-totalWater').addEventListener('input', syncDrinkRatioFromWater); ['drink-ratio-left', 'drink-ratio-right'].forEach((id) => $(`#${id}`).addEventListener('input', () => { syncRatioValue('drink'); syncDrinkTotalWater(); })); $$('.duration-field', els.drinkForm).forEach((field) => field.addEventListener('input', () => syncDurationField(field))); $('#drink-method').addEventListener('change', () => { const custom = $('#drink-method-custom'); custom.hidden = $('#drink-method').value !== '__custom__'; if (!custom.hidden) custom.focus(); syncChoiceTrigger($('#drink-method')); $('#drink-plan-id').value = ''; syncDrinkParamFields(); syncDrinkTotalWater(); const bean = state.beans.find((item) => item.id === $('#drink-beanId').value); if (bean) renderDrinkPlanPicker(bean, null); });
     $('#drink-cafeName').addEventListener('input', () => { renderCafeSuggestions(); renderDrinkNameSuggestions(); });
     $('#drink-drinkName').addEventListener('input', renderDrinkNameSuggestions);
     // 包一层：input 事件会把 Event 当首参传入，直接传函数会让 showRecent 恒为真。
@@ -3109,7 +3238,8 @@
       if (log) { state.view = 'drinks'; render(); return openDrinkDetail(state.drinkLogs.find((item) => item.id === log.dataset.searchLog)); }
       if (plan) { state.view = 'plans'; render(); return openPlanDetail(state.brewPlans.find((item) => item.id === plan.dataset.searchPlan)); }
     });
-    setupSmartSelects(); setupPlanSmartSelects(); syncAllChoiceTriggers(); $$('.picker-control').forEach((input) => input.addEventListener('click', () => openDatePicker(input))); $('#choiceList').addEventListener('click', (event) => { const drinkChoice = event.target.closest('[data-drink-choice]'); if (drinkChoice && !drinkChoice.disabled) { setDialog(els.choice, false); return drinkChoice.dataset.drinkChoice === 'external' ? openExternalDrinkDialog() : openBeanPickerForDrink(); } const drinkBean = event.target.closest('[data-drink-bean]'); if (drinkBean) { const bean = state.beans.find((item) => item.id === drinkBean.dataset.drinkBean); setDialog(els.choice, false); if (bean) openDrinkDialog(bean); return; } chooseOption(event); }); $('#choiceClose').addEventListener('click', () => setDialog(els.choice, false)); $('#datePickerClose').addEventListener('click', () => setDialog(els.datePicker, false)); $('#datePickerCancel').addEventListener('click', () => setDialog(els.datePicker, false)); $('#datePickerConfirm').addEventListener('click', confirmDatePicker); $('#datePickerClear').addEventListener('click', clearDatePicker); $('#calendarPrev').addEventListener('click', () => shiftCalendar(-1)); $('#calendarNext').addEventListener('click', () => shiftCalendar(1)); $('#calendarDays').addEventListener('click', chooseCalendarDay); $$('[data-manage]').forEach((button) => button.addEventListener('click', () => openManager(button.dataset.manage))); $('#managerClose').addEventListener('click', () => setDialog(els.manager, false)); $('#managerList').addEventListener('click', managerAction);
+    setupSmartSelects(); setupPlanSmartSelects(); syncAllChoiceTriggers(); $$('.picker-control').forEach((input) => input.addEventListener('click', () => openDatePicker(input))); 
+    $('#choiceList').addEventListener('click', (event) => { const drinkChoice = event.target.closest('[data-drink-choice]'); if (drinkChoice && !drinkChoice.disabled) { setDialog(els.choice, false); return drinkChoice.dataset.drinkChoice === 'external' ? openExternalDrinkDialog() : openBeanPickerForDrink(); } const drinkBean = event.target.closest('[data-drink-bean]'); if (drinkBean) { const bean = state.beans.find((item) => item.id === drinkBean.dataset.drinkBean); setDialog(els.choice, false); if (bean) openDrinkDialog(bean); return; } chooseOption(event); }); $('#choiceClose').addEventListener('click', () => setDialog(els.choice, false)); $('#datePickerClose').addEventListener('click', () => setDialog(els.datePicker, false)); $('#datePickerCancel').addEventListener('click', () => setDialog(els.datePicker, false)); $('#datePickerConfirm').addEventListener('click', confirmDatePicker); $('#datePickerClear').addEventListener('click', clearDatePicker); $('#calendarPrev').addEventListener('click', () => shiftCalendar(-1)); $('#calendarNext').addEventListener('click', () => shiftCalendar(1)); $('#calendarDays').addEventListener('click', chooseCalendarDay); $$('[data-manage]').forEach((button) => button.addEventListener('click', () => openManager(button.dataset.manage))); $('#managerClose').addEventListener('click', () => setDialog(els.manager, false)); $('#managerList').addEventListener('click', managerAction);
     $('#profileOpen').addEventListener('click', openPersonal); $('#coffeeCalendarOpen').addEventListener('click', () => handlePersonalNavigation('calendar')); $('#insightsOpen').addEventListener('click', openInsights); $('#personalInsightsOpen').addEventListener('click', () => handlePersonalNavigation('overview')); $('#personalCatalogOpen').addEventListener('click', () => handlePersonalNavigation('catalog')); $('#personalReportsOpen').addEventListener('click', () => handlePersonalNavigation('reports')); $('#insightsClose').addEventListener('click', () => { if (!insightsUi.handleBack()) insightsUi.close(); }); els.insights.addEventListener('click', (event) => insightsUi.handleClick(event)); $('#personalSettingsOpen').addEventListener('click', () => handlePersonalNavigation('settings')); $('#personalSyncOpen').addEventListener('click', () => handlePersonalNavigation('sync')); $('#dataBackupOpen').addEventListener('click', () => handlePersonalNavigation('backup')); $('#dataBackupClose').addEventListener('click', () => setDialog(els.backup, false));
     $('#personalView').addEventListener('click', (event) => {
       if (isWideWorkspace() && insightsUi && insightsUi.handleClick(event)) return;
@@ -3162,7 +3292,7 @@
     // 所以只认弹窗「上下方」的空白，左右两侧一律不关（2.4.2）。编辑类弹窗和冲煮辅助
     // 直接不参与：填了一半的表单或正在跑的计时器不该被一次误触清掉，只能走 ✕ / 取消。
     [els.backup, els.calendar, els.insights, els.detail, els.drinkDetail, els.planDetail,
-      els.choice, els.datePicker, els.photoSource, els.scanImage, els.imagePreview, els.shareChoice, els.beanFilter,
+      els.choice, els.drinkAssistPlan, els.datePicker, els.photoSource, els.scanImage, els.imagePreview, els.shareChoice, els.beanFilter,
       els.drinkShareChoice, els.sharePreview, els.confirm, els.manager, els.settings, els.sync, els.about]
       .forEach((dialog) => {
         const dismiss = () => (dialog === els.sharePreview ? closeSharePreview() : setDialog(dialog, false));

@@ -1150,13 +1150,14 @@ html.number-picker-open { overflow:hidden; }
 .pour-fill-remainder { min-height:42px; border:1px solid color-mix(in srgb,var(--accent) 40%,var(--border)); border-radius:var(--radius-control); background:var(--surface); color:var(--accent); font-size:12px; font-weight:650; }
 .drink-plan-picker { display:grid; gap:8px; padding:10px 12px; border:1px solid var(--border); border-radius:var(--radius-card); background:var(--surface-2); }
 .drink-plan-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; }
-.drink-plan-options button { display:flex; align-items:center; justify-content:space-between; gap:10px; min-width:0; min-height:42px; padding:8px 10px; border:1px solid color-mix(in srgb,var(--border) 80%,transparent); border-radius:var(--radius-control); background:var(--surface); color:var(--muted); text-align:left; }
-.drink-plan-options button > span { min-width:0; flex:1 1 auto; }
+.drink-plan-options button { position:relative; display:flex; flex-direction:column; align-items:stretch; justify-content:center; gap:2px; min-width:0; min-height:48px; padding:8px 10px; border:1px solid color-mix(in srgb,var(--border) 80%,transparent); border-radius:var(--radius-control); background:var(--surface); color:var(--muted); text-align:left; }
 .drink-plan-options .drink-plan-action { grid-column:1/-1; }
 .drink-plan-options button.active { border-color:color-mix(in srgb,var(--accent) 58%,var(--border)); background:color-mix(in srgb,var(--accent) 10%,var(--surface)); color:var(--accent); }
-.drink-plan-options span,.drink-plan-options small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.drink-plan-options span { font-weight:700; }
-.drink-plan-options small { flex:0 0 auto; color:var(--faint); font-size:9px; }
+.drink-plan-options .drink-plan-primary { display:block; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:700; line-height:1.25; }
+.drink-plan-options .drink-plan-secondary { display:block; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--faint); font-size:9px; font-weight:500; line-height:1.3; }
+.drink-plan-options .drink-plan-badges { position:absolute; top:6px; right:6px; display:inline-flex; flex-wrap:wrap; justify-content:flex-end; gap:3px; max-width:46%; pointer-events:none; }
+.drink-plan-options .drink-plan-badges i { padding:2px 5px; border:1px solid color-mix(in srgb,var(--accent) 45%,var(--border)); border-radius:999px; color:var(--accent); font-size:8px; font-style:normal; font-weight:700; background:color-mix(in srgb,var(--surface) 88%,transparent); }
+.drink-plan-options button.has-badges .drink-plan-primary { padding-right:4px; }
 .drink-plan-options em { display:inline-flex; gap:4px; margin-left:6px; vertical-align:middle; font-style:normal; }
 .drink-plan-options i { padding:2px 5px; border:1px solid color-mix(in srgb,var(--accent) 45%,var(--border)); border-radius:999px; color:var(--accent); font-size:8px; font-style:normal; font-weight:700; }
 .assist-entry { display:grid; grid-template-columns:1fr auto; align-items:center; gap:10px; min-height:48px; margin-top:8px; padding:10px 12px; border:1px solid color-mix(in srgb,var(--accent) 58%,var(--border)); border-radius:var(--radius-control); background:color-mix(in srgb,var(--accent) 10%,var(--surface)); color:var(--accent); text-align:left; }
@@ -1192,7 +1193,8 @@ html.number-picker-open { overflow:hidden; }
 .plan-card:active { transform:scale(.988); border-color:var(--accent); }
 .plan-card-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; min-width:0; }
 .plan-card-head > div:first-child { min-width:0; }
-.plan-card h3 { margin:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:700 18px "Vault Serif",serif; letter-spacing:.015em; }
+.plan-card h3 { margin:0; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; line-clamp:2; overflow:hidden; text-overflow:ellipsis; white-space:normal; font:700 18px "Vault Serif",serif; letter-spacing:.015em; line-height:1.25; }
+.plan-card-bind { margin:2px 0 0; color:var(--faint); font-size:10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .plan-card p { margin:3px 0 0; color:var(--faint); font-size:10px; }
 .plan-card-meta { display:flex; flex-wrap:wrap; align-items:center; gap:4px 7px; }
 .plan-card-meta > span { display:inline-flex; align-items:center; min-height:16px; line-height:16px; }
@@ -2242,8 +2244,9 @@ dialog[data-layer-kind="quick"] { background:var(--vault-paper); }
   border-radius:var(--radius-card);
   background:var(--vault-paper);
 }
-.profile-taste-radar { min-height:104px; }
+.profile-taste-radar { min-height:104px; min-width:0; overflow:hidden; }
 .profile-taste-radar .dimension-radar { margin:0; }
+.profile-taste-radar .rating-radar--mini { width:100%; max-width:112px; height:auto; }
 .profile-taste-copy { min-width:0; }
 .profile-taste-copy > span { color:var(--vault-ink-tertiary); font-size:9px; font-weight:800; letter-spacing:.1em; }
 .profile-taste-copy p { margin:9px 0 7px; color:var(--text); font-size:12px; line-height:1.65; }
@@ -2935,8 +2938,9 @@ body[data-shell-view="personal"] .profile-button { border-color:var(--accent); b
 .profile-metric small { margin-top:5px; font-size:7px; }
 .profile-metric.metric-cups { display:none; }
 .bean-detail-columns,.bean-detail-primary,.bean-detail-secondary { gap:10px; }
-.profile-taste-card { grid-template-columns:104px minmax(0,1fr); gap:12px; min-height:136px; padding:14px; border-radius:var(--radius-card); }
-.profile-taste-radar { min-height:96px; }
+.profile-taste-card { grid-template-columns:120px minmax(0,1fr); gap:10px; min-height:128px; padding:12px; border-radius:var(--radius-card); }
+.profile-taste-radar { min-height:96px; min-width:0; overflow:hidden; }
+.profile-taste-radar .rating-radar--mini { width:100%; max-width:112px; height:auto; }
 .profile-taste-copy p { margin:7px 0 5px; font-size:11px; line-height:1.5; }
 .profile-history,.detail-plan-links { padding:14px; border-radius:var(--radius-card); }
 .profile-history .section-heading { align-items:center; }
@@ -3092,7 +3096,7 @@ body[data-shell-view="personal"] .profile-button { border-color:var(--accent); b
   .bean-thumb { width:70px; height:88px; }
   .card-body { padding-right:11px; }
   .compact-meta span { max-width:none; overflow:visible; }
-  .profile-taste-card { grid-template-columns:92px minmax(0,1fr); }
+  .profile-taste-card { grid-template-columns:120px minmax(0,1fr); gap:10px; padding:12px; min-height:128px; }
   .calendar-entry-copy small { max-width:180px; }
 }
 
@@ -3510,11 +3514,49 @@ body[data-shell-view="personal"] .profile-button { border-color:var(--accent); b
 .bean-archive-meta > span:first-child { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .bean-archive-meta > span:last-child { flex:none; white-space:nowrap; }
 
+/* 3.0.13: 30天常用两行 + 快捷辅助副行/更换 */
+.stat.stat-popular strong {
+  white-space:normal; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; line-clamp:2;
+  overflow:hidden; text-overflow:ellipsis; font-size:15px; line-height:1.2;
+}
+.assist-footer-cluster {
+  display:grid; grid-template-columns:minmax(0,1fr) auto; gap:6px; align-items:stretch; min-width:0;
+}
+.assist-footer-cluster[hidden] { display:none; }
+.assist-footer--stack {
+  display:flex; align-items:center; min-height:48px; padding:6px 10px; text-align:left;
+}
+.assist-footer-copy { display:grid; gap:1px; min-width:0; }
+.assist-footer-main { display:block; font-weight:750; line-height:1.2; }
+.assist-footer-sub {
+  display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  color:var(--muted); font-size:9px; font-weight:500;
+}
+.assist-change {
+  appearance:none; border:0; background:transparent; color:var(--accent);
+  font-size:10px; font-weight:700; padding:0 4px; min-width:32px;
+}
+.drink-dialog:not(.quick-mode) .assist-footer-sub,
+.drink-dialog:not(.quick-mode) #drinkAssistChange { display:none; }
+.drink-dialog:not(.quick-mode) #drinkAssistCluster { display:contents; }
+.drink-plan-switch-list { display:grid; gap:8px; padding:4px 12px 12px; }
+.drink-plan-switch-list button {
+  position:relative; display:flex; flex-direction:column; align-items:stretch; justify-content:center; gap:2px;
+  min-height:52px; padding:10px 12px; border:1px solid var(--vault-line-soft);
+  border-radius:var(--radius-card); background:var(--vault-paper); color:var(--text); text-align:left;
+}
+.drink-plan-switch-list button.active { border-color:color-mix(in srgb,var(--accent) 55%,var(--vault-line)); background:color-mix(in srgb,var(--accent) 10%,var(--vault-paper)); }
+.drink-plan-switch-list .drink-plan-primary { display:block; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; font-weight:750; line-height:1.25; }
+.drink-plan-switch-list .drink-plan-secondary { display:block; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--vault-ink-tertiary); font-size:10px; }
+.drink-plan-switch-list .drink-plan-badges { position:absolute; top:8px; right:8px; display:inline-flex; flex-wrap:wrap; justify-content:flex-end; gap:3px; max-width:46%; pointer-events:none; }
+.drink-plan-switch-list .drink-plan-badges i { padding:2px 5px; border:1px solid color-mix(in srgb,var(--accent) 45%,var(--border)); border-radius:999px; color:var(--accent); font-size:8px; font-style:normal; font-weight:700; background:color-mix(in srgb,var(--surface) 88%,transparent); }
+.drink-plan-switch-list button.has-badges .drink-plan-primary { padding-right:4px; }
+
 /* 3.0.12: quick drink footer (quick-mode only; full-record dialog untouched).
    <1100: row 1 = assist + edit-full (1fr each; edit-full spans when assist hidden), row 2 = save full width.
    >=1100: single row, edit-full left / spacer / assist / save at far right. has-assist is toggled in JS (no :has). */
 .drink-dialog.quick-mode .sheet-footer > div { display:grid; grid-template-columns:1fr 1fr; gap:8px; width:100%; margin-left:0; }
-.drink-dialog.quick-mode .sheet-footer > div > #drinkStartAssist { order:1; }
+.drink-dialog.quick-mode .sheet-footer > div > #drinkAssistCluster { order:1; }
 .drink-dialog.quick-mode .sheet-footer > div > #drinkEditFull { order:2; grid-column:1 / -1; }
 .drink-dialog.quick-mode .sheet-footer > div.has-assist > #drinkEditFull { grid-column:auto; }
 .drink-dialog.quick-mode .sheet-footer > div > #saveDrink { order:3; grid-column:1 / -1; height:48px; min-height:48px; }
@@ -3526,7 +3568,7 @@ body[data-shell-view="personal"] .profile-button { border-color:var(--accent); b
   .drink-dialog.quick-mode .sheet-footer > div.has-assist { grid-template-columns:auto 1fr auto auto; }
   .drink-dialog.quick-mode .sheet-footer > div > #drinkEditFull,
   .drink-dialog.quick-mode .sheet-footer > div.has-assist > #drinkEditFull { grid-row:1; grid-column:1; }
-  .drink-dialog.quick-mode .sheet-footer > div.has-assist > #drinkStartAssist { grid-row:1; grid-column:3; }
+  .drink-dialog.quick-mode .sheet-footer > div.has-assist > #drinkAssistCluster { grid-row:1; grid-column:3; }
   .drink-dialog.quick-mode .sheet-footer > div > #saveDrink { grid-row:1; grid-column:-2 / -1; min-width:140px; }
 }
 

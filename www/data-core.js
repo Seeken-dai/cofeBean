@@ -639,7 +639,7 @@
   function buildAiPlanPrompt(bean, now) {
     const methods = BREW_METHODS.join('、');
     const example = {
-      name: '云南日晒手冲·明亮花果',
+      name: 'V60·明亮花果',
       brewMethod: '手冲', dose: 15, totalWater: 225, ratio: '1:15',
       waterTemp: '92℃', grindSetting: '中细，白砂糖颗粒感', targetDuration: '2:30',
       notes: '三段式注水，突出花香与柑橘酸质。',
@@ -658,7 +658,7 @@
       '- 只输出一个方案对象，不要输出数组或多个方案。',
       '',
       '【字段规则】',
-      '- name：方案名称，不超过 120 字。',
+      '- name：方案短名，不超过 120 字；用「冲煮方式或器具 + 风格/口感」命名（如「V60·明亮花果」「清爽果香手冲」），不要把豆名、产地写进 name（豆子信息已在上下文，导入后会绑定豆子）。',
       `- brewMethod：必须是以下之一——${methods}。`,
       '- dose：粉量（克，数字）；totalWater：总水量（克，数字）；ratio：粉水比，如 "1:15"。',
       '- waterTemp：水温，如 "92℃"；grindSetting：研磨度描述；targetDuration：目标总时长，如 "2:30"。',
@@ -877,6 +877,29 @@
     list.forEach((plan) => plan.beanIds.forEach((id) => beanIds.add(id)));
     const recent = list.slice().sort((a, b) => cleanText(b.updatedAt).localeCompare(cleanText(a.updatedAt)))[0] || null;
     return { total: list.length, boundBeans: beanIds.size, recent };
+  }
+
+  // 展示用短名：方案绑定/用于某豆时，若 name 以豆名开头则剥掉前缀与分隔符（·/•/-/—/空格）。
+  // 不改库存 name；详情页全名、编辑器仍用 plan.name。
+  function planDisplayName(plan, beanOrName, options) {
+    const opts = options || {};
+    const raw = cleanText(plan && plan.name, 120) || '未命名方案';
+    const bean = beanOrName && typeof beanOrName === 'object' ? beanOrName : null;
+    const beanName = cleanText(bean ? bean.name : beanOrName, 120);
+    if (!beanName) return raw;
+    const bound = Array.isArray(plan && plan.beanIds) && bean && bean.id
+      ? plan.beanIds.includes(bean.id)
+      : Boolean(opts.bound);
+    // 用于某豆（喝一杯 / 统计上下文）或已绑定该豆时才剥前缀，避免误伤同名无关方案。
+    if (!bound && !opts.forBean) return raw;
+    const compact = (s) => String(s || '').replace(/\s+/g, '');
+    const full = compact(raw);
+    const prefix = compact(beanName);
+    if (!prefix || prefix.length < 2 || !full.startsWith(prefix)) return raw;
+    let rest = full.slice(prefix.length).replace(/^[·•\-—_/|]+/, '');
+    // 剥完后太短或与豆名几乎一样 → 保留全名，避免只剩「手冲」之类无辨识度的尾巴时误伤。
+    if (!rest || rest.length < 2) return raw;
+    return rest;
   }
 
   function recommendBrewPlans(plans, beanId, method) {
@@ -1701,5 +1724,5 @@
     const cups = Number(summary && summary.cups) || 0; const ratedCount = Number(summary && summary.ratedCount) || 0;
     return ratedCount > 0 && ratedCount < cups ? `其中 ${ratedCount} 杯已评` : '';
   }
-  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, COFFEE_TYPES, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, mergeBrewPlanOverlay, normalizeSettings, hasTastingContent, resolveTastingStatus, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, selectHomeReminder, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, buildAiPlanPrompt, parseAiPlanJson, looksLikeCumulativeStepWaters, splitCumulativeWatersToSegments, cumulativeWatersFromSegments, normalizeStepsWaterToSegments, prepareBrewAssistSteps, brewAssistStatus, resolveOpenedDate, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareAppVersions, isAppVersionNewer, selectReleaseApkAsset, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, FLAVOR_LEXICON, flavorTags, recentFlavorTags, beanFreshness, recentDrinkSeries, compareDrinkChronology, recentCafeNames, recentExternalDrinkNames, previousComparableDrink, beanProcessKind, recentDrinkLocations, beanRatingSummary, ratedCupsNote, sortBeanRatingLogs, beanRatingVisibleCount, ratingMonthKey, beanRatingMoreLabel };
+  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, COFFEE_TYPES, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, mergeBrewPlanOverlay, normalizeSettings, hasTastingContent, resolveTastingStatus, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, selectHomeReminder, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, buildAiPlanPrompt, parseAiPlanJson, looksLikeCumulativeStepWaters, splitCumulativeWatersToSegments, cumulativeWatersFromSegments, normalizeStepsWaterToSegments, prepareBrewAssistSteps, brewAssistStatus, resolveOpenedDate, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareAppVersions, isAppVersionNewer, selectReleaseApkAsset, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, FLAVOR_LEXICON, flavorTags, recentFlavorTags, beanFreshness, recentDrinkSeries, compareDrinkChronology, recentCafeNames, recentExternalDrinkNames, previousComparableDrink, beanProcessKind, recentDrinkLocations, beanRatingSummary, ratedCupsNote, sortBeanRatingLogs, beanRatingVisibleCount, ratingMonthKey, beanRatingMoreLabel, planDisplayName };
 });

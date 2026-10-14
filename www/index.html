@@ -140,7 +140,7 @@
         <article class="stat stat-primary"><strong id="planTotal">0</strong><span>方案</span></article>
         <div class="stat-divider"></div>
         <article class="stat"><strong id="planMethods">0</strong><span>覆盖方式</span></article>
-        <article class="stat"><strong id="planPopular">—</strong><span>30天常用</span></article>
+        <article class="stat stat-popular"><strong id="planPopular">—</strong><span>30天常用</span></article>
       </section>
       <nav class="filter-row" id="planMethodFilters" aria-label="按冲煮方式筛选方案"></nav>
       <section class="plan-list" id="brewPlanList" aria-live="polite"></section>
@@ -513,7 +513,7 @@
         <label class="field tasting-visible full"><span>风味 / 评价备注</span><textarea id="drink-notes" name="notes" maxlength="2000" rows="4" placeholder="例如：酸奶、牛奶巧克力、柑橘；也可以写下风味变化和下次想调整的地方…"></textarea></label>
         <section class="flavor-suggest tasting-visible full" id="drinkFlavorSuggest" hidden></section>
       </div>
-      <footer class="sheet-footer"><span></span><div><button class="secondary-button" id="drinkEditFull" type="button" hidden>编辑完整记录</button><button class="secondary-button assist-footer-button" id="drinkStartAssist" type="button" hidden>冲煮辅助</button><button class="primary-button" id="saveDrink" type="submit">保存</button></div></footer>
+      <footer class="sheet-footer"><span></span><div><button class="secondary-button" id="drinkEditFull" type="button" hidden>编辑完整记录</button><div class="assist-footer-cluster" id="drinkAssistCluster" hidden><button class="secondary-button assist-footer-button assist-footer--stack" id="drinkStartAssist" type="button"><span class="assist-footer-copy"><span class="assist-footer-main">冲煮辅助</span><small class="assist-footer-sub" id="drinkAssistPlanLabel"></small></span></button><button type="button" class="assist-change" id="drinkAssistChange" aria-label="更换冲煮方案">更换</button></div><button class="primary-button" id="saveDrink" type="submit">保存</button></div></footer>
     </form>
   </dialog>
 
@@ -522,7 +522,13 @@
     <div class="choice-list" id="choiceList"></div>
   </dialog>
 
-  <dialog class="sheet compact picker-sheet" id="datePickerDialog">
+  
+  <dialog class="sheet compact picker-sheet" id="drinkAssistPlanSheet">
+    <header class="sheet-header"><div><p class="eyebrow">BREW PLAN</p><h2 id="drinkAssistPlanTitle">选用冲煮方案</h2></div><button class="icon-button" id="drinkAssistPlanClose" type="button" aria-label="关闭">×</button></header>
+    <div class="drink-plan-switch-list" id="drinkAssistPlanList"></div>
+  </dialog>
+
+<dialog class="sheet compact picker-sheet" id="datePickerDialog">
     <header class="sheet-header"><div><p class="eyebrow">CALENDAR</p><h2 id="datePickerTitle">选择日期</h2></div><button class="icon-button" id="datePickerClose" type="button" aria-label="关闭">×</button></header>
     <div class="calendar-wrap"><div class="calendar-nav"><button id="calendarPrev" type="button" aria-label="上个月">‹</button><strong id="calendarMonth"></strong><button id="calendarNext" type="button" aria-label="下个月">›</button></div><div class="calendar-week"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div><div class="calendar-days" id="calendarDays"></div><div class="calendar-time" id="calendarTime" hidden><label><span>小时</span><input id="calendarHour" type="number" min="0" max="23" inputmode="numeric"></label><b>:</b><label><span>分钟</span><input id="calendarMinute" type="number" min="0" max="59" step="1" inputmode="numeric"></label></div></div>
     <footer class="sheet-footer"><button class="danger-button" id="datePickerClear" type="button">清除日期</button><div><button class="secondary-button" id="datePickerCancel" type="button">取消</button><button class="primary-button" id="datePickerConfirm" type="button">确定</button></div></footer>

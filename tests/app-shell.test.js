@@ -201,6 +201,7 @@ test('复杂页面、工具流程与快捷面板使用不同层级', () => {
   assert.equal(AppShell.layerKind('imagePreviewDialog'), 'quick');
   assert.equal(AppShell.layerKind('sharePreviewDialog'), 'quick');
   assert.equal(AppShell.layerKind('choiceDialog'), 'quick');
+  assert.equal(AppShell.layerKind('drinkAssistPlanSheet'), 'quick');
   assert.equal(AppShell.layerKind('beanFilterDialog'), 'quick');
   assert.equal(AppShell.layerKind('confirmDialog'), 'quick');
 });
@@ -211,9 +212,9 @@ test('现有页面与筛选面板全部进入 3.0 页面覆盖矩阵', () => {
   const expected = {
     page: ['dataBackupDialog', 'coffeeCalendarDialog', 'insightsDialog', 'detailDialog', 'drinkDetailDialog', 'planDetailDialog', 'planEditorDialog', 'editorDialog', 'drinkDialog', 'settingsDialog', 'syncDialog', 'aboutDialog', 'migrationDialog'],
     tool: ['brewAssistDialog'],
-    quick: ['choiceDialog', 'datePickerDialog', 'photoSourceDialog', 'scanImageDialog', 'imagePreviewDialog', 'shareImageChoiceDialog', 'planShareChoiceDialog', 'drinkShareChoiceDialog', 'planImportDialog', 'sharePreviewDialog', 'smartManagerDialog', 'syncAuthDialog', 'confirmDialog', 'numberPickerDialog', 'beanFilterDialog']
+    quick: ['choiceDialog', 'drinkAssistPlanSheet', 'datePickerDialog', 'photoSourceDialog', 'scanImageDialog', 'imagePreviewDialog', 'shareImageChoiceDialog', 'planShareChoiceDialog', 'drinkShareChoiceDialog', 'planImportDialog', 'sharePreviewDialog', 'smartManagerDialog', 'syncAuthDialog', 'confirmDialog', 'numberPickerDialog', 'beanFilterDialog']
   };
-  assert.equal(ids.length, 29);
+  assert.equal(ids.length, 30);
   assert.deepEqual(ids.slice().sort(), Object.values(expected).flat().sort());
   Object.entries(expected).forEach(([kind, dialogIds]) => {
     dialogIds.forEach((id) => assert.equal(AppShell.layerKind(id), kind, id));

@@ -37,7 +37,7 @@
   // 必须与业务上的“最上层先关闭”一致。数字滚轮由 AppNumberInput 在进入这里前单独处理。
   const BACK_PRIORITY = [
     'confirmDialog', 'sharePreviewDialog', 'drinkShareChoiceDialog', 'planShareChoiceDialog',
-    'shareImageChoiceDialog', 'planImportDialog', 'beanFilterDialog', 'choiceDialog', 'datePickerDialog',
+    'shareImageChoiceDialog', 'planImportDialog', 'beanFilterDialog', 'drinkAssistPlanSheet', 'choiceDialog', 'datePickerDialog',
     'photoSourceDialog', 'scanImageDialog', 'imagePreviewDialog', 'brewAssistDialog',
     'drinkDialog', 'planEditorDialog', 'syncAuthDialog', 'syncDialog', 'dataBackupDialog',
     'insightsDialog', 'coffeeCalendarDialog', 'drinkDetailDialog', 'planDetailDialog',
