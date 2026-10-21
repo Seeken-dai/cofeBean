@@ -14,6 +14,7 @@
     <a href="https://github.com/Seeken-dai/cofeBean/releases/latest"><img src="https://img.shields.io/badge/Release-v3.0.13-2D6A4F?style=flat-square&logo=android&logoColor=white" alt="Latest Release" /></a>
     <img src="https://img.shields.io/badge/Platform-Android_%7C_Web_PWA-3D405B?style=flat-square" alt="Platform" />
     <img src="https://img.shields.io/badge/Privacy-本地优先_%7C_零广告-D4A373?style=flat-square" alt="Privacy First" />
+    <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-1F6FEB?style=flat-square" alt="License: MIT" /></a>
   </p>
 
   <p>
@@ -187,6 +188,18 @@ cofeBean/
 ```
 
 ---
+
+## 📄 许可证（License）
+
+本项目源代码以 [MIT License](LICENSE) 开源，Copyright (c) 2026 Seeken-dai。
+
+第三方组件保留各自的许可证（third-party components keep their own licenses），不受本项目 MIT 许可证约束，主要包括：
+
+- `www/vendor/mediapipe/`（MediaPipe Tasks Vision 与 MagicTouch 抠图模型）、`www/vendor/jsQR.js`（jsQR）：Apache License 2.0
+- `www/vendor/qrcode-generator.js`（Kazuhiko Arase）：MIT
+- Capacitor 及其插件、AndroidX 等 npm / Gradle 依赖：各自的开源许可证（MIT、Apache-2.0 等）
+- Android 端离线文字识别使用的 Google ML Kit（`com.google.mlkit:text-recognition-chinese`）：专有软件，构建时从 Google Maven 获取、不包含在本仓库中，适用 [ML Kit 服务条款](https://developers.google.com/ml-kit/terms)
+- 落地页通过 Google Fonts 加载的 Noto Sans SC / Noto Serif SC：SIL Open Font License 1.1
 
 ## 📄 开源与致谢
 

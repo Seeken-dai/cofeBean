@@ -3,6 +3,7 @@
   "version": "3.0.13",
   "private": true,
   "description": "豆仓 - 本地优先的咖啡豆管理 Android App",
+  "license": "MIT",
   "scripts": {
     "test": "node --test tests/*.test.js",
     "lint": "eslint www worker/src tests scripts eslint.config.mjs",
