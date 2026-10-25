@@ -33,7 +33,7 @@ function planToForm(plan) {
   const form = {};
   PLAN_FORM_KEYS.forEach((key) => {
     if (!inputType(key)) return;
-    const value = key === 'waterTemp' ? core.waterTempInputValue(p.waterTemp) : (p[key] == null ? '' : String(p[key]));
+    const value = key === 'waterTemp' ? core.waterTempInputValue(p.waterTemp) : key === 'grinder' ? core.canonicalGrinder(p.grinder) : (p[key] == null ? '' : String(p[key]));
     form[key] = assignToInput(key, value);
   });
   return { form, originalWaterTemp: form.waterTemp, storedWaterTemp: p.waterTemp || '' };
@@ -64,6 +64,8 @@ const SAMPLE = {"name":"V60·花果焦糖均衡","brewMethod":"手冲","dose":15
 
 test('app.js really uses the shared helpers this test models', () => {
   assert.match(appJs, /key === 'waterTemp' \? BeanCore\.waterTempInputValue\(p\.waterTemp\)/);
+  assert.match(appJs, /key === 'grinder' \? BeanCore\.canonicalGrinder\(p\.grinder\)/);
+  assert.match(appJs, /BeanCore\.grinderChoices\(planSmartValues\(field\)\)/);
   assert.match(appJs, /BeanCore\.planWaterTempFromForm\(fields\.waterTemp, \$\('#plan-waterTemp'\)\.dataset\.originalValue, \$\('#plan-waterTemp'\)\.dataset\.storedValue\)/);
   assert.match(appJs, /\{ clear: temp\.clear \? \['waterTemp'\] : \[\] \}/);
   assert.notEqual(inputType('waterTemp'), 'number', 'waterTemp must not be a number input, or ranges are wiped on open');
@@ -126,4 +128,28 @@ test('quick 喝一杯: range carried into the drink form stays "90-92" (was 9092
   assert.ok(!/type="number"/.test(drinkInput));
   assert.equal(core.waterTempInputValue('90-92°C'), '90-92');
   assert.equal(core.normalizeWaterTemp('90-92'), '90-92°C');
+});
+
+test('water temp inputs: wheel-only text inputs — no pattern/min/max/step, inputmode="none"', () => {
+  for (const id of ['plan-waterTemp', 'drink-param-waterTemp']) {
+    const tag = html.match(new RegExp(`<input[^>]*id="${id}"[^>]*>`))[0];
+    assert.match(tag, /type="text"/);
+    assert.match(tag, /inputmode="none"/);
+    assert.ok(!/\s(pattern|min|max|step)=/.test(tag), tag);
+  }
+  assert.match(appJs, /selector: '#plan-waterTemp, #drink-param-waterTemp', mode: 'wheel'[^}]*step: 1, min: 0, max: 100/);
+});
+
+test('grinder: old plan storing an alias selects the enum entry in the editor and is canonicalised only when re-saved', () => {
+  const old = core.normalizeBrewPlan({ ...SAMPLE, id: 'old-c40', grinder: 'C40', grindSetting: '24', source: 'user' });
+  assert.equal(old.grinder, 'C40', 'stored value is left alone on read');
+  const opened = planToForm(old);
+  assert.equal(opened.form.grinder, 'Comandante C40');
+  assert.ok(core.grinderChoices(['C40', 'Lido 3']).includes(opened.form.grinder));
+  const saved = savePlan(old, opened);
+  assert.equal(saved.grinder, 'Comandante C40');
+  const { grinder: _a, ...restSaved } = saved; const { grinder: _b, ...restOld } = old;
+  assertUnchanged(restOld, restSaved);
+  const lido = core.normalizeBrewPlan({ ...SAMPLE, id: 'lido', grinder: 'Lido 3', source: 'user' });
+  assert.equal(savePlan(lido, planToForm(lido)).grinder, 'Lido 3');
 });

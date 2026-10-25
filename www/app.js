@@ -1915,7 +1915,7 @@
     els.planForm.reset(); fillPlanMethodOptions();
     const p = plan ? BeanCore.normalizeBrewPlan(plan, plan.updatedAt) : BeanCore.normalizeBrewPlan({ brewMethod: '手冲', dose: state.settings.quickGrams });
     $('#plan-id').value = p.id || ''; $('#plan-version').value = p.version || 1; $('#plan-source').value = p.source || 'user';
-    ['name', 'dose', 'liquid', 'ratio', 'totalWater', 'waterTemp', 'grinder', 'grindSetting', 'targetDuration', 'steepTime', 'steepEnvironment', 'coffeeMachine', 'basket', 'targetYield', 'targetExtractionTime', 'pressTime', 'mokaPotSize', 'heatLevel', 'customMethod', 'notes'].forEach((key) => { const el = $(`#plan-${key}`); if (el) el.value = key === 'waterTemp' ? BeanCore.waterTempInputValue(p.waterTemp) : (p[key] == null ? '' : String(p[key])); });
+    ['name', 'dose', 'liquid', 'ratio', 'totalWater', 'waterTemp', 'grinder', 'grindSetting', 'targetDuration', 'steepTime', 'steepEnvironment', 'coffeeMachine', 'basket', 'targetYield', 'targetExtractionTime', 'pressTime', 'mokaPotSize', 'heatLevel', 'customMethod', 'notes'].forEach((key) => { const el = $(`#plan-${key}`); if (el) el.value = key === 'waterTemp' ? BeanCore.waterTempInputValue(p.waterTemp) : key === 'grinder' ? BeanCore.canonicalGrinder(p.grinder) : (p[key] == null ? '' : String(p[key])); });
     // 记下打开时的水温显示值：保存时未改动就原样保留库里的值（含区间），改动且清空才算用户主动清空。
     $('#plan-waterTemp').dataset.originalValue = $('#plan-waterTemp').value; $('#plan-waterTemp').dataset.storedValue = p.waterTemp || '';
     // 已经存了目标总时长的方案视为用户自己定过，不再跟随注水步骤；空的才继续自动跟随。

@@ -817,13 +817,14 @@
     const hit = GRINDER_OPTIONS.find((item) => grinderKey(item.label) === key || item.aliases.some((alias) => grinderKey(alias) === key));
     return hit ? hit.label : raw;
   }
-  // 编辑页研磨设备下拉：9 个枚举在前，再接用户历史值（去重，忽略大小写 / 空格），新用户也能直接选。
+  // 编辑页研磨设备下拉：9 个枚举在前，再接用户历史值（按规范名去重，忽略大小写 / 空格 / 别名），新用户也能直接选。
   function grinderChoices(historyValues) {
     const out = GRINDER_OPTIONS.map((item) => item.label);
     const seen = new Set(out.map(grinderKey));
+    // 按别名去重：历史里的 "C40" / "comandante c40" 归到 "Comandante C40"，不再单独追加；枚举外型号（如 Lido 3）照常追加。
     (historyValues || []).map((value) => cleanText(value, 300)).filter(Boolean)
       .sort((a, b) => a.localeCompare(b, 'zh-CN'))
-      .forEach((value) => { const key = grinderKey(value); if (!seen.has(key)) { seen.add(key); out.push(value); } });
+      .forEach((value) => { const key = grinderKey(canonicalGrinder(value)); if (!seen.has(key)) { seen.add(key); out.push(value); } });
     return out;
   }
 

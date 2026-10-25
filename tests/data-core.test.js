@@ -1066,9 +1066,21 @@ test('grinderChoices: 9 options first (new users too), then history deduplicated
   const labels = core.GRINDER_OPTIONS.map((item) => item.label);
   assert.deepEqual(core.grinderChoices([]), labels);
   assert.deepEqual(core.grinderChoices(undefined), labels);
-  const merged = core.grinderChoices(['comandante c40', 'Niche Zero', 'EK43', 'Niche Zero', '', 'C40']);
+  const merged = core.grinderChoices(['comandante c40', 'Niche Zero', 'EK43', 'Niche Zero', '', 'C40', '司令官', 'k6', 'ZP6', '巫师2', 'ek-43', 'Lido 3', 'lido3']);
   assert.deepEqual(merged.slice(0, 9), labels);
-  assert.deepEqual(merged.slice(9).sort(), ['C40', 'Niche Zero']);
+  // 命中枚举别名的历史值（C40 / 司令官 / k6 / 巫师2 / ek-43 …）不再单独追加；枚举外型号按大小写/空格去重后追加。
+  assert.deepEqual(merged.slice(9), ['Lido 3', 'Niche Zero']);
+});
+
+test('grinderChoices + canonicalGrinder: an old plan storing an alias selects the enum entry', () => {
+  const choices = core.grinderChoices(['C40', 'Lido 3']);
+  assert.ok(!choices.includes('C40'));
+  assert.ok(choices.includes(core.canonicalGrinder('C40')));
+  assert.equal(core.canonicalGrinder('C40'), 'Comandante C40');
+  assert.ok(choices.includes(core.canonicalGrinder('Lido 3')));
+  assert.equal(core.canonicalGrinder('Lido 3'), 'Lido 3');
+  // 读库不改写：旧方案读出来仍是用户当初存的值。
+  assert.equal(core.normalizeBrewPlan({ name: 'old', grinder: 'C40' }).grinder, 'C40');
 });
 
 test('extractGrindSetting: number before 格/clicks, after 刻度, ranges, decimals; skips model numbers and relative tweaks', () => {
