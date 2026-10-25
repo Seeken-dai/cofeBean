@@ -1133,3 +1133,39 @@ test('AI prompt: lists the grinder enum; example types match the parser; no ℃ 
   assert.equal(plan.grindSetting, '40');
   assert.equal(plan.notes, example.notes, 'example grind needs no fallback');
 });
+
+test('3.0.14 formatWaterTemp: numbers and ranges get °C once; non-numeric text is never suffixed', () => {
+  for (const [input, expected] of [[91, '91°C'], ['91', '91°C'], ['91℃', '91°C'], ['91度', '91°C'], ['90-92', '90-92°C'], ['90-92°C', '90-92°C'], ['91.5', '91.5°C'],
+    ['常温', '常温'], ['室温 25', '室温 25'], ['92左右', '92左右'], ['沸水', '沸水'], ['200°F', '200°F'], ['', ''], [null, ''], [undefined, '']]) {
+    assert.equal(core.formatWaterTemp(input), expected, JSON.stringify(input));
+    const shown = core.formatWaterTemp(input);
+    assert.ok(!/℃°C|°C°C|度°C/.test(shown), JSON.stringify(input));
+    if (shown.endsWith('°C')) assert.match(shown, /^\d+(?:\.\d+)?(?:-\d+(?:\.\d+)?)?°C$/, 'only numbers / ranges carry °C');
+  }
+});
+
+test('3.0.14 share rows: cold-brew preset 常温 is shown as written, numeric temps get °C', () => {
+  const coldBrew = core.presetBrewPlans(Date.now()).find((plan) => plan.waterTemp === '常温');
+  assert.ok(coldBrew, 'preset with 常温 exists');
+  const row = core.buildSharePayload('brewPlan', coldBrew).rows.find((item) => item.label === '水温');
+  assert.equal(row.value, '常温');
+  assert.equal(core.buildSharePayload('brewPlan', { name: 'x', waterTemp: '90-92℃' }).rows.find((item) => item.label === '水温').value, '90-92°C');
+  assert.equal(core.buildSharePayload('brewPlan', { name: 'x', waterTemp: 91 }).rows.find((item) => item.label === '水温').value, '91°C');
+  const drink = core.buildSharePayload('drink', { id: 'l', beanName: 'b', brewMethod: '冷萃', grams: 20, consumedAt: '2026-10-20T00:00:00.000Z', brewPlanSnapshot: { name: 'c', brewMethod: '冷萃', waterTemp: '常温' } }, { includeBrew: true });
+  assert.equal(drink.brewRows.find((item) => item.label === '水温').value, '常温');
+});
+
+test('3.0.14 every app water-temp display path goes through BeanCore.formatWaterTemp (no hand-built °C)', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const app = fs.readFileSync(path.join(__dirname, '..', 'www', 'app.js'), 'utf8');
+  const assist = fs.readFileSync(path.join(__dirname, '..', 'www', 'app-brew-assist.js'), 'utf8');
+  assert.ok(!app.includes('`${plan.waterTemp}°C`'), 'search row must not append °C itself');
+  assert.match(app, /esc\(\[plan\.brewMethod, plan\.ratio, BeanCore\.formatWaterTemp\(plan\.waterTemp\)\]/, 'search results');
+  assert.match(app, /\['waterTemp', '水温', BeanCore\.formatWaterTemp\(plan\.waterTemp\)\]/, 'planFactList: plan cards, plan detail, drink detail, drink list');
+  assert.match(app, /plan\.ratio, BeanCore\.formatWaterTemp\(plan\.waterTemp\)\]\.filter\(Boolean\)/, 'import preview meta');
+  assert.equal((assist.match(/core\.formatWaterTemp\(plan\.waterTemp\)/g) || []).length, 2, 'brew assist ticker + context card');
+  // 除滚轮单位配置外，app.js 里不再有手拼的 °C。
+  const handBuilt = app.split('\n').filter((line) => line.includes('°C') && !line.includes("unit: '°C'") && !/^\s*\/\//.test(line));
+  assert.deepEqual(handBuilt, []);
+});

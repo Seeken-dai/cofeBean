@@ -120,6 +120,17 @@
     return finite(input.value, finite(parseFloat(input.value), finite(config.defaultValue, finite(placeholder, finite(config.min, 0)))));
   }
 
+  // 滚轮「确定」时要写回输入框的文本；返回 null 表示保留原文本不动。
+  // 3.0.14：原值不是滚轮能表达的单个数字（如水温区间 "90-92"、文本 "常温"）且用户没动滚轮时，
+  // 直接确定不改写，原值原样保留；只有滚轮值真的变了才写成单个数字。空值 / 普通数字照旧写回。
+  function commitText(originalText, initialValue, value, step) {
+    const original = originalText == null ? '' : String(originalText);
+    const next = formatNumber(value, step);
+    if (original === '' || original === next) return next;
+    if (value === initialValue && original.trim() !== formatNumber(initialValue, step)) return null;
+    return next;
+  }
+
   function createController() {
     if (typeof document === 'undefined') throw new Error('AppNumberInput.enhance 仅可在浏览器中使用');
     const profileByInput = new WeakMap();
@@ -244,7 +255,7 @@
       const rawValue = valueOf(input, range);
       const value = round(Math.min(range.max, Math.max(range.min, rawValue)), Math.max(decimals(range.step), decimals(rawValue)));
       return {
-        input, config, ...range, value,
+        input, config, ...range, value, initialValue: value, originalText: input.value,
         unit: resolve(config.unit, input, ''),
         label: resolve(config.columnLabel, input, resolve(config.label, input, '数值')),
         window: null
@@ -323,7 +334,9 @@
       const focusTarget = active.focusTarget;
       if (commit) {
         active.columns.forEach((column) => {
-          column.input.value = formatNumber(column.value, column.step);
+          const text = commitText(column.originalText, column.initialValue, column.value, column.step);
+          if (text === null) return;
+          column.input.value = text;
           column.input.dispatchEvent(new Event('input', { bubbles: true }));
           column.input.dispatchEvent(new Event('change', { bubbles: true }));
         });
@@ -552,5 +565,5 @@
   function close(commit) { if (controller) controller.close(Boolean(commit)); }
   function isOpen() { return Boolean(controller && controller.isOpen()); }
 
-  return { stepValue, buildWheelWindow, rankSuggestions, enhance, refresh, close, isOpen };
+  return { stepValue, buildWheelWindow, rankSuggestions, commitText, enhance, refresh, close, isOpen };
 });

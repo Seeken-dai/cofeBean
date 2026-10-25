@@ -182,7 +182,7 @@
     ['dose', '粉量', 'weight'],
     ['totalWater', '目标总水量', 'weight'],
     ['ratio', '粉液比', 'text'],
-    ['waterTemp', '水温', 'text'],
+    ['waterTemp', '水温', 'waterTemp'],
     ['grindSetting', '研磨', 'grind'],
     ['targetDuration', '总时长', 'text'],
     ['steepTime', '浸泡', 'text'],
@@ -592,7 +592,8 @@
     return parsed.high ? `${parsed.low}-${parsed.high}` : parsed.low;
   }
 
-  // 展示：单值 / 区间统一带一次 °C，绝不出现「℃°C」。
+  // 唯一的水温展示入口（搜索、方案卡片/详情、饮用记录、冲煮辅助、分享、导入预览都走这里）：
+  // 数字与区间带且只带一次 °C（91°C / 90-92°C），绝不出现「℃°C」；非数字文本（常温、200°F）原样显示，绝不追加 °C。
   function formatWaterTemp(value) {
     return normalizeWaterTemp(value);
   }
@@ -1286,6 +1287,7 @@
     return PLAN_SHARE_FIELDS.map(([key, label, type]) => {
       let value = plan[key];
       if (type === 'weight') value = value ? formatShareWeight(value) : '';
+      else if (type === 'waterTemp') value = formatWaterTemp(value);
       else if (type === 'boolean') value = value ? '是' : '';
       else if (type === 'grind') value = [plan.grinder, plan.grindSetting].filter(Boolean).join(' · ');
       return value ? { label, value: cleanText(value, 120) } : null;

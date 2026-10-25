@@ -633,7 +633,7 @@
     const planRows = plans.slice(0, 5).map((plan) => {
       const onlyBean = plan.beanIds.length === 1 ? state.beans.find((bean) => bean.id === plan.beanIds[0]) : null;
       const label = BeanCore.planDisplayName(plan, onlyBean, { bound: Boolean(onlyBean) });
-      return `<button class="search-result-row" type="button" data-search-plan="${esc(plan.id)}" title="${esc(plan.name)}"><i class="search-result-mark is-plan">方</i><span><b>${esc(label)}</b><small>${esc([plan.brewMethod, plan.ratio, plan.waterTemp ? String(plan.waterTemp).includes('°') ? plan.waterTemp : `${plan.waterTemp}°C` : ''].filter(Boolean).join(' · '))}</small></span><strong aria-hidden="true">›</strong></button>`;
+      return `<button class="search-result-row" type="button" data-search-plan="${esc(plan.id)}" title="${esc(plan.name)}"><i class="search-result-mark is-plan">方</i><span><b>${esc(label)}</b><small>${esc([plan.brewMethod, plan.ratio, BeanCore.formatWaterTemp(plan.waterTemp)].filter(Boolean).join(' · '))}</small></span><strong aria-hidden="true">›</strong></button>`;
     }).join('');
     const total = beans.length + logs.length + plans.length;
     host.innerHTML = total ? searchResultGroup('豆子', beans.length, beanRows) + searchResultGroup('饮用记录', logs.length, logRows) + searchResultGroup('冲煮方案', plans.length, planRows) : '<div class="search-no-result"><i aria-hidden="true">⌕</i><h2>没有找到结果</h2><p>换个豆名、产地、店铺或冲煮方式试试。</p></div>';
@@ -966,7 +966,7 @@
   function planFactList(plan, methodOverride) {
     const method = methodOverride || plan.brewMethod;
     const allowed = PLAN_METHOD_FIELDS[method] ? new Set(PLAN_METHOD_FIELDS[method]) : null;
-    const items = [['dose', '粉量', plan.dose ? formatWeight(plan.dose) : ''], ['totalWater', '目标总水量', plan.totalWater ? formatWeight(plan.totalWater) : ''], ['ratio', '粉液比', plan.ratio], ['waterTemp', '水温', plan.waterTemp], ['grindSetting', '研磨', [plan.grinder, plan.grindSetting].filter(Boolean).join(' · ')], ['targetDuration', '总时长', plan.targetDuration], ['steepTime', '浸泡', plan.steepTime], ['steepEnvironment', '环境', plan.steepEnvironment], ['coffeeMachine', '咖啡机', plan.coffeeMachine], ['basket', '粉碗', plan.basket], ['targetYield', '目标出液', plan.targetYield ? formatWeight(plan.targetYield) : ''], ['targetExtractionTime', '萃取时间', plan.targetExtractionTime], ['pressTime', '下压时间', plan.pressTime], ['mokaPotSize', '规格', plan.mokaPotSize], ['useHotWater', '热水', plan.useHotWater ? '是' : ''], ['heatLevel', '火力', plan.heatLevel]];
+    const items = [['dose', '粉量', plan.dose ? formatWeight(plan.dose) : ''], ['totalWater', '目标总水量', plan.totalWater ? formatWeight(plan.totalWater) : ''], ['ratio', '粉液比', plan.ratio], ['waterTemp', '水温', BeanCore.formatWaterTemp(plan.waterTemp)], ['grindSetting', '研磨', [plan.grinder, plan.grindSetting].filter(Boolean).join(' · ')], ['targetDuration', '总时长', plan.targetDuration], ['steepTime', '浸泡', plan.steepTime], ['steepEnvironment', '环境', plan.steepEnvironment], ['coffeeMachine', '咖啡机', plan.coffeeMachine], ['basket', '粉碗', plan.basket], ['targetYield', '目标出液', plan.targetYield ? formatWeight(plan.targetYield) : ''], ['targetExtractionTime', '萃取时间', plan.targetExtractionTime], ['pressTime', '下压时间', plan.pressTime], ['mokaPotSize', '规格', plan.mokaPotSize], ['useHotWater', '热水', plan.useHotWater ? '是' : ''], ['heatLevel', '火力', plan.heatLevel]];
     return items.filter(([key, , value]) => value && (!allowed || allowed.has(key))).map(([, label, value]) => ({ label, value }));
   }
   function beanNames(ids) { return (ids || []).map((id) => { const bean = state.beans.find((item) => item.id === id); return bean && bean.name; }).filter(Boolean); }
@@ -2897,7 +2897,7 @@
   function showPlanImportPreview(plan, statusMessage) {
     state.importPlanDraft = plan;
     $('#planImportName').textContent = plan.name;
-    $('#planImportMeta').textContent = [plan.brewMethod, plan.dose ? plan.dose + 'g' : '', plan.ratio, plan.waterTemp].filter(Boolean).join(' · ');
+    $('#planImportMeta').textContent = [plan.brewMethod, plan.dose ? plan.dose + 'g' : '', plan.ratio, BeanCore.formatWaterTemp(plan.waterTemp)].filter(Boolean).join(' · ');
     const steps = plan.steps || [];
     $('#planImportSteps').textContent = steps.length ? `${steps.length} 段步骤 · 可改本段/共计` : '无分段步骤';
     renderPlanImportStepWaters(plan);

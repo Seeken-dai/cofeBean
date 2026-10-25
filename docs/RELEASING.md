@@ -111,6 +111,12 @@ curl.exe -s "http://127.0.0.1:8802/__scheduled"
 1. 从最新 `main` 切 `release/<x.y.z>` 分支。
 2. 迭代开发；用 `npm.cmd run bump-version -- <x.y.z> <versionCode>` 同步版本号（见下节），人工撰写「最新功能」列表正文。
    发布前用 `rg` 检查 `README.md`、`docs/`、`landing/` 和关于页（`www/index.html`）里描述当前版本的旧版本号（安装文件名、下载链接、「当前版本」文案、徽章等），这些不在 bump 脚本范围内，需手动改成新版本；CHANGELOG 历史、旧版构建记录等历史内容保持不动。例如：`rg -n "3\.0\.[0-9]+" README.md docs landing www/index.html`。
+   **每次发布都必须升 Service Worker 缓存名（`www/sw.js` 的 `const CACHE = 'coffee-vault-shell-<x.y.z>'`）**，否则已安装的 PWA（cache-first）不会拿到新外壳，用户会一直停在旧版本。`bump-version` 已自动替换这一项（连同 `styles.css?v=`），无需手改；但 bump 之后必须核对：
+   ```bash
+   rg -n "coffee-vault-shell-|styles\.css\?v=" www/sw.js www/index.html   # 三处都应是 <x.y.z>
+   git diff v<上一版本> -- www/sw.js | rg "const CACHE"                   # 必须有改动行，缓存名不同于上一版
+   ```
+   不升版本号的 Web 热修同样要改缓存名（可临时用 `coffee-vault-shell-<x.y.z>-hotfix1` 之类），否则老用户收不到。
 3. 在版本分支构建测试包，装到**保留数据的设备**验证覆盖升级。反复修复直到通过。
 4. 经用户确认后 `merge --ff-only` 回 `main`。
 5. **在 `main` 上重新构建正式签名包**，产物为 `dist/coffee-vault-<x.y.z>-release.apk`。正式发布物必须来自 `main`。

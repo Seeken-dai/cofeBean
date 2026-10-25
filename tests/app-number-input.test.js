@@ -66,3 +66,18 @@ test('number-input: rankSuggestions 过滤越界值并保持自定义标签', ()
     { value: 94, label: undefined }
   ]);
 });
+
+test('number-input 3.0.14: 打开滚轮不动直接确定，区间 / 文本原值保留；真的改了才写成单个数字', () => {
+  // 区间 "90-92"：滚轮起点 90，不动 → 保留；改到 93 → "93"；改回 90 以外再改回 90 仍算没变（以最终值为准）。
+  assert.equal(numberInput.commitText('90-92', 90, 90, 1), null);
+  assert.equal(numberInput.commitText('90-92', 90, 93, 1), '93');
+  assert.equal(numberInput.commitText('90-92', 90, 91, 1), '91');
+  // 非数字文本「常温」：滚轮起点是默认值，不动 → 保留。
+  assert.equal(numberInput.commitText('常温', 92, 92, 1), null);
+  assert.equal(numberInput.commitText('常温', 92, 88, 1), '88');
+  // 普通数字与空值行为不变：照常写回（空值确定即写入默认值）。
+  assert.equal(numberInput.commitText('92', 92, 92, 1), '92');
+  assert.equal(numberInput.commitText('92', 92, 94, 1), '94');
+  assert.equal(numberInput.commitText('', 92, 92, 1), '92');
+  assert.equal(numberInput.commitText('15', 15, 15.5, 0.5), '15.5');
+});
