@@ -158,7 +158,7 @@
       const ratio = plan.ratio ? String(plan.ratio) : '';
       const items = [
         ['粉量', plan.dose ? formatWeight(plan.dose) : ''],
-        ['水温', plan.waterTemp ? String(plan.waterTemp).replace(/°?C$/i, '') + '°C' : ''],
+        ['水温', core.formatWaterTemp(plan.waterTemp)],
         ['粉水比', ratio],
         ['总水量', plan.totalWater ? formatWeight(plan.totalWater) : ''],
         ['研磨', [plan.grinder, plan.grindSetting].filter(Boolean).join(' ')],
@@ -187,7 +187,7 @@
       const facts = [
         ['粉量', plan.dose ? formatWeight(plan.dose) : '未记录'],
         ['粉水比', plan.ratio || '未记录'],
-        ['水温', plan.waterTemp ? `${String(plan.waterTemp).replace(/°?C$/i, '')}°C` : '未记录'],
+        ['水温', core.formatWaterTemp(plan.waterTemp) || '未记录'],
         ['研磨', [plan.grinder, plan.grindSetting].filter(Boolean).join(' · ') || '未记录']
       ];
       host.innerHTML = `<div class="assist-context-title"><span>${esc(displayBean.slice(0, 1))}</span><div><b>${esc(displayBean)}</b><small>${esc(plan.name || '未命名方案')}</small></div></div><div class="assist-context-grid">${facts.map(([label, value]) => `<article><strong>${esc(value)}</strong><small>${esc(label)}</small></article>`).join('')}</div><p>本次只按方案节奏引导，不修改方案参数，也不会自动新增字段。</p>`;

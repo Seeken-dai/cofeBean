@@ -1915,7 +1915,9 @@
     els.planForm.reset(); fillPlanMethodOptions();
     const p = plan ? BeanCore.normalizeBrewPlan(plan, plan.updatedAt) : BeanCore.normalizeBrewPlan({ brewMethod: '手冲', dose: state.settings.quickGrams });
     $('#plan-id').value = p.id || ''; $('#plan-version').value = p.version || 1; $('#plan-source').value = p.source || 'user';
-    ['name', 'dose', 'liquid', 'ratio', 'totalWater', 'waterTemp', 'grinder', 'grindSetting', 'targetDuration', 'steepTime', 'steepEnvironment', 'coffeeMachine', 'basket', 'targetYield', 'targetExtractionTime', 'pressTime', 'mokaPotSize', 'heatLevel', 'customMethod', 'notes'].forEach((key) => { const el = $(`#plan-${key}`); if (el) el.value = p[key] == null ? '' : String(p[key]).replace('°C', ''); });
+    ['name', 'dose', 'liquid', 'ratio', 'totalWater', 'waterTemp', 'grinder', 'grindSetting', 'targetDuration', 'steepTime', 'steepEnvironment', 'coffeeMachine', 'basket', 'targetYield', 'targetExtractionTime', 'pressTime', 'mokaPotSize', 'heatLevel', 'customMethod', 'notes'].forEach((key) => { const el = $(`#plan-${key}`); if (el) el.value = key === 'waterTemp' ? BeanCore.waterTempInputValue(p.waterTemp) : (p[key] == null ? '' : String(p[key])); });
+    // 记下打开时的水温显示值：保存时未改动就原样保留库里的值（含区间），改动且清空才算用户主动清空。
+    $('#plan-waterTemp').dataset.originalValue = $('#plan-waterTemp').value; $('#plan-waterTemp').dataset.storedValue = p.waterTemp || '';
     // 已经存了目标总时长的方案视为用户自己定过，不再跟随注水步骤；空的才继续自动跟随。
     // 必须在 renderPourSteps 之前定好，否则首轮自动同步会拿上一次编辑残留的标记去覆盖刚载入的值。
     const targetField = planTargetDurationField(); if (targetField) targetField.dataset.autoTarget = p.targetDuration ? '' : '1';
@@ -2154,9 +2156,10 @@
     const fd = new FormData(els.planForm);
     const fields = Object.fromEntries(fd.entries()); const selectedBeans = $$('#planBeanBind input:checked').map((input) => input.value);
     if (!String(fields.name || '').trim()) return toast('请填写方案名称');
-    const cleaned = cleanPlanFieldsForMethod({ ...fields, useHotWater: $('#plan-useHotWater').checked, waterTemp: fields.waterTemp ? `${fields.waterTemp}°C` : '' });
+    const temp = BeanCore.planWaterTempFromForm(fields.waterTemp, $('#plan-waterTemp').dataset.originalValue, $('#plan-waterTemp').dataset.storedValue);
+    const cleaned = cleanPlanFieldsForMethod({ ...fields, useHotWater: $('#plan-useHotWater').checked, waterTemp: temp.value });
     const steps = $('#plan-method').value === '手冲' ? readPourSteps() : parsePlanSteps($('#plan-steps').value);
-    const payload = BeanCore.normalizeBrewPlan(BeanCore.mergeBrewPlanOverlay(old || {}, { ...cleaned, id: state.editingPlanId || fields.id || undefined, source: old ? old.source : ($('#plan-source').value || 'user'), beanIds: selectedBeans, steps }));
+    const payload = BeanCore.normalizeBrewPlan(BeanCore.mergeBrewPlanOverlay(old || {}, { ...cleaned, id: state.editingPlanId || fields.id || undefined, source: old ? old.source : ($('#plan-source').value || 'user'), beanIds: selectedBeans, steps }, { clear: temp.clear ? ['waterTemp'] : [] }));
     try { await BeanRepository.saveBrewPlan(payload); setDialog(els.planEditor, false); state.editingPlanId = null; await reload(); toast(old ? '方案已更新' : '这段风味已保存'); } catch (error) { console.error(error); toast(error.message || '方案保存失败'); }
   }
   async function duplicateCurrentPlan() {
@@ -2233,9 +2236,8 @@
   }
   function fillDrinkParams(source) {
     const data = source || {};
-    // 方案里的水温存为文本（可能带 °C，如预置的 "92°C"）；喝一杯的水温是 number 输入，
-    // 必须先净化成纯数字再赋值，否则带单位的字符串会被 number 输入静默丢弃、无法带入。
-    DRINK_PARAM_KEYS.forEach((key) => setDrinkParam(key, key === 'waterTemp' ? String(data[key] == null ? '' : data[key]).replace(/[^\d.]/g, '') : data[key]));
+    // 方案里的水温存为文本（"92°C" / 区间 "90-92°C"）；喝一杯输入框只放去掉单位的值（区间保留为 "90-92"，不再拼成 9092）。
+    DRINK_PARAM_KEYS.forEach((key) => setDrinkParam(key, key === 'waterTemp' ? BeanCore.waterTempInputValue(data[key]) : data[key]));
     setMokaSize('drink-param', data.mokaPotSize);
     setRatioControls('drink', data.ratio);
     setDrinkParam('useHotWater', data.useHotWater);
@@ -2364,7 +2366,7 @@
       const field = el && el.closest('.field');
       if (el && !(field && field.hidden) && el.value !== '') fields[key] = el.value;
     });
-    if (fields.waterTemp) fields.waterTemp = `${fields.waterTemp}°C`;
+    if (fields.waterTemp) fields.waterTemp = BeanCore.normalizeWaterTemp(fields.waterTemp);
     const hotWaterField = $('#drink-param-useHotWater').closest('.drink-param-field');
     fields.useHotWater = !hotWaterField.hidden && $('#drink-param-useHotWater').checked;
     return BeanCore.normalizeBrewPlan({
@@ -2789,7 +2791,7 @@
   const PLAN_SMART_FIELDS = ['grinder', 'coffeeMachine'];
   function planSmartValues(field) { return [...new Set(state.brewPlans.map((plan) => plan[field]).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'zh-CN')); }
   function setupPlanSmartSelects() { PLAN_SMART_FIELDS.forEach((field) => { const select = $(`#plan-${field}-select`); const hidden = $(`#plan-${field}`); const custom = $(`#plan-${field}-custom`); if (!select || !hidden || !custom) return; select.addEventListener('change', () => { if (select.value === '__custom__') { hidden.value = ''; custom.value = ''; custom.hidden = false; custom.focus(); } else { hidden.value = select.value; custom.hidden = true; } }); custom.addEventListener('input', () => { hidden.value = custom.value.trimStart(); }); }); }
-  function initPlanSmartSelects() { PLAN_SMART_FIELDS.forEach((field) => { const select = $(`#plan-${field}-select`); const hidden = $(`#plan-${field}`); const custom = $(`#plan-${field}-custom`); if (!select || !hidden || !custom) return; const values = planSmartValues(field); const current = hidden.value; select.innerHTML = '<option value="">请选择或新建</option>' + values.map((value) => `<option value="${esc(value)}">${esc(value)}</option>`).join('') + '<option value="__custom__">＋ 新建选项</option>'; if (current && values.includes(current)) { select.value = current; custom.hidden = true; } else if (current) { select.value = '__custom__'; custom.hidden = false; custom.value = current; } else { select.value = ''; custom.hidden = true; } }); }
+  function initPlanSmartSelects() { PLAN_SMART_FIELDS.forEach((field) => { const select = $(`#plan-${field}-select`); const hidden = $(`#plan-${field}`); const custom = $(`#plan-${field}-custom`); if (!select || !hidden || !custom) return; const values = field === 'grinder' ? BeanCore.grinderChoices(planSmartValues(field)) : planSmartValues(field); const current = hidden.value; select.innerHTML = '<option value="">请选择或新建</option>' + values.map((value) => `<option value="${esc(value)}">${esc(value)}</option>`).join('') + '<option value="__custom__">＋ 新建选项</option>'; if (current && values.includes(current)) { select.value = current; custom.hidden = true; } else if (current) { select.value = '__custom__'; custom.hidden = false; custom.value = current; } else { select.value = ''; custom.hidden = true; } }); }
   async function openManager(field) { state.managerField = field; $('#managerTitle').textContent = `管理${SMART_LABELS[field]}`; await renderManager(); setDialog(els.manager, true); }
   async function renderManager() { const values = await BeanRepository.smartValues(state.managerField); $('#managerList').innerHTML = values.length ? values.map((value) => `<div class="manager-item" data-value="${esc(value)}"><span>${esc(value)}</span><button data-action="rename" type="button">改名</button><button class="remove" data-action="remove" type="button">删除</button></div>`).join('') : '<p class="manager-empty">暂无历史选项</p>'; }
   async function managerAction(event) { const button = event.target.closest('button[data-action]'); if (!button) return; const oldValue = button.closest('.manager-item').dataset.value; try { if (button.dataset.action === 'rename') { const next = prompt(`将“${oldValue}”改为：`, oldValue); if (next == null || next.trim() === oldValue) return; await BeanRepository.renameSmartValue(state.managerField, oldValue, next); } else { if (!await askConfirm({ title: `删除「${oldValue}」？`, message: '所有使用它的记录会清空这个字段，咖啡豆本身不会删除。' })) return; await BeanRepository.deleteSmartValue(state.managerField, oldValue); } await reload({ keepForm: true }); await renderManager(); await initSmartSelects(); toast('已批量更新'); } catch (error) { toast(error.message || '操作失败'); } }

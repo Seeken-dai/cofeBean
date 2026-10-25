@@ -15,6 +15,18 @@
   const DIMENSION_KEYS = ['aroma', 'acidity', 'sweetness', 'body', 'aftertaste', 'balance', 'bitterness'];
   const BREW_METHODS = ['手冲', '冷萃', '冰滴', '意式', '法压', '摩卡壶', '爱乐压', '聪明杯', '虹吸', '自定义'];
   const PLAN_SOURCES = new Set(['user', 'preset', 'copy']);
+  // 研磨设备枚举（3.0.14 新增，待产品确认清单）：AI 提示词列出、导入时按别名归一；不在表内的型号仍原样保留为自定义。
+  const GRINDER_OPTIONS = Object.freeze([
+    { id: 'comandante-c40', label: 'Comandante C40', aliases: ['c40', 'comandante', '司令官'] },
+    { id: 'kingrinder-k6', label: 'Kingrinder K6', aliases: ['k6'] },
+    { id: '1zpresso-k-ultra', label: '1Zpresso K-Ultra', aliases: ['k-ultra', 'kultra'] },
+    { id: '1zpresso-zp6', label: '1Zpresso ZP6', aliases: ['zp6'] },
+    { id: 'timemore-c3', label: '泰摩 栗子 C3', aliases: ['c3', 'timemore c3', '栗子c3'] },
+    { id: 'wizard-2', label: '巫师2.0', aliases: ['巫师', '巫师2', '巫师2.0全能版'] },
+    { id: 'ek43', label: 'EK43', aliases: ['mahlkonig ek43', 'ek-43'] },
+    { id: 'fellow-ode', label: 'Fellow Ode', aliases: ['ode'] },
+    { id: 'df64', label: 'DF64', aliases: [] }
+  ]);
   const PLAN_FIELD_KEYS = [
     'dose', 'liquid', 'waterTemp', 'grinder', 'grindSetting', 'ratio', 'totalWater',
     'targetDuration', 'steepTime', 'steepEnvironment', 'coffeeMachine', 'basket',
@@ -535,34 +547,85 @@
 
   function normalizeStep(input) {
     const source = input && typeof input === 'object' ? input : {};
-    const startTime = cleanText(source.startTime, 80);
-    const endTime = cleanText(source.endTime, 80);
+    // AI / 外部 JSON 常见别名：start / end / tip → startTime / endTime / note
+    const startTime = cleanText(isBlankPlanField(source.startTime) ? source.start : source.startTime, 80);
+    const endTime = cleanText(isBlankPlanField(source.endTime) ? source.end : source.endTime, 80);
+    const noteSource = isBlankPlanField(source.note) ? source.tip : source.note;
     return {
       label: cleanText(source.label, 80),
       water: cleanNumber(source.water),
       startTime,
       endTime,
       time: cleanText(source.time, 80) || [startTime, endTime].filter(Boolean).join('-'),
-      note: cleanText(source.note, 300)
+      note: cleanText(noteSource, 300)
     };
+  }
+
+  // ---- 水温：唯一的规范化 / 表单 / 展示入口（3.0.14） ----
+  // 接受 91、"91"、"91℃"、"91°C"、"91 °C"、"91度"、"91C"、"91°"；区间 "90-92℃" / "90℃~92℃" 原样保留为区间。
+  // 规范存储形态：单值 "91°C"，区间 "90-92°C"；无法识别的文本（如预置的「常温」）原样保留。
+  const WATER_TEMP_UNIT = '(?:℃|°\\s*C|°|度|C)?';
+  const WATER_TEMP_NUM = '(\\d+(?:\\.\\d+)?)';
+  const WATER_TEMP_RE = new RegExp(`^${WATER_TEMP_NUM}\\s*${WATER_TEMP_UNIT}\\s*(?:[-~～—–至到]\\s*${WATER_TEMP_NUM}\\s*${WATER_TEMP_UNIT})?$`, 'i');
+
+  function parseWaterTemp(value) {
+    if (value == null || value === '') return null;
+    if (typeof value === 'number') return Number.isFinite(value) ? { low: String(value), high: null } : null;
+    const match = String(value).trim().match(WATER_TEMP_RE);
+    if (!match) return null;
+    const low = String(Number(match[1]));
+    const high = match[2] != null ? String(Number(match[2])) : null;
+    return { low, high: high && high !== low ? high : null };
+  }
+
+  function normalizeWaterTemp(value) {
+    if (value == null || value === '') return '';
+    const parsed = parseWaterTemp(value);
+    if (!parsed) return cleanText(value, 300);
+    return parsed.high ? `${parsed.low}-${parsed.high}°C` : `${parsed.low}°C`;
+  }
+
+  // 编辑页 / 喝一杯输入框里显示的值：去掉单位，区间保留为 "90-92"，无法识别的文本原样。
+  function waterTempInputValue(value) {
+    const parsed = parseWaterTemp(value);
+    if (!parsed) return value == null ? '' : cleanText(value, 300);
+    return parsed.high ? `${parsed.low}-${parsed.high}` : parsed.low;
+  }
+
+  // 展示：单值 / 区间统一带一次 °C，绝不出现「℃°C」。
+  function formatWaterTemp(value) {
+    return normalizeWaterTemp(value);
   }
 
   // 方案保存合并：空字符串 / null / undefined 的研磨与设备字段不覆盖已有值。
   // 防御 FormData / 局部 overlay 把 grinder、grindSetting 等写成空白，导致写库后研磨丢失。
-  const PLAN_PRESERVE_IF_BLANK = Object.freeze(['grinder', 'grindSetting', 'coffeeMachine']);
+  // 3.0.14：waterTemp 一并保护；用户确实清空某字段时由调用方通过 options.clear 显式放行。
+  const PLAN_PRESERVE_IF_BLANK = Object.freeze(['grinder', 'grindSetting', 'coffeeMachine', 'waterTemp']);
 
   function isBlankPlanField(value) {
     return value == null || value === '';
   }
 
-  function mergeBrewPlanOverlay(base, overlay) {
+  function mergeBrewPlanOverlay(base, overlay, options) {
     const prior = base && typeof base === 'object' ? base : {};
     const next = overlay && typeof overlay === 'object' ? overlay : {};
+    const clear = new Set((options && options.clear) || []);
     const merged = { ...prior, ...next };
     PLAN_PRESERVE_IF_BLANK.forEach((key) => {
+      if (clear.has(key)) { merged[key] = ''; return; }
       if (isBlankPlanField(next[key]) && !isBlankPlanField(prior[key])) merged[key] = prior[key];
     });
     return merged;
+  }
+
+  // 编辑页水温字段 → 待保存值。未改动（与打开时的显示值一致）时原样保留库里的值（含区间与无法识别的文本）；
+  // 改动后为空 → 明确清空；改动后有值 → 规范化。返回 { value, clear }。
+  function planWaterTempFromForm(inputValue, originalInputValue, storedValue) {
+    const current = String(inputValue == null ? '' : inputValue).trim();
+    const original = String(originalInputValue == null ? '' : originalInputValue).trim();
+    if (current === original) return { value: storedValue == null ? '' : storedValue, clear: false };
+    if (!current) return { value: '', clear: true };
+    return { value: normalizeWaterTemp(current), clear: false };
   }
 
   function applyBrewPlanFieldAliases(source) {
@@ -570,6 +633,13 @@
     // AI / 外部 JSON 常见别名：grind → grindSetting，equipment → grinder
     if (isBlankPlanField(data.grindSetting) && !isBlankPlanField(data.grind)) data.grindSetting = data.grind;
     if (isBlankPlanField(data.grinder) && !isBlankPlanField(data.equipment)) data.grinder = data.equipment;
+    // 3.0.14：水温 / 目标总时长别名
+    ['temperature', 'water_temp', 'waterTemperature', 'temp'].forEach((key) => {
+      if (isBlankPlanField(data.waterTemp) && !isBlankPlanField(data[key])) data.waterTemp = data[key];
+    });
+    ['totalTime', 'duration', 'brewTime'].forEach((key) => {
+      if (isBlankPlanField(data.targetDuration) && !isBlankPlanField(data[key])) data.targetDuration = data[key];
+    });
     return data;
   }
 
@@ -594,6 +664,7 @@
     PLAN_FIELD_KEYS.forEach((key) => {
       if (['dose', 'liquid', 'totalWater', 'targetYield'].includes(key)) plan[key] = cleanNumber(source[key]);
       else if (key === 'useHotWater') plan[key] = cleanBoolean(source[key]);
+      else if (key === 'waterTemp') plan[key] = normalizeWaterTemp(source[key]);
       else plan[key] = cleanText(source[key], key === 'customMethod' ? 80 : 300);
     });
     if (!BREW_METHODS.includes(plan.brewMethod)) plan.brewMethod = plan.brewMethod || '自定义';
@@ -641,8 +712,8 @@
     const example = {
       name: 'V60·明亮花果',
       brewMethod: '手冲', dose: 15, totalWater: 225, ratio: '1:15',
-      waterTemp: '92℃', grindSetting: '中细，白砂糖颗粒感', targetDuration: '2:30',
-      notes: '三段式注水，突出花香与柑橘酸质。',
+      waterTemp: 92, grinder: '巫师2.0', grindSetting: '40', targetDuration: '2:30',
+      notes: '三段式注水，突出花香与柑橘酸质。研磨：巫师2.0 约 40 格，中细，接近白砂糖颗粒感；偏酸可细 1–2 格。',
       steps: [
         { label: '焖蒸', water: 30, startTime: '0:00', endTime: '0:45', note: '轻柔画圈，充分排气' },
         { label: '第一段', water: 120, startTime: '0:45', endTime: '1:30', note: '中心小水流螺旋注水' },
@@ -660,10 +731,13 @@
       '【字段规则】',
       '- name：方案短名，不超过 120 字；用「冲煮方式或器具 + 风格/口感」命名（如「V60·明亮花果」「清爽果香手冲」），不要把豆名、产地写进 name（豆子信息已在上下文，导入后会绑定豆子）。',
       `- brewMethod：必须是以下之一——${methods}。`,
-      '- dose：粉量（克，数字）；totalWater：总水量（克，数字）；ratio：粉水比，如 "1:15"。',
-      '- waterTemp：水温，如 "92℃"；grindSetting：研磨度描述；targetDuration：目标总时长，如 "2:30"。',
-      '- notes：冲煮要点说明，不超过 3000 字。',
-      '- steps：分段数组，每段为 { "label": 段名, "water": 本段注水量（克，数字；只写这一段新注入的水量，不是秤上累计到的总水量）, "startTime": "0:00", "endTime": "0:45", "note": 该段要点 }。',
+      '- dose：粉量（克，纯数字，如 15，不带 g）；totalWater：总水量（克，纯数字，如 225）；ratio：粉水比字符串，固定写成 "1:15"（半角冒号）。',
+      '- waterTemp：水温（摄氏度，纯数字，如 92；不要写 ℃、°C、「度」或区间）。',
+      `- grinder：研磨设备，从以下取值中选一个，原样照抄——${GRINDER_OPTIONS.map((item) => item.label).join('、')}；用户的磨豆机不在列表里时，照抄用户说的型号；不知道就写 ""。`,
+      '- grindSetting：只写一个具体刻度，字符串形式的纯数字，如 "40"（手摇写格数/clicks，EK 类刻度盘可写小数如 "8.5"）；不要写颗粒感、粗细描述或调整建议。',
+      '- targetDuration：目标总时长，字符串 "分:秒"，如 "2:30"。',
+      '- notes：冲煮要点说明，不超过 3000 字；研磨粗细、颗粒感、调整建议等所有解释只写在这里，其它字段只放值。',
+      '- steps：分段数组，每段为 { "label": 段名, "water": 本段注水量（克，纯数字；只写这一段新注入的水量，不是秤上累计到的总水量）, "startTime": "0:00", "endTime": "0:45"（字符串 "分:秒"）, "note": 该段要点 }。',
       '- 严禁把 steps[].water 写成累计注水（错误例：40 / 120 / 225）；必须写本段增量（正确例：40 / 80 / 105）。若误写累计，导入端会尝试拆回本段。',
       '',
       '【示例（仅示范结构，请按实际方案填写）】',
@@ -731,6 +805,50 @@
     return match ? match[0] : value;
   }
 
+  // ---- 研磨设备：枚举 + 别名归一（3.0.14） ----
+  function grinderKey(value) {
+    return String(value == null ? '' : value).toLowerCase().replace(/[\s\-_·.]+/g, '');
+  }
+  // 命中枚举 label 或别名（忽略大小写、空格、- _ · .）→ 返回规范 label；否则原样保留用户写的型号。
+  function canonicalGrinder(value) {
+    const raw = cleanText(value, 300);
+    if (!raw) return '';
+    const key = grinderKey(raw);
+    const hit = GRINDER_OPTIONS.find((item) => grinderKey(item.label) === key || item.aliases.some((alias) => grinderKey(alias) === key));
+    return hit ? hit.label : raw;
+  }
+  // 编辑页研磨设备下拉：9 个枚举在前，再接用户历史值（去重，忽略大小写 / 空格），新用户也能直接选。
+  function grinderChoices(historyValues) {
+    const out = GRINDER_OPTIONS.map((item) => item.label);
+    const seen = new Set(out.map(grinderKey));
+    (historyValues || []).map((value) => cleanText(value, 300)).filter(Boolean)
+      .sort((a, b) => a.localeCompare(b, 'zh-CN'))
+      .forEach((value) => { const key = grinderKey(value); if (!seen.has(key)) { seen.add(key); out.push(value); } });
+    return out;
+  }
+
+  // ---- 研磨刻度兜底提取（3.0.14，仅 AI 导入用） ----
+  // 规则：纯数字 / 区间原样；「刻度/档位/格数」后的数字；数字后跟 格 / clicks / click / 档 / 号。
+  // 跳过型号里的数字（EK43、C40、巫师2.0 之后没有单位）与相对调整（略粗1-2格）；含「圈」的描述不处理；不做单位换算。
+  function extractGrindSetting(text) {
+    const raw = cleanText(text, 300);
+    if (!raw) return { value: '', extracted: false };
+    const range = '(\\d+(?:\\.\\d+)?(?:\\s*[-~～—–]\\s*\\d+(?:\\.\\d+)?)?)';
+    const tidy = (value) => value.replace(/\s+/g, '').replace(/[~～—–]/g, '-');
+    if (new RegExp(`^${range}$`).test(raw)) return { value: tidy(raw), extracted: false };
+    if (/\d\s*圈/.test(raw)) return { value: raw, extracted: false };
+    const pre = raw.match(new RegExp(`(?:刻度|档位|格数)\\s*[:：为是]?\\s*${range}(?![\\d.]|\\s*[A-Za-z])`));
+    if (pre) return { value: tidy(pre[1]), extracted: true };
+    const re = new RegExp(`(?<![A-Za-z\\d.])${range}\\s*(?:格|clicks?|档|号)`, 'gi');
+    let match;
+    while ((match = re.exec(raw))) {
+      const before = raw.slice(Math.max(0, match.index - 3), match.index);
+      if (/[粗细调加减略再多少]/.test(before)) continue;
+      return { value: tidy(match[1]), extracted: true };
+    }
+    return { value: raw, extracted: false };
+  }
+
   // 解析 AI 返回的明文 JSON 方案，归一化为一份 user 来源的草稿。数组取首个并标记 pickedFirst。
   function parseAiPlanJson(text, now) {
     const trimmed = String(text == null ? '' : text).trim();
@@ -757,6 +875,15 @@
     if (Array.isArray(cleaned.steps)) cleaned.steps = cleaned.steps.map((step) => (step && typeof step === 'object' ? { ...step, water: looseNumber(step.water) } : step));
     const plan = normalizeBrewPlan(cleaned, now);
     if (!BREW_METHODS.includes(plan.brewMethod)) plan.brewMethod = '自定义';
+    plan.grinder = canonicalGrinder(plan.grinder);
+    // 研磨刻度：长描述里能抽出一个刻度时只留刻度，原文追加到 notes（不覆盖已有 notes）；抽不出则原样保留。
+    const grind = extractGrindSetting(plan.grindSetting);
+    if (grind.extracted && grind.value !== plan.grindSetting) {
+      const original = plan.grindSetting;
+      plan.grindSetting = grind.value;
+      const line = `研磨说明：${original}`;
+      plan.notes = cleanText(plan.notes ? `${plan.notes}\n${line}` : line, 3000);
+    }
     const CORE_KEYS = ['dose', 'totalWater', 'ratio', 'waterTemp', 'grinder', 'grindSetting', 'targetDuration', 'steepTime', 'targetYield', 'targetExtractionTime', 'pressTime'];
     const hasParams = CORE_KEYS.some((key) => plan[key] != null && plan[key] !== '');
     const meaningful = (plan.name && plan.name !== '未命名方案') || hasParams || plan.notes || (plan.steps && plan.steps.length);
@@ -1706,5 +1833,5 @@
     const cups = Number(summary && summary.cups) || 0; const ratedCount = Number(summary && summary.ratedCount) || 0;
     return ratedCount > 0 && ratedCount < cups ? `其中 ${ratedCount} 杯已评` : '';
   }
-  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, COFFEE_TYPES, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, mergeBrewPlanOverlay, normalizeSettings, hasTastingContent, resolveTastingStatus, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, selectHomeReminder, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, buildAiPlanPrompt, parseAiPlanJson, looksLikeCumulativeStepWaters, splitCumulativeWatersToSegments, cumulativeWatersFromSegments, normalizeStepsWaterToSegments, prepareBrewAssistSteps, brewAssistStatus, resolveOpenedDate, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareAppVersions, isAppVersionNewer, selectReleaseApkAsset, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, FLAVOR_LEXICON, flavorTags, recentFlavorTags, beanFreshness, recentDrinkSeries, compareDrinkChronology, recentCafeNames, recentExternalDrinkNames, previousComparableDrink, beanProcessKind, recentDrinkLocations, beanRatingSummary, ratedCupsNote, sortBeanRatingLogs, beanRatingVisibleCount, ratingMonthKey, beanRatingMoreLabel, planDisplayName };
+  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, GRINDER_OPTIONS, COFFEE_TYPES, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, mergeBrewPlanOverlay, normalizeSettings, hasTastingContent, resolveTastingStatus, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, selectHomeReminder, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, buildAiPlanPrompt, parseAiPlanJson, looksLikeCumulativeStepWaters, splitCumulativeWatersToSegments, cumulativeWatersFromSegments, normalizeStepsWaterToSegments, prepareBrewAssistSteps, brewAssistStatus, resolveOpenedDate, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareAppVersions, isAppVersionNewer, selectReleaseApkAsset, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, FLAVOR_LEXICON, flavorTags, recentFlavorTags, beanFreshness, recentDrinkSeries, compareDrinkChronology, recentCafeNames, recentExternalDrinkNames, previousComparableDrink, beanProcessKind, recentDrinkLocations, beanRatingSummary, ratedCupsNote, sortBeanRatingLogs, beanRatingVisibleCount, ratingMonthKey, beanRatingMoreLabel, planDisplayName, normalizeWaterTemp, waterTempInputValue, formatWaterTemp, planWaterTempFromForm, canonicalGrinder, grinderChoices, extractGrindSetting };
 });

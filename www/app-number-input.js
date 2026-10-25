@@ -116,7 +116,8 @@
   function valueOf(input, config) {
     const placeholder = input && input.getAttribute && input.getAttribute('placeholder');
     if (!input || input.value === '') return finite(config.defaultValue, finite(placeholder, finite(config.min, 0)));
-    return finite(input.value, finite(config.defaultValue, finite(placeholder, finite(config.min, 0))));
+    // 文本型数值框（如水温区间 "90-92"）取首个数字作为滚轮起点。
+    return finite(input.value, finite(parseFloat(input.value), finite(config.defaultValue, finite(placeholder, finite(config.min, 0)))));
   }
 
   function createController() {

@@ -714,7 +714,8 @@ test('AI import grindSetting survives blank FormData-style save overlay', () => 
     dose: plan.dose,
     totalWater: plan.totalWater,
     ratio: plan.ratio,
-    waterTemp: '88',
+    // 用编辑页同一个回填函数从夹具的 "88℃" 推出表单值（旧测试手写 '88'，绕过了 ℃ 被 number 输入丢弃的那一步）。
+    waterTemp: core.waterTempInputValue(plan.waterTemp),
     grinder: '',
     grindSetting: '',
     targetDuration: plan.targetDuration,
@@ -726,6 +727,8 @@ test('AI import grindSetting survives blank FormData-style save overlay', () => 
   const preserved = core.normalizeBrewPlan(core.mergeBrewPlanOverlay(plan, formOverlay));
   assert.equal(preserved.grindSetting, plan.grindSetting);
   assert.ok(preserved.grindSetting.includes('巫师2.0'));
+  assert.equal(formOverlay.waterTemp, '88');
+  assert.equal(preserved.waterTemp, '88°C');
 });
 
 test('normalizeBrewPlan maps grind/equipment aliases into grindSetting/grinder', () => {
@@ -922,4 +925,199 @@ test('planDisplayName: returns the name exactly as entered (no prefix strip, no 
   assert.equal(core.planDisplayName({ name: '金菠萝  V60清甜' }, null), '金菠萝  V60清甜');
   assert.equal(core.planDisplayName({ name: '' }, null), '未命名方案');
   assert.equal(core.planDisplayName(null), '未命名方案');
+});
+
+
+// ---- 3.0.14：水温规范化 / 别名 / 区间 / 研磨设备枚举 / 研磨刻度兜底 ----
+
+const SAMPLE_314 = {"name":"V60·花果焦糖均衡","brewMethod":"手冲","dose":15,"totalWater":225,"ratio":"1:15","waterTemp":"91℃","grindSetting":"巫师2.0全能版建议从40格起步，中等偏细研磨，接近白砂糖颗粒感","targetDuration":"2:45","notes":"...","steps":[{"label":"焖蒸","water":35,"startTime":"0:00","endTime":"0:40","note":"..."},{"label":"第一段·花果萃取","water":100,"startTime":"0:40","endTime":"1:15","note":"..."},{"label":"第二段·甜感与醇厚","water":90,"startTime":"1:15","endTime":"2:45","note":"..."}]};
+
+test('normalizeWaterTemp: numbers, ℃, °C, 度, spaces all become "N°C"', () => {
+  for (const input of [91, '91', '91℃', '91°C', '91 °C', '91 ℃', '91度', '91 度', '91C', '91°', ' 91℃ ']) {
+    assert.equal(core.normalizeWaterTemp(input), '91°C', JSON.stringify(input));
+  }
+  assert.equal(core.normalizeWaterTemp(92.5), '92.5°C');
+  assert.equal(core.normalizeWaterTemp('92.5℃'), '92.5°C');
+  assert.equal(core.normalizeWaterTemp(''), '');
+  assert.equal(core.normalizeWaterTemp(null), '');
+  assert.equal(core.normalizeWaterTemp(undefined), '');
+});
+
+test('normalizeWaterTemp: ranges stay ranges (no midpoint), unrecognised text kept as written', () => {
+  assert.equal(core.normalizeWaterTemp('90-92℃'), '90-92°C');
+  assert.equal(core.normalizeWaterTemp('90℃-92℃'), '90-92°C');
+  assert.equal(core.normalizeWaterTemp('90 ~ 92 °C'), '90-92°C');
+  assert.equal(core.normalizeWaterTemp('90～92度'), '90-92°C');
+  assert.equal(core.normalizeWaterTemp('92-92℃'), '92°C');
+  assert.equal(core.normalizeWaterTemp('常温'), '常温');
+  assert.equal(core.normalizeWaterTemp('200°F'), '200°F');
+});
+
+test('formatWaterTemp never produces a double unit', () => {
+  for (const input of ['91℃', '91°C', '91度', 91, '90-92℃']) {
+    const out = core.formatWaterTemp(input);
+    assert.ok(!/℃°C|°C°C|度°C/.test(out), out);
+    assert.ok(out.endsWith('°C'));
+  }
+});
+
+test('waterTempInputValue: form shows the bare number or range', () => {
+  assert.equal(core.waterTempInputValue('91℃'), '91');
+  assert.equal(core.waterTempInputValue('91°C'), '91');
+  assert.equal(core.waterTempInputValue(91), '91');
+  assert.equal(core.waterTempInputValue('90-92°C'), '90-92');
+  assert.equal(core.waterTempInputValue('90-92℃'), '90-92');
+  assert.equal(core.waterTempInputValue('常温'), '常温');
+  assert.equal(core.waterTempInputValue(''), '');
+  assert.equal(core.waterTempInputValue(null), '');
+});
+
+test('existing plans with ℃ / 度 are repaired when read (normalizeBrewPlan)', () => {
+  assert.equal(core.normalizeBrewPlan({ name: 'old', waterTemp: '91℃' }).waterTemp, '91°C');
+  assert.equal(core.normalizeBrewPlan({ name: 'old', waterTemp: '88度' }).waterTemp, '88°C');
+  assert.equal(core.normalizeBrewPlan({ name: 'old', waterTemp: '90-92℃' }).waterTemp, '90-92°C');
+  const log = core.normalizeDrinkLog({ id: 'l', beanId: 'b', grams: 15, brewPlanSnapshot: { name: 's', waterTemp: '91℃' } });
+  assert.equal(log.brewPlanSnapshot.waterTemp, '91°C');
+});
+
+test('planWaterTempFromForm: untouched keeps stored value (incl. ranges), cleared clears, edited normalises', () => {
+  assert.deepEqual(core.planWaterTempFromForm('90-92', '90-92', '90-92°C'), { value: '90-92°C', clear: false });
+  assert.deepEqual(core.planWaterTempFromForm('常温', '常温', '常温'), { value: '常温', clear: false });
+  assert.deepEqual(core.planWaterTempFromForm('', '', ''), { value: '', clear: false });
+  assert.deepEqual(core.planWaterTempFromForm('93', '91', '91°C'), { value: '93°C', clear: false });
+  assert.deepEqual(core.planWaterTempFromForm('89-91', '91', '91°C'), { value: '89-91°C', clear: false });
+  assert.deepEqual(core.planWaterTempFromForm('', '91', '91°C'), { value: '', clear: true });
+});
+
+test('mergeBrewPlanOverlay: blank waterTemp does not wipe stored value; explicit clear does', () => {
+  const base = { name: 'p', waterTemp: '91°C', grinder: 'C40' };
+  assert.equal(core.mergeBrewPlanOverlay(base, { waterTemp: '' }).waterTemp, '91°C');
+  assert.equal(core.mergeBrewPlanOverlay(base, { waterTemp: null }).waterTemp, '91°C');
+  assert.equal(core.mergeBrewPlanOverlay(base, { waterTemp: '' }, { clear: ['waterTemp'] }).waterTemp, '');
+  assert.equal(core.mergeBrewPlanOverlay(base, { waterTemp: '' }, { clear: ['waterTemp'] }).grinder, 'C40');
+  assert.equal(core.mergeBrewPlanOverlay(base, { waterTemp: '93°C' }).waterTemp, '93°C');
+});
+
+test('aliases: temperature / water_temp / waterTemperature / temp → waterTemp', () => {
+  assert.equal(core.normalizeBrewPlan({ temperature: '91℃' }).waterTemp, '91°C');
+  assert.equal(core.normalizeBrewPlan({ water_temp: 91 }).waterTemp, '91°C');
+  assert.equal(core.normalizeBrewPlan({ waterTemperature: '91 °C' }).waterTemp, '91°C');
+  assert.equal(core.normalizeBrewPlan({ temp: '91' }).waterTemp, '91°C');
+  assert.equal(core.normalizeBrewPlan({ waterTemp: '92℃', temp: 80 }).waterTemp, '92°C', 'canonical key wins');
+});
+
+test('aliases: totalTime / duration / brewTime → targetDuration', () => {
+  assert.equal(core.normalizeBrewPlan({ totalTime: '2:45' }).targetDuration, '2:45');
+  assert.equal(core.normalizeBrewPlan({ duration: '2:30' }).targetDuration, '2:30');
+  assert.equal(core.normalizeBrewPlan({ brewTime: '3:00' }).targetDuration, '3:00');
+  assert.equal(core.normalizeBrewPlan({ targetDuration: '2:00', duration: '9:00' }).targetDuration, '2:00');
+});
+
+test('aliases: steps start / end / tip → startTime / endTime / note', () => {
+  const plan = core.normalizeBrewPlan({ steps: [{ label: 'a', water: 35, start: '0:00', end: '0:40', tip: '轻柔' }] });
+  assert.deepEqual(plan.steps[0], { label: 'a', water: 35, startTime: '0:00', endTime: '0:40', time: '0:00-0:40', note: '轻柔' });
+  const kept = core.normalizeBrewPlan({ steps: [{ label: 'a', water: 35, startTime: '0:05', start: '0:00', note: 'n', tip: 't' }] });
+  assert.equal(kept.steps[0].startTime, '0:05');
+  assert.equal(kept.steps[0].note, 'n');
+});
+
+test('parseAiPlanJson: 3.0.14 sample keeps every field; grind text moves to notes', () => {
+  const { plan } = core.parseAiPlanJson(JSON.stringify(SAMPLE_314));
+  assert.equal(plan.waterTemp, '91°C');
+  assert.equal(plan.dose, 15);
+  assert.equal(plan.totalWater, 225);
+  assert.equal(plan.ratio, '1:15');
+  assert.equal(plan.targetDuration, '2:45');
+  assert.equal(plan.grindSetting, '40');
+  assert.equal(plan.notes, '...\n研磨说明：巫师2.0全能版建议从40格起步，中等偏细研磨，接近白砂糖颗粒感');
+  assert.deepEqual(plan.steps.map((step) => [step.label, step.water, step.startTime, step.endTime, step.note]), [
+    ['焖蒸', 35, '0:00', '0:40', '...'],
+    ['第一段·花果萃取', 100, '0:40', '1:15', '...'],
+    ['第二段·甜感与醇厚', 90, '1:15', '2:45', '...']
+  ]);
+});
+
+test('parseAiPlanJson: string numbers like "15g" / "225ml" and water-temp aliases', () => {
+  const { plan } = core.parseAiPlanJson(JSON.stringify({ name: 'x', dose: '15g', totalWater: '225ml', water_temp: '91度', duration: '2:45', steps: [{ label: 'a', water: '35g', start: '0:00', end: '0:40', tip: 't' }] }));
+  assert.equal(plan.dose, 15);
+  assert.equal(plan.totalWater, 225);
+  assert.equal(plan.waterTemp, '91°C');
+  assert.equal(plan.targetDuration, '2:45');
+  assert.deepEqual([plan.steps[0].water, plan.steps[0].startTime, plan.steps[0].endTime, plan.steps[0].note], [35, '0:00', '0:40', 't']);
+});
+
+test('GRINDER_OPTIONS has exactly the approved 9 labels', () => {
+  assert.deepEqual(core.GRINDER_OPTIONS.map((item) => item.label), ['Comandante C40', 'Kingrinder K6', '1Zpresso K-Ultra', '1Zpresso ZP6', '泰摩 栗子 C3', '巫师2.0', 'EK43', 'Fellow Ode', 'DF64']);
+  assert.ok(Object.isFrozen(core.GRINDER_OPTIONS));
+});
+
+test('canonicalGrinder: alias → canonical label, unknown models kept exactly as written', () => {
+  const cases = { c40: 'Comandante C40', Comandante: 'Comandante C40', 司令官: 'Comandante C40', 'COMANDANTE C40': 'Comandante C40', k6: 'Kingrinder K6', 'K-Ultra': '1Zpresso K-Ultra', kultra: '1Zpresso K-Ultra', ZP6: '1Zpresso ZP6', 'timemore c3': '泰摩 栗子 C3', 栗子C3: '泰摩 栗子 C3', 巫师: '巫师2.0', 巫师2: '巫师2.0', '巫师2.0全能版': '巫师2.0', 'Mahlkonig EK43': 'EK43', 'ek-43': 'EK43', ode: 'Fellow Ode', df64: 'DF64' };
+  for (const [input, expected] of Object.entries(cases)) assert.equal(core.canonicalGrinder(input), expected, input);
+  assert.equal(core.canonicalGrinder('我的小飞鹰 Pro'), '我的小飞鹰 Pro');
+  assert.equal(core.canonicalGrinder(''), '');
+  const { plan } = core.parseAiPlanJson(JSON.stringify({ name: 'x', grinder: 'c40' }));
+  assert.equal(plan.grinder, 'Comandante C40');
+  const { plan: custom } = core.parseAiPlanJson(JSON.stringify({ name: 'x', grinder: 'Niche Zero' }));
+  assert.equal(custom.grinder, 'Niche Zero');
+});
+
+test('grinderChoices: 9 options first (new users too), then history deduplicated', () => {
+  const labels = core.GRINDER_OPTIONS.map((item) => item.label);
+  assert.deepEqual(core.grinderChoices([]), labels);
+  assert.deepEqual(core.grinderChoices(undefined), labels);
+  const merged = core.grinderChoices(['comandante c40', 'Niche Zero', 'EK43', 'Niche Zero', '', 'C40']);
+  assert.deepEqual(merged.slice(0, 9), labels);
+  assert.deepEqual(merged.slice(9).sort(), ['C40', 'Niche Zero']);
+});
+
+test('extractGrindSetting: number before 格/clicks, after 刻度, ranges, decimals; skips model numbers and relative tweaks', () => {
+  const cases = [
+    ['40', '40', false],
+    ['38-40', '38-40', false],
+    ['巫师2.0全能版建议从40格起步，中等偏细研磨，接近白砂糖颗粒感', '40', true],
+    ['C40 24 clicks', '24', true],
+    ['Comandante 22-24 clicks，中细', '22-24', true],
+    ['22～24 click', '22-24', true],
+    ['EK43 刻度 8.5', '8.5', true],
+    ['刻度：8.5，偏细', '8.5', true],
+    ['K6 第 60 格', '60', true]
+  ];
+  for (const [input, value, extracted] of cases) assert.deepEqual(core.extractGrindSetting(input), { value, extracted }, input);
+  for (const input of ['中偏粗，接近粗砂糖颗粒；巫师2.0建议比你常用手冲刻度略粗1-2格', '中细，白砂糖颗粒感', 'ZP6 5.2', '2圈5格', '1Zpresso K-Ultra 3.5圈']) {
+    assert.deepEqual(core.extractGrindSetting(input), { value: input, extracted: false }, input);
+  }
+});
+
+test('parseAiPlanJson grind fallback: appends to existing notes, never overwrites; keeps text when nothing extracted', () => {
+  const withNotes = core.parseAiPlanJson(JSON.stringify({ name: 'x', grindSetting: 'C40 24 clicks', notes: '三段式' })).plan;
+  assert.equal(withNotes.grindSetting, '24');
+  assert.equal(withNotes.notes, '三段式\n研磨说明：C40 24 clicks');
+  const noNotes = core.parseAiPlanJson(JSON.stringify({ name: 'x', grindSetting: 'EK43 刻度 8.5' })).plan;
+  assert.equal(noNotes.notes, '研磨说明：EK43 刻度 8.5');
+  const plain = core.parseAiPlanJson(JSON.stringify({ name: 'x', grindSetting: '40', notes: 'n' })).plan;
+  assert.equal(plain.grindSetting, '40');
+  assert.equal(plain.notes, 'n');
+  const vague = core.parseAiPlanJson(JSON.stringify({ name: 'x', grindSetting: '中细，白砂糖颗粒感', notes: 'n' })).plan;
+  assert.equal(vague.grindSetting, '中细，白砂糖颗粒感');
+  assert.equal(vague.notes, 'n');
+});
+
+test('AI prompt: lists the grinder enum; example types match the parser; no ℃ and no ranges encouraged', () => {
+  const prompt = core.buildAiPlanPrompt(null);
+  for (const item of core.GRINDER_OPTIONS) assert.ok(prompt.includes(item.label), item.label);
+  assert.match(prompt, /waterTemp：水温（摄氏度，纯数字/);
+  assert.match(prompt, /不要写 ℃、°C、「度」或区间/);
+  const example = JSON.parse(prompt.split('\n').pop());
+  assert.equal(typeof example.waterTemp, 'number');
+  assert.equal(typeof example.dose, 'number');
+  assert.equal(typeof example.totalWater, 'number');
+  assert.equal(example.grindSetting, '40');
+  assert.ok(core.GRINDER_OPTIONS.some((item) => item.label === example.grinder));
+  assert.ok(example.steps.every((step) => typeof step.water === 'number' && /^\d+:\d{2}$/.test(step.startTime) && /^\d+:\d{2}$/.test(step.endTime)));
+  const { plan } = core.parseAiPlanJson(JSON.stringify(example));
+  assert.equal(plan.waterTemp, '92°C');
+  assert.equal(plan.grinder, example.grinder);
+  assert.equal(plan.grindSetting, '40');
+  assert.equal(plan.notes, example.notes, 'example grind needs no fallback');
 });

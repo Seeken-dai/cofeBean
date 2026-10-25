@@ -355,7 +355,7 @@
         <input id="plan-ratio" name="ratio" type="hidden">
         <div class="field ratio-field"><span>粉水比</span><div class="ratio-control"><input id="plan-ratio-left" type="hidden" value="1"><b>1 :</b><input id="plan-ratio-right" type="number" min="1" max="40" step="0.5" inputmode="decimal" placeholder="15"></div></div>
         <label class="field method-field" data-methods="手冲 冷萃 冰滴 法压 摩卡壶 爱乐压 聪明杯 虹吸 自定义"><span>目标总水量</span><div class="input-unit"><input id="plan-totalWater" name="totalWater" type="number" min="0" step="0.1" inputmode="decimal"><em>g</em></div></label>
-        <label class="field"><span>水温</span><div class="input-unit"><input id="plan-waterTemp" name="waterTemp" type="number" min="0" max="100" step="1" inputmode="numeric" placeholder="92"><em>°C</em></div></label>
+        <label class="field"><span>水温</span><div class="input-unit"><input id="plan-waterTemp" name="waterTemp" type="text" inputmode="decimal" pattern="\d+(\.\d+)?(\s*-\s*\d+(\.\d+)?)?" maxlength="20" min="0" max="100" step="1" placeholder="92" autocomplete="off"><em>°C</em></div></label>
         <div class="field"><span>研磨设备</span><select id="plan-grinder-select" class="smart-select"><option value="">请选择或新建</option></select><input id="plan-grinder" name="grinder" type="hidden"><input id="plan-grinder-custom" class="smart-input" type="text" maxlength="120" placeholder="例如：C40" hidden></div>
         <label class="field"><span>研磨刻度</span><input id="plan-grindSetting" name="grindSetting" type="text" maxlength="120" placeholder="例如：22 clicks"></label>
         <input id="plan-targetDuration" name="targetDuration" type="hidden">
@@ -477,7 +477,7 @@
             <input id="drink-param-ratio" type="hidden">
             <div class="field ratio-field"><span>粉水比</span><div class="ratio-control"><input id="drink-ratio-left" type="hidden" value="1"><b>1 :</b><input id="drink-ratio-right" type="number" min="1" max="40" step="0.5" inputmode="decimal" placeholder="15"></div></div>
             <label class="field drink-param-field" data-methods="手冲 冷萃 冰滴 法压 摩卡壶 爱乐压 聪明杯 虹吸 自定义"><span>目标总水量</span><div class="input-unit"><input id="drink-param-totalWater" type="number" min="0" step="0.1" inputmode="decimal"><em>g</em></div></label>
-            <label class="field"><span>水温</span><div class="input-unit"><input id="drink-param-waterTemp" type="number" min="0" max="100" step="1" inputmode="numeric" placeholder="92"><em>°C</em></div></label>
+            <label class="field"><span>水温</span><div class="input-unit"><input id="drink-param-waterTemp" type="text" inputmode="decimal" pattern="\d+(\.\d+)?(\s*-\s*\d+(\.\d+)?)?" maxlength="20" min="0" max="100" step="1" placeholder="92" autocomplete="off"><em>°C</em></div></label>
             <label class="field"><span>研磨设备</span><input id="drink-param-grinder" type="text" maxlength="120" placeholder="例如：C40"></label>
             <label class="field"><span>研磨刻度</span><input id="drink-param-grindSetting" type="text" maxlength="120"></label>
             <input id="drink-param-targetDuration" type="hidden">
