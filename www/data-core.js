@@ -817,6 +817,13 @@
     const hit = GRINDER_OPTIONS.find((item) => grinderKey(item.label) === key || item.aliases.some((alias) => grinderKey(alias) === key));
     return hit ? hit.label : raw;
   }
+  // 方案参数带入喝一杯表单时的显示值：水温去单位（区间保留 "90-92"）；研磨设备换成规范名（旧方案的 "C40" → "Comandante C40"）。
+  // 只改表单里显示/新存的值，不回写方案；编辑已有饮用记录时传 keepStoredGrinder，保持那条记录当时存的写法。
+  function drinkParamInputValue(key, value, options) {
+    if (key === 'waterTemp') return waterTempInputValue(value);
+    if (key === 'grinder') return options && options.keepStoredGrinder ? (value == null ? '' : value) : canonicalGrinder(value);
+    return value;
+  }
   // 编辑页研磨设备下拉：9 个枚举在前，再接用户历史值（按规范名去重，忽略大小写 / 空格 / 别名），新用户也能直接选。
   function grinderChoices(historyValues) {
     const out = GRINDER_OPTIONS.map((item) => item.label);
@@ -1834,5 +1841,5 @@
     const cups = Number(summary && summary.cups) || 0; const ratedCount = Number(summary && summary.ratedCount) || 0;
     return ratedCount > 0 && ratedCount < cups ? `其中 ${ratedCount} 杯已评` : '';
   }
-  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, GRINDER_OPTIONS, COFFEE_TYPES, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, mergeBrewPlanOverlay, normalizeSettings, hasTastingContent, resolveTastingStatus, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, selectHomeReminder, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, buildAiPlanPrompt, parseAiPlanJson, looksLikeCumulativeStepWaters, splitCumulativeWatersToSegments, cumulativeWatersFromSegments, normalizeStepsWaterToSegments, prepareBrewAssistSteps, brewAssistStatus, resolveOpenedDate, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareAppVersions, isAppVersionNewer, selectReleaseApkAsset, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, FLAVOR_LEXICON, flavorTags, recentFlavorTags, beanFreshness, recentDrinkSeries, compareDrinkChronology, recentCafeNames, recentExternalDrinkNames, previousComparableDrink, beanProcessKind, recentDrinkLocations, beanRatingSummary, ratedCupsNote, sortBeanRatingLogs, beanRatingVisibleCount, ratingMonthKey, beanRatingMoreLabel, planDisplayName, normalizeWaterTemp, waterTempInputValue, formatWaterTemp, planWaterTempFromForm, canonicalGrinder, grinderChoices, extractGrindSetting };
+  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, GRINDER_OPTIONS, COFFEE_TYPES, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, mergeBrewPlanOverlay, normalizeSettings, hasTastingContent, resolveTastingStatus, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, selectHomeReminder, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, buildAiPlanPrompt, parseAiPlanJson, looksLikeCumulativeStepWaters, splitCumulativeWatersToSegments, cumulativeWatersFromSegments, normalizeStepsWaterToSegments, prepareBrewAssistSteps, brewAssistStatus, resolveOpenedDate, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareAppVersions, isAppVersionNewer, selectReleaseApkAsset, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, FLAVOR_LEXICON, flavorTags, recentFlavorTags, beanFreshness, recentDrinkSeries, compareDrinkChronology, recentCafeNames, recentExternalDrinkNames, previousComparableDrink, beanProcessKind, recentDrinkLocations, beanRatingSummary, ratedCupsNote, sortBeanRatingLogs, beanRatingVisibleCount, ratingMonthKey, beanRatingMoreLabel, planDisplayName, normalizeWaterTemp, waterTempInputValue, formatWaterTemp, planWaterTempFromForm, canonicalGrinder, drinkParamInputValue, grinderChoices, extractGrindSetting };
 });

@@ -121,7 +121,8 @@ test('aliased import (temperature / duration / step start,end,tip) also survives
 });
 
 test('quick 喝一杯: range carried into the drink form stays "90-92" (was 9092) and is saved back as a range', () => {
-  assert.match(appJs, /key === 'waterTemp' \? BeanCore\.waterTempInputValue\(data\[key\]\) : data\[key\]/);
+  assert.match(appJs, /setDrinkParam\(key, BeanCore\.drinkParamInputValue\(key, data\[key\], options\)\)/);
+  assert.equal(core.drinkParamInputValue('waterTemp', '90-92°C'), '90-92');
   assert.ok(!appJs.includes(".replace(/[^\\d.]/g, '')"), 'old digit-only strip must be gone');
   assert.match(appJs, /fields\.waterTemp = BeanCore\.normalizeWaterTemp\(fields\.waterTemp\)/);
   const drinkInput = html.match(/<input[^>]*id="drink-param-waterTemp"[^>]*>/)[0];
@@ -152,4 +153,19 @@ test('grinder: old plan storing an alias selects the enum entry in the editor an
   assertUnchanged(restOld, restSaved);
   const lido = core.normalizeBrewPlan({ ...SAMPLE, id: 'lido', grinder: 'Lido 3', source: 'user' });
   assert.equal(savePlan(lido, planToForm(lido)).grinder, 'Lido 3');
+});
+
+test('quick 喝一杯: carried-in grinder shows the canonical name; stored plan untouched; editing an old log keeps its value', () => {
+  assert.equal(core.drinkParamInputValue('grinder', 'C40'), 'Comandante C40');
+  assert.equal(core.drinkParamInputValue('grinder', '司令官'), 'Comandante C40');
+  assert.equal(core.drinkParamInputValue('grinder', 'Lido 3'), 'Lido 3');
+  assert.equal(core.drinkParamInputValue('grinder', undefined), '');
+  assert.equal(core.drinkParamInputValue('grinder', 'C40', { keepStoredGrinder: true }), 'C40');
+  assert.equal(core.drinkParamInputValue('waterTemp', '90-92°C'), '90-92');
+  assert.equal(core.drinkParamInputValue('grindSetting', '24'), '24');
+  const plan = Object.freeze(core.normalizeBrewPlan({ id: 'old', name: 'old', grinder: 'C40' }));
+  core.drinkParamInputValue('grinder', plan.grinder);
+  assert.equal(plan.grinder, 'C40', 'plan object is not rewritten');
+  assert.match(appJs, /setDrinkParam\(key, BeanCore\.drinkParamInputValue\(key, data\[key\], options\)\)/);
+  assert.match(appJs, /fillDrinkParams\(source, \{ keepStoredGrinder: Boolean\(log\) \}\)/);
 });
