@@ -15,4 +15,7 @@
 
 ## 3.0.15
 
+- **【P2】SW install 走 HTTP 缓存导致旧 JS 混入新缓存**：`www/sw.js` install 阶段的 `cache.addAll` 会经过浏览器 HTTP 缓存；线上 JS 响应头为 `max-age=14400` 且脚本没有 `?v=`。设备若在 4 小时内加载过 3.0.13，新的 `coffee-vault-shell-3.0.14` 缓存里可能装进旧的 `app.js`、`data-core.js`、`app-brew-assist.js`、`app-number-input.js`——关于页显示新版本，行为却仍是旧版，直到下一次升版本才恢复。
+  - 建议修复：`cache.addAll(SHELL_URLS.map((u) => new Request(u, { cache: 'reload' })))` 绕过 HTTP 缓存，或给所有脚本加 `?v=`（与 `styles.css?v=` 一样由 bump 脚本同步）；并在 `docs/RELEASING.md` 增加 PWA 更新验收项：覆盖「4 小时内加载过旧版本」的设备，核对新缓存内脚本与发布提交一致。
+  - 证据：`/workspace/shots/314/QA-REPORT.md` 「PWA 更新验证 @ 5a1f4ba」一节。
 - **滚轮方向键跳值**：键盘操作滚轮时（↑ / ↓），平滑滚动与按键事件互相打架，出现跳值（例如 93 → ↓ 得到 92，再按又变 94）。触屏点选与滑动正常，仅影响键盘路径（QA 3.0.14 报告第 5 条）。
