@@ -11,7 +11,7 @@
   <p>
     <a href="https://cofevault.top/"><img src="https://img.shields.io/badge/官网-cofevault.top-8B5A2B?style=flat-square&logo=safari&logoColor=white" alt="Official Website" /></a>
     <a href="https://app.cofevault.top/"><img src="https://img.shields.io/badge/Web_App-app.cofevault.top-6F4E37?style=flat-square&logo=pwa&logoColor=white" alt="Web PWA" /></a>
-    <a href="https://github.com/Seeken-dai/cofeBean/releases/latest"><img src="https://img.shields.io/badge/Release-v3.0.13-2D6A4F?style=flat-square&logo=android&logoColor=white" alt="Latest Release" /></a>
+    <a href="https://github.com/Seeken-dai/cofeBean/releases/latest"><img src="https://img.shields.io/badge/Release-v3.0.14-2D6A4F?style=flat-square&logo=android&logoColor=white" alt="Latest Release" /></a>
     <img src="https://img.shields.io/badge/Platform-Android_%7C_Web_PWA-3D405B?style=flat-square" alt="Platform" />
     <img src="https://img.shields.io/badge/Privacy-本地优先_%7C_零广告-D4A373?style=flat-square" alt="Privacy First" />
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-1F6FEB?style=flat-square" alt="License: MIT" /></a>
@@ -93,6 +93,7 @@
 ### 03 ⏱️ 冲煮方案与分段辅助计时
 - **冲煮方案库**：按手冲、意式、冷萃、法压、爱乐压等方式管理参数（粉水比、研磨度、水温、器具设备）。
 - **沉浸式辅助计时**：手冲时进入大字计时面板，按阶段提示注水量与时长，常驻下一段注水预览，自动记录实际耗时。
+- **导入更省心**：AI 导入的水温（含 ℃ / 度 / 区间写法）、研磨刻度与常用磨豆机都会自动整理，编辑保存不丢参数；研磨设备下拉直接提供 9 款常用磨豆机。
 - **参数另存与复用**：满意的一杯随时一键另存为新方案，支持生成离线分享码（`DC1-`）与二维码。
 
 ### 04 📅 咖啡日历、回顾与报告
@@ -118,7 +119,7 @@
 
 ### 安装 Android 客户端
 1. 前往 **[GitHub Releases 最新发布页](https://github.com/Seeken-dai/cofeBean/releases/latest)** 下载最新的正式安装包：
-   - 文件名：`coffee-vault-3.0.13-release.apk`
+   - 文件名：`coffee-vault-3.0.14-release.apk`
    - 兼容：支持 Android 7.0 (API 24) 及以上（目标 Android 16 / API 36）
 2. 手机打开 APK 并按照提示允许「安装未知应用」。
 3. 后续升级只需下载新版本 APK 直接覆盖安装，本地数据库将自动无缝迁移保留。
