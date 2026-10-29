@@ -65,6 +65,21 @@
     return { values, index, value: center };
   }
 
+  // 键盘步进（↑↓ / PageUp/Down）落点：新值还在当前窗口里、且离窗口边缘有余量（或这一侧已到量程尽头）时，
+  // 原地移动选中项，不重建列；否则才围绕新值重建窗口。3.0.15 修复「方向键跳值」：旧实现每按一次都重建列，
+  // 新列 scrollTop 从 0 平滑滚到目标，途中的 scroll 事件把中间刻度写回 column.value。
+  function wheelKeyTarget(currentWindow, value, options) {
+    const config = options || {};
+    const min = finite(config.min, -Infinity);
+    const max = finite(config.max, Infinity);
+    const values = currentWindow && Array.isArray(currentWindow.values) ? currentWindow.values : [];
+    const index = values.indexOf(value);
+    if (index < 0) return { rebuild: true, index: -1 };
+    const nearTop = index < 8 && values[0] > min;
+    const nearBottom = index > values.length - 9 && values[values.length - 1] < max;
+    return { rebuild: nearTop || nearBottom, index };
+  }
+
   function rankSuggestions(candidates, options) {
     const config = options || {};
     const min = finite(config.min, -Infinity);
@@ -372,23 +387,51 @@
         // 兜底：算出来的窗口和当前窗口完全一致时也不重建 DOM。
         if (next.values.length === values.length && next.values[0] === values[0]) { column.window = next; return; }
         column.window = next;
-        const replacement = document.createElement('div');
-        replacement.innerHTML = renderColumn(column, columnIndex);
-        wheel.closest('.number-wheel-column').replaceWith(replacement.firstElementChild);
-        requestAnimationFrame(() => scrollToSelected(columnIndex));
+        replaceColumn(columnIndex, wheel);
       }, 130);
+    }
+
+    // 重建某一列的 DOM：先瞬时定位到选中项（不能让新列从 scrollTop 0 平滑滚过去，途中的 scroll 事件会改写选中值），
+    // 原列有焦点时把焦点交给新列，否则 replaceWith 后焦点掉到 body，后续方向键全部失效。
+    function replaceColumn(columnIndex, wheel) {
+      const column = active.columns[columnIndex];
+      const hadFocus = Boolean(wheel && wheel.contains(document.activeElement));
+      const replacement = document.createElement('div');
+      replacement.innerHTML = renderColumn(column, columnIndex);
+      wheel.closest('.number-wheel-column').replaceWith(replacement.firstElementChild);
+      const next = columnsHost.querySelector(`[data-wheel-column="${columnIndex}"]`);
+      if (!next) return null;
+      column.pendingIndex = null;
+      next.scrollTo({ top: column.window.index * ROW_HEIGHT, behavior: 'instant' });
+      if (hadFocus) next.focus({ preventScroll: true });
+      return next;
+    }
+
+    function markSelected(wheel, index) {
+      wheel.querySelectorAll('.number-wheel-item.selected').forEach((item) => { item.classList.remove('selected'); item.setAttribute('aria-selected', 'false'); });
+      const item = wheel.querySelector(`[data-wheel-item="${index}"]`);
+      if (item) { item.classList.add('selected'); item.setAttribute('aria-selected', 'true'); }
     }
 
     function selectValue(columnIndex, value) {
       const column = active.columns[columnIndex];
       const raw = finite(value, column.value);
       column.value = round(Math.min(column.max, Math.max(column.min, raw)), Math.max(decimals(column.step), decimals(raw)));
-      column.window = buildWheelWindow(column.value, column);
       const wheel = columnsHost.querySelector(`[data-wheel-column="${columnIndex}"]`);
-      const replacement = document.createElement('div');
-      replacement.innerHTML = renderColumn(column, columnIndex);
-      wheel.closest('.number-wheel-column').replaceWith(replacement.firstElementChild);
-      requestAnimationFrame(() => scrollToSelected(columnIndex, 'smooth'));
+      if (!wheel) return;
+      const target = wheelKeyTarget(column.window, column.value, column);
+      if (target.rebuild) {
+        column.window = buildWheelWindow(column.value, column);
+        replaceColumn(columnIndex, wheel);
+        return;
+      }
+      // 原地移动：选中值以按键结果为准，平滑滚动途中的 scroll 事件不再回写（见 onScroll 的 pendingIndex）。
+      column.window = { ...column.window, index: target.index, value: column.value };
+      column.pendingIndex = target.index;
+      clearTimeout(column.pendingTimer);
+      column.pendingTimer = setTimeout(() => { column.pendingIndex = null; }, 700);
+      markSelected(wheel, target.index);
+      wheel.scrollTo({ top: target.index * ROW_HEIGHT, behavior: 'smooth' });
     }
 
     function openManual(columnIndex) {
@@ -412,10 +455,7 @@
       manualRow.hidden = true;
       column.window = buildWheelWindow(column.value, column);
       const wheel = columnsHost.querySelector(`[data-wheel-column="${index}"]`);
-      const replacement = document.createElement('div');
-      replacement.innerHTML = renderColumn(column, index);
-      wheel.closest('.number-wheel-column').replaceWith(replacement.firstElementChild);
-      requestAnimationFrame(() => scrollToSelected(index, 'smooth'));
+      if (wheel) replaceColumn(index, wheel);
     }
 
     function applyStepButton(stepButton) {
@@ -437,7 +477,14 @@
       document.querySelectorAll('.number-stepper button.is-pressed').forEach((button) => button.classList.remove('is-pressed'));
     }
 
+    function cancelPendingScroll(event) {
+      const wheel = active && event.target.closest && event.target.closest('[data-wheel-column]');
+      const column = wheel && active.columns[Number(wheel.dataset.wheelColumn)];
+      if (column) column.pendingIndex = null;
+    }
+
     function onPointerDown(event) {
+      cancelPendingScroll(event);
       const button = event.target.closest('[data-number-step]');
       if (!button || atLimit(button)) return;
       stopHold(); heldButton = button;
@@ -503,6 +550,11 @@
       if (!wheel || !active) return;
       const column = active.columns[Number(wheel.dataset.wheelColumn)];
       if (!column) return;
+      if (column.pendingIndex != null) {
+        // 键盘步进触发的平滑滚动：途中位置不算用户选择，到位后才恢复跟随滚动。
+        if (Math.abs(wheel.scrollTop - column.pendingIndex * ROW_HEIGHT) < 1) column.pendingIndex = null;
+        return;
+      }
       updateSelected(wheel, column, Math.round(wheel.scrollTop / ROW_HEIGHT));
     }
 
@@ -529,6 +581,8 @@
     document.addEventListener('pointercancel', onPointerEnd);
     document.addEventListener('input', onInput);
     document.addEventListener('scroll', onScroll, true);
+    document.addEventListener('wheel', cancelPendingScroll, { capture: true, passive: true });
+    document.addEventListener('touchstart', cancelPendingScroll, { capture: true, passive: true });
     document.addEventListener('keydown', onKeydown);
     dialog.addEventListener('cancel', (event) => { event.preventDefault(); close(false); });
 
@@ -565,5 +619,5 @@
   function close(commit) { if (controller) controller.close(Boolean(commit)); }
   function isOpen() { return Boolean(controller && controller.isOpen()); }
 
-  return { stepValue, buildWheelWindow, rankSuggestions, commitText, enhance, refresh, close, isOpen };
+  return { stepValue, buildWheelWindow, wheelKeyTarget, rankSuggestions, commitText, enhance, refresh, close, isOpen };
 });

@@ -81,3 +81,28 @@ test('number-input 3.0.14: 打开滚轮不动直接确定，区间 / 文本原�
   assert.equal(numberInput.commitText('', 92, 92, 1), '92');
   assert.equal(numberInput.commitText('15', 15, 15.5, 0.5), '15.5');
 });
+
+// 3.0.15 方向键跳值根因：旧 selectValue 每按一次都重建列，新列 scrollTop 从 0 平滑滚到目标，
+// 途中的 scroll 事件把中间刻度写回 column.value（且 130ms 防抖还会围绕中间值重建窗口），同时焦点随旧节点被移除。
+test('number-input 3.0.15: wheelKeyTarget 窗口内原地移动，只在靠近可延伸的边缘时重建', () => {
+  const window = numberInput.buildWheelWindow(93, { step: 1, min: 0, max: 100, radius: 50 });
+  assert.deepEqual(numberInput.wheelKeyTarget(window, 94, { min: 0, max: 100 }), { rebuild: false, index: window.values.indexOf(94) });
+  // 上限 100 已在窗口内：贴近底边也不需要重建
+  assert.equal(numberInput.wheelKeyTarget(window, 100, { min: 0, max: 100 }).rebuild, false);
+  const wide = numberInput.buildWheelWindow(500, { step: 1, min: 0, max: 1000, radius: 50 });
+  assert.equal(numberInput.wheelKeyTarget(wide, 545, { min: 0, max: 1000 }).rebuild, true, '离窗口底边不足 8 格且还能延伸');
+  assert.equal(numberInput.wheelKeyTarget(wide, 456, { min: 0, max: 1000 }).rebuild, true, '离窗口顶边不足 8 格且还能延伸');
+  assert.equal(numberInput.wheelKeyTarget(wide, 520, { min: 0, max: 1000 }).rebuild, false);
+  assert.deepEqual(numberInput.wheelKeyTarget(wide, 2000, { min: 0, max: 1000 }), { rebuild: true, index: -1 });
+});
+
+test('number-input 3.0.15: 键盘步进的平滑滚动途中不回写选中值，重建列时保留焦点', () => {
+  const source = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'www', 'app-number-input.js'), 'utf8');
+  const onScroll = source.slice(source.indexOf('function onScroll'), source.indexOf('function onKeydown'));
+  assert.match(onScroll, /pendingIndex != null[\s\S]*return;[\s\S]*updateSelected/, 'onScroll 在 pendingIndex 期间提前返回');
+  const replaceColumn = source.slice(source.indexOf('function replaceColumn'), source.indexOf('function markSelected'));
+  assert.match(replaceColumn, /behavior: 'instant'/, '重建后瞬时定位，不从 0 平滑滚');
+  assert.match(replaceColumn, /if \(hadFocus\) next\.focus/, '重建后焦点交给新列');
+  const selectValue = source.slice(source.indexOf('function selectValue'), source.indexOf('function openManual'));
+  assert.doesNotMatch(selectValue, /replaceWith/, 'selectValue 不再直接重建 DOM');
+});
