@@ -3347,11 +3347,14 @@ body[data-shell-view="personal"] .profile-button { border-color:var(--accent); b
   body.has-context-detail .bean-detail-secondary { top:10px; }
   body.has-context-detail #drinkDetailDialog .drink-profile,body.has-context-detail #planDetailDialog .drink-profile { max-width:980px; margin-inline:auto; padding:18px 28px 42px; grid-template-columns:minmax(0,1.35fr) minmax(260px,.72fr); align-content:start; }
   body.has-context-detail #drinkDetailDialog .brew-hero,body.has-context-detail #planDetailDialog .brew-hero { grid-column:1/-1; min-height:104px; }
-  body.has-context-detail #drinkDetailDialog #drinkDetailFacts { grid-column:1; grid-row:2; }
-  body.has-context-detail #drinkDetailDialog #drinkDetailDimensions { grid-column:1; grid-row:3; }
-  body.has-context-detail #drinkDetailDialog .drink-detail-photos { grid-column:1; grid-row:4; }
-  body.has-context-detail #drinkDetailDialog #drinkDetailNotesSection { grid-column:2; grid-row:2; }
-  body.has-context-detail #drinkDetailDialog #drinkDetailPlanSection { grid-column:2; grid-row:3 / span 2; }
+  /* 3.0.15：只定列、不写死行号，按 DOM 顺序 dense 自动排布。评分维度 / 备注都在时与原来逐像素一致
+     （左列 用豆→评分→照片，右列 备注→冲煮参数跨 2 行）；某张卡隐藏时后面的卡自动补位，不再留空格错位。 */
+  body.has-context-detail #drinkDetailDialog .drink-profile { grid-auto-flow:row dense; }
+  body.has-context-detail #drinkDetailDialog #drinkDetailFacts,
+  body.has-context-detail #drinkDetailDialog #drinkDetailDimensions,
+  body.has-context-detail #drinkDetailDialog .drink-detail-photos { grid-column:1; }
+  body.has-context-detail #drinkDetailDialog #drinkDetailNotesSection { grid-column:2; }
+  body.has-context-detail #drinkDetailDialog #drinkDetailPlanSection { grid-column:2; grid-row:span 2; }
   body.has-context-detail #planDetailDialog #planAssistStart { grid-column:1/-1; }
   body.has-context-detail #planDetailDialog #planDetailFacts { grid-column:1; grid-row:3; }
   body.has-context-detail #planDetailDialog #planDetailSteps { grid-column:1; grid-row:4; }
