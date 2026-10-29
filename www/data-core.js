@@ -592,6 +592,17 @@
     return parsed.high ? `${parsed.low}-${parsed.high}` : parsed.low;
   }
 
+  // 统计用的单个水温数值（手冲回顾「常用水温」）：单值取本身；区间取中点，中点不是整数时四舍五入取整
+  // （90-92 → 91，90-91 → 91）；「常温」等非数字文本、0 及以下返回 null（不计入统计）。
+  function waterTempStatValue(value) {
+    const parsed = parseWaterTemp(value);
+    if (!parsed) return null;
+    const low = Number(parsed.low);
+    const number = parsed.high == null ? low : (low + Number(parsed.high)) / 2;
+    const result = parsed.high == null || Number.isInteger(number) ? number : Math.round(number);
+    return Number.isFinite(result) && result > 0 ? result : null;
+  }
+
   // 唯一的水温展示入口（搜索、方案卡片/详情、饮用记录、冲煮辅助、分享、导入预览都走这里）：
   // 数字与区间带且只带一次 °C（91°C / 90-92°C），绝不出现「℃°C」；非数字文本（常温、200°F）原样显示，绝不追加 °C。
   function formatWaterTemp(value) {
@@ -1843,5 +1854,5 @@
     const cups = Number(summary && summary.cups) || 0; const ratedCount = Number(summary && summary.ratedCount) || 0;
     return ratedCount > 0 && ratedCount < cups ? `其中 ${ratedCount} 杯已评` : '';
   }
-  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, GRINDER_OPTIONS, COFFEE_TYPES, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, mergeBrewPlanOverlay, normalizeSettings, hasTastingContent, resolveTastingStatus, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, selectHomeReminder, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, buildAiPlanPrompt, parseAiPlanJson, looksLikeCumulativeStepWaters, splitCumulativeWatersToSegments, cumulativeWatersFromSegments, normalizeStepsWaterToSegments, prepareBrewAssistSteps, brewAssistStatus, resolveOpenedDate, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareAppVersions, isAppVersionNewer, selectReleaseApkAsset, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, FLAVOR_LEXICON, flavorTags, recentFlavorTags, beanFreshness, recentDrinkSeries, compareDrinkChronology, recentCafeNames, recentExternalDrinkNames, previousComparableDrink, beanProcessKind, recentDrinkLocations, beanRatingSummary, ratedCupsNote, sortBeanRatingLogs, beanRatingVisibleCount, ratingMonthKey, beanRatingMoreLabel, planDisplayName, normalizeWaterTemp, waterTempInputValue, formatWaterTemp, planWaterTempFromForm, canonicalGrinder, drinkParamInputValue, grinderChoices, extractGrindSetting };
+  return { SCHEMA_VERSION, DIMENSION_KEYS, BREW_METHODS, GRINDER_OPTIONS, COFFEE_TYPES, DEFAULT_SETTINGS, normalizeBean, normalizeDrinkLog, normalizeBrewPlan, mergeBrewPlanOverlay, normalizeSettings, hasTastingContent, resolveTastingStatus, consumptionResult, validateImport, createBackup, bestFlavorDaysLeft, beanReminders, selectHomeReminder, filterAndSort, summarize, summarizeDrinkLogs, summarizeBrewPlans, recommendBrewPlans, presetBrewPlans, cloneBrewPlan, planSnapshot, encodePlanShare, decodePlanShare, buildAiPlanPrompt, parseAiPlanJson, looksLikeCumulativeStepWaters, splitCumulativeWatersToSegments, cumulativeWatersFromSegments, normalizeStepsWaterToSegments, prepareBrewAssistSteps, brewAssistStatus, resolveOpenedDate, dateKey, estimateDrinkCost, summarizeDrinkDays, buildSharePayload, compareAppVersions, isAppVersionNewer, selectReleaseApkAsset, compareSyncRecords, mergeSyncRecords, liveSyncRecords, syncablePlans, beanPlaceholder, FLAVOR_LEXICON, flavorTags, recentFlavorTags, beanFreshness, recentDrinkSeries, compareDrinkChronology, recentCafeNames, recentExternalDrinkNames, previousComparableDrink, beanProcessKind, recentDrinkLocations, beanRatingSummary, ratedCupsNote, sortBeanRatingLogs, beanRatingVisibleCount, ratingMonthKey, beanRatingMoreLabel, planDisplayName, normalizeWaterTemp, waterTempInputValue, formatWaterTemp, waterTempStatValue, planWaterTempFromForm, canonicalGrinder, drinkParamInputValue, grinderChoices, extractGrindSetting };
 });

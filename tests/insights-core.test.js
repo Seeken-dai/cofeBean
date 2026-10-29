@@ -972,3 +972,21 @@ test('图鉴页内自家/外饮分栏切换：两栏各自渲染、分享按当�
   assert.match(appSource, /options && options\.external \? BeanInsights\.buildExternalCatalogSharePayload/);
   assert.match(appSource, /insightsCatalogTab: 'home'/);
 });
+
+test('3.0.15 常用水温：区间按中点计（中点非整数四舍五入），常温等文字不计入', () => {
+  const now = new Date(2026, 6, 13, 18);
+  const beans = [bean('bean-a')];
+  const temps = ['90-92℃', '90-91°C', '93°C', 94, '常温', '96'];
+  const rows = temps.map((waterTemp, index) => handLog(`t-${index}`, atLocal(2026, 6, index + 1), { grams: 15, beanId: 'bean-a', brewPlanSnapshot: brewSnapshot({ ratio: '1:15', waterTemp, targetDuration: '2:00' }) }));
+  const result = insights.handBrewSummary(rows, beans, { now });
+  assert.equal(result.ok, true);
+  // 91, 91, 93, 94, 96（常温排除）→ 中位数 93
+  assert.deepEqual(result.data.waterTemp, { median: 93, min: 91, max: 96, sampleSize: 5 });
+  const core = require('../www/data-core.js');
+  assert.equal(core.waterTempStatValue('90-92'), 91);
+  assert.equal(core.waterTempStatValue('90-91℃'), 91);
+  assert.equal(core.waterTempStatValue('88~93度'), 91);
+  assert.equal(core.waterTempStatValue('91.5'), 91.5);
+  assert.equal(core.waterTempStatValue('常温'), null);
+  assert.equal(core.waterTempStatValue(''), null);
+});

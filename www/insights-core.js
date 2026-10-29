@@ -263,7 +263,8 @@
     return {
       dose,
       ratio: parseRatioValue(snapshot.ratio, dose, totalWater),
-      waterTemp: positiveNumber(snapshot.waterTemp),
+      // 3.0.15：区间按中点计（90-92 → 91），常温等文字不计入。
+      waterTemp: typeof beanCore.waterTempStatValue === 'function' ? beanCore.waterTempStatValue(snapshot.waterTemp) : positiveNumber(snapshot.waterTemp),
       grind: [snapshot.grinder, snapshot.grindSetting].filter(Boolean).join(' · '),
       durationSeconds: parseDurationSeconds(snapshot.targetDuration),
       steps: Array.isArray(snapshot.steps) ? snapshot.steps : [],
