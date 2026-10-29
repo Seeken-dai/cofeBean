@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#1a1412">
   <meta name="color-scheme" content="dark light">
   <title>豆仓</title>
-  <link rel="stylesheet" href="styles.css?v=3.0.14">
+  <link rel="stylesheet" href="styles.css?v=3.0.15">
   <style>
     #aboutDialog .about-actions { display:flex; align-items:center; justify-content:center; gap:8px; color:var(--faint); font-size:12px; }
     #aboutDialog .about-actions .text-link-button { width:auto; min-width:0; min-height:0; padding:2px; border:0; border-radius:0; background:transparent; box-shadow:none; color:var(--accent); font:700 12px/1 inherit; text-decoration:underline; text-underline-offset:4px; }
@@ -741,7 +741,7 @@
 
   <dialog class="sheet compact" id="aboutDialog" tabindex="-1" aria-labelledby="aboutDialogTitle">
     <header class="sheet-header"><div><p class="eyebrow">ABOUT</p><h2 id="aboutDialogTitle" tabindex="-1">关于豆仓</h2></div><button class="icon-button" id="aboutClose" type="button" aria-label="关闭">×</button></header>
-    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 3.0.14</p></section>
+    <section class="about-hero"><img class="about-logo" src="icons/icon.svg" alt="" aria-hidden="true"><h3>豆仓</h3><p id="aboutVersion">版本 3.0.15</p></section>
     <section class="about-update" aria-live="polite">
       <div class="about-actions"><button class="text-link-button" id="aboutCheckUpdate" type="button">检查更新</button><span aria-hidden="true">·</span><button class="text-link-button" id="aboutOpenReleases" type="button">查看发布页</button></div>
       <div class="update-status" id="updateStatus" hidden></div>
@@ -750,8 +750,8 @@
     <section class="about-copy">
       <h3>收藏咖啡，也收藏与咖啡相处的时间。</h3>
       <p>豆仓是一款为咖啡爱好者设计的本地优先记录工具。你可以保存每一包咖啡豆的产地、风味与价格，记录每次饮用和冲煮方案，让日常里喝过的咖啡慢慢有迹可循。</p>
-      <h4>3.0.14 最新功能</h4>
-      <ul><li>AI 导入的水温写成「91℃」「91度」或区间都能识别，打开编辑页直接保存不再清空水温；冲煮辅助不再显示「91℃°C」</li><li>区间水温（如 90-92°C）原样保留和显示，喝一杯带入不再变成「9092」；打开滚轮不动直接完成也不会改掉区间</li><li>「常温」等文字水温不再显示成「常温°C」</li><li>方案编辑页的研磨设备下拉直接提供 9 款常用磨豆机，「C40」等别名会自动对应到标准名称且不再重复出现</li><li>AI 导入的研磨刻度会提取出数字，原文追加到备注；AI 方案提示词同步更新</li></ul>
+      <h4>3.0.15 最新功能</h4>
+      <ul><li>手机、平板和 Android App 打开编辑页不再自动弹出键盘，点输入框才出现；打开时「删除」按钮不会被选中高亮</li><li>网页版更新时一律下载新版本文件，不再出现「版本号是新的、功能还是旧的」</li><li>键盘 ↑ / ↓ 调滚轮每次只变一格，不再跳值</li><li>「常用水温」统计把 90-92°C 这类区间按中间值计入，「92左右」等写法按数字计入，「常温」不计入</li><li>电脑宽屏打开详情时中栏顶部显示「豆仓 · 3」紧凑标题；饮用详情的「冲煮参数」卡片不再错位；从评分页打开手冲回顾时导航保持「豆仓」高亮</li></ul>
       <div class="privacy-note"><b>离线与隐私</b><p>豆仓默认完全离线使用，数据保存在你的设备中。云同步为可选功能，仅在登录并开启后使用。</p><p>检查更新仅在你主动点击时联网，不会影响本地记录使用。</p></div>
     </section>
   </dialog>
