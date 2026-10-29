@@ -884,6 +884,9 @@
     }
 
     function render() {
+      // 从单豆评分页进入的手冲回顾属于「豆仓」上下文：左导航保持豆仓高亮（AppShell.isPersonalNavLayer）。
+      if (state.insightsExitTo === 'beanRating') dialog.dataset.navContext = 'view';
+      else delete dialog.dataset.navContext;
       updatePageFrame();
       if (state.insightsPage === 'brew') {
         renderBrewReview();
@@ -925,6 +928,7 @@
     // insightsExitTo 必须在这里清掉：否则从个人中心进来后直接关闭，残值会让下一次会话误以为还要回个人中心。
     function close() {
       state.insightsExitTo = null;
+      delete dialog.dataset.navContext;
       state.insightsRangeOverride = null;
       state.insightsPage = 'home';
       state.insightsReportType = null;

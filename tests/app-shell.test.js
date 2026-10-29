@@ -300,3 +300,14 @@ test('3.0.9 宽屏列表多列：DROP 窄轨 / auto-fill max-4 / plan facts 2x2 
   assert.match(topbar, /id="searchPanel"/);
   assert.doesNotMatch(css, /body\[data-shell-view="beans"\]\.has-context-detail[\s\S]{0,80}grid-template-columns/);
 });
+
+test('3.0.15 左导航：从评分页打开的手冲回顾（data-nav-context="view"）不把高亮切到「我的」', () => {
+  const shell = require('../www/app-shell.js');
+  assert.equal(shell.isPersonalNavLayer('insightsDialog', ''), true, '从个人中心 / 主入口打开的回顾仍属「我的」');
+  assert.equal(shell.isPersonalNavLayer('insightsDialog', undefined), true);
+  assert.equal(shell.isPersonalNavLayer('insightsDialog', 'view'), false, '评分页 → 手冲回顾保持一级页面高亮');
+  assert.equal(shell.isPersonalNavLayer('settingsDialog', ''), true);
+  assert.equal(shell.isPersonalNavLayer('detailDialog', ''), false);
+  const insights = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'www', 'app-insights.js'), 'utf8');
+  assert.match(insights, /if \(state\.insightsExitTo === 'beanRating'\) dialog\.dataset\.navContext = 'view';/);
+});

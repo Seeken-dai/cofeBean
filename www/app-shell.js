@@ -60,6 +60,12 @@
     return '(min-width: ' + WIDE_BREAKPOINT + 'px)';
   }
 
+  // 左导航高亮：个人中心的页面层（回顾、日历、设置…）在最上层时高亮「我的」；但带 data-nav-context="view"
+  // 的层（如从单豆「评分与记录」打开的手冲回顾）属于当前一级页面，保持原一级导航高亮（3.0.12 遗留）。
+  function isPersonalNavLayer(topId, navContext) {
+    return PERSONAL_LAYERS.has(topId) && navContext !== 'view';
+  }
+
   // 3.0.15：编辑页打开时能否自动聚焦文本框（自动聚焦在触屏上会直接弹出软键盘）。
   // 只有「非原生 App + 宽度 ≥ 1100 + 主指针是精确指针 + 支持 hover」的桌面浏览器才自动聚焦；
   // 手机、平板（含外接键盘的 iPad，主指针仍是 coarse）、Android App 一律不聚焦。
@@ -176,7 +182,8 @@
 
     function syncNavigationContext() {
       const topId = stack.length ? stack[stack.length - 1] : '';
-      const personalLayer = PERSONAL_LAYERS.has(topId);
+      const topDialog = topId ? doc.getElementById(topId) : null;
+      const personalLayer = isPersonalNavLayer(topId, topDialog && topDialog.dataset ? topDialog.dataset.navContext : '');
       doc.querySelectorAll('[data-shell-view]').forEach((button) => {
         const isPersonal = button.dataset.shellView === 'personal';
         const selected = isPersonal ? activeView === 'personal' || personalLayer : !personalLayer && button.dataset.shellView === activeView;
@@ -187,7 +194,7 @@
       doc.querySelectorAll('[data-shell-action]').forEach((button) => {
         const action = button.dataset.shellAction;
         const selected = action === 'calendar' && topId === 'coffeeCalendarDialog'
-          || action === 'insights' && topId === 'insightsDialog'
+          || action === 'insights' && topId === 'insightsDialog' && personalLayer
           || action === 'settings' && topId === 'settingsDialog'
           || action === 'sync' && ['syncDialog', 'syncAuthDialog'].includes(topId);
         button.classList.toggle('active', Boolean(selected));
@@ -411,6 +418,7 @@
     isWideViewport,
     wideMediaQuery,
     canAutoFocusField,
+    isPersonalNavLayer,
     shouldEnableWebWorkbench,
     navigationItems,
     adjacentNavigationView,
