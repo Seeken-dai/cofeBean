@@ -112,6 +112,11 @@
     const target = dialogFocusTarget(dialog);
     if (document.activeElement !== target) target.focus({ preventScroll: true });
   }
+  // 宽屏详情打开时中栏紧凑标题行「豆仓 · 3」的数量：当前列表（含筛选 / 搜索）里的条目数。只有该状态下 CSS 才显示它。
+  function setCompactCount(count) {
+    const node = document.getElementById('shellCompactCount');
+    if (node) node.textContent = `· ${Number(count) || 0}`;
+  }
   function isWideWorkspace() {
     if (typeof AppShell !== 'undefined' && AppShell.shouldEnableWebWorkbench) {
       return AppShell.shouldEnableWebWorkbench({ isNative: isNativeApp(), matchesWide: isWideViewportNow() });
@@ -719,6 +724,7 @@
     renderBeanEmptyState(visible);
     els.list.classList.toggle('suppress-enter', suppressListEnter); els.list.innerHTML = visible.map((bean, index) => cardTemplate(bean, index)).join('');
     els.count.textContent = (state.query || state.status !== '在饮' || activeFacetCount()) ? `显示 ${visible.length} / 共 ${state.beans.length} 款` : `在饮 ${visible.length} 款 · 共 ${state.beans.length} 款`;
+    if (state.view === 'beans') setCompactCount(visible.length);
   }
   function renderBeanEmptyState(visible) {
     if (visible.length) return;
@@ -940,6 +946,7 @@
     const pageSize = Math.max(DRINK_PAGE_SIZE, Number(state.drinkVisibleLimit) || DRINK_PAGE_SIZE);
     const paged = visible.slice(0, pageSize);
     if (state.view === 'drinks') els.count.textContent = q || state.drinkSource !== '全部' || paged.length < visible.length ? `显示 ${paged.length} / 共 ${state.drinkLogs.length} 杯` : `共记录 ${state.drinkLogs.length} 杯`;
+    if (state.view === 'drinks') setCompactCount(visible.length);
     const groups = new Map(); paged.forEach((log) => { const key = new Date(log.consumedAt).toLocaleDateString('zh-CN'); if (!groups.has(key)) groups.set(key, []); groups.get(key).push(log); });
     const more = visible.length > paged.length ? `<button class="timeline-more" id="drinkLoadMore" type="button">再显示 ${Math.min(DRINK_PAGE_SIZE, visible.length - paged.length)} 杯</button>` : '';
     $('#globalDrinkList').innerHTML = [...groups.entries()].map(([date, logs]) => `<section class="timeline-group"><h2>${esc(date)}</h2>${logs.map((log) => logTemplate(log, false)).join('')}</section>`).join('') + more;
@@ -970,6 +977,7 @@
     planEmpty.querySelector('h2').textContent = hasPlans ? '没有匹配的冲煮方案' : '一段风味，值得反复回味';
     planEmpty.querySelector('p').textContent = hasPlans ? '换个关键词或冲煮方式再试试。' : '记下冲煮参数，让喜欢的风味下次还能找到。';
     if (state.view === 'plans') els.count.textContent = (q || state.planMethod !== '全部') ? `显示 ${visible.length} / 共 ${state.brewPlans.length} 个方案` : `共 ${state.brewPlans.length} 个冲煮方案`;
+    if (state.view === 'plans') setCompactCount(visible.length);
     const groups = new Map();
     visible.forEach((plan) => { if (!groups.has(plan.brewMethod)) groups.set(plan.brewMethod, []); groups.get(plan.brewMethod).push(plan); });
     $('#brewPlanList').innerHTML = [...groups.entries()].map(([method, plans]) => `<section class="timeline-group plan-group"><h2>${brewIcon(method)}${esc(method)}</h2>${plans.map((plan) => planCardTemplate(plan, counts.get(plan.name) || 0)).join('')}</section>`).join('');

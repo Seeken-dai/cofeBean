@@ -53,6 +53,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .brand-mark span { position: relative; width: 22px; height: 14px; border: 2px solid var(--accent); border-radius: 60% 35% 60% 35%; transform: rotate(-30deg); }
 .brand-mark span::after { content:""; position:absolute; inset:1px 8px; border-left:1px solid var(--accent); transform:rotate(20deg); }
 .brand-copy h1 { margin:0; font-family:"Vault Serif",serif; font-size:24px; font-weight:700; letter-spacing:.08em; line-height:1.1; }
+.topbar-compact-count { display:none; }
 .brand-copy p { margin:4px 0 0; color:var(--faint); font-size:11px; letter-spacing:.05em; }
 .icon-button { display:grid; place-items:center; width:44px; height:44px; border:0; border-radius:var(--radius-control); background:transparent; color:var(--muted); font-size:25px; cursor:pointer; transition:background var(--motion-ui) var(--ease),color var(--motion-ui) var(--ease),transform var(--motion-ui) var(--ease); }
 .icon-button svg { width:21px; height:21px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
@@ -1438,6 +1439,8 @@ html.number-picker-open { overflow:hidden; }
   --vault-ink-tertiary:var(--faint);
   --vault-ink-disabled:color-mix(in srgb,var(--faint) 66%,transparent);
   --vault-line-soft:color-mix(in srgb,var(--border) 58%,transparent);
+  /* 宽屏右栏详情顶栏高度；中栏紧凑标题行（详情打开时）用同一个值，两条分隔线对齐。 */
+  --context-header-height:72px;
   --vault-line:color-mix(in srgb,var(--border) 78%,transparent);
   --vault-line-strong:color-mix(in srgb,var(--accent) 42%,var(--border));
   --vault-accent-soft:color-mix(in srgb,var(--accent) 10%,var(--surface));
@@ -2589,15 +2592,31 @@ body:not(.cap-native) #personalLifetimeStats { display:none!important; }
   .drink-dialog.quick-mode { width:480px; min-width:0; height:auto; max-height:min(78vh,640px); margin:auto; border:1px solid var(--vault-line); border-radius:var(--radius-overlay); box-shadow:0 24px 72px rgb(0 0 0 / .36); }
   .bean-skeleton { grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); }
 
-  body.has-context-detail .topbar { grid-column:2; padding-inline:16px; }
-  body.has-context-detail .topbar .profile-button,body.has-context-detail .topbar-search,body.has-context-detail #planImportFab { display:none!important; }
+  /* 3.0.15 紧凑标题行：详情打开时中栏顶栏只剩一行「标题 · 数量」，无按钮无搜索；
+     高度与右栏详情顶栏相同（--context-header-height），分隔线同 token，1100 与 1440 一致。 */
+  body.has-context-detail .topbar {
+    grid-column:2;
+    display:flex;
+    align-items:center;
+    height:var(--context-header-height);
+    min-height:0;
+    padding:0 16px;
+    border-bottom:1px solid var(--vault-line-soft);
+  }
+  body.has-context-detail .topbar-actions,body.has-context-detail .topbar-search,body.has-context-detail .shell-eyebrow,body.has-context-detail #recordCount { display:none!important; }
+  body.has-context-detail .brand-copy { display:flex; align-items:baseline; gap:6px; min-width:0; flex:1 1 auto; margin:0; }
   body.has-context-detail .brand-copy h1 {
-    font-size:19px;
+    min-width:0;
+    margin:0;
+    font-size:16px;
+    font-weight:600;
+    line-height:1.3;
+    color:var(--text);
     white-space:nowrap;
     overflow:hidden;
     text-overflow:ellipsis;
   }
-  body.has-context-detail .brand-copy p { max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  body.has-context-detail .topbar-compact-count { display:inline; flex-shrink:0; font-size:13px; line-height:1.3; color:var(--muted); white-space:nowrap; }
   body.has-context-detail main { grid-column:2; padding:14px 12px 28px; }
   body.has-context-detail .overview,body.has-context-detail .reminder-panel,body.has-context-detail .drink-trend-wrap,body.has-context-detail .sort-row { display:none!important; }
   body.has-context-detail .bean-filter-toolbar { width:100%; }
@@ -2807,7 +2826,7 @@ body[data-shell-view="personal"] .profile-button { border-color:var(--accent); b
   position:sticky;
   top:0;
   z-index:8;
-  min-height:calc(72px + env(safe-area-inset-top,0px));
+  min-height:calc(var(--context-header-height) + env(safe-area-inset-top,0px));
   padding:calc(10px + env(safe-area-inset-top,0px)) 12px 10px;
   border-bottom:1px solid var(--vault-line-soft);
   background:color-mix(in srgb,var(--surface) 96%,transparent);
