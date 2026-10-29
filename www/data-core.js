@@ -592,16 +592,24 @@
     return parsed.high ? `${parsed.low}-${parsed.high}` : parsed.low;
   }
 
-  // 统计用的单个水温数值（手冲回顾「常用水温」）：单值取本身；区间取中点，中点不是整数时四舍五入取整
-  // （90-92 → 91，90-91 → 91）；「常温」等非数字文本、0 及以下返回 null（不计入统计）。
+  // 统计用的单个水温数值（手冲回顾「常用水温」），只用于统计，展示仍用原文：
+  // - 标准写法（parseWaterTemp 认得的单值 / 区间）：单值取本身；区间取中点，中点不是整数时四舍五入（90-92 → 91，90-91 → 91）；
+  // - 其它文本里恰好只有一个数字：取这个数（「92左右」「约92°C」→ 92）；
+  // - 没有数字（「常温」）或有两个及以上数字但不是标准区间（「85/92」）：不计入，返回 null；0 及以下同样不计入。
   function waterTempStatValue(value) {
     const parsed = parseWaterTemp(value);
-    if (!parsed) return null;
-    const low = Number(parsed.low);
-    const number = parsed.high == null ? low : (low + Number(parsed.high)) / 2;
-    const result = parsed.high == null || Number.isInteger(number) ? number : Math.round(number);
+    let result = null;
+    if (parsed) {
+      const low = Number(parsed.low);
+      const mid = parsed.high == null ? low : (low + Number(parsed.high)) / 2;
+      result = parsed.high == null || Number.isInteger(mid) ? mid : Math.round(mid);
+    } else if (typeof value === 'string') {
+      const numbers = value.match(/-?\d+(?:\.\d+)?/g) || [];
+      if (numbers.length === 1) result = Number(numbers[0]);
+    }
     return Number.isFinite(result) && result > 0 ? result : null;
   }
+
 
   // 唯一的水温展示入口（搜索、方案卡片/详情、饮用记录、冲煮辅助、分享、导入预览都走这里）：
   // 数字与区间带且只带一次 °C（91°C / 90-92°C），绝不出现「℃°C」；非数字文本（常温、200°F）原样显示，绝不追加 °C。

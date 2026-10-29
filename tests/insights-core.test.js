@@ -990,3 +990,26 @@ test('3.0.15 常用水温：区间按中点计（中点非整数四舍五入）�
   assert.equal(core.waterTempStatValue('常温'), null);
   assert.equal(core.waterTempStatValue(''), null);
 });
+
+test('3.0.15 常用水温：文本里恰好一个数字按该数计入，多个数字且非区间不计入，展示仍为原文', () => {
+  const core = require('../www/data-core.js');
+  assert.equal(core.waterTempStatValue('92左右'), 92);
+  assert.equal(core.waterTempStatValue('约92°C'), 92);
+  assert.equal(core.waterTempStatValue('约 92.5 度'), 92.5);
+  assert.equal(core.waterTempStatValue('90到92度'), 91, '现有区间解析认得的写法仍按中点');
+  assert.equal(core.waterTempStatValue('90 - 92 °C'), 91);
+  assert.equal(core.waterTempStatValue('85/92'), null, '两个数字但不是区间');
+  assert.equal(core.waterTempStatValue('第2次92'), null);
+  assert.equal(core.waterTempStatValue('约90-92度'), null, '带前缀的区间不是标准区间写法，不猜');
+  assert.equal(core.waterTempStatValue('常温'), null);
+  assert.equal(core.waterTempStatValue('-5'), null);
+  assert.equal(core.formatWaterTemp('92左右'), '92左右', '展示保持原文');
+  assert.equal(core.formatWaterTemp('约92°C'), '约92°C');
+
+  const now = new Date(2026, 6, 13, 18);
+  const temps = ['92左右', '约94°C', '90-92°C', '85/92', '常温', '96'];
+  const rows = temps.map((waterTemp, index) => handLog(`x-${index}`, atLocal(2026, 6, index + 1), { grams: 15, beanId: 'bean-a', brewPlanSnapshot: brewSnapshot({ ratio: '1:15', waterTemp, targetDuration: '2:00' }) }));
+  const result = insights.handBrewSummary(rows, [bean('bean-a')], { now });
+  // 92, 94, 91, 96（85/92 与 常温 排除）→ 中位数 93
+  assert.deepEqual(result.data.waterTemp, { median: 93, min: 91, max: 96, sampleSize: 4 });
+});
