@@ -63,7 +63,9 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE).then(async (cache) => {
       const cachedRequests = await cache.keys();
       await Promise.all(cachedRequests.filter((request) => new URL(request.url).pathname.startsWith(MOCK_PATH)).map((request) => cache.delete(request)));
-      await cache.addAll(SHELL_URLS);
+      // cache: 'reload' 让每个外壳文件都绕过浏览器 HTTP 缓存直接向网络取：线上 JS 带 max-age=14400 且没有 ?v=，
+      // 不绕过的话，4 小时内加载过旧版的设备会把旧 app.js 等装进新版本缓存（3.0.14 PWA 更新验证发现）。
+      await cache.addAll(SHELL_URLS.map((url) => new Request(url, { cache: 'reload' })));
     }).then(() => self.skipWaiting())
   );
 });

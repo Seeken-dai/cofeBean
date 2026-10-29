@@ -59,6 +59,17 @@ curl.exe -s https://app.cofevault.top/ | Select-String "aboutVersion"
 curl.exe -s https://cofevault.top/ | Select-String "<title>"
 ```
 
+**PWA 更新验收（每次发版必做，push `main` 上线后）**：线上 JS 响应头为 `Cache-Control: max-age=14400`（4 小时）且脚本不带 `?v=`；3.0.15 起 `sw.js` install 用 `new Request(url, { cache: 'reload' })` 绕过 HTTP 缓存，但仍需按下面两种情况各验一次：
+
+1. **旧版加载于 4 小时之前**：用已安装旧版、且 4 小时内没打开过的 PWA / 浏览器 profile 打开，刷新两次（第一次装新 SW，第二次由新 SW 接管）。
+2. **旧版加载于 4 小时之内**（HTTP 缓存里还有旧 `app.js` 等，最容易出问题）：先打开旧版确认 SW 已装好，然后在 4 小时内上线新版，同一 profile 刷新两次。
+
+两种情况都要核对：
+- 关于页显示新版本号；
+- DevTools → Application → Cache Storage 只剩 `coffee-vault-shell-<新版本>`；
+- 新缓存里的 `app.js`、`data-core.js` 等与发布提交逐文件一致（可在 Console 执行：`const c = await caches.open('coffee-vault-shell-<x.y.z>'); const t = await (await c.match('./app.js')).text(); t.length` 与本地 `www/app.js` 字节数 / sha256 对比）；
+- 本版新增的行为确实生效（挑一条 CHANGELOG 里能直接点出来的改动验证），而不是只看版本号。
+
 `www/` 的改动上线后，`www/sw.js` 的 `CACHE` 常量决定老用户何时拿到新外壳。版本号没变就不会刷新缓存——发 Web 热修时若不打算升版本号，需自行确认 Service Worker 的更新路径。
 
 落地页的重定向与响应头在 `landing/_redirects`、`landing/_headers`，由 Pages 直接消费，改完 push 即生效。
