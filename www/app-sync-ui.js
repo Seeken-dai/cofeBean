@@ -13,6 +13,8 @@
 
   function create(deps) {
     const { $, state, els, cloudSync, toast, setDialog, askConfirm, reload, copyText, formatDateTime, onSyncStateChange } = deps;
+    // 3.0.15：自动聚焦只在桌面浏览器生效（app.js focusFieldIfDesktop）；未注入时不自动聚焦，避免触屏弹键盘。
+    const focusFieldIfDesktop = typeof deps.focusFieldIfDesktop === 'function' ? deps.focusFieldIfDesktop : () => {};
     ['$', 'state', 'els', 'toast', 'setDialog', 'askConfirm', 'reload', 'copyText', 'formatDateTime'].forEach((key) => {
       if (!deps[key]) throw new Error(`AppSyncUi.create 缺少依赖:${key}`);
     });
@@ -87,7 +89,7 @@
       $('#syncAuthPassword').value = '';
       $('#syncAuthRecovery').value = '';
       setDialog(els.syncAuth, true);
-      setTimeout(() => $('#syncAuthEmail').focus(), 80);
+      focusFieldIfDesktop('#syncAuthEmail', 80);
     }
     function syncAuthBack() { if (state.syncAuthMode !== 'login') return setSyncAuthMode('login'); setDialog(els.syncAuth, false); }
     async function syncAuthSubmit() {

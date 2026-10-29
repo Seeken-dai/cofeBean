@@ -60,6 +60,21 @@
     return '(min-width: ' + WIDE_BREAKPOINT + 'px)';
   }
 
+  // 3.0.15：编辑页打开时能否自动聚焦文本框（自动聚焦在触屏上会直接弹出软键盘）。
+  // 只有「非原生 App + 宽度 ≥ 1100 + 主指针是精确指针 + 支持 hover」的桌面浏览器才自动聚焦；
+  // 手机、平板（含外接键盘的 iPad，主指针仍是 coarse）、Android App 一律不聚焦。
+  // env: { native, matchMedia(query) → { matches } }；没有 matchMedia 时保守返回 false。
+  function canAutoFocusField(env) {
+    const context = env || {};
+    if (context.native) return false;
+    const match = typeof context.matchMedia === 'function'
+      ? (query) => { try { return Boolean(context.matchMedia(query) && context.matchMedia(query).matches); } catch { return false; } }
+      : null;
+    if (!match) return false;
+    const wide = match(wideMediaQuery());
+    return wide && match('(pointer: fine)') && match('(hover: hover)');
+  }
+
   // Web workbench only: non-native AND viewport at/above the breakpoint.
   // Pass matchesWide (e.g. matchMedia) or width; native always false.
   function shouldEnableWebWorkbench(options) {
@@ -395,6 +410,7 @@
     layoutForWidth,
     isWideViewport,
     wideMediaQuery,
+    canAutoFocusField,
     shouldEnableWebWorkbench,
     navigationItems,
     adjacentNavigationView,

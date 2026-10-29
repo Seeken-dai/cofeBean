@@ -86,6 +86,26 @@
     }
     return Boolean(window.matchMedia) && window.matchMedia('(min-width: 1100px)').matches;
   }
+  // 3.0.15：编辑页不再自己弹键盘。只在桌面浏览器（见 AppShell.canAutoFocusField）自动聚焦首个文本框；
+  // 手机 / 平板 / Android App 打开编辑页时焦点停在对话框上，点了输入框才出键盘。
+  function canAutoFocusField() {
+    if (typeof window === 'undefined' || typeof AppShell === 'undefined' || !AppShell.canAutoFocusField) return false;
+    return AppShell.canAutoFocusField({ native: isNativeApp(), matchMedia: window.matchMedia ? window.matchMedia.bind(window) : null });
+  }
+  function focusFieldIfDesktop(target, delay) {
+    setTimeout(() => {
+      const field = typeof target === 'string' ? $(target) : target;
+      if (field && field.focus && canAutoFocusField()) field.focus();
+    }, delay == null ? 120 : delay);
+  }
+  // 文本输入（会唤起软键盘）：可编辑的 input / textarea / contenteditable；只读的滚轮框不算。
+  function isKeyboardField(element) {
+    if (!element || element.readOnly || element.disabled) return false;
+    if (element.isContentEditable) return true;
+    if (element.tagName === 'TEXTAREA') return true;
+    if (element.tagName !== 'INPUT') return false;
+    return !['button', 'submit', 'reset', 'checkbox', 'radio', 'range', 'color', 'file', 'image', 'hidden'].includes((element.type || 'text').toLowerCase());
+  }
   function isWideWorkspace() {
     if (typeof AppShell !== 'undefined' && AppShell.shouldEnableWebWorkbench) {
       return AppShell.shouldEnableWebWorkbench({ isNative: isNativeApp(), matchesWide: isWideViewportNow() });
@@ -319,6 +339,8 @@
       if (!dialog.open) {
         if (usesWideNonModal(dialog) && appShell && appShell.isWide()) dialog.show();
         else dialog.showModal();
+        // 兜底：showModal 的首个可聚焦元素若是文本框（或带 autofocus），触屏上会直接弹键盘，改为聚焦对话框本身。
+        if (dialog.contains(document.activeElement) && isKeyboardField(document.activeElement) && !canAutoFocusField()) dialog.focus({ preventScroll: true });
       }
       if (isContextDetail(dialog) && appShell && appShell.isWide()) dialog.dataset.contextPresentation = 'split';
       else if (isWideSidePage(dialog) && appShell && appShell.isWide()) dialog.dataset.contextPresentation = 'page';
@@ -1502,7 +1524,7 @@
   async function openEditor(bean, scanResult) {
     state.editingId = bean ? bean.id : null; subjectCropJob += 1; subjectCropBusy = false; subjectCropStatus = ''; beanImagesToDelete = []; if (!scanResult) clearPendingImages(true); $('#editorTitle').textContent = bean ? '编辑咖啡豆' : '新增咖啡豆'; $('#deleteBean').hidden = !bean; els.form.reset(); const submit = els.form.querySelector('[type="submit"]'); if (submit) submit.disabled = false; $$('.field', els.form).forEach((field) => field.classList.remove('needs-review')); els.scanResult.hidden = true; els.scanResult.innerHTML = ''; SMART_FIELDS.forEach((field) => { $(`#field-${field}`).value = ''; });
     $('#field-remainingWeight').dataset.userEdited = bean ? '1' : '';
-    if (bean) fillForm(bean); else if (scanResult) { fillForm(scanResult.fields); $('#field-remainingWeight').dataset.userEdited = $('#field-remainingWeight').value ? '1' : ''; syncInitialWeightToRemaining(); } else { $('#field-status').value = '未开封'; renderImageVault(); } await initSmartSelects(); syncAllChoiceTriggers(); if (scanResult) showScanResult(scanResult); setDialog(els.editor, true); setTimeout(() => $('#field-name').focus(), 120);
+    if (bean) fillForm(bean); else if (scanResult) { fillForm(scanResult.fields); $('#field-remainingWeight').dataset.userEdited = $('#field-remainingWeight').value ? '1' : ''; syncInitialWeightToRemaining(); } else { $('#field-status').value = '未开封'; renderImageVault(); } await initSmartSelects(); syncAllChoiceTriggers(); if (scanResult) showScanResult(scanResult); setDialog(els.editor, true); focusFieldIfDesktop('#field-name', 120);
   }
   function fillForm(bean) { Object.entries(bean).forEach(([key, value]) => { const control = els.form.elements[key]; if (!control) return; if (control.type === 'checkbox') control.checked = Boolean(value); else control.value = value == null ? '' : value; }); SMART_FIELDS.forEach((field) => { $(`#field-${field}`).value = bean[field] || ''; }); renderImageVault(bean); }
   function syncInitialWeightToRemaining() { const remaining = $('#field-remainingWeight'); if (state.editingId || remaining.dataset.userEdited || remaining.value) return; remaining.value = $('#field-initialWeight').value; }
@@ -2148,7 +2170,7 @@
     planToForm(editingPreset ? BeanCore.cloneBrewPlan(plan, { name: plan.name, source: 'user' }) : plan);
     $('#plan-template').disabled = Boolean(plan);
     $('#plan-template').closest('.field').hidden = Boolean(plan);
-    fillTemplateOptions($('#plan-method').value); setDialog(els.planEditor, true); setTimeout(() => $('#plan-name').focus(), 120);
+    fillTemplateOptions($('#plan-method').value); setDialog(els.planEditor, true); focusFieldIfDesktop('#plan-name', 120);
   }
   async function savePlan(event) {
     event.preventDefault(); const old = state.editingPlanId ? state.brewPlans.find((plan) => plan.id === state.editingPlanId) : null;
@@ -2823,7 +2845,7 @@
   }
   // 云同步账号 UI 在 app-sync-ui.js(拆分第二批):依赖显式注入,状态位仍写回共享 state。
   const { renderSyncSettings, setSyncAuthMode, openSyncAuth, syncAuthBack, syncAuthSubmit, syncLogout, syncDeleteAccount, syncToggle, syncNow, copyRecoveryCode } =
-    window.AppSyncUi.create({ $, state, els, cloudSync, toast, setDialog, askConfirm, reload, copyText, formatDateTime, onSyncStateChange: renderSidebarSyncState });
+    window.AppSyncUi.create({ $, state, els, cloudSync, toast, setDialog, askConfirm, reload, copyText, formatDateTime, focusFieldIfDesktop, onSyncStateChange: renderSidebarSyncState });
   async function copyCurrentPlanShareCode() {
     const plan = state.brewPlans.find((item) => item.id === state.viewingPlanId);
     if (!plan) return;
