@@ -3,6 +3,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
+// 会话时间必须相对当前时间：Worker 会话 90 天过期（SESSION_TTL_MS），写死日期的夹具会在 90 天后整体 401。
+function recentIso(msAgo) { return new Date(Date.now() - (msAgo || 60 * 1000)).toISOString(); }
 function iso(minute) { return `2026-07-03T10:${String(minute).padStart(2, '0')}:00.000Z`; }
 function keyOf(userId, type, id) { return `${userId}\u0000${type}\u0000${id}`; }
 
@@ -109,6 +111,11 @@ class Statement {
       for (const [key, row] of this.db.records) if (row.user_id === v[0]) this.db.records.delete(key);
       return {};
     }
+    if (sql.startsWith('DELETE FROM sessions WHERE token = ?')) {
+      // 过期会话清理（worker/src/index.js 鉴权时 last_seen 超过 SESSION_TTL_MS）
+      this.db.sessions.delete(v[0]);
+      return {};
+    }
     if (sql.startsWith('DELETE FROM sessions WHERE user_id = ?')) {
       for (const [key, row] of this.db.sessions) if (row.user_id === v[0]) this.db.sessions.delete(key);
       return {};
@@ -122,7 +129,7 @@ class Statement {
 function createEnv() {
   const db = {
     users: new Set(['user-1']),
-    sessions: new Map([['token-1', { user_id: 'user-1', created_at: iso(0), last_seen: iso(0) }]]),
+    sessions: new Map([['token-1', { user_id: 'user-1', created_at: recentIso(), last_seen: recentIso() }]]),
     records: new Map(),
     userSeq: new Map([['user-1', 10]]),
     imageRefs: new Map(),
@@ -340,4 +347,17 @@ test('worker integration: 明文历史会话首次命中即升级为哈希存储
   // 错误 token 仍拒绝
   const denied = await worker.fetch(new Request('https://sync.test/sync/pull?cursor=0', { headers: { Authorization: 'Bearer wrong' } }), env);
   assert.equal(denied.status, 401);
+});
+
+test('worker integration: 超过 90 天未活跃的会话被删除并返回 401', async () => {
+  const worker = await loadWorker();
+  const env = createEnv();
+  const stale = recentIso(91 * 24 * 60 * 60 * 1000);
+  env.DB.sessions.set('token-1', { user_id: 'user-1', created_at: stale, last_seen: stale });
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('token-1'));
+  const hash = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  const res = await worker.fetch(new Request('https://sync.test/sync/pull?cursor=0', { headers: { Authorization: 'Bearer token-1' } }), env);
+  assert.equal(res.status, 401);
+  assert.equal(env.DB.sessions.has('token-1'), false);
+  assert.equal(env.DB.sessions.has(hash), false, '过期会话（升级后的哈希行）应被清理');
 });
