@@ -311,3 +311,8 @@ test('3.0.15 左导航：从评分页打开的手冲回顾（data-nav-context="v
   const insights = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'www', 'app-insights.js'), 'utf8');
   assert.match(insights, /if \(state\.insightsExitTo === 'beanRating'\) dialog\.dataset\.navContext = 'view';/);
 });
+
+test('3.0.15 data-layer-over-detail 在 dialog 关闭时清除', () => {
+  const app = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'www', 'app.js'), 'utf8');
+  assert.match(app, /\$\$\('dialog'\)\.forEach\(\(dialog\) => dialog\.addEventListener\('close', \(\) => \{ delete dialog\.dataset\.layerOverDetail; syncDialogScrim\(\); \}\)\);/);
+});

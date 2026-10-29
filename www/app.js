@@ -3152,7 +3152,8 @@
     els.settings.addEventListener('close', () => { els.settings.scrollTop = 0; });
     $('#calendarReportOpen').addEventListener('click', () => { const button = $('#calendarReportOpen'); if (!button.dataset.reportKey) return; setDialog(els.calendar, false); insightsUi.openReport(button.dataset.reportType, button.dataset.reportKey, { fromPersonal: state.view === 'personal' }); });
     setupNumberInputs();
-    $$('dialog').forEach((dialog) => dialog.addEventListener('close', syncDialogScrim));
+    // data-layer-over-detail 只描述「这次打开时」的叠放关系：真正关闭（退场动画结束）后清掉，不留陈旧标记。
+    $$('dialog').forEach((dialog) => dialog.addEventListener('close', () => { delete dialog.dataset.layerOverDetail; syncDialogScrim(); }));
     new MutationObserver(syncDialogScrim).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['open'] });
     els.drink.addEventListener('close', resetQuickDrinkFeedback);
     $('#loadMockData').addEventListener('click', loadMockData); syncMockDataVisibility();
