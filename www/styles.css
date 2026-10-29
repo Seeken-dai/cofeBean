@@ -241,8 +241,9 @@ body:not(.cap-native) #planImportCamera { display:none; }
 .toast.show::after { animation:toast-life 5s linear both; }
 
 dialog { color:var(--text); }
-/* 3.0.15：触屏打开编辑页时焦点落在对话框容器（tabindex=-1）上，容器本身不画焦点框。 */
-dialog[tabindex="-1"]:focus,dialog[tabindex="-1"]:focus-visible { outline:none; }
+/* 3.0.15：触屏打开对话框时焦点落在标题 h2（无 h2 时落在对话框容器，二者都是 tabindex=-1），程序聚焦不画焦点框；
+   :focus 与 :focus-visible 都要写——部分浏览器对程序 focus() 也会命中 :focus 画出默认焦点框。之后按 Tab 到按钮仍正常显示焦点框。 */
+dialog[tabindex="-1"]:focus,dialog[tabindex="-1"]:focus-visible,dialog h2[tabindex="-1"]:focus,dialog h2[tabindex="-1"]:focus-visible { outline:none; }
 dialog::backdrop { background:transparent!important; backdrop-filter:none!important; opacity:0!important; animation:none!important; }
 .sheet { width:min(100% - 20px,620px); max-height:calc(100dvh - 20px - env(safe-area-inset-top,0px)); margin:auto auto 0; padding:0; overflow:auto; overscroll-behavior:contain; border:1px solid var(--border); border-radius:var(--radius-overlay) var(--radius-overlay) 0 0; background:var(--surface); box-shadow:var(--shadow); }
 /* 弹窗入场/退场：只用 sheet-in / sheet-closing animation，避免与 transition 双开 */

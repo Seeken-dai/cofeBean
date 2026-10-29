@@ -42,10 +42,15 @@ test('三处延时自动聚焦都经过 focusFieldIfDesktop，不再直接 .focu
   }
   assert.match(app, /focusFieldIfDesktop,/, 'AppSyncUi.create 注入 focusFieldIfDesktop');
   const setDialog = app.slice(app.indexOf('function setDialog('), app.indexOf('// 只有落在 sheet 上方'));
-  assert.match(setDialog, /isKeyboardField\(document\.activeElement\) && !canAutoFocusField\(\)\) dialog\.focus/, 'setDialog 兜底：触屏时焦点落到文本框就改聚焦对话框');
+  assert.match(setDialog, /if \(!canAutoFocusField\(\)\) focusDialogTitle\(dialog\);/, 'setDialog：触屏一律改聚焦标题（不论首个焦点是文本框还是删除按钮）');
+  const target = app.slice(app.indexOf('function dialogFocusTarget('), app.indexOf('function focusDialogTitle('));
+  assert.match(target, /aria-labelledby/);
+  assert.match(target, /title\.tagName === 'H2' && dialog\.contains\(title\)/, '只聚焦本对话框内的 h2 标题');
+  assert.match(target, /return dialog;/, '没有 h2 标题时退回对话框容器');
+  assert.doesNotMatch(setDialog, /isKeyboardField/, '不再只在文本框时才兜底');
 });
 
-test('每个 dialog 都可作为焦点容器（tabindex=-1）并以标题命名（aria-labelledby）', () => {
+test('每个 dialog 及其 h2 标题都可程序聚焦（tabindex=-1），并以标题命名（aria-labelledby）', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'www', 'index.html'), 'utf8');
   const dialogs = [...html.matchAll(/<dialog\b[^>]*>/g)].map((match) => match[0]);
   assert.ok(dialogs.length >= 30);
@@ -53,8 +58,11 @@ test('每个 dialog 都可作为焦点容器（tabindex=-1）并以标题命名�
     assert.match(tag, /tabindex="-1"/, tag);
     const label = (tag.match(/aria-labelledby="([^"]+)"/) || [])[1];
     assert.ok(label, tag);
-    assert.match(html, new RegExp(`<h[1-3][^>]*id="${label}"`), `${label} 应指向标题`);
+    assert.match(html, new RegExp(`<h2[^>]*id="${label}"[^>]*tabindex="-1"`), `${label} 应指向 tabindex=-1 的 h2 标题`);
   }
   const css = fs.readFileSync(path.join(__dirname, '..', 'www', 'styles.css'), 'utf8');
-  assert.match(css, /dialog\[tabindex="-1"\]:focus[^{]*\{ outline:none; \}/);
+  const rule = (css.match(/([^}\n]*)\{ outline:none; \}/g) || []).find((line) => line.includes('dialog h2[tabindex="-1"]')) || '';
+  for (const selector of ['dialog[tabindex="-1"]:focus', 'dialog[tabindex="-1"]:focus-visible', 'dialog h2[tabindex="-1"]:focus', 'dialog h2[tabindex="-1"]:focus-visible']) {
+    assert.ok(rule.includes(selector), `${selector} 应无焦点框（:focus 与 :focus-visible 都要写）`);
+  }
 });

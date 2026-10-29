@@ -98,13 +98,19 @@
       if (field && field.focus && canAutoFocusField()) field.focus();
     }, delay == null ? 120 : delay);
   }
-  // 文本输入（会唤起软键盘）：可编辑的 input / textarea / contenteditable；只读的滚轮框不算。
-  function isKeyboardField(element) {
-    if (!element || element.readOnly || element.disabled) return false;
-    if (element.isContentEditable) return true;
-    if (element.tagName === 'TEXTAREA') return true;
-    if (element.tagName !== 'INPUT') return false;
-    return !['button', 'submit', 'reset', 'checkbox', 'radio', 'range', 'color', 'file', 'image', 'hidden'].includes((element.type || 'text').toLowerCase());
+  // 触屏打开对话框时的焦点落点：标题 h2（tabindex=-1，样式上不画焦点框），没有 h2 标题时退回对话框容器。
+  function dialogFocusTarget(dialog) {
+    const titleId = dialog.getAttribute('aria-labelledby');
+    const title = titleId ? document.getElementById(titleId) : null;
+    if (title && title.tagName === 'H2' && dialog.contains(title)) {
+      if (!title.hasAttribute('tabindex')) title.setAttribute('tabindex', '-1');
+      return title;
+    }
+    return dialog;
+  }
+  function focusDialogTitle(dialog) {
+    const target = dialogFocusTarget(dialog);
+    if (document.activeElement !== target) target.focus({ preventScroll: true });
   }
   function isWideWorkspace() {
     if (typeof AppShell !== 'undefined' && AppShell.shouldEnableWebWorkbench) {
@@ -339,8 +345,10 @@
       if (!dialog.open) {
         if (usesWideNonModal(dialog) && appShell && appShell.isWide()) dialog.show();
         else dialog.showModal();
-        // 兜底：showModal 的首个可聚焦元素若是文本框（或带 autofocus），触屏上会直接弹键盘，改为聚焦对话框本身。
-        if (dialog.contains(document.activeElement) && isKeyboardField(document.activeElement) && !canAutoFocusField()) dialog.focus({ preventScroll: true });
+        // 触屏（canAutoFocusField() 为 false）：showModal 会把焦点交给首个可聚焦元素——可能是文本框（弹键盘）
+        // 或编辑页的删除按钮（出现焦点框）。一律改为聚焦标题 h2（aria-labelledby 指向的标题，无 h2 时退回对话框容器），
+        // 读屏先读标题，按一次 Tab 才到删除等按钮；桌面浏览器保持原生行为。
+        if (!canAutoFocusField()) focusDialogTitle(dialog);
       }
       if (isContextDetail(dialog) && appShell && appShell.isWide()) dialog.dataset.contextPresentation = 'split';
       else if (isWideSidePage(dialog) && appShell && appShell.isWide()) dialog.dataset.contextPresentation = 'page';
