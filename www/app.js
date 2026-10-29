@@ -113,7 +113,11 @@
     if (document.activeElement !== target) target.focus({ preventScroll: true });
   }
   // 宽屏详情打开时中栏紧凑标题行「豆仓 · 3」的数量：当前列表（含筛选 / 搜索）里的条目数。只有该状态下 CSS 才显示它。
+  // 紧凑行的标题用左导航名称（与详情关闭时的大标题「饮用」「方案」不同）。
+  const COMPACT_TITLES = { beans: '豆仓', drinks: '饮用记录', plans: '冲煮方案' };
   function setCompactCount(count) {
+    const title = document.getElementById('shellCompactTitle');
+    if (title) title.textContent = COMPACT_TITLES[state.view] || '';
     const node = document.getElementById('shellCompactCount');
     if (node) node.textContent = `· ${Number(count) || 0}`;
   }

@@ -53,7 +53,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .brand-mark span { position: relative; width: 22px; height: 14px; border: 2px solid var(--accent); border-radius: 60% 35% 60% 35%; transform: rotate(-30deg); }
 .brand-mark span::after { content:""; position:absolute; inset:1px 8px; border-left:1px solid var(--accent); transform:rotate(20deg); }
 .brand-copy h1 { margin:0; font-family:"Vault Serif",serif; font-size:24px; font-weight:700; letter-spacing:.08em; line-height:1.1; }
-.topbar-compact-count { display:none; }
+.topbar-compact-title,.topbar-compact-count { display:none; }
 .brand-copy p { margin:4px 0 0; color:var(--faint); font-size:11px; letter-spacing:.05em; }
 .icon-button { display:grid; place-items:center; width:44px; height:44px; border:0; border-radius:var(--radius-control); background:transparent; color:var(--muted); font-size:25px; cursor:pointer; transition:background var(--motion-ui) var(--ease),color var(--motion-ui) var(--ease),transform var(--motion-ui) var(--ease); }
 .icon-button svg { width:21px; height:21px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
@@ -2603,9 +2603,11 @@ body:not(.cap-native) #personalLifetimeStats { display:none!important; }
     padding:0 16px;
     border-bottom:1px solid var(--vault-line-soft);
   }
-  body.has-context-detail .topbar-actions,body.has-context-detail .topbar-search,body.has-context-detail .shell-eyebrow,body.has-context-detail #recordCount { display:none!important; }
+  /* 紧凑行用左导航的名称（豆仓 / 饮用记录 / 冲煮方案），所以隐藏大标题 h1、改显示 #shellCompactTitle；详情关闭时的大标题不变。 */
+  body.has-context-detail .topbar-actions,body.has-context-detail .topbar-search,body.has-context-detail .shell-eyebrow,body.has-context-detail #recordCount,body.has-context-detail #shellTitle { display:none!important; }
   body.has-context-detail .brand-copy { display:flex; align-items:baseline; gap:6px; min-width:0; flex:1 1 auto; margin:0; }
-  body.has-context-detail .brand-copy h1 {
+  body.has-context-detail .topbar-compact-title {
+    display:block;
     min-width:0;
     margin:0;
     font-size:16px;

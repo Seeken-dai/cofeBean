@@ -292,7 +292,7 @@ test('3.0.9 宽屏列表多列：DROP 窄轨 / auto-fill max-4 / plan facts 2x2 
   assert.match(css, /body\[data-shell-view="plans"\]:not\(\.has-context-detail\) \.topbar[\s\S]*?grid-template-columns:\s*minmax\(0,1fr\)\s+auto\s+auto/);
   assert.match(css, /body\[data-shell-view="plans"\]:not\(\.has-context-detail\) \.topbar-search[\s\S]*?position:\s*static/);
   assert.match(css, /body\[data-shell-view="plans"\]:not\(\.has-context-detail\) \.wide-primary-action[\s\S]*?position:\s*static/);
-  assert.match(css, /body\.has-context-detail \.brand-copy h1[\s\S]*?white-space:\s*nowrap/);
+  assert.match(css, /body\.has-context-detail \.topbar-compact-title[\s\S]*?white-space:\s*nowrap/);
   assert.match(css, /body\.has-context-detail[\s\S]*?#planImportFab[\s\S]*?display:\s*none!important/);
   assert.match(app, /function syncPlanImportFabLabel\(\)/);
   assert.match(app, /aria-label', wide \? '导入' : '导入方案'/);
